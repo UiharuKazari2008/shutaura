@@ -1,3 +1,9 @@
-# Kanmi Discord Bot
+# Kanmi Sequenzia Framework
 
-A Multipurpose Discord Bot
+The base framework for Sequenzia
+
+Includes the following systems:
+* Discord I/O
+* FileWorker Upload and Download Client
+* Sync and Backup System
+* Kanmi CMS
