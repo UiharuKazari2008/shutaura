@@ -1,0 +1,11 @@
+node_modules/
+auth.json
+.idea/workspace.xml
+data/
+tmp/
+log/
+js/tools/
+upload/
+config.json
+ffmpeg*
+*.tar

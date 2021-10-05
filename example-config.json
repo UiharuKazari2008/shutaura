@@ -1,0 +1,15 @@
+{
+  "SystemName": "Master",
+  "SQLServer" : "127.0.0.1",
+  "SQLUsername" : "eiga",
+  "SQLPassword" : "",
+  "SQLDatabase" : "kanmi_system",
+  "AuthwareUser": "1",
+  "DiscordUser": "1",
+  "TwitterUser": "1",
+  "PixivUser": "1",
+  "YouTubeUser": "1",
+  "RSSAccount": "1",
+  "FlickrAccount": "1",
+  "TempFolder": "./temp"
+}
