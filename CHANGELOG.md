@@ -1,0 +1,256 @@
+# Kanmi Sequenzia Framework
+
+## v19
+### Important Notes
+This update requires the usage of the included update-databse.js script, this will convert URLs to Hash values in the database. This must be done before applying the secound part of the SQL database updates. Failure to follow this order will result in all data in the database losing the file records and will require a full database repair from the Discord console. You dont want to wait for that so do the right thing and read...
+### Amendments to Framework Role in Kanmi Storage Servers
+__This is not a requirement but is suggested depending your security stance.__<br>
+
+Its recommended that you create a new role called "Framework (Read-Only)" to all storage servers.
+Assign "View Channel". "Read Message History". for all channels that framework has rights to. Assign the same rights as Framework to the new read only role to the System Status parent where logging and notification channels are.
+
+Move Authware and Maintenance (used by Backup system)  to Read-Only and remove Framework
+
+With the new threads system ensure that Framework has rights to "Send messages in threads", "Manage Threads", "Create new Threads"
+
+### Change Log
+Severity: **Critical**<br>
+**This backup will not incude the new Sync system that replaces Backup I/O, the backup system will still work as normal**<br>
+**Please refer to the Wiki for config-options to verify your confiurations values and keys**<br>
+**Please upgrade your NPM packages with npm upgrade to fix various bugs in Eris and Thread Management**<br>
+- webcrawler.json is now removed
+- Legacy API has been completely removed, Use Webhooks now
+- Fixed fall through condition for Pixiv CMS to Twitter where threads parents were not checked if they were NSFW as threads do not contain this property. Causing it to fall trough and send NSFW posts into the outbox of the primary account
+- Fixed a issue on messageUpdate where it assumed that there was going to be content
+- Corrected santax that caused all Move requests to be sent to the fileworker
+- Corrected issue where remote move requests would lock up queue due to no callback
+- Fixed issue where Twitter flow control was permanently locked out if not in a overflow condition (Test error)
+- Updated ecosystem file for PM2
+- Replaced yeild with async/await for Pixiv CMS
+- Moved Pixiv recommended illustrations from Node Persistent to SQL
+- Added 2 new queues for packed/message arrays, this is a group of messages that will be sent as one instead of clogging the main queues
+- Twitter and Pixiv has been migrated to sending messages as message arrays instead of individual messages
+- Added juzo jfs rlch command (Relocate Channel) to move all messages from one channel to another channel
+  Has 2 modes db or deep, db will use data stored in the database and deep will pull the contents of the channel from discord to move them (this is not recommended for large channels)
+- Now can properly move spanned files cross-server boundaries. Parts are moved along with message records
+- Updated remote status system to support sending data objects for extended status information that can be displayed by the Status embed
+- Status Embed (Insight Status) now will set its color to yellow or red if it detects a warning or fault that you should know about
+- Added MQ backed undelivered Queue, If you have a deliverable channel setup it will send messages here only if it was not able to send it there, else if you do not use that feature it will be sent there. This is a absolute last resort to prevent messages from dropping. You have to manually use a shovel to move the data back to discord MQ
+- Added a retry for adding message reactions, Max 3 times
+- Fixed issue where posts from Twitter or Pixiv that did not have there attachments connect to the embed could not be approved
+- Watchdog system has had MQ support removed so prevent watchdog from becoming unavailable if the MQ fails
+- A lot of code is not Async/Await
+- Added Thread Management for CMS Threads, Will auto unarchive threads, mark completed threads that are terminated, delete old threads past a threshold, exclude unarching channels by search text
+- Pixiv supports Unified threads and channels and uses color encoding to set the image type (same as twitter does for listid)
+- Removed embedded image preview generation now that Discord Media CDN can do all that for free
+- Accept Video Preview Images only for embedded t9 cache
+- Unified all Message Create and Update proccess to ensure no future feature miss match and all database write are done the same between all proccesses
+- Added support to repair parity cache by "jfs repair parts"
+- Added storeage of extended status update data that will be stored in the database to enhance the results on the Insights embed in discord
+- Extended Status Updates data is cached in discord and is writen to the database every 3 minutes to prevent flooding of this non critical data
+- Added Active Alarms and Warnings to Insights
+- Added Active Jobs and Pending Jobs to insights display
+- Discord and AuthWare no longer need daily reboots
+- Added Undelivered MQ for failed messages even if no undelivered channel is set or failed to send to that channel
+- No longer will use typing as a method of verifying channel access. For now this is removed permanently as messages with incorrect channels are redirected to failed MQ
+- Pixiv with new create new threads for "Expand Search", Download User, Download Recommended to Post, etc.
+- Twitter now can download entire users tweets (up to 3200) and media only
+- Twitter will create new threads when downloading a users tweets
+- Added option for adding "FORCE" to the end of a download request in download channel this will allow downloading duplicate items
+- Twitter adds time of day that the message was ingested to aid in knowing your place in a timeline
+- Better handling of message parts for FileWorker, needed to use Async/Await to ensure messages are sent sync
+- Added support to allow for 2-Factor login support for Account elevation in Authware for better security and to prevent client side attacks
+- Added database application configuration as well as config.json values, database values are refreshed on a interval. Please refer to the wiki for updates to configuration names and values
+- Backup tracking is now in a seperate table
+- Message attachemnts are now hashed and no longer use full discord URLs as its not needed
+- Insighs now shows backup status and waiting items per host as well as if host has not checked in recently
+- Added support to allow webhook users to be considers normal users to allow for messages sent by them to be imported into the database for remote uploads and such
+- Added Alarm clocks to Discord that will send messages and mention a user (if set) they will also be shown in the Insight display
+- Pixiv can now get posts recommended to a specifed URL when sent into downloads channel with " RECOM" added to the end
+- Twitter has now dropped support for Node persistent is will now just store uploads as normal files, this is due to the unreliability of node-persistant
+- Reducing the amount of times that discord is called to retrive data that is possibly stored in the Eris cache.
+- LOTS OF CLEAN UP
+
+### SQL Updates (Part 1)
+- Creates Extended Status Data storeage
+- Creates new storage for recommended posts for Pixiv
+- Updates Pixiv and Twitter Account systems to match new requirements
+- Added Podcast episode title storeage in the case that the URL is changed
+- Addes 2-Factor login for AuthWare elevation
+- Addes Class and Channel URL overides for Sequenzia
+- Added option to hide ambient display from history view in gallery
+- Added support to automaticly download illustrations from a user on Pixiv
+- Added new global parameters table
+- Added new backup tracking table
+- Added is valid tracking for parity files so that discord can revalidate the files
+- Added new Discord Alarms table
+- Allows listid to be null for previouly downloaded tweets
+- Addes new attachemnt hash storage
+
+```mysql
+CREATE TABLE `discord_status_records` (
+  `name` varchar(128) NOT NULL,
+  `data` json NOT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `pixiv_recomm_illu` (
+  `paccount` int NOT NULL DEFAULT '0',
+  `id` varchar(128) NOT NULL,
+  `user` varchar(128) NOT NULL,
+  `data` json DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+DROP TABLE IF EXISTS `pixiv_accounts`;
+DROP TABLE IF EXISTS `twitter_list`;
+CREATE TABLE `pixiv_accounts` (
+  `paccount` int NOT NULL,
+  `feed_channelid` varchar(128) NOT NULL,
+  `feed_channelid_nsfw` varchar(128) DEFAULT NULL,
+  `recom_channelid` varchar(128) DEFAULT NULL,
+  `recom_channelid_nsfw` varchar(128) DEFAULT NULL,
+  `save_channelid` varchar(128) NOT NULL,
+  `save_channelid_nsfw` varchar(128) NOT NULL,
+  `download_channelid` varchar(128) NOT NULL,
+  `like_taccount` int DEFAULT NULL,
+  `like_taccount_nsfw` int DEFAULT NULL,
+  `authtoken` varchar(128) DEFAULT NULL,
+  `refreshtoken` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`paccount`),
+  UNIQUE KEY `paccount_UNIQUE` (`paccount`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+CREATE TABLE `twitter_list` (
+  `id` int NOT NULL,
+  `listid` varchar(128) NOT NULL DEFAULT '0',
+  `taccount` int NOT NULL DEFAULT '0',
+  `name` varchar(255) NOT NULL DEFAULT '0',
+  `channelid` varchar(128) DEFAULT '0',
+  `channelid_rt` varchar(128) DEFAULT NULL,
+  `saveid` varchar(128) NOT NULL DEFAULT '0',
+  `textallowed` tinyint(1) NOT NULL DEFAULT '1',
+  `getretweets` tinyint(1) NOT NULL DEFAULT '1',
+  `nsfw` tinyint(1) NOT NULL DEFAULT '0',
+  `replyenabled` tinyint(1) DEFAULT '1',
+  `blockselfrt` tinyint(1) DEFAULT '0',
+  `mergelike` tinyint(1) DEFAULT '0',
+  `disablelike` tinyint(1) DEFAULT '0',
+  `autolike` tinyint(1) DEFAULT '0',
+  `bypasscds` tinyint(1) DEFAULT '0',
+  `flowcontrol` tinyint(1) DEFAULT '0',
+  `redirect_taccount` int DEFAULT '1',
+  `active_thread` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `twitter_list_id_uindex` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+ALTER TABLE `twitter_accounts` add `name` text;
+alter table `twitter_accounts` modify `activity_userid` varchar(128) DEFAULT NULL;
+
+ALTER TABLE `podcast_history` ADD `thash` text;
+ALTER TABLE `discord_users` ADD `2fa_key` varchar(128) DEFAULT NULL;
+ALTER TABLE `discord_users` ADD `nice_name` text;
+ALTER TABLE `sequenzia_class` ADD `uri` varchar(64) DEFAULT NULL;
+ALTER TABLE `kanmi_channels` ADD `uri` varchar(64) DEFAULT NULL;
+ALTER TABLE `kanmi_virtual_channels` ADD `uri` varchar(64) DEFAULT NULL;
+ALTER TABLE `sequenzia_display_config` ADD `showHistory` tinyint(1) NOT NULL DEFAULT '1';
+create table pixiv_autodownload
+(
+    user_id varchar(128) not null,
+    channelid varchar(128) null,
+    constraint pixiv_autodownload_pk
+        primary key (user_id)
+);
+create table global_parameters
+(
+    system_name varchar(128) null,
+    application varchar(128) null,
+    account int null,
+    serverid int null,
+    param_key varchar(128) not null,
+    param_value text null,
+    param_data json null
+);
+create table kanmi_backups
+(
+    bid varchar(156) not null,
+    eid int not null,
+    path text not null,
+    system_name varchar(128) not null
+);
+
+create unique index kanmi_backups_bid_uindex
+    on kanmi_backups (bid);
+
+alter table kanmi_backups
+    add constraint kanmi_backups_pk
+        primary key (bid);
+create table discord_multipart_backups
+(
+  bid varchar(156) not null,
+  messageid varchar(128) not null,
+  path text not null,
+  system_name varchar(128) not null
+);
+
+create unique index discord_multipart_backups_bid_uindex
+  on discord_multipart_backups (bid);
+
+alter table discord_multipart_backups
+  add constraint discord_multipart_backups_pk
+    primary key (bid);
+alter table discord_multipart_files drop column backup;
+
+alter table discord_multipart_files
+  add valid tinyint(1) default 1 not null;
+create table discord_alarms
+(
+  id int,
+  channel varchar(128) null,
+  schedule varchar(128) not null,
+  mention varchar(128) null,
+  text text null,
+  snoozeable int null,
+  expires int null
+);
+
+create unique index discord_alarms_id_uindex
+  on discord_alarms (id);
+
+alter table discord_alarms
+  add constraint discord_alarms_pk
+    primary key (id);
+
+alter table discord_alarms modify id int auto_increment;
+alter table kanmi_records
+  add attachment_hash varchar(512) null after attachment_url;
+alter table twitter_history_inbound modify listid varchar(128) null;
+```
+### Database Transformation Script
+**This can be applied live (You have to run it again if any files are uploaded during the proccess) but the part 2 operation to remove the old columns must be done with ALL SYSTEMS THAT TOUCH KANMI TO BE SHUTDOWN**
+
+- Extract and convert attachment urls to hashs
+- Correct incorrect filenames to their actual name according to the hash (this filename is very important now due to discord being case-sensitive!)<br>
+
+This will save space in the database and decrease backup sizes. As well as storing attachment urls are a waste as they all contain similar information and all you need is the hash<br>
+
+```shell
+cd ~/kanmi
+node update-database.js
+```
+Please run one more time after running to ensure that everything is done correctly
+
+### SQL Updates (Part 2)
+**Theses should ONLY be applied after you have ran the updates database script! Its also a good idea to backup your database first**<br>
+**After applying this update Sequenzia has to be updated or no images will be returned**<br>
+
+You must also update **and shutdown** the following before applying:
+- Discord I/O
+- FileWorker
+- Backup or Sync
+- Sequenzia
+- Honey for Sequenzia
+```mysql
+alter table kanmi_records drop column attachment_url;
+alter table kanmi_records drop column attachment_proxy;
+alter table kanmi_records drop column pinned;
+alter table kanmi_records drop column tags;
+alter table kanmi_records drop column backup;
+```

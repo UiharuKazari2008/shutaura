@@ -1,8 +1,9 @@
 let systemglobal = require('./config.json');
 const fs = require("fs");
 
-const db = require('../utils/shutauraSQL')("Toolbox");
+const db = require('./js/utils/shutauraSQL')("Toolbox");
 (async () => {
+    console.log("I sure hope you backed up your database??");
     console.log("Getting items extract/transfer hash...");
     const messagesUpdate = await db.query(`SELECT eid, channel, attachment_name, attachment_url
                                            FROM kanmi_records
