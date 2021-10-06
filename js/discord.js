@@ -48,7 +48,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
     const {spawn} = require("child_process");
-    const {message} = require("twit/lib/parser");
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
@@ -6972,15 +6971,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
         // Reset states to last values
         resetStates();
+        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+            setTimeout(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            }, 5000)
+        }
         if (init === 0) {
             if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-                setTimeout(() => {
-                    request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                        }
-                    })
-                }, 5000)
                 setTimeout(sendWatchdogPing, 60000);
             }
             discordClient.editStatus( "dnd",{

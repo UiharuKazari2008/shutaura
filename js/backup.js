@@ -66,6 +66,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_watchdog_id.length > 0 && _watchdog_id[0].param_value) {
                 systemglobal.Watchdog_ID = _watchdog_id[0].param_value;
             }
+            const _mq_discord_out = systemparams_sql.filter(e => e.param_key === 'mq.discord.out');
+            if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
+                systemglobal.Discord_Out = _mq_discord_out[0].param_value;
+            }
             const _home_guild = systemparams_sql.filter(e => e.param_key === 'discord.home_guild');
             if (_home_guild.length > 0 && _home_guild[0].param_value) {
                 systemglobal.DiscordHomeGuild = _home_guild[0].param_value;
