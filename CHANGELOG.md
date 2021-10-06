@@ -1,5 +1,8 @@
 # Kanmi Sequenzia Framework
 
+## v20 (RC1 JFS v1.5)
+- Corrected issue with Backup system where it could not get the Discord MQ parameters from SQL
+
 ## v19 (RC1 JFS v1.5)
 ### Important Notes
 This update requires the usage of the included update-databse.js script, this will convert URLs to Hash values in the database. This must be done before applying the secound part of the SQL database updates. Failure to follow this order will result in all data in the database losing the file records and will require a full database repair from the Discord console. You dont want to wait for that so do the right thing and read...
