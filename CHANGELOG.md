@@ -1,6 +1,6 @@
 # Kanmi Sequenzia Framework
 
-## v19
+## v19 (RC1 JFS v1.5)
 ### Important Notes
 This update requires the usage of the included update-databse.js script, this will convert URLs to Hash values in the database. This must be done before applying the secound part of the SQL database updates. Failure to follow this order will result in all data in the database losing the file records and will require a full database repair from the Discord console. You dont want to wait for that so do the right thing and read...
 ### Amendments to Framework Role in Kanmi Storage Servers
@@ -18,6 +18,7 @@ Severity: **Critical**<br>
 **This backup will not incude the new Sync system that replaces Backup I/O, the backup system will still work as normal**<br>
 **Please refer to the Wiki for config-options to verify your confiurations values and keys**<br>
 **Please upgrade your NPM packages with npm upgrade to fix various bugs in Eris and Thread Management**<br>
+- New JuneFS Standard Version 1.5
 - webcrawler.json is now removed
 - Legacy API has been completely removed, Use Webhooks now
 - Fixed fall through condition for Pixiv CMS to Twitter where threads parents were not checked if they were NSFW as threads do not contain this property. Causing it to fall trough and send NSFW posts into the outbox of the primary account
@@ -254,3 +255,17 @@ alter table kanmi_records drop column pinned;
 alter table kanmi_records drop column tags;
 alter table kanmi_records drop column backup;
 ```
+
+## v18 (RC1 JFS v1.5)
+Severity: **Medium**
+- Added support for recycling bin, this is a channel that any undeliverable message will be sent to.
+  To setup, Create `system-undeliverable` channel under `System Data` parent. Set `Discord_Recycling_Bin` in your config file to the channel id
+- No longer will drop messages that fail to access channel if recycling bin is setup, they will only be dropped if it failed to write to the bin
+- Added config option to rate limit the ingress of jobs with the active request handler limits. ELIF: Only send data as fast as discord is willing to accept it, wait for previous actions to complete before closing ticket (This could fix segmentation faults on Raspberry Pi)
+- Added `juzo status` command that will print out system internals status and for the message queue
+- FileWorker now generates video preview images for uploaded videos
+- Discord can now generate video previews for files if preview video is both directly accessable from discord or using spanned file inspection (using a part of file attempt to generate the thumbnail), if either fail the task is sent to the FileWork where compiled files can be checked
+- Discord no longer needs messageType in messages, it will now determin the message type and contents from the fields
+- JuneFS Repair command has been re-added and updated to support both embedded preview images and polyfills
+- Discord can now move files larger then 8MB using the FileWorker for assistance
+
