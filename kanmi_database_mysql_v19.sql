@@ -1,4 +1,4 @@
-CREATE DATABASE  IF NOT EXISTS `kanmi_system` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci */ /*!80016 DEFAULT ENCRYPTION='N' */;
+CREATE DATABASE  IF NOT EXISTS `kanmi_system` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE `kanmi_system`;
 -- MySQL dump 10.13  Distrib 8.0.20, for Win64 (x86_64)
 --
@@ -20,37 +20,30 @@ SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;
 SET @@SESSION.SQL_LOG_BIN= 0;
 
 --
--- Table structure for table `discord_accounts`
+-- GTID state at the beginning of the backup 
 --
 
-DROP TABLE IF EXISTS `discord_accounts`;
+SET @@GLOBAL.GTID_PURGED=/*!80000 '+'*/ '91bbc3ef-e33f-11ea-9d31-000c2994af22:1-63046,
+dc586691-5614-11eb-9849-000c298772a1:1-10617703';
+
+--
+-- Table structure for table `discord_alarms`
+--
+
+DROP TABLE IF EXISTS `discord_alarms`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `discord_accounts` (
-  `daccount` int NOT NULL,
-  `api_key` varchar(255) NOT NULL,
-  `main_guildid` varchar(128) DEFAULT NULL,
-  `publicsystemchannelid` varchar(128) NOT NULL,
-  `downloadchannelid` varchar(128) NOT NULL,
-  `videochannelid` varchar(128) NOT NULL,
-  `radiochannelid` varchar(128) NOT NULL,
-  `archivechannelid` varchar(128) NOT NULL,
-  `archivensfwchannelid` varchar(128) NOT NULL,
-  `filedatachannelid` varchar(128) NOT NULL,
-  `parent_folder` varchar(128) NOT NULL,
-  `parent_album` varchar(128) NOT NULL,
-  `authorized_role` varchar(128) NOT NULL,
-  `system_role` varchar(128) NOT NULL,
-  `msg_chid_info` varchar(128) DEFAULT NULL,
-  `msg_chid_warn` varchar(128) DEFAULT NULL,
-  `msg_chid_err` varchar(128) DEFAULT NULL,
-  `msg_chid_crit` varchar(128) DEFAULT NULL,
-  `msg_chid_notif` varchar(128) DEFAULT NULL,
-  `systemchannelid` varchar(128) NOT NULL,
-  PRIMARY KEY (`daccount`),
-  UNIQUE KEY `daccount_UNIQUE` (`daccount`),
-  UNIQUE KEY `api_key_UNIQUE` (`api_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+CREATE TABLE `discord_alarms` (
+  `channel` varchar(128) DEFAULT NULL,
+  `id` int NOT NULL AUTO_INCREMENT,
+  `schedule` varchar(128) NOT NULL,
+  `mention` varchar(128) DEFAULT NULL,
+  `text` text,
+  `snooze` int DEFAULT NULL,
+  `expires` int DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `discord_alarms_id_uindex` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -65,7 +58,7 @@ CREATE TABLE `discord_archive_overide` (
   `archivech` varchar(128) NOT NULL,
   PRIMARY KEY (`fromch`),
   UNIQUE KEY `fromch_UNIQUE` (`fromch`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -82,7 +75,34 @@ CREATE TABLE `discord_autoclean` (
   `clearbtn` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`channelid`),
   UNIQUE KEY `channelid_UNIQUE` (`channelid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `discord_autothread`
+--
+
+DROP TABLE IF EXISTS `discord_autothread`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discord_autothread` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `channelid` varchar(128) NOT NULL,
+  `prefix` text NOT NULL,
+  `pinbutton` tinyint(1) NOT NULL DEFAULT '1',
+  `addtc` tinyint(1) NOT NULL DEFAULT '1',
+  `tcparent` tinyint(1) NOT NULL DEFAULT '0',
+  `check_constantly` tinyint(1) NOT NULL DEFAULT '0',
+  `cycletime` int NOT NULL DEFAULT '24',
+  `update_table` text,
+  `update_field` text,
+  `update_where` text,
+  `lifetime` varchar(16) NOT NULL DEFAULT '1440',
+  `expire` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `lastthread` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `discord_autothread_id_uindex` (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -98,7 +118,7 @@ CREATE TABLE `discord_cache` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `discord_cache_cache_uindex` (`cache`),
   UNIQUE KEY `discord_cache_id_uindex` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -114,22 +134,24 @@ CREATE TABLE `discord_download` (
   `type` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`channelid`),
   UNIQUE KEY `discord_download_channelid_uindex` (`channelid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Table structure for table `discord_ignoredch`
+-- Table structure for table `discord_multipart_backups`
 --
 
-DROP TABLE IF EXISTS `discord_ignoredch`;
+DROP TABLE IF EXISTS `discord_multipart_backups`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
-CREATE TABLE `discord_ignoredch` (
-  `index` int NOT NULL AUTO_INCREMENT,
-  `channelid` varchar(128) NOT NULL,
-  PRIMARY KEY (`index`),
-  UNIQUE KEY `index_UNIQUE` (`index`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+CREATE TABLE `discord_multipart_backups` (
+  `bid` varchar(156) NOT NULL,
+  `messageid` varchar(128) NOT NULL,
+  `path` text NOT NULL,
+  `system_name` varchar(128) NOT NULL,
+  PRIMARY KEY (`bid`),
+  UNIQUE KEY `discord_multipart_backups_bid_uindex` (`bid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -146,10 +168,10 @@ CREATE TABLE `discord_multipart_files` (
   `fileid` varchar(128) NOT NULL,
   `url` varchar(255) DEFAULT NULL,
   `hash` varchar(128) DEFAULT NULL,
-  `backup` tinyint(1) DEFAULT '0',
+  `valid` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`messageid`),
   UNIQUE KEY `messageid_UNIQUE` (`messageid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -165,7 +187,7 @@ CREATE TABLE `discord_permissons` (
   `name` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`role`),
   UNIQUE KEY `discord_permissons_role_uindex` (`role`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -176,6 +198,7 @@ DROP TABLE IF EXISTS `discord_reactions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `discord_reactions` (
+  `serverid` varchar(128) DEFAULT NULL,
   `position` int DEFAULT NULL,
   `reaction_name` varchar(64) NOT NULL,
   `reaction_emoji` varchar(128) NOT NULL,
@@ -185,10 +208,8 @@ CREATE TABLE `discord_reactions` (
   `download_channelid` varchar(128) DEFAULT NULL,
   `download_listid` varchar(128) DEFAULT NULL,
   `download_taccount` int DEFAULT NULL,
-  PRIMARY KEY (`reaction_name`),
-  UNIQUE KEY `reaction_name_UNIQUE` (`reaction_name`),
-  UNIQUE KEY `reaction_emoji_UNIQUE` (`reaction_emoji`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  UNIQUE KEY `discord_reactions_custom` (`reaction_custom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -204,7 +225,7 @@ CREATE TABLE `discord_reactions_autoadd` (
   `emoji_name` varchar(128) NOT NULL,
   PRIMARY KEY (`index`),
   UNIQUE KEY `index_UNIQUE` (`index`)
-) ENGINE=InnoDB AUTO_INCREMENT=41 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -215,29 +236,29 @@ DROP TABLE IF EXISTS `discord_servers`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `discord_servers` (
-  `serverid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `serverid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `position` int DEFAULT NULL,
   `avatar` varchar(255) DEFAULT NULL,
   `name` text,
   `nice_name` text,
   `short_name` text,
-  `chid_system` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_systempub` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_filedata` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `chid_system` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_systempub` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_filedata` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `chid_filecache` varchar(128) DEFAULT NULL,
-  `chid_archive` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_archive_nsfw` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_download` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_download_video` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_msg_info` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_msg_warn` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_msg_err` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_msg_crit` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `chid_msg_notif` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
+  `chid_archive` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_archive_nsfw` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_download` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_download_video` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_msg_info` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_msg_warn` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_msg_err` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_msg_crit` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+  `chid_msg_notif` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `authware_enabled` tinyint DEFAULT '0',
   PRIMARY KEY (`serverid`),
   UNIQUE KEY `serverid_UNIQUE` (`serverid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -252,7 +273,21 @@ CREATE TABLE `discord_status` (
   `name` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`channel`),
   UNIQUE KEY `discord_status_channel_uindex` (`channel`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `discord_status_records`
+--
+
+DROP TABLE IF EXISTS `discord_status_records`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `discord_status_records` (
+  `name` varchar(128) NOT NULL,
+  `data` json NOT NULL,
+  PRIMARY KEY (`name`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -270,17 +305,19 @@ CREATE TABLE `discord_users` (
   `write_roles` mediumtext,
   `manage_roles` mediumtext,
   `manager` tinyint(1) DEFAULT NULL,
+  `nice_name` text,
   `username` text,
   `avatar` varchar(128) DEFAULT NULL,
   `telegram_id` varchar(128) DEFAULT NULL,
   `apple_cid` varchar(128) DEFAULT NULL,
+  `2fa_key` varchar(128) DEFAULT NULL,
   `token` varchar(1024) DEFAULT NULL,
   `blind_token` varchar(512) DEFAULT NULL,
   `token_static` varchar(1024) DEFAULT NULL,
   `token_expires` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`serveruserid`),
   UNIQUE KEY `discord_users_id_uindex` (`serveruserid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -295,7 +332,7 @@ CREATE TABLE `discord_users_permissons` (
   `serverid` varchar(128) NOT NULL,
   `role` varchar(128) NOT NULL,
   `type` int NOT NULL DEFAULT '0'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -310,7 +347,7 @@ CREATE TABLE `flickr_history` (
   `username` varchar(128) NOT NULL,
   `date` datetime NOT NULL,
   PRIMARY KEY (`photo_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -327,7 +364,42 @@ CREATE TABLE `flickr_watchlist` (
   `approval_ch` varchar(128) DEFAULT NULL,
   `backlog` tinyint(1) DEFAULT '0',
   PRIMARY KEY (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `global_parameters`
+--
+
+DROP TABLE IF EXISTS `global_parameters`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `global_parameters` (
+  `system_name` varchar(128) DEFAULT NULL,
+  `application` varchar(128) DEFAULT NULL,
+  `account` int DEFAULT NULL,
+  `serverid` varchar(128) DEFAULT NULL,
+  `param_key` varchar(128) NOT NULL,
+  `param_value` text,
+  `param_data` json DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `kanmi_backups`
+--
+
+DROP TABLE IF EXISTS `kanmi_backups`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `kanmi_backups` (
+  `bid` varchar(156) NOT NULL,
+  `eid` int NOT NULL,
+  `path` text NOT NULL,
+  `system_name` varchar(128) NOT NULL,
+  PRIMARY KEY (`bid`),
+  UNIQUE KEY `kanmi_backups_bid_uindex` (`bid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -339,29 +411,30 @@ DROP TABLE IF EXISTS `kanmi_channels`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `kanmi_channels` (
   `cid` int NOT NULL AUTO_INCREMENT,
+  `nice_name` text,
+  `classification` varchar(128) DEFAULT NULL,
+  `uri` varchar(128) DEFAULT NULL,
+  `watch_folder` varchar(250) DEFAULT NULL,
+  `notify` varchar(128) DEFAULT NULL,
+  `autofetch` tinyint(1) NOT NULL DEFAULT '1',
+  `role` varchar(128) DEFAULT NULL,
+  `role_write` varchar(128) DEFAULT NULL,
+  `role_manage` varchar(128) DEFAULT NULL,
   `virtual_cid` int DEFAULT NULL,
   `source` int DEFAULT '0',
-  `channelid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0',
-  `serverid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT '0',
+  `channelid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '0',
+  `serverid` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL DEFAULT '0',
+  `parent` varchar(128) DEFAULT NULL,
   `position` int DEFAULT NULL,
-  `name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
-  `short_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `parent` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `classification` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `nsfw` tinyint(1) NOT NULL DEFAULT '0',
-  `last_message` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `watch_folder` varchar(250) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `role` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `role_write` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `role_manage` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
-  `nice_name` text,
+  `name` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `short_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `description` text,
-  `notify` varchar(128) DEFAULT NULL,
+  `nsfw` tinyint(1) NOT NULL DEFAULT '0',
+  `last_message` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`cid`),
   UNIQUE KEY `channelid_UNIQUE` (`channelid`),
-  KEY `fds_idx` (`serverid`),
-  CONSTRAINT `kanmi_channels_discord_servers_serverid_fk` FOREIGN KEY (`serverid`) REFERENCES `discord_servers` (`serverid`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  KEY `fds_idx` (`serverid`)
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -374,24 +447,21 @@ DROP TABLE IF EXISTS `kanmi_records`;
 CREATE TABLE `kanmi_records` (
   `eid` int NOT NULL AUTO_INCREMENT,
   `source` int DEFAULT '0',
-  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `server` varchar(128) NOT NULL,
   `channel` varchar(128) NOT NULL,
   `user` varchar(128) NOT NULL,
   `date` datetime DEFAULT NULL,
-  `content_full` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `content_full` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   `fileid` varchar(128) DEFAULT NULL,
   `real_filename` varchar(255) DEFAULT NULL,
   `filesize` double(10,2) DEFAULT NULL,
-  `attachment_name` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
-  `attachment_url` mediumtext,
-  `attachment_proxy` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `attachment_name` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `attachment_hash` varchar(512) DEFAULT NULL,
   `attachment_extra` mediumtext,
-  `cache_url` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
-  `cache_proxy` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `cache_url` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `cache_proxy` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   `cache_extra` mediumtext,
-  `pinned` tinyint(1) DEFAULT '0',
-  `tags` varchar(1024) DEFAULT NULL,
   `sizeH` int DEFAULT NULL,
   `sizeW` int DEFAULT NULL,
   `sizeR` double(8,5) DEFAULT NULL,
@@ -400,7 +470,6 @@ CREATE TABLE `kanmi_records` (
   `colorB` int DEFAULT NULL,
   `dark_color` tinyint(1) DEFAULT NULL,
   `hash` varchar(128) DEFAULT NULL,
-  `backup` tinyint(1) DEFAULT '0',
   `flagged` tinyint DEFAULT '0',
   PRIMARY KEY (`eid`),
   UNIQUE KEY `discord_messages_id_index` (`id` DESC),
@@ -408,9 +477,8 @@ CREATE TABLE `kanmi_records` (
   KEY `discord_messages_date_index` (`date` DESC),
   KEY `kanmi_records_kanmi_channels_channelid_fk` (`channel`),
   KEY `kanmi_records_discord_servers_serverid_fk` (`server`),
-  CONSTRAINT `kanmi_records_discord_servers_serverid_fk` FOREIGN KEY (`server`) REFERENCES `discord_servers` (`serverid`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `kanmi_records_kanmi_channels_channelid_fk` FOREIGN KEY (`channel`) REFERENCES `kanmi_channels` (`channelid`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE=InnoDB AUTO_INCREMENT=0 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -424,9 +492,10 @@ CREATE TABLE `kanmi_virtual_channels` (
   `virtual_cid` int NOT NULL,
   `name` text NOT NULL,
   `description` text,
+  `uri` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`virtual_cid`),
   UNIQUE KEY `kanmi_virtual_channels_virtual_cid_uindex` (`virtual_cid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -441,7 +510,7 @@ CREATE TABLE `mixcloud_watchlist` (
   `channelid` varchar(128) NOT NULL,
   `search` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -456,7 +525,7 @@ CREATE TABLE `news_history` (
   `feed` varchar(255) DEFAULT NULL,
   `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`item_url`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -470,7 +539,7 @@ CREATE TABLE `news_watchlist` (
   `feed` varchar(255) NOT NULL,
   `channelid` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`feed`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -483,7 +552,7 @@ DROP TABLE IF EXISTS `pixiv_accounts`;
 CREATE TABLE `pixiv_accounts` (
   `paccount` int NOT NULL,
   `feed_channelid` varchar(128) NOT NULL,
-  `feed_channelid_nsfw` varchar(128) NOT NULL,
+  `feed_channelid_nsfw` varchar(128) DEFAULT NULL,
   `recom_channelid` varchar(128) DEFAULT NULL,
   `recom_channelid_nsfw` varchar(128) DEFAULT NULL,
   `save_channelid` varchar(128) NOT NULL,
@@ -495,7 +564,21 @@ CREATE TABLE `pixiv_accounts` (
   `refreshtoken` varchar(128) DEFAULT NULL,
   PRIMARY KEY (`paccount`),
   UNIQUE KEY `paccount_UNIQUE` (`paccount`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pixiv_autodownload`
+--
+
+DROP TABLE IF EXISTS `pixiv_autodownload`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pixiv_autodownload` (
+  `user_id` varchar(128) NOT NULL,
+  `channelid` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -510,7 +593,23 @@ CREATE TABLE `pixiv_history_illu` (
   `user_id` varchar(128) NOT NULL,
   `timestamp` datetime NOT NULL,
   PRIMARY KEY (`illu_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `pixiv_recomm_illu`
+--
+
+DROP TABLE IF EXISTS `pixiv_recomm_illu`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `pixiv_recomm_illu` (
+  `paccount` int NOT NULL DEFAULT '0',
+  `id` varchar(128) NOT NULL,
+  `user` varchar(128) NOT NULL,
+  `data` json DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -524,7 +623,7 @@ CREATE TABLE `pixiv_tweets` (
   `id` varchar(128) NOT NULL,
   `date` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -539,7 +638,7 @@ CREATE TABLE `pixiv_watchlists` (
   `paccount` int DEFAULT NULL,
   PRIMARY KEY (`tag_name`),
   UNIQUE KEY `pixiv_user_UNIQUE` (`tag_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -551,6 +650,7 @@ DROP TABLE IF EXISTS `podcast_history`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `podcast_history` (
   `url` varchar(1024) COLLATE utf8_unicode_ci NOT NULL,
+  `thash` text COLLATE utf8_unicode_ci,
   `feed` varchar(1024) COLLATE utf8_unicode_ci NOT NULL,
   `date` datetime NOT NULL,
   PRIMARY KEY (`url`)
@@ -570,7 +670,7 @@ CREATE TABLE `podcast_watchlist` (
   `url` mediumtext NOT NULL,
   `channelid` varchar(128) NOT NULL,
   PRIMARY KEY (`index`)
-) ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -586,8 +686,14 @@ CREATE TABLE `seqran_channels` (
   `search` text,
   `schedule` varchar(50) DEFAULT NULL,
   `message` text,
-  `lastmessage` varchar(128) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `updateOnly` tinyint NOT NULL DEFAULT '0',
+  `linked` tinyint NOT NULL DEFAULT '0',
+  `displayname` text,
+  `fav_userid` varchar(128) DEFAULT NULL,
+  `lastmessage` varchar(128) DEFAULT NULL,
+  `lasteid` int DEFAULT NULL,
+  `lastmodify` datetime DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -600,7 +706,7 @@ DROP TABLE IF EXISTS `seqran_quotes`;
 CREATE TABLE `seqran_quotes` (
   `text` text NOT NULL,
   `tag` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -614,7 +720,7 @@ CREATE TABLE `sequenzia_album_items` (
   `eid` int NOT NULL,
   `aid` int NOT NULL,
   `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -632,7 +738,7 @@ CREATE TABLE `sequenzia_albums` (
   `privacy` tinyint(1) DEFAULT '1',
   PRIMARY KEY (`aid`),
   UNIQUE KEY `sequenzia_albums_aid_uindex` (`aid`)
-) ENGINE=InnoDB AUTO_INCREMENT=12 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -646,7 +752,7 @@ CREATE TABLE `sequenzia_artists_favorites` (
   `id` varchar(255) NOT NULL,
   `userid` varchar(128) NOT NULL,
   `date` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -659,6 +765,7 @@ DROP TABLE IF EXISTS `sequenzia_class`;
 CREATE TABLE `sequenzia_class` (
   `class` varchar(128) NOT NULL,
   `super` varchar(128) NOT NULL,
+  `uri` varchar(64) DEFAULT NULL,
   `position` int DEFAULT NULL,
   `name` varchar(128) NOT NULL,
   `icon` varchar(128) DEFAULT NULL,
@@ -682,7 +789,7 @@ CREATE TABLE `sequenzia_custom_channels` (
   `name` varchar(255) DEFAULT NULL,
   `class` varchar(255) DEFAULT NULL,
   `role` varchar(255) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -697,9 +804,6 @@ CREATE TABLE `sequenzia_display_config` (
   `name` varchar(255) NOT NULL,
   `user` varchar(128) NOT NULL,
   `nice_name` mediumtext,
-  `requestChannels` text,
-  `requestFolders` text,
-  `requestAlbums` int DEFAULT NULL,
   `requestOptions` text,
   `refreshTime` int NOT NULL DEFAULT '15',
   `imageFormat` varchar(5) NOT NULL DEFAULT 'webm',
@@ -720,9 +824,10 @@ CREATE TABLE `sequenzia_display_config` (
   `weatherDisplay` int NOT NULL DEFAULT '0',
   `quoteEnable` tinyint(1) NOT NULL DEFAULT '0',
   `quoteTag` text,
+  `showHistory` tinyint(1) NOT NULL DEFAULT '1',
   PRIMARY KEY (`uid`),
   UNIQUE KEY `sequenzia_display_config_uid_uindex` (`uid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -738,7 +843,7 @@ CREATE TABLE `sequenzia_display_history` (
   `screen` int DEFAULT NULL,
   `user` varchar(128) DEFAULT NULL,
   `date` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -754,7 +859,7 @@ CREATE TABLE `sequenzia_favorites` (
   `date` datetime DEFAULT CURRENT_TIMESTAMP,
   KEY `sequenzia_favorites_id_index` (`eid`),
   KEY `sequenzia_favorites_userid_index` (`userid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -767,7 +872,7 @@ DROP TABLE IF EXISTS `sequenzia_hidden_channels`;
 CREATE TABLE `sequenzia_hidden_channels` (
   `cid` int NOT NULL,
   `user` varchar(128) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -784,7 +889,7 @@ CREATE TABLE `sequenzia_homelinks` (
   `url` text NOT NULL,
   PRIMARY KEY (`position`),
   UNIQUE KEY `sequenzia_homelinks_position_uindex` (`position`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -807,7 +912,7 @@ CREATE TABLE `sequenzia_index_artists` (
   `count` int DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `sequenzia_index_artists_id_uindex` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -820,7 +925,7 @@ DROP TABLE IF EXISTS `sequenzia_index_custom`;
 CREATE TABLE `sequenzia_index_custom` (
   `search` text,
   `artist` text
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -837,7 +942,23 @@ CREATE TABLE `sequenzia_login_codes` (
   PRIMARY KEY (`code`),
   UNIQUE KEY `sequenzia_login_codes_code_uindex` (`code`),
   UNIQUE KEY `sequenzia_login_codes_session_uindex` (`session`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Table structure for table `sequenzia_navigation_history`
+--
+
+DROP TABLE IF EXISTS `sequenzia_navigation_history`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `sequenzia_navigation_history` (
+  `user` varchar(128) NOT NULL,
+  `uri` varchar(2048) NOT NULL,
+  `title` varchar(1024) DEFAULT NULL,
+  `date` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `saved` tinyint(1) NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -853,7 +974,7 @@ CREATE TABLE `sequenzia_quotes` (
   `author` text,
   `tags` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`index`)
-) ENGINE=InnoDB AUTO_INCREMENT=499445 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -864,11 +985,11 @@ DROP TABLE IF EXISTS `sequenzia_sessions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `sequenzia_sessions` (
-  `session_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
+  `session_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `expires` int unsigned NOT NULL,
-  `data` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci,
+  `data` mediumtext CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
   PRIMARY KEY (`session_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -905,7 +1026,7 @@ CREATE TABLE `sequenzia_user_config` (
   `mention_req` tinyint DEFAULT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `sequenzia_user_config_id_uindex` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -943,7 +1064,7 @@ CREATE TABLE `system_config` (
   UNIQUE KEY `system_name_UNIQUE` (`system_name`),
   UNIQUE KEY `api_key_UNIQUE` (`api_key`),
   UNIQUE KEY `wss_key_UNIQUE` (`wss_key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -972,7 +1093,7 @@ CREATE TABLE `system_global` (
   `ffmpeg_abitrate` varchar(45) DEFAULT NULL,
   PRIMARY KEY (`config_id`),
   UNIQUE KEY `config_id_UNIQUE` (`config_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -985,7 +1106,7 @@ DROP TABLE IF EXISTS `telegram_accounts`;
 CREATE TABLE `telegram_accounts` (
   `account` int NOT NULL,
   `token` varchar(128) NOT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -999,7 +1120,7 @@ CREATE TABLE `telegram_groups` (
   `serverid` varchar(128) DEFAULT NULL,
   `chid_log` varchar(128) DEFAULT NULL,
   `chid_filedata` varchar(128) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1027,7 +1148,7 @@ CREATE TABLE `timeline_messages` (
   `cache_embeds` mediumtext,
   `viewed` tinyint DEFAULT NULL,
   UNIQUE KEY `timeline_messages_id_uindex` (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1039,6 +1160,7 @@ DROP TABLE IF EXISTS `twitter_accounts`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `twitter_accounts` (
   `taccount` int NOT NULL AUTO_INCREMENT,
+  `name` text,
   `short_name` text,
   `consumer_key` varchar(255) NOT NULL DEFAULT '0',
   `consumer_secret` varchar(255) NOT NULL DEFAULT '0',
@@ -1046,8 +1168,9 @@ CREATE TABLE `twitter_accounts` (
   `access_token_secret` varchar(255) NOT NULL DEFAULT '0',
   `streamenv` varchar(45) DEFAULT 'dev',
   `activitychannelid` varchar(128) DEFAULT NULL,
+  `activity_userid` varchar(128) DEFAULT NULL,
   `flowcontrol` tinyint(1) DEFAULT '0',
-  `flowstatuschannelid` varchar(128) DEFAULT NULL,
+  `flowstatuschannel` varchar(128) DEFAULT NULL,
   `flowcontrol_schedule` varchar(32) DEFAULT '*/2 * * * *',
   PRIMARY KEY (`taccount`),
   UNIQUE KEY `taccount_UNIQUE` (`taccount`),
@@ -1055,7 +1178,7 @@ CREATE TABLE `twitter_accounts` (
   UNIQUE KEY `consumer_secret_UNIQUE` (`consumer_secret`),
   UNIQUE KEY `access_token_UNIQUE` (`access_token`),
   UNIQUE KEY `access_token_secret_UNIQUE` (`access_token_secret`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1069,7 +1192,7 @@ CREATE TABLE `twitter_autodownload` (
   `username` varchar(255) NOT NULL,
   PRIMARY KEY (`username`),
   UNIQUE KEY `twitter_autodownload_username_uindex` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1084,7 +1207,7 @@ CREATE TABLE `twitter_blockedwords` (
   `taccount` int NOT NULL,
   PRIMARY KEY (`word`),
   UNIQUE KEY `word_UNIQUE` (`word`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1097,7 +1220,7 @@ DROP TABLE IF EXISTS `twitter_flowpriority`;
 CREATE TABLE `twitter_flowpriority` (
   `username` varchar(255) NOT NULL,
   PRIMARY KEY (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1109,11 +1232,11 @@ DROP TABLE IF EXISTS `twitter_history_inbound`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `twitter_history_inbound` (
   `tweetid` varchar(128) NOT NULL,
-  `listid` varchar(128) NOT NULL,
+  `listid` varchar(128) DEFAULT NULL,
   `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`tweetid`),
   UNIQUE KEY `tweetid_UNIQUE` (`tweetid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1131,7 +1254,7 @@ CREATE TABLE `twitter_history_mention` (
   UNIQUE KEY `tweetid_UNIQUE` (`tweetid`),
   KEY `twitter acctount_idx` (`taccount`),
   CONSTRAINT `twitter acctount` FOREIGN KEY (`taccount`) REFERENCES `twitter_accounts` (`taccount`) ON UPDATE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1142,10 +1265,11 @@ DROP TABLE IF EXISTS `twitter_list`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `twitter_list` (
+  `id` int NOT NULL,
   `listid` varchar(128) NOT NULL DEFAULT '0',
   `taccount` int NOT NULL DEFAULT '0',
   `name` varchar(255) NOT NULL DEFAULT '0',
-  `channelid` varchar(128) NOT NULL DEFAULT '0',
+  `channelid` varchar(128) DEFAULT '0',
   `channelid_rt` varchar(128) DEFAULT NULL,
   `saveid` varchar(128) NOT NULL DEFAULT '0',
   `textallowed` tinyint(1) NOT NULL DEFAULT '1',
@@ -1159,9 +1283,10 @@ CREATE TABLE `twitter_list` (
   `bypasscds` tinyint(1) DEFAULT '0',
   `flowcontrol` tinyint(1) DEFAULT '0',
   `redirect_taccount` int DEFAULT '1',
-  PRIMARY KEY (`listid`),
-  UNIQUE KEY `listid_UNIQUE` (`listid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+  `active_thread` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `twitter_list_id_uindex` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1176,7 +1301,7 @@ CREATE TABLE `twitter_list_users` (
   `username` varchar(255) NOT NULL,
   `listid` varchar(255) NOT NULL,
   PRIMARY KEY (`index`)
-) ENGINE=InnoDB AUTO_INCREMENT=2756 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1191,7 +1316,7 @@ CREATE TABLE `twitter_sendoverides` (
   `taccount` int DEFAULT NULL,
   PRIMARY KEY (`channelid`),
   UNIQUE KEY `twitter_sendoverides_channelid_uindex` (`channelid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1206,7 +1331,7 @@ CREATE TABLE `twitter_textoverides` (
   `text` varchar(280) NOT NULL,
   PRIMARY KEY (`channelid`),
   UNIQUE KEY `channelid_UNIQUE` (`channelid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1222,7 +1347,7 @@ CREATE TABLE `twitter_tweet_queue` (
   `id` varchar(128) DEFAULT NULL,
   `data` longblob,
   `date` datetime DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1236,7 +1361,7 @@ CREATE TABLE `twitter_user_redirect` (
   `twitter_username` varchar(128) NOT NULL,
   `channelid` varchar(128) NOT NULL,
   PRIMARY KEY (`twitter_username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1251,7 +1376,7 @@ CREATE TABLE `web_visitedpages` (
   `date` datetime DEFAULT NULL,
   PRIMARY KEY (`url`),
   UNIQUE KEY `web_visitedpages_url_uindex` (`url`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1267,7 +1392,7 @@ CREATE TABLE `youtube_history_videos` (
   `timestamp` datetime DEFAULT NULL,
   PRIMARY KEY (`videoid`),
   UNIQUE KEY `videoid_UNIQUE` (`videoid`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -1284,16 +1409,7 @@ CREATE TABLE `youtube_watchlist` (
   `name` varchar(255) DEFAULT NULL,
   PRIMARY KEY (`yuser`),
   UNIQUE KEY `channelid_UNIQUE` (`yuser`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
-
-/*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
-/*!40014 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS */;
-/*!40014 SET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
-/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
-/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
-/*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
-
--- Dump completed on 2021-07-14 22:17:31
+-- Dump completed on 2021-10-05 23:21:26

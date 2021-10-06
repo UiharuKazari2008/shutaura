@@ -268,4 +268,3 @@ Severity: **Medium**
 - Discord no longer needs messageType in messages, it will now determin the message type and contents from the fields
 - JuneFS Repair command has been re-added and updated to support both embedded preview images and polyfills
 - Discord can now move files larger then 8MB using the FileWorker for assistance
-
