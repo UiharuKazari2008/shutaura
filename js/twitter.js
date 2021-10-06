@@ -88,17 +88,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				systemglobal.Discord_Out = _mq_discord_out[0].param_value;
 			}
 			const _mq_seq_in = systemparams_sql.filter(e => e.param_key === 'mq.sequenzia.in');
-			const _mq_seq_in_disc = systemparams_sql.filter(e => e.param_key === 'discord.mq.sequenzia.in');
-			if (_mq_seq_in_disc.length > 0 && _mq_seq_in_disc[0].param_value) {
-				systemglobal.Sequenzia_In = _mq_seq_in_disc[0].param_value;
-			} else if (_mq_seq_in.length > 0 && _mq_seq_in[0].param_value) {
+			if (_mq_seq_in.length > 0 && _mq_seq_in[0].param_value) {
 				systemglobal.Sequenzia_In = _mq_seq_in[0].param_value;
 			}
 			const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
-			const _mq_fw_in_disc = systemparams_sql.filter(e => e.param_key === 'twitter.mq.fileworker.in');
-			if (_mq_fw_in_disc.length > 0 && _mq_fw_in_disc[0].param_value) {
-				systemglobal.FileWorker_In = _mq_fw_in_disc[0].param_value;
-			} else if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
+			if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
 				systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
 			}
 			const _mq_twit_in = systemparams_sql.filter(e => e.param_key === 'mq.twitter.in');

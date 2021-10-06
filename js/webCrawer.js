@@ -85,13 +85,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const _intervals = systemparams_sql.filter(e => e.param_key === 'webparser.timers');
             if (_intervals.length > 0 && _intervals[0].param_data) {
                 if (_intervals[0].param_data.mixcloud)
-                    systemglobal.Mixcloud_Interval = _intervals[0].param_data.mixcloud;
+                    systemglobal.Mixcloud_Interval = parseInt(_intervals[0].param_data.mixcloud.toString()) * 3600000;
                 if (_intervals[0].param_data.myfigurecollection)
-                    systemglobal.MFC_Interval = _intervals[0].param_data.myfigurecollection;
+                    systemglobal.MFC_Interval = parseInt(_intervals[0].param_data.myfigurecollection.toString()) * 3600000
                 if (_intervals[0].param_data.mpzero)
-                    systemglobal.MPZero_Interval = _intervals[0].param_data.mpzero;
+                    systemglobal.MPZero_Interval = parseInt(_intervals[0].param_data.mpzero.toString()) * 3600000
                 if (_intervals[0].param_data.sankakucomplex)
-                    systemglobal.SankakuComplex_Interval = _intervals[0].param_data.sankakucomplex;
+                    systemglobal.SankakuComplex_Interval = parseInt(_intervals[0].param_data.sankakucomplex.toString()) * 3600000
             }
             // {"mpzero": 28800000, "mixcloud": 28800000, "sankakucomplex": 28800000, "myfigurecollection": 3600000}
             const _myfigurecollection = systemparams_sql.filter(e => e.param_key === 'webparser.myfigurecollection');

@@ -74,10 +74,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 systemglobal.Discord_Out = _mq_discord_out[0].param_value;
             }
             const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
-            const _mq_fw_in_disc = systemparams_sql.filter(e => e.param_key === 'feed.mq.fileworker.in');
-            if (_mq_fw_in_disc.length > 0 && _mq_fw_in_disc[0].param_value) {
-                systemglobal.FileWorker_In = _mq_fw_in_disc[0].param_value;
-            } else if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
+            if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
                 systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
             }
             const _flickr_account = systemparams_sql.filter(e => e.param_key === 'flickr.login');
