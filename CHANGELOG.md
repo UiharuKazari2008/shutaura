@@ -256,7 +256,7 @@ alter table kanmi_records drop column tags;
 alter table kanmi_records drop column backup;
 ```
 
-## v18 (RC1 JFS v1.5)
+## v18 (RC1 JFS v1.4)
 Severity: **Medium**
 - Added support for recycling bin, this is a channel that any undeliverable message will be sent to.
   To setup, Create `system-undeliverable` channel under `System Data` parent. Set `Discord_Recycling_Bin` in your config file to the channel id
@@ -268,3 +268,83 @@ Severity: **Medium**
 - Discord no longer needs messageType in messages, it will now determin the message type and contents from the fields
 - JuneFS Repair command has been re-added and updated to support both embedded preview images and polyfills
 - Discord can now move files larger then 8MB using the FileWorker for assistance
+
+## v17 Patch 1 (RC1 JFS v1.4)
+Severity: Low (Non Critical Update but recommended)
+- Updated FileWorker to handle GIF images and bypass resize operation if under 12MB
+- AuthWare will now delete your elevate command if 2FA was used
+
+## v17 (RC1 JFS v1.4)
+Severity: Low
+** REQUIRES `npm install` to install 2fa package for authware**
+- Updated discord to use newer MySQL aync/await query on startup, this allows on the fly updates to SQL cache without restarting the bot. More parts will be updated later over time.
+- Fixes various issues with Thread Manager
+- User account elevation requires the user to be registered into AuthWare due to requirement to check if 2FA is enabled
+- Added 2FA code requirement when using `!authware sudo` to elevate user account, use `!authware 2fa` setup to generate a qr code. Its suggest that you use this feature to prevent client hijack attacks. To disable you must NULL the 2fa_key field, it can not be done from the console for obvious security reasons
+- Pixiv now uses color encoding to specify source and data type. Just like twitter
+- Now updates status to indicate request handlers queue depth so you know if there are pending actions
+- Will now NOT RESTART immediately on uncaught exception, will require the request queue to empty first to ensure all tasks are completed
+- Fixed Pixiv like sending to wrong twitter account, now disabled until proper fix can be found
+- Added "DeleteThread" emoji support to delete thread, this emoji will be added to a final message that added to a thread before its cycled to allow for deleting of threads without elevation, Requires interact permission
+- Various other fixes
+
+## v16 (RC1 JFS v1.4)
+Severity: Low
+- Added automatic thread management and creation
+- Added automatic time codes to thread switch over
+- Added Server ID support for reactions
+- Pixiv will now get its config on each pull cycle to make sure its using the correct channels on update
+- Fixed issue were Pixiv interactions would not be sent from the correct twitter account due to lack of data
+- Prints unregistered emojis on emoji changes
+
+## v15 (RC1 JFS v1.4)
+Severity: Critical
+- Added User Agents and other headers to requests to all external download requests
+
+This update updates almost all components and should be applied as soon as possible. If not applied there is a risk of downloading or uploading of empty data
+
+## v14 (RC1 JFS v1.4)
+Severity: Low
+- Added support to handle incoming messages from Websocket Bots
+
+## v13 (RC1 JFS v1.4)
+Severity: High
+- Corrected possible issue where priority files can get missed when using very high speed storage and the process stream will loose track of messages. To combat this, the processor will now search for files after completed splitting
+- Removed API.js, use webhooks or RabbitMQ HTTP API to send remote messages
+
+## v12 (RC1 JFS v1.4)
+Severity: Low
+Addresses crash when new messages from websocket bots are received. For now those messages will be ignored
+
+## v11 (RC1 JFS v1.4)
+Severity: Low
+- Added support to disable fetch on channels with autofetch set to 0
+
+## v10 (RC1 JFS v1.4)
+Severity: Low
+- Updated FileWorker to use a new cross-compatible Parity generator. This new system used native linux file splitting for much faster and efficient splitting of files
+- Correct incorrect file name being written for spanned files that are images due to file size being overwrithen by the size of the preview
+- Corrects issue where filename will always be prefixed with a undercore
+
+## v9 (RC1 JFS v1.4)
+
+## v8 (RC1 JFS v1.4)
+
+## v7 (RC1 JFS v1.4)
+Severity: Low
+- Addresses various record keeping issues when managing data between servers
+- Added catch to a function in fileworker to log issues that may occur and are not caught by the normal systems
+- Other small fixes
+
+## v6 (RC1 JFS v1.4)
+Update 6 for Kanmi Framework
+**Gateway Version has been bumped to v9!! This mean you must update the npm packages**
+```
+rm -rf node_modules/eris/
+npm install
+```
+- Fixed download filenames being download.ext
+- Added support for handling events that happened threads
+- Now using v9 Gateway (Expreimental and still in development only use v9 versions if you want the latest features and to get off the old v6 gateway)
+- Added new color encoding to embeds where the color value is shifted slightly to denote twitter list it belongs to
+
