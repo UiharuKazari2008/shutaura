@@ -73,7 +73,7 @@ If you are wanting a multi-server setup for performance, the following is needed
 * **Oracle MySQL Server with Global Transaction ID's Enabled** (Usually by default)
   - With some manual modifications to the database file you can use this with open source MySQL, but there will be no support active for MariaDB
 * RabbitMQ AMQP Server for inner process communication and queueing
-  - In production we use FreeBSD for MySQL and RabbitMQ
+  - In production, we use FreeBSD for MySQL and RabbitMQ
 * Graylog Server to store long term logging
   -Not required but without it you must capture the console logs
 * Reverse Proxy Server like Nginx
