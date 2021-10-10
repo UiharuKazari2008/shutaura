@@ -10,15 +10,9 @@ Developed at Academy City Research
 Kanmi Project - Web Crawler System
 Copyright 2020
 ======================================================================================
-This code is under a strict NON-DISCLOSURE AGREEMENT, If you have the rights
-to access this project you understand that release, demonstration, or sharing
-of this project or its content will result in legal consequences. All questions
-about release, "snippets", or to report spillage are to be directed to:
-
-- ACR Docutrol -----------------------------------------
-(Academy City Research Document & Data Control Services)
-docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
+This code is publicly released and is restricted by its project license
 ====================================================================================== */
+
 (async () => {
     let systemglobal = require('../config.json');
     const facilityName = 'WebCrawer';
@@ -29,7 +23,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let request = require('request').defaults({ encoding: null, jar: true });
     const sharp = require('sharp');
     const sizeOf = require('image-size');
-    const colors = require('colors');
     const moment = require('moment');
     const podcastFeedParser = require("podcast-feed-parser")
     const RateLimiter = require('limiter').RateLimiter;

@@ -10,14 +10,7 @@ Developed at Academy City Research
 Kanmi Project - Discord I/O System
 Copyright 2020
 ======================================================================================
-This code is under a strict NON-DISCLOSURE AGREEMENT, If you have the rights
-to access this project you understand that release, demonstration, or sharing
-of this project or its content will result in legal consequences. All questions
-about release, "snippets", or to report spillage are to be directed to:
-
-- ACR Docutrol -----------------------------------------
-(Academy City Research Document & Data Control Services)
-docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
+This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
 (async () => {
@@ -26,6 +19,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     const eris = require('eris');
     const fs = require('fs');
+    const tx2 = require('tx2')
     const path = require('path');
     const amqp = require('amqplib/callback_api');
     const crypto = require("crypto");
@@ -47,11 +41,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let args = minimist(process.argv.slice(2));
 
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
+    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const {spawn} = require("child_process");
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
     let init = 0;
+    let gracefulShutdown = false;
     let playingFolder = "";
     let toPlayFolder = "";
     let EncoderConf = {
@@ -89,6 +85,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let TwitterActivityChannels = new Map();
     let TwitterLists = new Map();
     let TwitterListsEncoded = new Map();
+    let TwitterListAccounts = new Map();
     let TwitterRedirects = new Map();
     let TwitterAutoLike = new Map();
     let TwitterLikeList = new Map();
@@ -341,6 +338,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             // Limiter_3_Tokens = 5
             // Limiter_3_Interval = 60000
             // discord.limiter.backlog = { "tokens" : 5, "interval" : 60000 }
+
+            const _prefetch1 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.priority');
+            if (_prefetch1.length > 0 && _prefetch1[0].param_value)
+                systemglobal.Prefetch_1_Count = parseInt(_prefetch1[0].param_data.tokens.toString());
+            const _prefetch2 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.standard');
+            if (_prefetch2.length > 0 && _prefetch2[0].param_value)
+                systemglobal.Prefetch_2_Count = parseInt(_prefetch2[0].param_data.tokens.toString());
+            const _prefetch3 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.backlog');
+            if (_prefetch3.length > 0 && _prefetch3[0].param_value)
+                systemglobal.Prefetch_3_Count = parseInt(_prefetch3[0].param_data.tokens.toString());
+
             const _discord_refresh_cache = systemparams_sql.filter(e => e.param_key === 'discord.timers');
             if (_discord_refresh_cache.length > 0 && _discord_refresh_cache[0].param_data) {
                 if (_discord_refresh_cache[0].param_data.refresh_discord_cache) {
@@ -544,6 +552,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             TwitterLists.set(item.channelid, item.listid);
             TwitterListsEncoded.set(4886750 + item.id, item.listid);
             TwitterListsEncoded.set(11140940 + item.id, item.listid);
+            TwitterListAccounts.set(item.listid, item.taccount)
             if (item.download_listid !== null) {
                 TwitterLikeList.set(item.download_channelid, item.listid);
             }
@@ -617,12 +626,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     await loadDatabaseCache();
 
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
-    const MQWorkerCmd = `command.discord.${systemglobal.SystemName}`;
     const MQWorker1 = systemglobal.Discord_Out + '.priority';
     const MQWorker2 = systemglobal.Discord_Out;
     const MQWorker3 = systemglobal.Discord_Out + '.backlog';
-    const MQWorker4 = systemglobal.Discord_Out + '.package.priority';
-    const MQWorker5 = systemglobal.Discord_Out + '.package';
 
     const limiter1 = new RateLimiter((systemglobal.Limiter_1_Tokens) ? systemglobal.Limiter_1_Tokens : 15, (systemglobal.Limiter_1_Interval) ? systemglobal.Limiter_1_Interval : 60000);
     const limiter2 = new RateLimiter((systemglobal.Limiter_2_Tokens) ? systemglobal.Limiter_2_Tokens : 10, (systemglobal.Limiter_2_Interval) ? systemglobal.Limiter_2_Interval : 60000);
@@ -641,74 +647,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     console.log(systemglobal)
 
     // Command Queue
-    function startWorkerCmd() {
-        amqpConn.createChannel(function(err, ch) {
-            if (closeOnErr(err)) return;
-            ch.on("error", function(err) {
-                Logger.printLine("KanmiMQ", "Channel 0 Error (Command)", "error", err)
-            });
-            ch.on("close", function() {
-                Logger.printLine("KanmiMQ", "Channel 0 Closed (Command)", "critical")
-                start();
-            });
-            ch.prefetch(10);
-            ch.assertQueue(MQWorkerCmd, { durable: true }, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.consume(MQWorkerCmd, processMsg, { noAck: true });
-                Logger.printLine("KanmiMQ", "Channel 0 Worker Ready (Command)", "debug")
-            });
-            ch.assertExchange("kanmi.command", "direct", {}, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.bindQueue(MQWorkerCmd, "kanmi.command", MQWorkerCmd, [], function(err, _ok) {
-                    if (closeOnErr(err)) return;
-                    Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-                })
-            });
-            ch.assertExchange("kanmi.command.broadcast", "fanout", {}, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.bindQueue(MQWorkerCmd, "kanmi.command.broadcast", "command.discord", [], function(err, _ok) {
-                    if (closeOnErr(err)) return;
-                    Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-                })
-            });
-            function processMsg(msg) {
-                workCmd(msg, function(ok) {
-                    try {
-                        if (ok)
-                            ch.ack(msg);
-                        else
-                            ch.reject(msg, true);
-                    } catch (e) {
-                        closeOnErr(e);
-                    }
-                });
-            }
-        });
-    }
-    function workCmd(msg, cb) {
-        let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
-        if (MessageContents.hasOwnProperty('command')) {
-            switch (MessageContents.command) {
-                case 'RESET' :
-                    console.log("================================ RESET SYSTEM ================================ ".bgRed);
-                    cb(true)
-                    process.exit(10);
-                    break;
-                case 'ESTOP':
-                    cb(true);
-                    SendMessage("🛑 EMERGENCY STOP - SEQUENZIA I/O FRAMEWORK", staticChID['homeGuild'].AlrmNotif, 'main', "Discord")
-                    amqpConn.close();
-                    setInterval(function () {
-                        console.log("================================ EMERGENCY STOP! ================================ ".bgRed);
-                        process.exit(0);
-                    }, 1000)
-                    break;
-                default:
-                    Logger.printLine("RemoteCommand", `Unknown Command: ${MessageContents.command}`, "debug");
-                    cb(true)
-            }
-        }
-    }
     // Priority Queue
     function startEmergencyWorker() {
         amqpConn.createChannel(function(err, ch) {
@@ -737,9 +675,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
             ch.on("close", function() {
                 Logger.printLine("KanmiMQ", "Channel 1 Closed (Priority)", "critical" )
-                start();
+                if (!gracefulShutdown)
+                    startWorker();
             });
-            ch.prefetch(10);
+            ch.prefetch((systemglobal.Prefetch_1_Count) ? parseInt(systemglobal.Prefetch_1_Count.toString()) : 10);
             ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker1, processMsg, { noAck: false });
@@ -766,7 +705,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         });
     }
-    function work(msg, cb) {
+    async function work(msg, cb) {
+        if (gracefulShutdown) {
+            Logger.printLine("KanmiMQ", "Channel 1 Worker, Graceful Shutdown was activated, not accepting new messages")
+            await sleep(90000000)
+        }
         let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
         if (parseInt(MessageContents.messageChannelID).toString() !== 'NaN') {
             limiter1.removeTokens(1, function() {
@@ -786,9 +729,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
             ch.on("close", function() {
                 Logger.printLine("KanmiMQ", "Channel 2 Closed (Standard)", "critical" )
-                start();
+                if (!gracefulShutdown)
+                    startWorker2();
             });
-            ch.prefetch(5);
+            ch.prefetch((systemglobal.Prefetch_2_Count) ? parseInt(systemglobal.Prefetch_2_Count.toString()) : 5);
             ch.assertQueue(MQWorker2, { durable: true, queueMode: 'lazy' }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker2, processMsg, { noAck: false });
@@ -815,7 +759,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         });
     }
-    function work2(msg, cb) {
+    async function work2(msg, cb) {
+        if (gracefulShutdown) {
+            Logger.printLine("KanmiMQ", "Channel 2 Worker, Graceful Shutdown was activated, not accepting new messages")
+            await sleep(90000000)
+        }
         let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
         if (parseInt(MessageContents.messageChannelID).toString() !== 'NaN') {
             limiter2.removeTokens(1, function() {
@@ -835,9 +783,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
             ch.on("close", function() {
                 Logger.printLine("KanmiMQ", "Channel 3 Closed (Backlog)", "critical" )
-                start();
+                if (!gracefulShutdown)
+                    startWorker3();
             });
-            ch.prefetch(5);
+            ch.prefetch((systemglobal.Prefetch_3_Count) ? parseInt(systemglobal.Prefetch_3_Count.toString()) : 5);
             ch.assertQueue(MQWorker3, { durable: true, queueMode: 'lazy' }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker3, processMsg, { noAck: false });
@@ -864,28 +813,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         });
     }
-    function work3(msg, cb) {
+    async function work3(msg, cb) {
+        if (gracefulShutdown) {
+            Logger.printLine("KanmiMQ", "Channel 3 Worker, Graceful Shutdown was activated, not accepting new messages")
+            await sleep(90000000)
+        }
         let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
-        if (MessageContents.messageArray || parseInt(MessageContents.messageChannelID).toString() !== 'NaN') {
+        if (parseInt(MessageContents.messageChannelID).toString() !== 'NaN') {
             if (MessageContents && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.') && MessageContents.messageOriginalID) {
-                db.safe(`SELECT discord_cache.cache, kanmi_records.cache_proxy FROM discord_cache, kanmi_records WHERE discord_cache.id = ? AND kanmi_records.id = discord_cache.id AND kanmi_records.source = 0 LIMIT 1`, [MessageContents.messageOriginalID], (err, foundmessage) => {
-                    if (err) {
-                        SendMessage("SQL Error occurred when verifying message cache", "err", 'main', "SQL", err);
-                        cb(true);
-                    } else if (foundmessage && foundmessage.length === 1 && foundmessage[0].cache) {
-                        Logger.printLine("Discord", `Duplicate Cache Request From: ${MessageContents.fromClient} - Duplicate ID: ${MessageContents.messageOriginalID} => ${foundmessage[0].cache}`, "warn", MessageContents);
-                        mqClient.sendData(systemglobal.Sequenzia_In, {
-                            id: MessageContents.messageOriginalID,
-                            url: foundmessage[0].cache_proxy,
-                            extra: false,
-                            command: 'remove'
-                        }, function (ok) { cb(true); })
-                    } else {
-                        limiter3.removeTokens(1, function() {
-                            parseRemoteAction(MessageContents, "Backlog", cb);
-                        });
-                    }
-                })
+                limiter3.removeTokens(1, function() {
+                    parseRemoteAction(MessageContents, "Backlog", cb);
+                });
             } else {
                 limiter3.removeTokens(1, function() {
                     parseRemoteAction(MessageContents, "Backlog", cb);
@@ -910,7 +848,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
             conn.on("close", function() {
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                return setTimeout(start, 5000);
+                if (!gracefulShutdown)
+                    setTimeout(start, 5000);
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
@@ -924,7 +863,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         return true;
     }
     function whenConnected() {
-        startWorkerCmd();
         startEmergencyWorker();
         startWorker();
         startWorker2();
@@ -942,6 +880,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         })
         setTimeout(() => {sendWatchdogPing()}, 60000)
+    }
+    function shutdownSystem(cb) {
+        gracefulShutdown = true;
+        syncStatusValues();
+        function checkForShutdownCleance() {
+            const activeJobs = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
+            const activeSysJobs = activeTasks.size
+            if (activeSysJobs > 0 || activeJobs > 0) {
+                console.log(`Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeJobs})`)
+                setTimeout(checkForShutdownCleance, 15000)
+            } else {
+                amqpConn.close();
+                console.log(`Shutdown Clearance Granted`)
+                cb(true)
+            }
+        }
+        setTimeout(checkForShutdownCleance, 15000)
     }
 
     // Discord Framework - Core
@@ -1012,7 +967,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (err) {
                                 SendMessage("SQL Error occurred when retrieving the file status", "err", 'main', "SQL", err)
                             } else {
-                                if (filestatus !== undefined && filestatus.length > 0 && filestatus[0].cache_url !== 'inprogress' && filestatus[0].cache_url !== 'http') {
+                                if (filestatus !== undefined && filestatus.length > 0 && filestatus[0].filecached !== 1) {
                                     jfsGetSF(MessageContents.itemFileUUID, {
                                         userID: 'none'
                                     })
@@ -1181,7 +1136,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                 command: 'cacheColor'
                                                                             }, function (ok) {
                                                                             })
-                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url, message.id], (err, result) => {
+                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop(), message.id], (err, result) => {
                                                                                 if (err) {
                                                                                     SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                 } else {
@@ -1324,7 +1279,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                 db.safe(`UPDATE kanmi_records
                                                                                      SET cache_proxy = ?
                                                                                      WHERE id = ?
-                                                                                       AND source = 0`, [data.attachments[0].proxy_url, message.id], (err, result) => {
+                                                                                       AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), message.id], (err, result) => {
                                                                                     if (err) {
                                                                                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                     } else {
@@ -1408,11 +1363,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         Logger.printLine("Polyfill", `File preview available, Need to download ${url}...`, "debug")
                                         generatePreview();
                                     } else {
-                                        const filedata = await db.query(`SELECT fileid, cache_url FROM kanmi_records WHERE kanmi_records.id = ?`, [message.id])
+                                        const filedata = await db.query(`SELECT fileid, filecached FROM kanmi_records WHERE kanmi_records.id = ?`, [message.id])
                                         if (filedata.error) {
                                             SendMessage("SQL Error occurred when retrieving the message for message data", "err", 'main', "SQL", filedata.error)
                                             cb(true)
-                                        } else if (filedata.rows.length > 0 && filedata.rows[0].cache_url !== null) {
+                                        } else if (filedata.rows.length > 0 && filedata.rows[0].filecached === 1) {
                                             mqClient.sendData(systemglobal.FileWorker_In, {
                                                 messageReturn: false,
                                                 messageID: message.id,
@@ -1482,7 +1437,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                             command: 'cacheColor'
                                                         }, function (ok) {
                                                         })
-                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url, MessageContents.messageID], (err, result) => {
+                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                 cb(false);
@@ -1560,6 +1515,35 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             cb(true);
                         }
                         break;
+                    case 'ValidateMessage':
+                        if (MessageContents.messageID) {
+                            try {
+                                const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
+                                if (message) {
+                                    Logger.printLine("validateMessage", `Successfully found message ${MessageContents.messageID}, Updating database`,"info")
+                                    messageUpdate(message)
+                                } else {
+                                    SendMessage(`Failed to validate message ${MessageContents.messageID}, It no longer exists`, "validateMessage", 'main', "error")
+                                    messageDelete({
+                                        id: MessageContents.messageID,
+                                        channel: {
+                                            id: MessageContents.messageChannelID
+                                        },
+                                        guild: {
+                                            id: MessageContents.messageServerID
+                                        },
+                                        guildID: MessageContents.messageServerID
+                                    })
+                                }
+                            } catch (e) {
+                                SendMessage(`Failed to validate message ${MessageContents.messageID}`, "validateMessage", 'main', "error")
+                                console.log(e)
+                            }
+                        } else {
+                            SendMessage("No Message ID was provided to validate", "validateMessage", 'main', "warn")
+                        }
+                        cb(true)
+                        break;
                     default:
                         SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", ChannelData.guild.id, "warn")
                         if (MessageContents.messageReturn === true) {
@@ -1615,6 +1599,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const _extraNames = discordautoreact.filter(e => e.channelid === msg.channel.id).map(e => e.emoji_name.toString())
         if (addClearButton.indexOf(msg.channel.id) !== -1 || tempThread.has(msg.channel.id))
             emojis.push(...discordreact.filter(e => e.reaction_name === 'Clear' && e.serverid === msg.guildID ).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString()))
+        if (msg.channel.id === systemglobal.Discord_Recycling_Bin)
+            emojis.push(...discordreact.filter(e => e.reaction_name === 'DeleteFile' && e.serverid === msg.guildID ).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString()))
         emojis.push(
             ...discordreact.filter(e => e.serverid === msg.guildID && reactions.indexOf(e.reaction_name) !== -1 && !(systemglobal.Discord_FSMgr_Enable === false && (e.reaction_name=== 'Pin' || e.reaction_name=== 'Archive' || e.reaction_name=== 'MoveMessage'))).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString()),
             ...discordreact.filter(e => _extraNames.indexOf(e.reaction_name) !== -1 || (tempThread.has(msg.channel.id) && systemglobal.CMS_New_Thread_Reactions && systemglobal.CMS_New_Thread_Reactions.indexOf(e.reaction_name) !== -1)).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
@@ -1671,9 +1657,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let _typeText = [];
             if (files && files.length > 0) {
                 if (files.length > 2 && preview) {
-                    _typeText.push(`📁[${files.length - 1}]/🖼`); }
+                    _typeText.push(`📁[${files.length - 1}]🖼`); }
                 else if (files.length > 1 && preview) {
-                    _typeText.push(`💾/🖼`);
+                    _typeText.push(`💾🖼`);
                 } else if (files.length > 1) {
                     _typeText.push(`📁[${files.length}]`);
                 } else {
@@ -1687,7 +1673,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 _typeText.push('📙');
             }
             if (contents.tts) { _typeText.push('📞') }
-            return _typeText.join('/');
+            return _typeText.join('');
         })()
 
         discordClient.editStatus( "online", {
@@ -1709,7 +1695,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else {
                         hash = md5(files.file);
                     }
-                    const addedPartToDB = await db.query(`INSERT INTO discord_multipart_files VALUES (?, ?, ?, ?, ?, ?, ?)`, [data.id, ChannelID, data.member.guild.id, fileUUID, data.attachments[0].url, hash, false])
+                    const addedPartToDB = await db.query(`INSERT INTO discord_multipart_files SET messageid = ?, channelid = ?, serverid = ?, fileid = ?, url = ?, hash = ?, valid = 1`, [data.id, ChannelID, data.member.guild.id, fileUUID, data.attachments[0].url, hash])
                     if (addedPartToDB.error) {
                         SendMessage("SQL Error occurred when saving a Spanned File parts records", "crit",  'main', "SQL", addedPartToDB.error)
                     } else {
@@ -1729,20 +1715,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (MessageContents.messageRefrance && MessageContents.messageRefrance.action && MessageContents.messageRefrance.action === 'jfsMove' ) {
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
-                    const foundMessage = await db.query(`SELECT cache_proxy FROM kanmi_records WHERE id = ? AND source = 0 LIMIT 1`, [MessageContents.messageOriginalID])
-                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url, MessageContents.messageOriginalID])
+                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageOriginalID])
                     if (updatedMessage.error) {
                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", updatedMessage.error)
                     } else {
                         await db.query(`INSERT INTO discord_cache VALUES (?,?) ON DUPLICATE KEY UPDATE cache = ?`, [MessageContents.messageOriginalID, data.id, data.id])
-                        if (foundMessage.rows.length > 0) {
-                            mqClient.sendData(systemglobal.Sequenzia_In, {
-                                id: MessageContents.messageOriginalID,
-                                url: foundmessage.rows[0].cache_proxy,
-                                extra: false,
-                                command: 'remove'
-                            }, function (ok) { })
-                        }
                     }
                 } else {
                     const colorSearchFormats = ['png', 'jpg', 'jpeg', 'gif']
@@ -1765,7 +1742,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         userID: (MessageContents.messageUserID) ? MessageContents.messageUserID : undefined,
                         color: _color,
                         size: (MessageContents.itemSize) ? MessageContents.itemSize : undefined,
-                        logLine: `Send Message: (${level}) Type: [${typeText}], From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`
+                        logLine: `Send Message: (${level}) Type: [${typeText}], From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
+                        fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
                     })
                     success = true;
                 }
@@ -2584,28 +2562,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         case 'release':
                             if (args.length > 1) {
-                                mqClient.sendData(`${systemglobal.Twitter_In}.user${args[1]}`, {
+                                mqClient.sendData(systemglobal.Twitter_In, {
                                     fromWorker: systemglobal.SystemName,
                                     messageText: "",
                                     messageIntent: 'releaseTweet',
-                                    messageAction: (args.length > 2) ? args[2] : undefined
+                                    messageAction: (args.length > 2) ? args[2] : undefined,
+                                    accountID: parseInt(args[1].toString())
                                 }, function (ok) {
                                     if (ok)
                                         SendMessage(`Releasing a${(args.length > 2) ? ' ' + args[2] : ''} tweet for Twitter account #${args[1]}`, "system", msg.guildID, "TwitterRelease")
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
-                            }
-                            break;
-                        case 'clear':
-                            if (args.length > 1) {
-                                mqClient.sendData(`${systemglobal.Twitter_In}.user${args[1]}`, {
-                                    fromWorker: systemglobal.SystemName,
-                                    messageText: "",
-                                    messageIntent: 'clearCollector'
-                                }, function (ok) {
-                                    if (ok)
-                                        SendMessage(`Cleared the Twitter account #${args[1]} collector`, "system", msg.guildID, "TwitterRelease")
                                 })
                             } else {
                                 SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
@@ -2625,7 +2590,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             description: "Manage the Twitter Client",
             fullDescription: "Manages twitter lists and blocked words\n" +
                 "   **get** - Get More Tweets (Flowcontrol only)\n   **add** - Add user to Twitter List\n      [Channel, Username]\n   **rm** - Remove user from Twitter List\n      [Channel, Username]\n   **ls** - Lists all users in a list\n" +
-                "   **blkwd** - Add word to blocklist\n      [word]\n   **ublkwd** - Remove word from blocklist\n      [word]\n   **release** - Release a tweet on a Flow Controlled account\n      [accountID]\n   **clear** - Clear a Flow Controller for an account\n      [accountID]\n",
+                "   **blkwd** - Add word to blocklist\n      [word]\n   **ublkwd** - Remove word from blocklist\n      [word]\n   **release** - Release a tweet on a Flow Controlled account\n      [accountID]",
             usage: "command [arguments]",
             guildOnly: true
         })
@@ -2967,78 +2932,88 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })
         }
 
-        discordClient.registerCommand("ctrl", function (msg,args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    switch (args[0].toLowerCase()) {
-                        case 'estop':
-                            if (args.length === 2) {
-                                SendMessage(`Send Emergency Stop to ${args[1]}`, 'system', msg.guildID, "estopCmd");
-                                mqClient.sendCmd(args[1], "ESTOP")
-                            } else if (args.length === 1) {
-                                SendMessage(`Send Emergency Stop to broadcast all`, 'system', msg.guildID, "estopCmd");
-                                mqClient.sendCmd("all", "ESTOP", 'broadcast')
-                            } else {
-                                SendMessage("⁉ Too many inputs", "system", msg.guildID, "estopCmd")
-                            }
-                            break;
-                        case 'reset':
-                            if (args.length === 2) {
-                                SendMessage(`Send Reset to ${args[1]}`, 'system', msg.guildID, "resetCmd");
-                                mqClient.sendCmd(args[1], "RESET")
-                            } else if (args.length === 1) {
-                                SendMessage(`Send Reset to broadcast all`, 'system', msg.guildID, "resetCmd");
-                                mqClient.sendCmd("all", "RESET", 'broadcast')
-                            } else {
-                                SendMessage("⁉ Too many inputs", "system", msg.guildID, "resetCmd")
-                            }
-                            break;
-                        case 'guilds':
-                            discordClient.getRESTGuilds()
-                                .then(function (data) {
-                                    console.log(`${data}`.magenta)
-                                })
-                            break;
-                        case 'voicecomms':
-                            console.log(`${discordClient.voiceConnections}`.magenta)
-                            break;
-                        default:
-                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "SystemMgr")
-                            break;
-                    }
-                } else {
-                    SendMessage("⁉ Missing required information", "system", msg.guildID, "SystemMgr")
-                }
-            }
-        }, {
-            argsRequired: true,
-            caseInsensitive: true,
-            description: "System Control Commands",
-            fullDescription: "Allows you to change system configuration and send signals\n" +
-                "   **estop** - Emergency Stop\n      [system]\n**reset** - Restart a system\n      [system]",
-            usage: "command [arguments]",
-            guildOnly: true
-        })
-
         discordClient.registerCommand("status", async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
-                    if (args[0] === 'tasks') {
-                        const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
-                        const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
-                        return `${(activeProccessing.length > 0) ? '⏳ ' + activeProccessing.length + ' Tasks Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() : '💤 No Active Tasks'}`
-                    } else {
-                        generateStatus(true, msg.guildID, args[0].replace("<#", "").replace(">", ""), (args.length > 1) ? args[1] : 1);
+                    switch (args[0]) {
+                        case 'tasks':
+                            const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
+                            const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
+                            return `${(activeProccessing.length > 0) ? '⏳ ' + activeProccessing.length + ' Tasks Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() : '💤 No Active Tasks'}`
+                        case 'enable':
+                            generateStatus(true, msg.guildID, args[1].replace("<#", "").replace(">", ""), (args.length > 3) ? args[2] : 1);
+                            return `Added a insights display to <#${args[1].replace("<#", "").replace(">", "")}>`
+                        case 'disable':
+                            if (Timers.has(`StatusReport${msg.guildID}`)) {
+                                clearInterval(Timers.get(`StatusReport${msg.guildID}`))
+                                clearInterval(Timers.get(`StatusReportCheck${msg.guildID}`))
+                                Timers.delete(`StatusReport${msg.guildID}`)
+                                Timers.delete(`StatusReportCheck${msg.guildID}`)
+                                await localParameters.del(`statusgen-${msg.guildID}`)
+                                return "Disabled Insights Display for this guild, Please delete the message"
+                            } else {
+                                return `Insights Display is not enabled for this guild`
+                            }
+                        case 'delete':
+                            if (args.length > 1) {
+                                const statusData = (await db.query(`SELECT * FROM discord_status_records WHERE name = ?`, [args[1]])).rows;
+                                const statusCache = statusValues.has(args[1])
+                                if (statusData.length > 0 || statusCache) {
+                                    statusValues.delete(args[1]);
+                                    await db.query(`DELETE FROM discord_status_records WHERE name = ?`, [args[1]])
+                                    return `Status value ${args[1]} was deleted successfully`
+                                } else {
+                                    return "Status value was not found!"
+                                }
+                            } else {
+                                return "Missing the name of a status value to delete"
+                            }
+                        case 'list':
+                            const statusCache = Array.from(statusValues.keys())
+                            return 'Status Names:\n' + [...statusValues.keys(), ...(await db.query(`SELECT * FROM discord_status_records`, [args[1]])).rows.filter(e => statusCache.indexOf(e.name) === -1).map(e => e.name)].join('\n');
+                        default:
+                            return "Invalid Command"
                     }
                 } else {
-                    generateStatus(true, msg.guildID);
+                    return `Missing command, use "help status"`
                 }
             }
         }, {
             argsRequired: false,
             caseInsensitive: false,
-            description: "System Status",
-            fullDescription: "Gives detailed summery of system status",
+            description: "Status Controls",
+            fullDescription: "Enable/Disable Insights Display and Manage Stored Values\n" +
+                "   **tasks** - Prints current request queue\n   **enable** - Add an insights display to this server\n      channel, [level]\n**disable** - Removes an insights display for this server\n      [system]\n"+
+                "   **delete** - Deletes a stored status record from the cache/database\n      name\n   **list** - Lists all stored status records in the cache/database",
+            usage: "command [arguments]",
+            guildOnly: true
+        })
+
+        discordClient.registerCommand("restart", async function (msg,args) {
+            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                shutdownSystem((ok) => {
+                    setTimeout(() => { process.exit(0) }, 5000)
+                    return "Goodbye! Please restart from server shell!"
+                });
+            }
+        }, {
+            argsRequired: false,
+            caseInsensitive: false,
+            description: "Graceful Restart",
+            fullDescription: "Safely and Gracefully restarts Discord I/O while ensuring all jobs and requests are completed",
+            guildOnly: true
+        })
+
+        discordClient.registerCommand("update", async function (msg,args) {
+            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                spawn('pm2', ['trigger', 'Updater', 'update-now'])
+                return "Requested to update software"
+            }
+        }, {
+            argsRequired: false,
+            caseInsensitive: false,
+            description: "Update Projects",
+            fullDescription: "Updates Kanmi and any other projects definded in the configuration file",
             guildOnly: true
         })
     }
@@ -3429,11 +3404,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.Discord_Recycling_Bin) {
                 try {
                     const messages = await discordClient.getMessages(systemglobal.Discord_Recycling_Bin, 6)
-                    if (message) {
+                    if (messages) {
                         await cacheData.set(systemglobal.Discord_Recycling_Bin, messages.length)
                     }
                 } catch (err) {
                     Logger.printLine("RefreshCache", `Unable to check contents of recycling bin`, 'error', err)
+                    console.error(err)
                 }
             }
             await checkThreadsExpirations();
@@ -3446,6 +3422,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function syncStatusValues (){
         const statusData = await db.query(`SELECT * FROM discord_status_records`);
         const statusKeys = statusData.rows.map(e => e.name)
+
         await Promise.all(Array.from(statusValues.keys()).filter(e => statusKeys.indexOf(e) === -1).map(async k => {
             await db.query(`INSERT INTO discord_status_records SET ?`, [{
                 name: k,
@@ -3633,9 +3610,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let bannerFault = [];
         if (channelID) {
             channel = channelID
-        } else if (data && data.channel) {
+        }
+        else if (data && data.channel) {
             channel = data.channel
-        } else {
+        }
+        else {
             return false;
         }
 
@@ -3647,11 +3626,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 data: e[1]
             }
         })
-        const statusChannels = await db.query(`SELECT * FROM discord_status`);
-        const twitterStatusChannels = await db.query(`SELECT DISTINCT flowstatuschannel, flowcontrol, short_name, name, taccount
-                                                              FROM twitter_accounts
-                                                              WHERE flowstatuschannel IS NOT NULL AND flowcontrol = 1
-                                                              ORDER BY taccount`);
 
         let embed = {
             "footer": {
@@ -3666,12 +3640,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             "fields": [
                 {
                     "name": "🕓 Uptime",
-                    "value": `${msConversion(process.uptime() * 1000)} (${msConversion(discordClient.uptime)})`,
+                    "value": `${msConversion(process.uptime() * 1000)} (${msConversion(discordClient.uptime)})`.substring(0,1024),
                     "inline": true
                 },
                 {
                     "name": "📚 Servers",
-                    "value": `${discordClient.guilds.size}`,
+                    "value": `${discordClient.guilds.size}`.substring(0,1024),
                     "inline": true
                 },
             ]
@@ -3780,7 +3754,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (e.messages > 2) {
                     return [id, {
                         "name": _name,
-                        "value": _return,
+                        "value": _return.substring(0,1024),
                     }]
                 }
                 return null
@@ -3835,7 +3809,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (e.messages > 2) {
                     return [id, {
                         "name": _name,
-                        "value": _return,
+                        "value": _return.substring(0,1024),
                     }]
                 }
                 return null
@@ -3851,11 +3825,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             embed.image = {
                 "url": systemglobal.Discord_Insights_Custom_Image_URL[guildID]
             }
-        } else if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL.default !== undefined) {
+        }
+        else if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL.default !== undefined) {
             embed.image = {
                 "url": systemglobal.Discord_Insights_Custom_Image_URL.default
             }
-        } else {
+        }
+        else {
             embed.image = undefined;
         }
         // Undelivered Messages Counts
@@ -3866,14 +3842,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 _ud.push("🅰 " + (`${(binChannel < 5) ? "🆕" : "🚨"} ${(binChannel < 5) ? binChannel : "5+"} Items Waiting`))
             if (UndeliveredMQ > 0)
                 _ud.push("🅱 " + (`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`));
-        } else {
+        }
+        else {
             if (UndeliveredMQ >= 5) { systemFault = true; }
             if (UndeliveredMQ > 0)
                 _ud.push(`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`);
         }
         embed.fields.push({
             "name": "✉ Undelivered",
-            "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`,
+            "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`.substring(0,1024),
             "inline": true
         })
 
@@ -3886,7 +3863,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             // File Count
             embed.fields.push({
                 "name": "📁 Files",
-                "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`,
+                "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0,1024),
                 "inline": true
             })
             const totalData = parseInt(totalCounts.rows[0].total_data.toString());
@@ -3901,7 +3878,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             embed.fields.push({
                 "name": "💾 Usage",
-                "value": totalText,
+                "value": totalText.substring(0,1024),
                 "inline": true
             })
         }
@@ -3922,7 +3899,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         cdsAccess = true;
                 }
             }
-            const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (cache_url IS NOT NULL AND cache_url != \'multi\')' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
+            const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
             let partCounts = { rows: [] }
             if (!partsDisabled) {
                 partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
@@ -3978,10 +3955,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             return _bcP
         }
         let extraText= []
-        if (!statusChannels.error && statusChannels.rows.length > 0) {
-            backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
-                .map((e,i,a) => {
-                    const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
+        backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
+            .map((e,i,a) => {
+                const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
+                if (_bcF.length > 0) {
                     if (e.data.active && e.data.total > 25) {
                         if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
                             systemWarning = true;
@@ -3990,7 +3967,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
-                        } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 100) {
+                        } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
                         }
@@ -4011,7 +3988,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (lns.length > 0) {
                             return {
                                 "name": `🗄 ${getPrefix(i, a.length)}${_si.hostname} Sync Status`,
-                                "value": `${lns.join('\n')}`
+                                "value": `${lns.join('\n')}`.substring(0,1024)
                             };
                         } else {
                             if (_bcF[0].files > 0) {
@@ -4022,42 +3999,44 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                         }
                     } else {
-                        if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
+                        if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
                         }
                         if (_bcF[0].files > 25) {
                             extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                         }
-                        if (_bcF[0].parts > 25) {
+                        if (_bcF[0].parts > 50) {
                             extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                         }
                     }
-                    return false
-                }).filter(e => !(!e))
-        }
+                }
+                return false
+            }).filter(e => !(!e))
         if (backupValues.length > 0) {
             embed.fields.push({
                 "name": "🗄 Sync",
-                "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`,
+                "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0,1024),
                 "inline": true
             })
             embed.fields.push(...backupValues)
-        } else {
-            const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 25 )
+        }
+        else {
+            const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50 )
             if (_bcF.length > 0) {
+                const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
                 _bt = [];
                 await _bcF.forEach((e,i) => {
                     if (e.files > 0) {
-                        _bt.push(`${getPrefix(i, _bcF.length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                     }
                     if (e.parts > 0) {
-                        _bt.push(`${getPrefix(i, _bcF.length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                     }
                     if (e.files >= 500 || e.parts >= 500) {
                         systemWarning = true;
                         bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
-                    } else if (e.files >= 100 || e.parts >= 100) {
+                    } else if (e.files >= 100 || e.parts >= 250) {
                         systemWarning = true;
                         bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
                     }
@@ -4068,7 +4047,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             embed.fields.push({
                 "name": "🗄 Sync",
-                "value": _bt,
+                "value": _bt.substring(0,1024),
                 "inline": true
             })
         }
@@ -4076,7 +4055,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let _ioT = []
         if (activeProccessing.length > 0) {
             _ioT.push('**🔄 ' + activeProccessing.length + ' Requests Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() + '**')
-        } else {
+        }
+        else {
             _ioT.push('🟢 No Active Requests')
         }
         if (activeTasks.size > 0) {
@@ -4111,138 +4091,82 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         embed.fields.push({
             "name": "⚡ I/O Engine",
-            "value": _ioT.join('\n')
+            "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
         // Extended Entity Statistics
-        if (!statusChannels.error && statusChannels.rows.length > 0) {
-            function convertMBtoText(value, noUnit) {
-                const diskValue = parseFloat(value.toString());
-                if (diskValue >= 1000000) {
-                    return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
-                } else if (diskValue >= 1000) {
-                    return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
-                } else {
-                    return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
+        function convertMBtoText(value, noUnit) {
+            const diskValue = parseFloat(value.toString());
+            if (diskValue >= 1000000) {
+                return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
+            } else if (diskValue >= 1000) {
+                return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
+            } else {
+                return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
+            }
+        }
+        const diskValues = statusData.filter(e => e.name.endsWith('_disk'))
+            .map(statusRecord => {
+                const _si = statusRecord.data;
+                let _sL = [];
+                if (_si.diskFault) {
+                    bannerFault.push(`📀 Disk "${_si.diskMount}" free space is low!`);
                 }
-            }
-            const diskValues = await statusChannels.rows.filter(e => e.name.endsWith('_disk'))
-                .map(e => {
-                    const statusRecord = statusData.filter(f => f.name === e.name)
-                    if (statusRecord.length > 0) {
-                        const _si = statusRecord[0].data;
-                        let _sL = [];
-                        if (_si.diskFault) {
-                            bannerFault.push(`📀 Disk "${_si.diskMount}" free space is low!`);
-                        }
-                        if (_si.preferUsed) {
-                            _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskUsed)} (${_si.diskPercent}%)`)
-                            _sL.push(`${convertMBtoText(_si.diskFree, true)} / ${convertMBtoText(_si.diskTotal)}`)
-                        } else {
-                            _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskFree)} (${_si.diskPercent}%)`)
-                            _sL.push(`${convertMBtoText(_si.diskUsed, true)} / ${convertMBtoText(_si.diskTotal)}`)
-                        }
+                if (_si.preferUsed) {
+                    _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskUsed)} (${_si.diskPercent}%)`)
+                    _sL.push(`${convertMBtoText(_si.diskFree, true)} / ${convertMBtoText(_si.diskTotal)}`)
+                } else {
+                    _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskFree)} (${_si.diskPercent}%)`)
+                    _sL.push(`${convertMBtoText(_si.diskUsed, true)} / ${convertMBtoText(_si.diskTotal)}`)
+                }
 
-                        return {
-                            "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk`,
-                            "value": `${_sL.join('\n')}`,
-                            "inline": true
-                        };
-                    } else {
-                        const _ch = discordClient.getChannel(e.channel);
-                        if (_ch) {
-                            const _n = _ch.name.split(' ')[0].trim();
-                            return {
-                                "name": `${_n} Disk`,
-                                "value": `${_ch.name.replace(_n, '').trim()}`,
-                                "inline": true
-                            }
-                        } else {
-                            return {
-                                "name": `${e.name.split('_disk')[0]} Disk`,
-                                "value": `❓ No Data`,
-                                "inline": true
-                            }
-                        }
-                    }
-                })
-            if (diskValues.length > 0) {
-                embed.fields.push(...diskValues)
-            }
-            const watchdogValues = await statusChannels.rows.filter(e => e.name.startsWith('watchdog_'))
-                .map(e => {
-                    const statusRecord = statusData.filter(f => f.name === e.name)
-                    if (statusRecord.length > 0) {
-                        const _si = statusRecord[0].data;
-                        bannerWarnings.push(..._si.wdWarnings.map(e => '👁 ' + e));
-                        bannerFault.push(..._si.wdFaults.map(e => '👁 ' + e));
+                return {
+                    "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🕗' : ''}`,
+                    "value": `${_sL.join('\n')}`.substring(0,1024),
+                    "inline": true
+                };
+            })
+        if (diskValues.length > 0) {
+            embed.fields.push(...diskValues)
+        }
+        const watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
+            .map(statusRecord => {
+                const _si = statusRecord.data;
+                bannerWarnings.push(..._si.wdWarnings.map(e => '👁 ' + e));
+                bannerFault.push(..._si.wdFaults.map(e => '👁 ' + e));
 
-                        return `${_si.header}${_si.name}: ${_si.statusIcons}`;
-                    } else {
-                        const _ch = discordClient.getChannel(e.channel);
-                        if (_ch) {
-                            const _n = e.name.split(' ')[0].trim();
-                            return `${_n} ${e.name.replace(_n, '').trim()}`
-                        } else {
-                            return `❓ No Data (${e.name.split('watchdog_').pop()})`
-                        }
-                    }
-
-                })
-            if (watchdogValues.length > 0) {
-                embed.fields.push({
-                    "name": `👁 Service Watchdog`,
-                    "value": `${watchdogValues.join('\n')}`
-                })
-            }
+                return `${_si.header}${_si.name}: ${_si.statusIcons}`;
+            })
+        if (watchdogValues.length > 0) {
+            embed.fields.push({
+                "name": `👁 Service Watchdog`,
+                "value": `${watchdogValues.join('\n')}`.substring(0,1024)
+            })
         }
         // Twitter Flow Control Statistics
-        if (!twitterStatusChannels.error && twitterStatusChannels.rows.length > 0) {
-            await twitterStatusChannels.rows
-                .map(e => {
-                    const statusRecord = statusData.filter(f => f.name === e.flowstatuschannel)
-                    const statusChannel = statusChannels.rows.filter(f => f.name === e.flowstatuschannel)
-                    if (statusRecord.length > 0) {
-                        let statusItems = [];
-                        const _si = statusRecord[0].data;
-                        if (_si.flowCountTotal <= 4) { statusItems.push(`**🛑 Queue Empty!**`) } else
-                        if (_si.flowCountTotal <= 32) { statusItems.push(`**🔻 Queue Underflow!**`) } else
-                        if (_si.overFlow) { statusItems.push(`**🌊 Queue Overflow!**`); systemWarning = true }
-                        // else if (_si.statusIcon) { statusItems.push(`${_si.statusIcon} Queue Active`); }
-                        if (_si.flowCountTotal > 1) {
-                            let _siT = [];
-                            if (_si.flowCountSend > 0) { _siT.push(`📨 ${_si.flowCountSend}`) }
-                            if (_si.flowCountLikeRt > 0) { _siT.push(`❤ ${_si.flowCountLikeRt}`) }
-                            if (_si.flowCountLike > 0) { _siT.push(`💙 ${_si.flowCountLike}`) }
-                            if (_si.flowCountRt > 0) { _siT.push(`🔄 ${_si.flowCountRt}`) }
-                            if (_siT.length > 0) { statusItems.push(_siT.join(' / ')) }
-                        }
+        embed.fields.push(...statusData.filter(e => e.name.startsWith('tflow_'))
+            .map(statusRecord => {
+                let statusItems = [];
+                const _si = statusRecord.data;
+                if (_si.flowCountTotal <= 4) { statusItems.push(`**🛑 Queue Empty!**`) } else
+                if (_si.flowCountTotal <= 32) { statusItems.push(`**🔻 Queue Underflow!**`) } else
+                if (_si.overFlow) { statusItems.push(`**🌊 Queue Overflow!**`); systemWarning = true }
+                // else if (_si.statusIcon) { statusItems.push(`${_si.statusIcon} Queue Active`); }
+                if (_si.flowCountTotal > 1) {
+                    let _siT = [];
+                    if (_si.flowCountSend > 0) { _siT.push(`📨 ${_si.flowCountSend}`) }
+                    if (_si.flowCountLikeRt > 0) { _siT.push(`❤ ${_si.flowCountLikeRt}`) }
+                    if (_si.flowCountLike > 0) { _siT.push(`💙 ${_si.flowCountLike}`) }
+                    if (_si.flowCountRt > 0) { _siT.push(`🔄 ${_si.flowCountRt}`) }
+                    if (_siT.length > 0) { statusItems.push(_siT.join(' / ')) }
+                }
 
-                        return {
-                            "name": `${e.short_name}${(e.name && e.name.length > 1) ? ' ' + e.name : ''} Flow`,
-                            "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`,
-                            "inline": true
-                        };
-                    } else if (statusChannel.length > 0) {
-                        const _ch = discordClient.getChannel(statusChannel[0].channel)
-                        return {
-                            "name": `${e.short_name}${(e.name && e.name.length > 1) ? ' ' + e.name : ''} Flow`,
-                            "value": `${(_ch) ? _ch.name.split(e.short_name).pop().trim() : '❓ Unavailable'}`,
-                            "inline": true
-                        };
-                    } else {
-                        return {
-                            "name": `${e.short_name}${(e.name && e.name.length > 1) ? ' ' + e.name : ''} Flow`,
-                            "value": `❓ No Data`,
-                            "inline": true
-                        };
-                    }
-                })
-                .forEach(e => {
-                    embed.fields.push(e)
-                })
-        }
-
+                return {
+                    "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account`,
+                    "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0,1024),
+                    "inline": true
+                };
+            }))
         let embdedArray = [];
         if (discordMQ.fields.length > 0){
             embdedArray.push(discordMQ)
@@ -4252,7 +4176,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         if (systemFault || bannerFault.length > 0) {
             embed.color = 16711680
-        } else if (systemWarning) {
+        }
+        else if (systemWarning) {
             embed.color = 16771840
         }
         const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
@@ -4261,19 +4186,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (activeAlarmClocks.length > 0) {
             embed.fields.unshift({
                 "name": `🔔 Reminders`,
-                "value": activeAlarmClocks.join('\n')
+                "value": activeAlarmClocks.join('\n').substring(0,1024)
             })
         }
         if (bannerWarnings.length > 0) {
             embed.fields.unshift({
                 "name": `⚠ Active Warnings`,
-                "value": bannerWarnings.join('\n')
+                "value": bannerWarnings.join('\n').substring(0,1024)
             })
         }
         if (bannerFault.length > 0) {
             embed.fields.unshift({
                 "name": `⛔ Active Faults`,
-                "value": bannerFault.join('\n')
+                "value": bannerFault.join('\n').substring(0,1024)
             })
         }
 
@@ -4456,7 +4381,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     // Discord Framework - Remote Management
-    function sendTwitterAction(body, type, action, media, chid, guildid, embed, overide) {
+    async function sendTwitterAction(body, type, action, media, chid, guildid, embed, overide) {
         let channelNsfw = false
         if (chid) {
             try {
@@ -4476,7 +4401,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     originalembeds = embed
                 }
                 if (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download) {
-                    mqClient.sendData(`${systemglobal.Twitter_In}.user1`, {
+                    mqClient.sendData(`${systemglobal.Twitter_In}`, {
                         fromWorker: systemglobal.SystemName,
                         botSelfID: selfstatic.id,
                         listID: chid,
@@ -4486,31 +4411,35 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageFileData: media,
                         messageChannelOveride: overide,
                         messageFileType: 'url',
-                        messageEmbeds: originalembeds
+                        messageEmbeds: originalembeds,
+                        accountID: 1
                     }, function (ok) {
                         Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
                     })
                 } else {
-                    if (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) {
+                    if (TwitterLikeList.has(chid)) {
+                        listID = TwitterLikeList.get(chid)
+                    } else if (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) {
                         listID = TwitterListsEncoded.get(embed[0].color);
                     } else {
-                        listID = (TwitterLikeList.has(chid)) ? TwitterLikeList.get(chid) : TwitterLists.get(chid);
+                        listID = TwitterLists.get(chid)
                     }
-                    let _destination
+                    console.log(listID)
+                    let _destination = 1
                     if (embed && embed.length > 0 && embed[0].footer && embed[0].footer.text && embed[0].footer.text.includes('🆔:')) {
-                        _destination = `${systemglobal.Twitter_In}.user${embed[0].footer.text.split('🆔:').join('')}`
+                        _destination = embed[0].footer.text.split('🆔:').join('')
                     } else if (TwitterRedirects.has(listID) && type !== "listManager") {
-                        _destination = `${systemglobal.Twitter_In}.user${TwitterRedirects.get(listID)}`
+                        _destination = TwitterRedirects.get(listID)
                     } else if (TwitterPixivLike.has(chid)) {
-                        _destination = `${systemglobal.Twitter_In}.user${TwitterPixivLike.get(chid)}`
+                        _destination = TwitterPixivLike.get(chid)
                     } else if (embed && embed.length > 0 && TwitterPixivLike.has(embed[0].color)) {
-                        _destination = `${systemglobal.Twitter_In}.user${TwitterPixivLike.get(embed[0].color)}`
+                        _destination = TwitterPixivLike.get(embed[0].color)
+                    } else if (TwitterListAccounts.has(listID)) {
+                        _destination = TwitterListAccounts.get(listID)
                     } else if (TwitterActivityChannels.has(chid)) {
-                        _destination = `${systemglobal.Twitter_In}.user${TwitterActivityChannels.get(chid)}`
-                    } else {
-                        _destination = `${systemglobal.Twitter_In}.user1`
+                        _destination = TwitterActivityChannels.get(chid)
                     }
-                    mqClient.sendData(_destination, {
+                    mqClient.sendData(systemglobal.Twitter_In, {
                         fromWorker: systemglobal.SystemName,
                         botSelfID: selfstatic.id,
                         listID: listID,
@@ -4520,57 +4449,44 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageFileData: media,
                         messageChannelOveride: overide,
                         messageFileType: 'url',
-                        messageEmbeds: originalembeds
+                        messageEmbeds: originalembeds,
+                        accountID: parseInt(_destination.toString())
                     }, function (ok) {
                         SendMessage(`Message (${type}/${action}) forwarded to Twitter / ${_destination}`, "info", 'main', "Twitter")
                     })
                 }
             } else if (channelNsfw === false || channelNsfw === undefined) {
-                db.safe(`SELECT taccount
-                         FROM twitter_sendoverides
-                         WHERE channelid = ?`, [chid], function (err, twitter_sendoverides) {
-                    if (err) {
-                        SendMessage("SQL Error occurred when retrieving twitter account records", "err", guildid, "Twitter", err)
-                    } else {
-                        db.safe(`SELECT text
-                                 FROM twitter_textoverides
-                                 WHERE channelid = ?
-                                 ORDER BY RAND()`, [chid], function (err, twitter_textoverides) {
-                            if (err) {
-                                SendMessage("SQL Error occurred when retrieving twitter account records", "err", guildid, "Twitter", err)
-                            } else {
-                                if (type === 'SendTweet') {
-                                    let messageBody = body
-                                    if (twitter_textoverides.length > 0) {
-                                        messageBody = twitter_textoverides[0].text
-                                    }
-                                    let _destination = `${systemglobal.Twitter_In}.user1`
-                                    if (TwitterActivityChannels.has(chid)) {
-                                        _destination = `${systemglobal.Twitter_In}.user${TwitterActivityChannels.get(chid)}`
-                                    } else if (twitter_sendoverides > 0) {
-                                        _destination = `${systemglobal.Twitter_In}.user${twitter_sendoverides[0].taccount}`
-                                    }
-                                    mqClient.sendData(_destination, {
-                                        fromWorker: systemglobal.SystemName,
-                                        botSelfID: selfstatic.id,
-                                        listID: (embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) ? TwitterListsEncoded.get(embed[0].color) : TwitterLists.get(chid),
-                                        messageText: messageBody,
-                                        messageIntent: type,
-                                        messageAction: action,
-                                        messageFileData: media,
-                                        messageChannelOveride: overide,
-                                        messageFileType: 'url',
-                                        messageEmbeds: []
-                                    }, function (ok) {
-                                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
-                                    })
-                                } else {
-                                    SendMessage("Not a Tweeter Action", "warn", guildid, "Twitter");
-                                }
-                            }
-                        })
+                const twitter_sendoverides = await db.query(`SELECT taccount FROM twitter_sendoverides WHERE channelid = ?`, [chid])
+                if (twitter_sendoverides.error) {
+                    SendMessage("SQL Error occurred when retrieving twitter account records", "err", guildid, "Twitter", twitter_sendoverides.error)
+                }
+
+                if (type === 'SendTweet') {
+                    const messageBody = body
+                    let _destination = 1
+                    if (TwitterActivityChannels.has(chid)) {
+                        _destination = TwitterActivityChannels.get(chid)
+                    } else if (twitter_sendoverides.rows > 0) {
+                        _destination = twitter_sendoverides.rows[0].taccount
                     }
-                })
+                    mqClient.sendData(systemglobal.Twitter_In, {
+                        fromWorker: systemglobal.SystemName,
+                        botSelfID: selfstatic.id,
+                        listID: (embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) ? TwitterListsEncoded.get(embed[0].color) : TwitterLists.get(chid),
+                        messageText: "" + messageBody,
+                        messageIntent: type,
+                        messageAction: action,
+                        messageFileData: media,
+                        messageChannelOveride: overide,
+                        messageFileType: 'url',
+                        messageEmbeds: [],
+                        accountID: parseInt(_destination.toString())
+                    }, function (ok) {
+                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
+                    })
+                } else {
+                    SendMessage("Not a Tweeter Action", "warn", guildid, "Twitter");
+                }
             } else if (channelNsfw === true) {
                 SendMessage("Can not perform twitter actions on a NSFW channel!", "warn", guildid, "Twitter")
             }
@@ -4687,7 +4603,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     channelID = listinfo[0].saveid
                                 }
 
-                                if (TwitterLikeList.get(sendTo) && TwitterAutoLike.has(TwitterLikeList.get(sendTo)) || TwitterAutoLike.has(listID)) {
+                                if (TwitterLikeList.has(sendTo) && TwitterAutoLike.has(TwitterLikeList.get(sendTo)) || TwitterAutoLike.has(listID)) {
                                     sendTwitterAction(fullmsg.content, "LikeRT", "add", fullmsg.attachments, sendTo, fullmsg.guildID, fullmsg.embeds);
                                 }
                                 if (image) {
@@ -4887,7 +4803,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             console.error(err)
                             Logger.printLine("DownloadTweets", `Failed to create new thread for this request! Falling back to request`, "error", err)
                         }
-                        mqClient.sendData(`${systemglobal.Twitter_In}.user1`, {
+                        mqClient.sendData(systemglobal.Twitter_In, {
                             fromWorker: systemglobal.SystemName,
                             botSelfID: selfstatic.id,
                             messageText: "",
@@ -4895,7 +4811,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             messageAction: 'add',
                             messageChannelID: chid,
                             allowDuplicates: forceAllItems,
-                            userID: username
+                            userID: username,
+                            accountID: 1
                         }, async(ok) => {
                             Logger.printLine("Discord", `Request to download user forwarded to Twitter`, "info")
                             try {
@@ -5048,7 +4965,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         'upgrade-insecure-requests': '1',
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
                     },
-                }, function (err, res, body) {
+                }, async (err, res, body) => {
                     if (err) {
                         SendMessage("Failed to download message attachments from discord", "err", message.guildID, "Move", err)
                         cb(false);
@@ -5057,89 +4974,99 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         cb(false);
                     } else {
                         let preview = undefined;
+                        const colorSearchFormats = ['png', 'jpg', 'jfif', 'jpeg', 'gif']
+                        let _color = undefined
+
                         let messagefiles = [
                             {
                                 file: Buffer.from(body),
                                 name: message.attachments[0].filename
                             }
                         ];
+                        if (colorSearchFormats.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
+                            try {
+                                _color = await getAverageColor(body, {mode: 'precision'})
+                            } catch (e) {
+                                console.error(e);
+                            }
+                        }
                         if (message.attachments.length > 1 && message.attachments.filter(e => e.filename.includes('-t9-preview-video')).length > 0) {
                             const previewAttachment = message.attachments.filter(e => e.filename.includes('-t9-preview-video')).pop()
                             Logger.printLine("Move", `Need to download preview ${previewAttachment.url}`, "debug", previewAttachment)
-                            request.get({
-                                url: previewAttachment.url,
-                                headers: {
-                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                    'accept-language': 'en-US,en;q=0.9',
-                                    'cache-control': 'max-age=0',
-                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                    'sec-ch-ua-mobile': '?0',
-                                    'sec-fetch-dest': 'document',
-                                    'sec-fetch-mode': 'navigate',
-                                    'sec-fetch-site': 'none',
-                                    'sec-fetch-user': '?1',
-                                    'upgrade-insecure-requests': '1',
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                },
-                            }, function (err, res, previewbody) {
-                                if (err) {
-                                    sendMessage()
-                                    console.error(err)
-                                } else {
-                                    messagefiles.push({
-                                        file: Buffer.from(previewbody),
-                                        name: previewAttachment.filename
-                                    })
-                                    sendMessage()
-                                }
+                            const previewItem = await new Promise(resolve => {
+                                request.get({
+                                    url: previewAttachment.url,
+                                    headers: {
+                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                        'accept-language': 'en-US,en;q=0.9',
+                                        'cache-control': 'max-age=0',
+                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                        'sec-ch-ua-mobile': '?0',
+                                        'sec-fetch-dest': 'document',
+                                        'sec-fetch-mode': 'navigate',
+                                        'sec-fetch-site': 'none',
+                                        'sec-fetch-user': '?1',
+                                        'upgrade-insecure-requests': '1',
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                    },
+                                }, function (err, res, previewbody) {
+                                    if (err) {
+                                        resolve(false)
+                                        console.error(err)
+                                    } else {
+                                        resolve(previewbody)
+                                    }
+                                })
                             })
-                        } else {
-                            sendMessage()
+                            if (previewItem) {
+                                messagefiles.push({
+                                    file: Buffer.from(previewItem),
+                                    name: previewAttachment.filename
+                                })
+                            }
                         }
 
-                        function sendMessage() {
-                            discordClient.createMessage(moveTo, {content: `${messagecontent}`}, messagefiles)
-                                .then(async (data) => {
-                                    await messageUpdate(data, {
-                                        channel: message.channel.id,
-                                        id: message.id,
-                                        action: 'jfsMove',
-                                        timestamp: (message.full_timestamp) ? message.full_timestamp : undefined,
-                                        delay: (delay)
+                        try {
+                            const data = await discordClient.createMessage(moveTo, {content: `${messagecontent}`}, messagefiles)
+                            await messageUpdate(data, {
+                                channel: message.channel.id,
+                                id: message.id,
+                                action: 'jfsMove',
+                                timestamp: (message.full_timestamp) ? message.full_timestamp : undefined,
+                                delay: (delay),
+                                color: _color,
+                            })
+                            if (data.content && data.content.includes('🏷 Name:')) {
+                                jfsMigrateFileParts(data);
+                            }
+                            if (delay) {
+                                discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
+                                    .catch((er) => {
+                                        SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
                                     })
-                                    if (data.content && data.content.includes('🏷 Name:')) {
-                                        jfsMigrateFileParts(data);
+                            }
+                            try {
+                                if (message.embeds.length > 0 && message.embeds[0].title && message.embeds[0].title.includes('🎆 ')) {
+                                    const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [message.id])
+                                    if (foundMessage.error) {
+                                        SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
+                                    } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && message.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
+                                        await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [message.id])
+                                        sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : message.attachments[0]], moveTo, message.guildID, []);
                                     }
-                                    if (delay) {
-                                        discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
-                                            .catch((er) => {
-                                                SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
-                                            })
-                                    }
-                                    try {
-                                        if (message.embeds.length > 0 && message.embeds[0].title && message.embeds[0].title.includes('🎆 ')) {
-                                            const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [message.id])
-                                            if (foundMessage.error) {
-                                                SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
-                                            } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && message.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
-                                                await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [message.id])
-                                                sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : message.attachments[0]], moveTo, message.guildID, []);
-                                            }
-                                            sendPixivAction(message.embeds[0], 'Like', "add");
-                                        }
-                                    } catch (err) {
-                                        console.error(err);
-                                    }
-                                    cb(true)
-                                })
-                                .catch((er) => {
-                                    SendMessage("Failed to send message to discord", "err", message.guildID, "Move", er)
-                                    if (er.message.includes("empty message") || er.message.includes("to large")) {
-                                        cb(true)
-                                    } else {
-                                        cb(false)
-                                    }
-                                });
+                                    sendPixivAction(message.embeds[0], 'Like', "add");
+                                }
+                            } catch (err) {
+                                console.error(err);
+                            }
+                            cb(true)
+                        } catch (er) {
+                            SendMessage("Failed to send message to discord", "err", message.guildID, "Move", er)
+                            if (er.message.includes("empty message") || er.message.includes("to large")) {
+                                cb(true)
+                            } else {
+                                cb(false)
+                            }
                         }
                     }
                 })
@@ -5846,7 +5773,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 hash: (options && options.hash) ? options.hash : undefined,
                             };
                             // Extract FileID, Name, and Size
-                            if (msg.content.includes('🏷 Name:')) {
+                            if (options && options.fileData) {
+                                if (options.fileData.name)
+                                    sqlObject.real_filename = options.fileData.name.trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                                if (options.fileData.uuid)
+                                    sqlObject.fileid = options.fileData.uuid.trim();
+                                if (options.fileData.size)
+                                    sqlObject.filesize = parseFloat(options.fileData.size.toString())
+                                if (options.fileData.total)
+                                    sqlObject.paritycount = parseInt(options.fileData.total.toString())
+                            } else if (msg.content.includes('🏷 Name:')) {
                                 const input = msg.content.split("**\n*")[0].replace("**🧩 File : ", '')
                                 if (msg.content.includes("MB)")) {
                                     sqlObject.filesize = msg.content.split('MB)')[0].split(' (').pop().trim()
@@ -5938,9 +5874,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                                 }
                                 if (options && options.preview) {
-                                    sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url
+                                    sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url.split('/attachments').pop()
                                 } else if (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).length > 0) {
-                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url;
+                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments').pop();
                                 } else if (msg.attachments.length > 0 && accepted_cache_types.indexOf(msg.attachments.pop().filename.toLowerCase().split('.')[0]) !== -1 ) {
                                     mqClient.sendData(MQWorker3, {
                                         fromClient : `return.Discord.${systemglobal.SystemName}`,
@@ -5994,24 +5930,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         SendMessage("Error occurred when attempting to automatically download Spanned File", "warn", 'main', "AutoCache", err)
                                     }
                                 }
-                                if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi') {
+                                if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
                                     mqClient.sendData(systemglobal.Sequenzia_In, {
                                         id: msg.id,
                                         url: `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`,
                                         extra: false,
                                         command: 'cacheColor'
-                                    }, function (ok) { })
-                                    mqClient.sendData(systemglobal.Sequenzia_In, {
-                                        id: msg.id,
-                                        url: `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`,
-                                        extra: false,
-                                        command: 'cache9'
-                                    }, function (ok) { })
-                                    mqClient.sendData(systemglobal.Sequenzia_In, {
-                                        id: msg.id,
-                                        url: `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`,
-                                        extra: false,
-                                        command: 'cache5'
                                     }, function (ok) { })
                                 }
                             }
@@ -6121,7 +6045,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
                 }
             }
-            if (msg.attachments && (msg.attachments.length === 1 || (msg.attachments.length > 1 && msg.attachments.pop().filename.toLowerCase().includes('-t9-preview')))) {
+            if (msg.attachments && (msg.attachments.length === 1 || (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0))) {
                 const urlParts = msg.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
                 if (urlParts.length === 2) {
                     sqlObject.attachment_hash = (urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
@@ -6139,8 +6063,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
 
                 if (msg.attachments.length > 1 && msg.attachments.pop().filename.toLowerCase().includes('-t9-preview-video')) {
-                    sqlObject.cache_proxy = msg.attachments.pop().proxy_url;
+                    sqlObject.cache_proxy = msg.attachments.pop().proxy_url.split('/attachments').pop();
                 }
+            } else if (msg.attachments && msg.attachments.length > 1) {
+                sqlObject.attachment_name = null
+                sqlObject.attachment_hash = null
+                let _fileextra = []
+                for (let index in msg.attachments) {
+                    let _filesize = null
+                    await new Promise((resolve, reject) => {
+                        remoteSize(msg.attachments[0].url, async (err, size) => {
+                            if (!err || (size !== undefined && size > 0)) {
+                                _filesize = (size / 1024000).toPrecision(2)
+                                resolve(true)
+                            } else {
+                                resolve(false)
+                            }
+                        })
+                    })
+                    _fileextra.push([msg.attachments[index].filename, msg.attachments[index].url, msg.attachments[index].proxy_url, _filesize])
+                }
+                sqlObject.attachment_extra = JSON.stringify(_fileextra).toString()
             }
             if ((await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.length > 0) {
                 const addedMessage = await db.query(`UPDATE kanmi_records SET ? WHERE id = ?`, [sqlObject, (refrance) ? refrance.id : msg.id]);
@@ -6158,8 +6101,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 setTimeout(() => {
                     discordClient.deleteMessage(refrance.channel, refrance.id, "Message was moved")
                         .catch((er) => {
-                            console.log(er)
-                            SendMessage("There was a error removing the old message", "err", msg.guild.id, "MessageUpdate", er)
                         })
                 }, (refrance && refrance.delay) ? 30000 : 1000)
             }
@@ -6203,21 +6144,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         })
                 }
                 if (serverdata.rows.length > 0 && (serverdata.rows[0].classification === null || (serverdata.rows[0].classification !== 'system' && serverdata.rows[0].classification !== 'timelime'))) {
-                    const selectItem = await db.query(`SELECT cache_proxy FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
                     const removeItem = await db.query(`DELETE FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
                     if (removeItem.error) {
                         SendMessage("SQL Error occurred when deleting the message from the cache", "err", 'main', "SQL", removeItem.error);
-                    }
-                    if (selectItem.error) {
-                        SendMessage("SQL Error occurred when reading the message cache", "err", 'main', "SQL", selectItem.error);
-                    } else if (selectItem.rows.length > 0 && selectItem.rows[0].cache_proxy !== null && selectItem.rows[0].cache_proxy !== 'multi') {
-                        mqClient.sendData(systemglobal.Sequenzia_In, {
-                            id: msg.id,
-                            url: selectItem.rows[0].cache_proxy,
-                            extra: false,
-                            command: 'remove'
-                        }, function (ok) {
-                        })
                     }
                 }
             }
@@ -6329,7 +6258,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const messages = await discordClient.getMessages(guild.chid_filedata, limiter, lastmessage)
                         failCount = 0;
                         await Promise.all(messages.map(async message => {
-                            const found_message = await find_response.rows.filter(e => e.messageid === message.id);
+                            const found_message = find_response.rows.filter(e => e.messageid === message.id);
                             if (message.attachments.length > 0) {
                                 if (found_message.length === 1) {
                                     if (found_message[0].url !== message.attachments[0].url) {
@@ -6342,7 +6271,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                 } else if (message.content.includes('🧩 ID: ')) {
                                     const fileid = message.content.split('🧩 ID: ').pop().split('\n')[0].trim()
-                                    const addPart = await db.query(`INSERT INTO discord_multipart_files SET ?`, [{
+                                    const count = message.content.split('📦 Part: ').pop().split('/').pop().trim()
+                                    const addPart = await db.query(`REPLACE INTO discord_multipart_files SET ?`, [{
                                         messageid: message.id,
                                         channelid: message.channel.id,
                                         serverid: message.guildID,
@@ -6350,6 +6280,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         fileid,
                                         valid: 1
                                     }])
+                                    await db.query(`UPDATE kanmi_records SET paritycount = ? WHERE fileid = ?`, [count, fileid])
                                     if (addPart.error) {
                                         SendMessage(`Failed to add part to database for ${fileid}`, "error", 'main', "PartsInspector", addPart.error)
                                     } else {
@@ -6615,12 +6546,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         }
                                                         break;
                                                     case 'Check' :
-                                                        if (fullmsg.content.includes('://youtube.com') || fullmsg.content.includes('://yt.be')) {
+                                                        if (fullmsg.content.includes('://youtube.com') || fullmsg.content.includes('://yt.be') || fullmsg.content.startsWith('**⏰ ')) {
                                                             discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id)
                                                                 .catch((er) => {
                                                                     SendMessage("There was a error removing the message", "err", fullmsg.guildID, "CleanPost", er)
                                                                 })
-                                                        } else if (fullmsg.content.includes("Are you sure you want to delete ")) {
+                                                        }
+                                                        if (fullmsg.content.includes("Are you sure you want to delete ")) {
                                                             if (fullmsg.channel.id === serverdata[0].chid_system.toString()) {
                                                                 const messageWanted = fullmsg.content.split("https://discord.com/channels/").pop().split('/')
                                                                 jfsRemoveSF(messageWanted[1].toString(), messageWanted[2].toString().split(':')[0], messageWanted[0].toString());
@@ -6628,10 +6560,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         } else if (Timers.has(`alarmExpires-${fullmsg.id}`)) {
                                                             await clearTimeout(Timers.get(`alarmExpires-${fullmsg.id}`).expirationTimer);
                                                             Timers.delete(`alarmExpires-${fullmsg.id}`)
-                                                            discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id)
-                                                                .catch((er) => {
-                                                                    SendMessage("There was a error removing the message", "err", fullmsg.guildID, "CleanPost", er)
-                                                                })
                                                         }
                                                         break;
                                                     case 'RefreshStatus' :
@@ -6971,17 +6899,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
         // Reset states to last values
         resetStates();
-        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-            setTimeout(() => {
-                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                    }
-                })
-            }, 5000)
-        }
         if (init === 0) {
             if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+                setTimeout(() => {
+                    request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                            console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        }
+                    })
+                }, 5000)
                 setTimeout(sendWatchdogPing, 60000);
             }
             discordClient.editStatus( "dnd",{
@@ -7074,6 +7000,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     await discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 
+    tx2.action('halt', async (reply) => {
+        shutdownSystem((ok) => {
+            reply({ answer : ok })
+        })
+    })
+
+    process.on('SIGINT', function() {
+        shutdownSystem((ok) => {
+            process.exit(0)
+        })
+    })
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)

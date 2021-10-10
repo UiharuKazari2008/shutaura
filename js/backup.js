@@ -25,7 +25,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const facilityName = 'Backup-IO';
 
     const path = require('path');
-    const colors = require('colors');
     const RateLimiter = require('limiter').RateLimiter;
     const limiter1 = new RateLimiter(1, 250);
     const limiter2 = new RateLimiter(1, 250);
@@ -121,16 +120,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             destName += '-' + message.real_filename.replace(message.id, '')
         } else if (message.attachment_name) {
             destName += '-' + message.attachment_name.replace(message.id, '')
-        } else if (message.cache_url) {
-            destName += '-' + message.cache_url.split('/').pop().replace(message.id, '')
+        } else if (message.filecached === 1) {
+            destName += '-' + message.real_filename(message.id, '')
         } else if (message.attachment_hash) {
-            destName += '-' + message.attachment_hash.split('/')[0]
+            destName += '-' + message.attachment_hash.split('/').pop()
         }
         
         async function backupCompleted(destPath) {
-            const saveBackupSQL = await db.query(`INSERT INTO kanmi_backups SET system_name = ?, path = ?, bid = ?, eid = ?`, [backupSystemName, destPath.replace(systemglobal.Backup_Base_Path,'/'), `${backupSystemName}-${message.eid}`, message.eid])
+            const saveBackupSQL = await db.query(`INSERT INTO kanmi_backups SET system_name = ?, bid = ?, eid = ?`, [backupSystemName, `${backupSystemName}-${message.eid}`, message.eid])
             if (saveBackupSQL.error) {
-                mqClient.sendMessage(`Failed to mark ${message.id} as backup complete`, "err", "SQL", saveBackupSQL.error)
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as backup complete`, "err", saveBackupSQL.error)
                 cb(false)
             } else {
                 Logger.printLine("BackupFile", `Completed Backup of ${destName}`, "info")
@@ -143,26 +142,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         if (message.attachment_extra !== null) {
             cb(false)
-        } else if (message.cache_url && ((systemglobal.Cache_Base_Path && systemglobal.Cache_Base_URL && message.cache_url.includes(systemglobal.Cache_Base_URL)) || (systemglobal.Pickup_Base_Path && systemglobal.Pickup_Base_URL && message.cache_url.includes(systemglobal.Pickup_Base_URL)))) {
+        } else if (message.filecached === 1 && systemglobal.Pickup_Base_Path && fs.existsSync(path.join(systemglobal.Pickup_Base_Path, `.${message.fileid}`))) {
             const destPath = path.join(systemglobal.Backup_Base_Path, message.server, message.channel, 'files')
-            const urlParts = message.cache_url.split('/')
-            let filePath
-            if (systemglobal.Cache_Base_URL && message.cache_url.includes(systemglobal.Cache_Base_URL) && systemglobal.Cache_Base_Path) {
-                filePath = path.join(systemglobal.Cache_Base_Path, urlParts[urlParts.length - 2], urlParts.pop())
-            } else {
-                filePath = path.join(systemglobal.Pickup_Base_Path, urlParts.pop())
-            }
+            filePath = path.join(systemglobal.Pickup_Base_Path, `.${message.fileid}`)
 
             fs.ensureDirSync(destPath);
-            Logger.printLine("BackupFile", `Copy Local File for Backup of ${destName}`, "debug")
+            Logger.printLine("BackupFile", `Copy Local File for Backup of ${message.id} ${destName}`, "debug")
             try {
                 await fs.copyFileSync(filePath, path.join(destPath, destName))
                 await backupCompleted(path.join(destPath, destName).toString())
             } catch (err) {
-                mqClient.sendMessage(`${backupSystemName}: Failed to copy backup ${message.id} in ${message.channel}`, "err", "CopyFile", err)
+                Logger.printLine("CopyFile", `Failed to copy backup ${message.id} in ${message.channel}`, "err", err)
                 if (err.code === "ENOENT") {
                     try {
-                        await db.query(`UPDATE kanmi_records SET cache_url = null WHERE eid = ?`, [message.eid])
+                        await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [message.eid])
                     } catch (err) {
                         Logger.printLine("BackupFile", `Failed to clear cache url for ${destName}`, "error")
                     }
@@ -172,7 +165,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         } else if (message.attachment_hash) {
             const destPath = path.join(systemglobal.Backup_Base_Path, message.server, message.channel, 'files')
 
-            Logger.printLine("BackupFile", `Downloading ${destName}...`, "debug")
+            Logger.printLine("BackupFile", `Downloading ${message.id} ${destName}...`, "debug")
             await request.get({
                 url: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name}`),
                 headers: {
@@ -190,7 +183,26 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 },
             }, async (err, res, body) => {
                 if (err || res && res.statusCode && res.statusCode !== 200) {
-                    mqClient.sendMessage(`${backupSystemName}: Failed to backup attachment "${message.attachment_hash}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", "DownloadFile", (err) ? err : undefined)
+                    if (res && res.statusCode && res.statusCode === 403) {
+                        Logger.printLine("DownloadFile", `Failed to backup attachment "${message.attachment_hash}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                        mqClient.sendData(systemglobal.Discord_Out, {
+                            fromClient: `return.Backup.${systemglobal.SystemName}`,
+                            messageReturn: false,
+                            messageID: message.id,
+                            messageChannelID: message.channel,
+                            messageServerID: message.server,
+                            messageType: 'command',
+                            messageAction: 'ValidateMessage'
+                        }, function (callback) {
+                            if (callback) {
+                                Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                            } else {
+                                Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                            }
+                        });
+                    } else {
+                        Logger.printLine("DownloadFile", `Failed to backup attachment "${message.attachment_hash}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                    }
                     cb(false)
                 } else {
                     fs.ensureDirSync(destPath);
@@ -198,7 +210,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         body = null;
 
                         if (err) {
-                            mqClient.sendMessage(`${backupSystemName}: Failed to write backup ${message.id} in ${message.channel}`, "err", "CopyFile", err)
+                            Logger.printLine("CopyFile", `Failed to write backup ${message.id} in ${message.channel}`, "err", err)
                             cb(false)
                         } else {
                             await backupCompleted(path.join(destPath, destName).toString())
@@ -214,7 +226,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function backupParts (message, destName, cb) {
         const backupPartsNeeded = await db.query(`SELECT x.* FROM (SELECT * FROM discord_multipart_files WHERE fileid = ? AND valid = 1) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.messageid = y.messageid) WHERE y.bid IS NULL`, [message.fileid, backupSystemName])
         if (backupPartsNeeded.error) {
-            mqClient.sendMessage("Error getting items to backup from discord!", "crit", "SQL", backupPartsNeeded.error)
+            Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupPartsNeeded.error)
             cb(false)
         } else if (backupPartsNeeded.rows.length > 0) {
             const pTotal = backupPartsNeeded.rows.length
@@ -253,7 +265,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 try {
                                     await fs.ensureDirSync(destPath);
                                     await fs.writeFileSync(path.join(destPath, partName), body)
-                                    const saveBackupPartSQL = await db.query(`INSERT INTO discord_multipart_backups SET system_name = ?, path = ?, bid = ?, messageid = ? ON DUPLICATE KEY UPDATE path = ?`, [backupSystemName, destPath.replace(systemglobal.Backup_Base_Path,'/'), `${backupSystemName}-${part.messageid}`, part.messageid, destPath.replace(systemglobal.Backup_Base_Path,'/')])
+                                    const saveBackupPartSQL = await db.query(`INSERT INTO discord_multipart_backups SET system_name = ?, bid = ?, messageid = ? ON DUPLICATE KEY UPDATE messageid = ?`, [backupSystemName, `${backupSystemName}-${part.messageid}`, part.messageid, part.messageid])
                                     if (saveBackupPartSQL.error) {
                                         Logger.printLine("SQL", `Failed to mark ${message.id} as backup complete`, "err", saveBackupPartSQL.error)
                                         resolve()
@@ -284,9 +296,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     async function findBackupItems() {
         runCount++
-        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(systemglobal.Pickup_Base_Path || systemglobal.Cache_Base_Path) ? ' OR (cache_url IS NOT NULL AND cache_url != \'multi\')' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
+        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(systemglobal.Pickup_Base_Path || systemglobal.Cache_Base_Path) ? ' OR (filecached IS NOT NULL AND filecached != 0 AND attachment_extra IS NULL)' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
-            mqClient.sendMessage("Error getting items to backup from discord!", "crit", "SQL", backupItems.error)
+            Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
             let total = backupItems.rows.length
             let ticks = 0
@@ -373,7 +385,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     })
                 }
                 if (total > 0) {
-                    mqClient.sendMessage(`Completed Backup #${runCount} with ${total} files`, "info", "Backup");
+                    Logger.printLine("Backup", `Completed Backup #${runCount} with ${total} files`, "info");
                 }
                 setTimeout(findBackupItems,(systemglobal.Backup_Interval_Min) ? systemglobal.Backup_Interval_Min * 60000 : 3600000);
             })
@@ -408,7 +420,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function findBackupParts() {
         const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
-            mqClient.sendMessage("Error getting items to backup from discord!", "crit", "SQL", backupItems.error)
+            Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
             let total = backupItems.rows.length
             let ticks = 0
@@ -472,7 +484,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(() => {
                 if (total > 0)
-                    mqClient.sendMessage(`Completed Backup #${runCount} with ${total} parts`, "info", "Backup");
+                    Logger.printLine("Backup", `Completed Backup #${runCount} with ${total} parts`, "info");
                 mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
                     fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                     messageReturn: false,
