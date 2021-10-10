@@ -33,18 +33,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const colors = require('colors');
     const amqp = require('amqplib/callback_api');
     let amqpConn = null;
-    let pubChannel = null;
     const PixivApi = require('pixiv-api-client');
-    const storageHandler = require('node-persist');
     const request = require('request').defaults({ encoding: null });
-    const co = require('co')
-    const os = require('os');
     const cron = require('node-cron');
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
 
     const { getIDfromText } = require('./utils/tools');
-    const {RateLimiter} = require("limiter");
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
@@ -91,49 +86,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         systemglobal.Watchdog_ID = args.wid
     }
 
-    const localParameters = storageHandler.create({
-        dir: 'data/state',
-        stringify: JSON.stringify,
-        parse: JSON.parse,
-        encoding: 'utf8',
-        logging: false,
-        ttl: false,
-        expiredInterval: 2 * 60 * 1000, // every 2 minutes the process will clean-up the expired cache
-        forgiveParseErrors: false
-    });
-    localParameters.init(function (err) {
-        if (err) {
-            Logger.printLine("LocalParameters", "Failed to initialize the Local parameters storage", "error", err)
-        } else {
-            Logger.printLine("LocalParameters", "Initialized successfully the Local parameters storage", "debug", err)
-        }
-    });
-
-    const storageIlluRecom = storageHandler.create({
-        dir: 'data/recom_illus',
-        stringify: JSON.stringify,
-        parse: JSON.parse,
-        encoding: 'utf8',
-        logging: false,
-        ttl: true,
-        expiredInterval: 2 * 60 * 1000, // every 2 minutes the process will clean-up the expired cache
-        forgiveParseErrors: true
-    });
-    storageIlluRecom.init(function (err) {
-        if (err) {
-            Logger.printLine("storageIlluRecom", "Failed to initialize the Recommended Illustrations storage", "error", err)
-        } else {
-            Logger.printLine("storageIlluRecom", "Initialized successfully the Recommended Illustrations storage", "debug", err)
-        }
-    });
-
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
 
     Logger.printLine("Pixiv", "Settings up Pixiv client", "debug")
     const pixivClient = new PixivApi();
     let auth = undefined
 
-    const MQWorkerCmd = `command.pixiv.${systemglobal.SystemName}`
     const MQWorker1 = systemglobal.Pixiv_In
 
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
@@ -144,70 +102,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
 // Kanmi MQ Backend
-    function startWorkerCmd() {
-        amqpConn.createChannel(function(err, ch) {
-            if (closeOnErr(err)) return;
-            ch.on("error", function(err) {
-                Logger.printLine("KanmiMQ", "Channel 0 Error (Command)", "error", err)
-            });
-            ch.on("close", function() {
-                Logger.printLine("KanmiMQ", "Channel 0 Closed (Command)", "critical")
-                start();
-            });
-            ch.prefetch(10);
-            ch.assertQueue(MQWorkerCmd, { durable: true }, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.consume(MQWorkerCmd, processMsg, { noAck: true });
-                Logger.printLine("KanmiMQ", "Channel 0 Worker Ready (Command)", "debug")
-            });
-            ch.assertExchange("kanmi.command", "direct", {}, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.bindQueue(MQWorkerCmd, "kanmi.command", MQWorkerCmd, [], function(err, _ok) {
-                    if (closeOnErr(err)) return;
-                    Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-                })
-            });
-            ch.assertExchange("kanmi.command.broadcast", "fanout", {}, function(err, _ok) {
-                if (closeOnErr(err)) return;
-                ch.bindQueue(MQWorkerCmd, "kanmi.command.broadcast", "command.pixiv", [], function(err, _ok) {
-                    if (closeOnErr(err)) return;
-                    Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-                })
-            });
-            function processMsg(msg) {
-                workCmd(msg, function(ok) {
-                    try {
-                        if (ok)
-                            ch.ack(msg);
-                        else
-                            ch.reject(msg, true);
-                    } catch (e) {
-                        closeOnErr(e);
-                    }
-                });
-            }
-        });
-    }
-    function workCmd(msg, cb) {
-        let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
-        if (MessageContents.hasOwnProperty('command')) {
-            switch (MessageContents.command) {
-                case 'RESET' :
-                    console.log("================================ RESET SYSTEM ================================ ".bgRed);
-                    cb(true)
-                    process.exit(10);
-                    break;
-                case 'ESTOP':
-                    console.log("================================ EMERGENCY STOP! ================================ ".bgRed);
-                    cb(true)
-                    process.exit(0);
-                    break;
-                default:
-                    Logger.printLine("RemoteCommand", `Unknown Command: ${MessageContents.command}`, "debug");
-                    cb(true)
-            }
-        }
-    }
     function startWorker() {
         amqpConn.createChannel(function(err, ch) {
             if (closeOnErr(err)) return;
@@ -277,7 +171,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function whenConnected() {
         startWorker();
-        startWorkerCmd();
         if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -308,11 +201,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 auth = false;
             }
         });
-    }
-
-// Support Functions
-    function sendIlluPackedToDiscord(listOfIllu, passed) {
-
     }
 
 // Pixiv Tasks

@@ -155,7 +155,6 @@ module.exports = function (facility, sgoveride) {
             } else if (channel === "message" || channel === "notify") {
                 sendto = staticChID.AlrmNotif
                 loglevel = 'notice'
-                message = "✉️ " + message
             } else {
                 message = "❕ " + message
                 loglevel = 'alert'

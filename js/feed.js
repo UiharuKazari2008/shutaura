@@ -91,7 +91,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     await loadDatabaseCache();
 
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
-
+    console.log(systemglobal)
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
     let flickr

@@ -28,7 +28,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const fs = require('fs');
 	const sharp = require('sharp');
 	const path = require('path');
-	const colors = require('colors');
 	const chokidar = require('chokidar');
 	const RateLimiter = require('limiter').RateLimiter;
 	const limiter = new RateLimiter(5, 5000);
@@ -187,7 +186,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	console.log(systemglobal)
 
 	const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
-	const MQWorkerCmd = `command.fileworker.${systemglobal.SystemName}`
 	const MQWorker1 = `${systemglobal.FileWorker_In}`
 	const MQWorker2 = `${MQWorker1}.${systemglobal.SystemName}.local`
 	const MQWorker3 = `${MQWorker1}.backlog`
@@ -202,72 +200,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 	if (systemglobal.PickupFolder && !fs.existsSync(systemglobal.PickupFolder)) {
 		fs.mkdirSync(systemglobal.PickupFolder);
-	}
-
-	// Command
-	function startWorkerCmd() {
-		amqpConn.createChannel(function(err, ch) {
-			if (closeOnErr(err)) return;
-			ch.on("error", function(err) {
-				Logger.printLine("KanmiMQ", "Channel 0 Error (Command)", "error", err)
-			});
-			ch.on("close", function() {
-				Logger.printLine("KanmiMQ", "Channel 0 Closed (Command)", "critical")
-				start();
-			});
-			ch.prefetch(10);
-			ch.assertQueue(MQWorkerCmd, { durable: true }, function(err, _ok) {
-				if (closeOnErr(err)) return;
-				ch.consume(MQWorkerCmd, processMsg, { noAck: true });
-				Logger.printLine("KanmiMQ", "Channel 0 Worker Ready (Command)", "debug")
-			});
-			ch.assertExchange("kanmi.command", "direct", {}, function(err, _ok) {
-				if (closeOnErr(err)) return;
-				ch.bindQueue(MQWorkerCmd, "kanmi.command", MQWorkerCmd, [], function(err, _ok) {
-					if (closeOnErr(err)) return;
-					Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-				})
-			});
-			ch.assertExchange("kanmi.command.broadcast", "fanout", {}, function(err, _ok) {
-				if (closeOnErr(err)) return;
-				ch.bindQueue(MQWorkerCmd, "kanmi.command.broadcast", "command.fileworker", [], function(err, _ok) {
-					if (closeOnErr(err)) return;
-					Logger.printLine("KanmiMQ", "Channel 0 Worker Bound to Exchange (Command)", "debug")
-				})
-			});
-			function processMsg(msg) {
-				workCmd(msg, function(ok) {
-					try {
-						if (ok)
-							ch.ack(msg);
-						else
-							ch.reject(msg, true);
-					} catch (e) {
-						closeOnErr(e);
-					}
-				});
-			}
-		});
-	}
-	function workCmd(msg, cb) {
-		let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
-		if (MessageContents.hasOwnProperty('command')) {
-			switch (MessageContents.command) {
-				case 'RESET' :
-					console.log("================================ RESET SYSTEM ================================ ".bgRed);
-					cb(true)
-					process.exit(10);
-					break;
-				case 'ESTOP':
-					console.log("================================ EMERGENCY STOP! ================================ ".bgRed);
-					cb(true)
-					process.exit(0);
-					break;
-				default:
-					Logger.printLine("RemoteCommand", `Unknown Command: ${MessageContents.command}`, "debug");
-					cb(true)
-			}
-		}
 	}
 
 	// Normal Requests
@@ -467,7 +399,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			})
 		}
-		startWorkerCmd();
 		if (systemglobal.PickupFolder) {
 			Logger.printLine('Init', 'Pickup is enabled on this FileWorker instance, now accepting requests', 'debug')
 			startWorker();
@@ -619,18 +550,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	function proccessJob(MessageContents, cb) {
 		try {
 			if (MessageContents.fileParts) {
-				db.safe(`SELECT id, channel, server, cache_url, cache_proxy, attachment_hash, attachment_name, real_filename FROM kanmi_records WHERE fileid = ? AND source = 0`, [MessageContents.fileUUID], function (err, cacheresponse) {
+				db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0`, [MessageContents.fileUUID], function (err, cacheresponse) {
 					if (err || cacheresponse.length === 0) {
 						mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 						cb(true)
 					} else {
-						if (cacheresponse[0].cache_url !== null && cacheresponse[0].cache_url === 'inprogress') {
-							mqClient.sendMessage(`File ${cacheresponse[0].cache_url} is already being built!`, "info", "MPFDownload")
-							cb(true)
-						} else {
+						if (cacheresponse[0].filecached === 1) {
 							let itemsCompleted = [];
 							const fileName = MessageContents.fileName
-							const fileNameUniq = `${crypto.randomBytes(8).toString("hex")}-${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}`
+							const fileNameUniq = `.${cacheresponse[0].fileid}`
 							const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
 							let requests = MessageContents.fileParts.sort().reduce((promiseChain, item) => {
 								return promiseChain.then(() => new Promise((resolve) => {
@@ -675,11 +603,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									});
 									splitFile.mergeFiles(itemsCompleted.sort(), CompleteFilename)
 										.then(async () => {
+											fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
 											mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" was complied successfully and is now available!\nDownload URL: ${systemglobal.Pickup_Base_URL}${fileNameUniq}`, "info", "MPFDownload")
 											db.safe(`UPDATE kanmi_records
-															 SET cache_url = ?
+															 SET filecached = 1
 															 WHERE fileid = ?
-															   AND source = 0`, [`${systemglobal.Pickup_Base_URL}${fileNameUniq}`, MessageContents.fileUUID], function (err, setcacheresponse) {
+															   AND source = 0`, [MessageContents.fileUUID], function (err, setcacheresponse) {
 												if (err) {
 													mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" failed to cache!`, "err", "MPFCache", err)
 												} else {
@@ -844,7 +773,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											cb(true);
 										})
 										.catch((err) => {
-											mqClient.sendMessage(`File ${CompleteFilename} failed to rebuild!`, "err", "MPFDownload", err)
+											mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild!`, "err", "MPFDownload", err)
 											for (let part of itemsCompleted) {
 												fs.unlink(part, function (err) {
 													if (err && err.code === 'EBUSY'){
@@ -869,13 +798,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			} else if (MessageContents.messageType === 'command' && MessageContents.messageAction) {
 				switch (MessageContents.messageAction) {
 					case 'GenerateVideoPreview':
-						db.safe(`SELECT id, channel, server, cache_url, cache_proxy, attachment_hash, attachment_name, real_filename FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
+						db.safe(`SELECT * FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
 							if (err) {
 								mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 								cb(true)
-							} else if (cacheresponse.length > 0 && cacheresponse[0].cache_url &&  cacheresponse[0].cache_url.includes(systemglobal.Pickup_Base_URL)) {
-								const CompleteFilename = path.join(systemglobal.PickupFolder, cacheresponse[0].cache_url.split(systemglobal.Pickup_Base_URL).pop().replace('/',''));
-								if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1) {
+							} else if (cacheresponse.length > 0 && cacheresponse[0].filecached === 1) {
+								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
+								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1) {
 									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || MessageContents.forceRefresh) {
 										// Encode Video File
 										function encodeVideo(filename, intent, fulfill) {
@@ -1013,24 +942,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													});
 												} else {
 													mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
-													await db.query(`UPDATE kanmi_records SET cache_proxy = 'failed' WHERE id = ? AND source = 0`, [cacheresponse[0].id])
 													cb(true);
 												}
 											})
 											.catch(async (er) => {
 												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
-												await db.query(`UPDATE kanmi_records SET cache_proxy = 'failed' WHERE id = ? AND source = 0`, [cacheresponse[0].id])
 												cb(true);
 											})
 									}
-
 								} else {
 									cb(true);
 								}
 							} else {
 								cb(true);
 							}
-
 						})
 						break;
 					default:
@@ -1038,7 +963,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						cb(true);
 						break;
 				}
-
 			} else {
 				let tempFilePath = path.join(systemglobal.TempFolder, MessageContents.itemFileName.split("?")[0]);
 				if (MessageContents.itemFileURL) { // Download a normal URL
@@ -1606,6 +1530,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 				function postSplitParser(MPFChannelID, names) {
 					let sentParts = 0;
+					parameters.fileData = {
+						name: object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_'),
+						uuid: filepartsid,
+						size: flesize.toFixed(2),
+						total: names.length
+					};
+
 					let requests = names.reduce((promiseChain, partpath, key) => {
 						return promiseChain.then(() => new Promise((resolve) => {
 							const partBase64String = fs.readFileSync(partpath, {encoding: 'base64'})

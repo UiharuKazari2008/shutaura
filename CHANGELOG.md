@@ -1,7 +1,58 @@
 # Kanmi Sequenzia Framework
 
-## v20 (RC1 JFS v1.5)
+## v19.1 (RC1 JFS v1.5)
 - Corrected issue with Backup system where it could not get the Discord MQ parameters from SQL
+- Added new TX2 triggers
+- Cleaned up and removed unneeded NPM packages
+- Added graceful shutdown to Discord I/O, restart attempts are now postpoonded if there are any active tasks or requests. Message Queues are "frozen" with sleep timers to prevent new messages from being processed but allowing existing messages to completd
+- Added Automatic updater (also support any surrounding git project) that can automatically download and apply the latest updates to your server without the need for intervention.
+  - By default it will only check for updates but you can enable automatic install and restarts to affected modules. 
+  - You can also set the names of apps to not restart if updated
+  - See the config update below for options.
+- Automatic Update will automatically apply SQL updates deemed to be safe enough
+- Automatic Updates will back up the database of tables that could be damaged
+  - Backups are placed in "backups/"
+- Automatic updates will now use commit messages to signal actions such as stopping all services before X stage of database updates or force restart
+- Automatic Updates will now allow for blocked updates to force manual update when needed
+- Added new "update" command to discord console to request system updates from discord
+- Added new "restart" command to discord console to allow remote restarts of discord without the need to login to console
+- Updated example ecosystem to no longer restart discord or authware as its not needed anymore, added updater to the ecosystem
+- Preparing to implement "NFC-RPC" for same-host applications to send messages within the system bus and without the need for MQing
+- Corrected small issue with Undelivered messages counter not working due to a bad variable name.
+- Fixed handeling of Color values to prevent asking sequenzia to cache color
+- Caches total number of parts for files to remove the requirement of discord to validate the total number of parts expected 
+- Twitter CMS is now able to handle **multiple accounts as once**, simple use the new Twitter_Accounts config option or update your database values
+- Decoupled status channels from status data so that the insights page can get associated data without the need to register a voice channel as a status update
+- Updates ecosystem.config.js
+- Added ability to set MQ prefetch values
+- Removed command MQs
+- Added ability to delete stored status values via console
+- Added indicated if a disk status value has not been updated in over 4 hours
+- Fixed issue where backup indicator would not show what host it applied to
+- Backup count alerts are doubled for parts
+- Fixed Flickr API not working
+
+## Required SQL Update
+- Added total spanned parts to records table to remove the need to use Discord to validate spanned files before download
+- Removes file path for backups as it's not needed
+```mysql
+alter table kanmi_records add paritycount int null after real_filename;
+alter table kanmi_records add filecached tinyint default 0 not null after attachment_extra;
+alter table kanmi_records drop column cache_url;
+alter table kanmi_records drop column cache_extra;
+
+alter table kanmi_backups drop column path;
+
+alter table discord_multipart_backups drop column path;
+
+alter table kanmi_channels alter column autofetch set default 0;
+```
+## Required SQL Patch
+- Caches the total number of parts expected for a file
+  - If the value is NULL there will be no validation of if all parts were assembled
+```shell
+node ./patch/17_1-001.js
+```
 
 ## v19 (RC1 JFS v1.5)
 ### Important Notes
@@ -237,7 +288,8 @@ This will save space in the database and decrease backup sizes. As well as stori
 
 ```shell
 cd ~/kanmi
-node update-database.js
+wget https://code.acr.moe/kazari/sequenzia-framework/-/raw/57fb4f50296f7469bf0e8b693a67a56a20f24795/patch/17-001.js
+node ./17-001.js
 ```
 Please run one more time after running to ensure that everything is done correctly
 

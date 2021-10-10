@@ -2,13 +2,11 @@ module.exports = {
     apps : [
         {
             name   : "AuthWare",
-            namespace: "kanmi-0",
+            namespace: "june-core",
             script : "./js/authware.js",
-            args   : "",
-            cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
-            kill_timeout : 3000,
+            kill_timeout : 300000,
             exp_backoff_restart_delay: 100,
             wait_ready: true,
             env: {
@@ -20,13 +18,11 @@ module.exports = {
         },
         {
             name   : "Discord I/O",
-            namespace: "kanmi-0",
+            namespace: "june-core",
             script : "./js/discord.js",
-            args   : "",
-            cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
-            kill_timeout : 3000,
+            kill_timeout : 300000,
             exp_backoff_restart_delay: 100,
             wait_ready: true,
             env: {
@@ -38,13 +34,12 @@ module.exports = {
         },
         {
             name   : "FileWorker",
-            namespace: "kanmi-1",
+            namespace: "june-dps",
             script : "./js/fileworker.js",
-            args   : "",
             cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
-            kill_timeout : 3000,
+            kill_timeout : 300000,
             exp_backoff_restart_delay: 100,
             wait_ready: true,
             env: {
@@ -56,13 +51,12 @@ module.exports = {
         },
         {
             name   : "Twitter",
-            namespace: "kanmi-2",
+            namespace: "june-cms",
             script : "./js/twitter.js",
-            args   : "",
             cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
-            kill_timeout : 3000,
+            kill_timeout : 300000,
             exp_backoff_restart_delay: 100,
             wait_ready: true,
             env: {
@@ -74,9 +68,8 @@ module.exports = {
         },
         {
             name   : "Pixiv",
-            namespace: "kanmi-2",
+            namespace: "june-cms",
             script : "./js/pixiv.js",
-            args   : "",
             cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
@@ -92,9 +85,8 @@ module.exports = {
         },
         {
             name   : "Feed Parser",
-            namespace: "kanmi-3",
+            namespace: "june-cms",
             script : "./js/feed.js",
-            args   : "",
             cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
@@ -110,9 +102,8 @@ module.exports = {
         },
         {
             name   : "Web Parser",
-            namespace: "kanmi-3",
+            namespace: "june-cms",
             script : "./js/webCrawer.js",
-            args   : "",
             cron_restart: '16 3 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
@@ -128,10 +119,25 @@ module.exports = {
         },
         {
             name   : "Backup I/O",
-            namespace: "kanmi-4",
+            namespace: "june-dps",
             script : "./js/backup.js",
-            args   : "",
             cron_restart: '16 3 * * *',
+            stop_exit_codes: [0],
+            restart_delay: 5000,
+            kill_timeout : 3000,
+            exp_backoff_restart_delay: 100,
+            wait_ready: true,
+            env: {
+                NODE_ENV: 'production'
+            },
+            env_production: {
+                NODE_ENV: 'production'
+            }
+        },
+        {
+            name   : "Updater",
+            namespace: "june-mon",
+            script : "./js/updater.js",
             stop_exit_codes: [0],
             restart_delay: 5000,
             kill_timeout : 3000,
