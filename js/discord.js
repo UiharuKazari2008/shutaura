@@ -6936,7 +6936,7 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("Discord", "Registering Commands", "debug")
             registerCommands();
             await reloadLocalCache();
-            setInterval(refreshCounts, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
+            setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
             await syncStatusValues();
             setInterval(syncStatusValues, 90000)
             resetInitStates();
