@@ -3404,9 +3404,7 @@ This code is publicly released and is restricted by its project license
             if (systemglobal.Discord_Recycling_Bin) {
                 try {
                     const messages = await discordClient.getMessages(systemglobal.Discord_Recycling_Bin, 6)
-                    if (messages) {
-                        await cacheData.set(systemglobal.Discord_Recycling_Bin, messages.length)
-                    }
+                    await cacheData.set(systemglobal.Discord_Recycling_Bin, (messages) ? messages.length : 0)
                 } catch (err) {
                     Logger.printLine("RefreshCache", `Unable to check contents of recycling bin`, 'error', err)
                     console.error(err)
