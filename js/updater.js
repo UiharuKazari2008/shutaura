@@ -258,7 +258,7 @@
                     }
                 }
                 if (systemglobal.AutomaticRestart && systemglobal.AutomaticRestart === true) {
-                    if (!project && (filesToUpdate.filter(e => e.startsWith('patch/')).length > 0 || commits.filter(e => e.includes('APPLYPATCH')).length > 0)) {
+                    if (!project && !systemglobal.DisablePatching && (filesToUpdate.filter(e => e.startsWith('patch/')).length > 0 || commits.filter(e => e.includes('APPLYPATCH')).length > 0)) {
                         await mqClient.sendMessage(`Patch for ${(project) ? project : 'sequenzia-framework'} will be performed!`, 'warning', 'GetUpdates')
                         let databaseState = (fs.existsSync('./applied_patches.json')) ? require('./../applied_patches.json') : {  database: [] };
                         for (const update of fs.readdirSync('./patch/').filter(e => e.endsWith('.js') && databaseState.database.indexOf(e) === -1).sort()) {
@@ -314,7 +314,7 @@
                         fs.writeFileSync('./applied_patches.json', Buffer.from(JSON.stringify(databaseState)))
                         await mqClient.sendMessage(`Successfully applied all required patches for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated');
                     }
-                    for (const proc of ((commits.filter(e => e.includes('STAGE0KILL') || e.includes('STAGE1KILL') || e.includes('STAGE2KILL') || e.includes('STAGE3KILL') || e.includes('FULLRESTART')).length > 0) ? allApps : appToRestart)) {
+                    for (const proc of ((commits.filter(e => e.includes('STAGE0KILL') || e.includes('STAGE1KILL') || e.includes('STAGE2KILL') || e.includes('STAGE3KILL') || e.includes('FULLRESTART')).length > 0 && !systemglobal.DisablePatching) ? allApps : appToRestart)) {
                         if (await restartProccess(proc.name)) {
                             await mqClient.sendMessage(`Updated and Restarted ${proc.name} for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated')
                         } else {
