@@ -4950,7 +4950,7 @@ This code is publicly released and is restricted by its project license
                     SendMessage(`Failed to download message attachments from discord for color cache - No Data`, "err", 'main', "Polyfill")
                     resolve(false);
                 } else {
-                    const _color = await getAverageColor(data, {mode: 'precision'})
+                    const _color = await getAverageColor(body, {mode: 'precision'})
                     const result = await db.query(`UPDATE kanmi_records SET colorR = ?, colorG = ?, colorB = ?, dark_color = ? WHERE id = ?`, [_color.value[0], _color.value[1], _color.value[2], (_color.isDark) ? '1' : '0', msgid])
                     if (result.error)
                         Logger.printLine('SQL', `Failed to save color for ${msgid}`, 'error', result.erro);
