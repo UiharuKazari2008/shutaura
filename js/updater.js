@@ -2,7 +2,7 @@
     const facilityName = 'Updater';
     const path = require('path');
     const cron = require('node-cron');
-    const {spawn} = require("child_process");
+    const {spawn, exec} = require("child_process");
     const fs = require("fs");
     const pm2 = require("pm2");
     const tx2 = require('tx2')
@@ -110,39 +110,31 @@
 
     async function git (options, project) {
         return await new Promise((resolve => {
-            let results = ''
-            const child = spawn('git', options, { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`) });
-            child.stdout.setEncoding('utf8');
-            child.stdout.on('data', function (data) {
-                if (data.toString().trim().length > 0)
-                    results += data.toString()
-            });
-            child.stderr.setEncoding('utf8');
-            child.stderr.on('data', function (data) {
-                if (data.toString().trim().length > 0)
-                    results += data.toString()
-                console.error(data);
-            });
-            child.on('close', function (code) {
-                resolve(results.split('\n').filter(e => e.length > 0 && e !== ''))
+            exec(['git', ...options].join(' '), { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), timeout: 60000, encoding: 'utf8' }, (err, stdout, stderr) => {
+                if (err) {
+                    console.err(err)
+                    resolve(false)
+                } else {
+                    if (stderr.length > 1)
+                        console.error(stderr);
+                    resolve(stdout.split('\n').filter(e => e.length > 0 && e !== ''))
+                }
             });
         }))
     }
     async function npmUpdate (project) {
         return await new Promise((resolve => {
-            let results = ''
-            const child = spawn('npm', ['install'], { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`) });
-            child.stdout.setEncoding('utf8');
-            child.stdout.on('data', function (data) {
-                results += data.toString()
-            });
-            child.stderr.setEncoding('utf8');
-            child.stderr.on('data', function (data) {
-                results += data.toString()
-                console.error(data);
-            });
-            child.on('close', function (code) {
-                resolve((code === 0))
+            exec('npm install', { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), encoding: 'utf8' }, (err, stdout, stderr) => {
+                if (err) {
+                    console.err(err)
+                    resolve(false)
+                } else {
+                    if (stderr.length > 1)
+                        console.error(stderr)
+                    if (stdout.length > 1)
+                        console.log(stdout)
+                    resolve(true)
+                }
             });
         }))
     }
@@ -206,8 +198,8 @@
         })
     }
     async function isUpdateAvailable(project, branch) {
-        await git(['remote', 'update'], project)
-        return await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD', (branch)? branch : selectedBranch], project)
+        const update = await git(['remote', 'update'], project)
+        return (update) ? await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD', (branch)? branch : selectedBranch], project) : false
     }
     async function commitMessages(project) {
         return await git(['log', '--pretty=format:%s', 'HEAD^..FETCH_HEAD'], project)
@@ -217,35 +209,53 @@
         let filesToUpdate
         const updatesAvailable = await isUpdateAvailable(project, branch);
         const commits = await commitMessages(project);
+        if (commits === false) {
+            await Logger.printLine('GetUpdated', `Failed get commits from repo! Timeout`, 'critical');
+            return false;
+        }
         const updateBlocked = (commits.filter(e => e.includes('MANUAL') || (e.includes('DOWNTIME') && systemglobal.NoDowntimeAllowed && systemglobal.NoDowntimeAllowed === true) || e.includes('NOAUTO') || e.includes('VLOCK')).length > 0)
         if (!updatesAvailable) {
             await mqClient.sendMessage(`Unable to check for update!`, 'error', 'GetUpdated');
+            if (args.check && last)
+                process.exit(1)
             return false
         } else {
             filesToUpdate = [...updatesAvailable]
         }
         const pm2Procs = await getRunningProccess()
-        if (pm2Procs.length === 0) {
+        if (pm2Procs.length === 0 || pm2Procs === false) {
             await mqClient.sendMessage(`Unable to access PM2 proccess list!`, 'critical', 'GetUpdated');
             return false
         }
         const activeProc = Array.from(pm2Procs).filter(e => e.pm2_env.pm_cwd.endsWith((project) ? project : 'sequenzia-framework'));
-        console.log(filesToUpdate)
-        const allApps = activeProc.filter(e => e.name !== "Updater")
-        const appNeedToRestart = activeProc.filter(e => e.name !== "Updater" && (systemglobal.AlwaysRestart && systemglobal.AlwaysRestart.indexOf(e.name) !== -1 || filesToUpdate.filter(f => (f === e.pm2_env.pm_exec_path.replace(e.pm2_env.pm_cwd + '/', '') || f.startsWith('js/utils/'))).length > 0) && e.pm2_env.status === "online")
+        const allApps = activeProc.filter(e => (e.name !== "Updater" || args.install))
+        const appNeedToRestart = activeProc.filter(e => (e.name !== "Updater" || args.install) && (systemglobal.AlwaysRestart && systemglobal.AlwaysRestart.indexOf(e.name) !== -1 || filesToUpdate.filter(f => (f === e.pm2_env.pm_exec_path.replace(e.pm2_env.pm_cwd + '/', '') || f.startsWith('js/utils/'))).length > 0) && e.pm2_env.status === "online")
         const dontRestart = appNeedToRestart.filter(e => systemglobal.DontRestart && systemglobal.DontRestart.indexOf(e.name) !== -1)
         const appToRestart = appNeedToRestart.filter(e => dontRestart.filter(f => f.name === e.name).length === 0)
         const isNpmUpdatesNeeded = (filesToUpdate.filter(e => e === 'package.json').length > 0)
         const isUpdateSelf = (filesToUpdate.filter(e => e === 'js/updater.js').length > 0)
+        const applyPatch = (commits.filter(e => e.includes('APPLYPATCH')).length > 0)
 
 
-        if (filesToUpdate.length > 0 && (appNeedToRestart.length > 0 || isNpmUpdatesNeeded || isUpdateSelf || project)) {
-            Logger.printLine('GetUpdates', `${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info')
-            if (systemglobal.AutomaticUpdates && systemglobal.AutomaticUpdates === true && !updateBlocked) {
-                if (!systemglobal.SoftUpdateRepos) {
-                    await git(['reset', '--hard', 'origin'], project);
+        if (filesToUpdate.length > 0 && (appNeedToRestart.length > 0 || isNpmUpdatesNeeded || isUpdateSelf || project || args.force)) {
+            Logger.printLine('GetUpdates', `${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}\n${filesToUpdate.join('\n')}`, 'info')
+            if (args.force || (( systemglobal.AutomaticUpdates && systemglobal.AutomaticUpdates === true || args.install) && !updateBlocked && !(applyPatch && args.nopatch))) {
+                if (!systemglobal.SoftUpdateRepos || args.soft) {
+                    if (await git(['reset', '--hard', `origin${(branch) ? '/' + branch : ''}`], project) === false) {
+                        await Logger.printLine('GetUpdated', `Failed reset repo! Timeout`, 'critical');
+                        return false;
+                    }
                 }
-                await git(['pull'], project)
+                if (branch) {
+                    if (await git(['checkout', branch], project) === false) {
+                        await Logger.printLine('GetUpdated', `Failed checkout repo! Timeout`, 'critical');
+                        return false;
+                    }
+                }
+                if (await git(['pull'], project) === false) {
+                    await Logger.printLine('GetUpdated', `Failed pull repo! Timeout`, 'critical');
+                    return false;
+                }
                 if (filesToUpdate.filter(e => e.startsWith('js/utils/')).length > 0) {
                     await mqClient.sendMessage(`Core utilities for ${(project) ? project : 'sequenzia-framework'} updates are available! This will restart all processes!`, 'warning', 'GetUpdates')
                 }
@@ -257,8 +267,8 @@
                         return false
                     }
                 }
-                if (systemglobal.AutomaticRestart && systemglobal.AutomaticRestart === true) {
-                    if (!project && !systemglobal.DisablePatching && (filesToUpdate.filter(e => e.startsWith('patch/')).length > 0 || commits.filter(e => e.includes('APPLYPATCH')).length > 0)) {
+                if ((systemglobal.AutomaticRestart && systemglobal.AutomaticRestart === true) || args.install) {
+                    if (!project && !systemglobal.DisablePatching && (!args.nopatch || args.force) && applyPatch) {
                         await mqClient.sendMessage(`Patch for ${(project) ? project : 'sequenzia-framework'} will be performed!`, 'warning', 'GetUpdates')
                         let databaseState = (fs.existsSync('./applied_patches.json')) ? require('./../applied_patches.json') : {  database: [] };
                         for (const update of fs.readdirSync('./patch/').filter(e => e.endsWith('.js') && databaseState.database.indexOf(e) === -1).sort()) {
@@ -268,7 +278,7 @@
                                     await stopProccess(proc.name)
                                 }
                             }
-                            if (updateFile.backupDatabase !== undefined) {
+                            if (updateFile.backupDatabase !== undefined && !args.nobackup) {
                                 if (!(await updateFile.backupDatabase())) {
                                     await mqClient.sendMessage(`Automatic Update failed to backup the database for ${(project) ? project : 'sequenzia-framework'}\nUpdate canceled`, 'critical', 'GetUpdated')
                                     return false
@@ -314,7 +324,7 @@
                         fs.writeFileSync('./applied_patches.json', Buffer.from(JSON.stringify(databaseState)))
                         await mqClient.sendMessage(`Successfully applied all required patches for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated');
                     }
-                    for (const proc of ((commits.filter(e => e.includes('STAGE0KILL') || e.includes('STAGE1KILL') || e.includes('STAGE2KILL') || e.includes('STAGE3KILL') || e.includes('FULLRESTART')).length > 0 && !systemglobal.DisablePatching) ? allApps : appToRestart)) {
+                    for (const proc of ((commits.filter(e => e.includes('STAGE0KILL') || e.includes('STAGE1KILL') || e.includes('STAGE2KILL') || e.includes('STAGE3KILL') || e.includes('FULLRESTART')).length > 0 && !systemglobal.DisablePatching && !args.nopatch) ? allApps : appToRestart)) {
                         if (await restartProccess(proc.name)) {
                             await mqClient.sendMessage(`Updated and Restarted ${proc.name} for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated')
                         } else {
@@ -329,61 +339,69 @@
                         setTimeout(() => process.exit(100), 10000)
                     }
                 } else {
-                    await mqClient.sendMessage(`${filesToUpdate.length} Updates were downloaded for ${(project) ? project : 'sequenzia-framework'} with ${appNeedToRestart.length} pending restarts`, 'notify', 'GetUpdated', appNeedToRestart.map(e => e.name).join('\n'))
+                    await mqClient.sendMessage(`${filesToUpdate.length} Updates were downloaded for ${(project) ? project : 'sequenzia-framework'} with ${appNeedToRestart.length} pending restarts${(applyPatch) ? '\n**This update requires a patch to be applied, Run updater manually with --force or run the update-database script**' : ''}`, 'notify', 'GetUpdated', appNeedToRestart.map(e => e.name).join('\n'))
                 }
             } else if (updateBlocked) {
-                await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for for ${(project) ? project : 'sequenzia-framework'}\n**This update is blocked from automatic application and requires manual intervention**`, 'notify', 'GetUpdated')
+                await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for for ${(project) ? project : 'sequenzia-framework'}\n**This update is blocked from automatic application and requires manual intervention**${(applyPatch) ? '\n**This update requires a patch to be applied, Run updater manually with --force or run the update-database script**' : ''}`, 'notify', 'GetUpdated')
             } else {
-                await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'notify', 'GetUpdated')
+                await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}${(applyPatch) ? '\n**This update requires a patch to be applied, Run updater manually with --force or run the update-database script**' : ''}`, 'notify', 'GetUpdated')
             }
         } else {
             await mqClient.sendMessage(`No Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdates')
         }
         return true
     }
+    
     if (systemglobal.UpdateProjects) {
-        systemglobal.UpdateProjects.forEach(async project => {
-            updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
-            if (cron.validate(project.schedule)) {
-                cron.schedule(project.schedule, () => {
-                    updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
-                })
+         await Promise.all(systemglobal.UpdateProjects.map(async project => {
+             await updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
+             if (!args.check && cron.validate(project.schedule)) {
+                 cron.schedule(project.schedule, () => {
+                     updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
+                 })
+             }
+        }))
+        if (args.check)
+            process.exit(0)
+    }
+    else {
+        await updateProject(undefined, undefined);
+        if (!args.check)
+            cron.schedule('3 5 * * *', () => { updateProject() })
+        if (args.check)
+            process.exit(0)
+    }
+
+    if (!args.check) {
+        tx2.action('update-now', async (reply) => {
+            if (systemglobal.UpdateProjects) {
+                await Promise.all(systemglobal.UpdateProjects.map(async project => {
+                    await updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
+                }))
+                reply({answer: `Updated ${systemglobal.UpdateProjects.length} projects`})
+            } else {
+                await updateProject()
+                reply({answer: `Updated project`})
             }
         })
-    } else {
-        updateProject();
-        cron.schedule('3 5 * * *', () => { updateProject() })
-    }
-
-    tx2.action('update-now', async (reply) => {
-        if (systemglobal.UpdateProjects) {
-            await Promise.all(systemglobal.UpdateProjects.map(async project => {
-                updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
-            }))
-            reply({ answer : `Updated ${systemglobal.UpdateProjects.length} projects` })
-        } else {
-            updateProject()
-            reply({ answer : `Updated project` })
+        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+            setTimeout(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            }, 5000)
+            setInterval(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            }, 60000)
         }
-    })
-
-
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-        setTimeout(() => {
-            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                }
-            })
-        }, 5000)
-        setInterval(() => {
-            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                }
-            })
-        }, 60000)
     }
+
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         process.exit(1)

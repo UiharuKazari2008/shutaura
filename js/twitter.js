@@ -56,6 +56,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let overflowControl = new Map();
 	let activeTasks = new Map();
 	let twitterAccounts = new Map();
+	let twitterFlowTimers = new Map();
+	let twitterFlowState = new Map();
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -104,6 +106,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const _twitter_account = systemparams_sql.filter(e => e.param_key === 'twitter.account' && e.param_data && e.account);
 			if (_twitter_account.length > 0)
 				systemglobal.Twitter_Accounts = _twitter_account.map(e => {
+					console.log(e.param_data)
 					return {
 						id: e.account,
 						...e.param_data
@@ -158,8 +161,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	await Promise.all(systemglobal.Twitter_Accounts.map(account => {
 		if (account.id && account.consumer_key && account.consumer_secret && account.access_token && account.access_token_secret) {
 			Logger.printLine("Twitter", "Settings up Twitter Client using account #" + account.id, "debug")
-			if (twitteraccount.filter(e => e.taccount === account.id).flowcontrol === 1)
-				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on this account with Delay`, "debug")
+			if (account.flowcontrol)
+				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
 			twitterAccounts.set(parseInt(account.id.toString()), {
 				client: new twitter({
 					consumer_key : account.consumer_key,
@@ -169,7 +172,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					strictSSL: true,
 					env: (account.env) ? account.env : 'dev',
 				}),
-				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop()
+				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
+				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
 			})
 		} else {
 			Logger.printLine("Twitter", `Missing Twitter Bot Login Properties for account ${account.id}, Please verify that they exists in the configuration file or the global_parameters table`, "emergency");
@@ -222,7 +226,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		try {
 			const accountID = (MessageContents.accountID) ? MessageContents.accountID : 1;
 			const twit = twitterAccounts.get(accountID)
-			if (twit.config.flowcontrol === 1 && MessageContents.messageIntent && MessageContents.messageAction === "send" && MessageContents.messageIntent === 'SendTweet') {
+			if (twit.flowcontrol && MessageContents.messageIntent && MessageContents.messageAction === "send" && MessageContents.messageIntent === 'SendTweet') {
 				let EditedMessage = MessageContents;
 				if (MessageContents.messageFileData) {
 					function parseImage(imageSize, media, url, numOfMedia, resultImage) {
@@ -302,7 +306,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							cb(true);
 						})
 				}
-			} else if (twit.config.flowcontrol === 1 && MessageContents.messageIntent && MessageContents.messageAction === "add" && (MessageContents.messageIntent === 'Like' || MessageContents.messageIntent === 'Retweet' || MessageContents.messageIntent === 'LikeRT')) {
+			} else if (twit.flowcontrol && MessageContents.messageIntent && MessageContents.messageAction === "add" && (MessageContents.messageIntent === 'Like' || MessageContents.messageIntent === 'Retweet' || MessageContents.messageIntent === 'LikeRT')) {
 				let id = undefined
 				if (MessageContents.messageEmbeds && MessageContents.messageEmbeds.length > 0 && MessageContents.messageEmbeds[0].title && (MessageContents.messageEmbeds[0].title.includes('📨 Tweet') || MessageContents.messageEmbeds[0].title.includes('✳ Retweet'))) {
 					id = MessageContents.messageEmbeds[0].url.split("/").pop();
@@ -333,7 +337,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				}
-			} else if (twit.config.flowcontrol === 1 && MessageContents.messageIntent && MessageContents.messageAction === "remove" && (MessageContents.messageIntent === 'Like' || MessageContents.messageIntent === 'Retweet' || MessageContents.messageIntent === 'LikeRT')) {
+			} else if (twit.flowcontrol && MessageContents.messageIntent && MessageContents.messageAction === "remove" && (MessageContents.messageIntent === 'Like' || MessageContents.messageIntent === 'Retweet' || MessageContents.messageIntent === 'LikeRT')) {
 				removeTweet(MessageContents, cb);
 			} else {
 				limiter3.removeTokens(1, function () {
@@ -397,15 +401,34 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (twit.config.activitychannelid === null) {
 					Logger.printLine("Twitter", ` - Mentions for account are disabled`, "debug");
 				}
-				if (twit.config.flowcontrol === 1) {
+				if (twit.flowcontrol) {
 					if (!fs.existsSync(path.join(process.cwd(),`/data/flow_storage_${id}`)))
 						fs.mkdirSync(path.join(process.cwd(),`/data/flow_storage_${id}`));
 
-					if (twit.config.flowcontrol_schedule !== null && cron.validate(twit.config.flowcontrol_schedule)) {
-						cron.schedule(twit.config.flowcontrol_schedule, () => {
+					twitterFlowState.set(id, 1)
+					if (twit.flowcontrol.schedule && cron.validate(twit.flowcontrol.schedule)) {
+						twitterFlowTimers.set(`flow_normal_${id}`, cron.schedule(twit.flowcontrol.schedule, () => {
 							releaseTweet(id)
-						});
-						Logger.printLine("Twitter", ` - Flow Control schedule is "${twit.config.flowcontrol_schedule}"`, "debug")
+						}, {
+							scheduled: true
+						}));
+						Logger.printLine("Twitter", ` - Flow Control schedule is "${twit.flowcontrol.schedule}"`, "debug")
+						if (twit.flowcontrol.schedule_min && cron.validate(twit.flowcontrol.schedule_min)) {
+							twitterFlowTimers.set(`flow_low_${id}`, cron.schedule(twit.flowcontrol.schedule_min, () => {
+								releaseTweet(id)
+							}, {
+								scheduled: false
+							}));
+							Logger.printLine("Twitter", ` - Under Flow Control schedule is "${twit.flowcontrol.schedule_min}"`, "debug")
+						}
+						if (twit.flowcontrol.schedule_max && cron.validate(twit.flowcontrol.schedule_max)) {
+							twitterFlowTimers.set(`flow_max_${id}`, cron.schedule(twit.flowcontrol.schedule_max, () => {
+								releaseTweet(id)
+							}, {
+								scheduled: false
+							}));
+							Logger.printLine("Twitter", ` - Over Flow Control schedule is "${twit.flowcontrol.schedule_max}"`, "debug")
+						}
 					} else {
 						cron.schedule('*/30 * * * *', () => {
 							releaseTweet(id)
@@ -708,10 +731,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 	function updateStats() {
 		Array.from(twitterAccounts.entries()).forEach(e => {
-			const twitterUser = e[0]
+			const twitterUser = parseInt(e[0].toString())
 			const twit = e[1]
-			if (twit.config.flowcontrol === 1 && twit.config.flowstatuschannel) {
-				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?`, [parseInt(e[0].toString())],(err, tweetQueue) => {
+			if (twit.flowcontrol) {
+				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?`, [twitterUser],(err, tweetQueue) => {
 					if (err) {
 						Logger.printLine(`Collector`, `Failed to get tweet to collector via SQL`, `error`, err);
 					} else if (tweetQueue) {
@@ -729,15 +752,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 						const stats = rtCollection + ((sendCollection > likeRtCollection) ? sendCollection : likeRtCollection)
 
-						if (stats <= 4) {
+						if (stats <= ((twit.flowcontrol.volume.empty) ? twit.flowcontrol.volume.empty : 4)) {
 							messageIcon = '🛑'
-						} else if (stats <= 16) {
-							messageIcon = '🔻'
-						} else if (stats <= 64) {
+						} else if (stats <= ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64)) {
 							messageIcon = '⚠'
-						} else if (stats <= 128) {
+						} else if (stats <= ((twit.flowcontrol.volume.warning) ? twit.flowcontrol.volume.warning : 128)) {
 							messageIcon = '🟢'
-						} else if (stats >= 1500) {
+						} else if (stats >= ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
 							messageIcon = '🌊'
 						} else {
 							messageIcon = '✅'
@@ -747,37 +768,73 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						} else {
 							messageText += `${messageIcon} Sleeping`
 						}
-						mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
-							fromClient : `return.${facilityName}.${e[0]}.${systemglobal.SystemName}`,
-							messageReturn: false,
-							messageChannelID: '0',
-							messageChannelName: twit.config.flowstatuschannel,
-							messageType: 'status',
-							messageData: {
-								flowName: twit.config.name,
-								flowIcon: twit.config.short_name,
-								flowCountTotal: stats,
-								flowCountSend: sendCollection,
-								flowCountLikeRt: likeRtCollection,
-								flowCountLike: likeCollection,
-								flowCountRt: rtCollection,
-								overFlow: (stats > 1500),
-								statusText: messageText,
-								statusIcon: messageIcon,
-								accountShortName: twit.config.short_name,
-								accountName: twit.config.name,
-							},
-							updateIndicators: true
-						}, (ok) => {
-							if (!ok) { console.error('Failed to send update to MQ') }
-						})
-						if (stats > 1500) {
-							const _fcc = stats / 500
-							if (_fcc < 1) {
-								overflowControl.set(parseInt(e[0].toString()), 1)
-							} else {
-								overflowControl.set(parseInt(e[0].toString()), _fcc.toFixed(0))
+						if (twit.flowcontrol.status_name) {
+							mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+								fromClient: `return.${facilityName}.${e[0]}.${systemglobal.SystemName}`,
+								messageReturn: false,
+								messageChannelID: '0',
+								messageChannelName: twit.flowcontrol.status_name,
+								messageType: 'status',
+								messageData: {
+									flowName: twit.config.name,
+									flowIcon: twit.config.short_name,
+									flowCountTotal: stats,
+									flowCountSend: sendCollection,
+									flowCountLikeRt: likeRtCollection,
+									flowCountLike: likeCollection,
+									flowCountRt: rtCollection,
+									flowVolume: twit.flowcontrol.volume,
+									flowMinAlert: twit.flowcontrol.min_alert,
+									flowMaxAlert: twit.flowcontrol.max_alert,
+									statusText: messageText,
+									statusIcon: messageIcon,
+									accountShortName: twit.config.short_name,
+									accountName: twit.config.name,
+								},
+								updateIndicators: true
+							}, (ok) => { if (!ok) { console.error('Failed to send update to MQ') } })
+						}
+
+						if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
+							if (twitterFlowTimers.has(`flow_max_${twitterUser}`)) {
+								if (twitterFlowState.get(twitterUser) !== 2) {
+									if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+										twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+									twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+									twitterFlowTimers.get(`flow_max_${twitterUser}`).start()
+									overflowControl.set(twitterUser, ((twit.flowcontrol.max_rate) ? twit.flowcontrol.max_rate : 1))
+									twitterFlowState.set(twitterUser, 2)
+								}
 							}
+							else {
+								const _fcc = ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) / ((twit.flowcontrol.max_divide) ? twit.flowcontrol.volume.max_divide : 500)
+								if (_fcc < 1) {
+									overflowControl.set(twitterUser, 0)
+								} else {
+									overflowControl.set(twitterUser, _fcc.toFixed(0))
+								}
+							}
+						} else if (stats > ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64) && twit.flowcontrol.schedule_min) {
+							if (twitterFlowTimers.has(`flow_low_${twitterUser}`)) {
+								if (twitterFlowState.get(twitterUser) !== 0) {
+									if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+										twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+									twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+									twitterFlowTimers.get(`flow_low_${twitterUser}`).start()
+									overflowControl.set(twitterUser, 0)
+									twitterFlowState.set(twitterUser, 0)
+								}
+							}
+						} else if (twitterFlowState.has(twitterUser) && twitterFlowState.get(twitterUser) !== 1) {
+							if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+								twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+							if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+								twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+							twitterFlowTimers.get(`flow_normal_${twitterUser}`).start()
+							overflowControl.set(twitterUser, 0)
+							twitterFlowState.set(twitterUser, 1)
+						} else {
+							overflowControl.set(twitterUser, 0)
 						}
 					}
 				})
