@@ -13,8 +13,6 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
-import {resolve} from "path";
-
 (async () => {
     let systemglobal = require('../config.json');
     const facilityName = 'Discord-IO';
