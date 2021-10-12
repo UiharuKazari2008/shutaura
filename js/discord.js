@@ -5268,41 +5268,38 @@ This code is publicly released and is restricted by its project license
             .then(function (messageToMove) {
                 if (messageToMove.content.includes('🏷 Name:')) {
                     const completeText = messageToMove.content.split("🏷 Name:")[0].trim() + '🏷 Name: ' + name.trim().replace(/[/\\?%*:|"<> ]/g, '_') + ' (' + messageToMove.content.split("🏷 Name:").pop().split(' (').pop()
-                    discordClient.editMessage(channelid, messageid, completeText)
-                        .then(function (result) {
-                            cb(true);
-                            db.safe(`SELECT content_full, real_filename, fileid FROM kanmi_records WHERE id = ? AND source = 0`, [messageid], function (err, response) {
-                                if (err) {
-                                    SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", err)
-                                } else {
-                                    if (response.length > 0) {
-                                        const content_full = result.content
-                                        const cached_filename = (name.includes(response[0].fileid)) ? name.trim().replace(/[/\\?%*:|"<> ]/g, '_') : `${response[0].fileid}-${name.trim().replace(/[/\\?%*:|"<> ]/g, '_')}`
-                                        db.safe(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [content_full, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid], function (err, result) {
-                                            if (err) {
-                                                SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", err)
-                                            } else {
-                                                Logger.printLine("Discord",`Message ${messageid} in cache database was updated`, "debug")
-                                                mqClient.sendData(systemglobal.Sequenzia_In, {
-                                                    id: messageid,
-                                                    filename: cached_filename,
-                                                    command: 'update'
-                                                }, function (ok) { })
-                                            }
-                                        })
+                    db.safe(`SELECT content_full, real_filename, fileid FROM kanmi_records WHERE id = ? AND source = 0`, [messageid], function (err, response) {
+                        if (err) {
+                            SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", err)
+                            cb(false)
+                        } else {
+                            if (response.length > 0) {
+                                db.safe(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [completeText, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid], function (err, result) {
+                                    if (err) {
+                                        SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", err)
+                                        cb(false)
+                                    } else {
+                                        discordClient.editMessage(channelid, messageid, completeText)
+                                            .then(function (result) {
+                                                cb(true);
+                                            })
+                                            .catch(function (err) {
+                                                SendMessage("❌ File could not be renamed", "system", messageToMove.guildID, "Rename", err.message)
+                                                cb(true)
+                                            })
                                     }
-                                }
-                            })
-                        })
-                        .catch(function (err) {
-                            SendMessage("❌ File could not be renamed", "system", messageToMove.guildID, "Rename", err.message)
-                        })
+                                })
+                            }
+                        }
+                    })
                 } else {
                     SendMessage("❌ This message type not supported", "system", messageToMove.guildID, "Rename")
+                    cb(false)
                 }
             })
             .catch((er) => {
                 SendMessage("❌ Message was not found", "system", messageToMove.guildID, "Rename", er)
+                cb(false)
             })
     }
     function jfsArchive(fullmsg, serverdata) {
