@@ -4141,7 +4141,6 @@ This code is publicly released and is restricted by its project license
                             systemFault = true;
                             bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches (Normal != ${_si.flowMode})`)
                         }
-                        statusItems.push(`${_si.statusIcon} Queue Active`);
                     }
                 }
                 if (_si.flowCountTotal > 1) {
