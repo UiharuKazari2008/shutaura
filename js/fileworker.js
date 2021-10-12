@@ -64,7 +64,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		ABitrate  : `${systemglobal.ffmpeg_abitrate}`
 	}
 
-	const { fileSize, getIDfromText } = require('./utils/tools');
+	const { fileSize } = require('./utils/tools');
 	const Logger = require('./utils/logSystem')(facilityName);
 	const db = require('./utils/shutauraSQL')(facilityName);
 
@@ -115,6 +115,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_seq_config.length > 0 && _seq_config[0].param_data) {
 				if (_seq_config[0].param_data.pickup_base_url)
 					systemglobal.Pickup_Base_URL = _seq_config[0].param_data.pickup_base_url;
+				if (_seq_config[0].param_data.base_url)
+					systemglobal.Base_URL = _seq_config[0].param_data.base_url;
 			}
 
 			const _mq_discord_out = systemparams_sql.filter(e => e.param_key === 'mq.discord.out');
@@ -391,7 +393,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		amqpConn.close();
 		return true;
 	}
-	function whenConnected() {
+	async function whenConnected() {
 		if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
 			request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
 				if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -401,6 +403,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 		if (systemglobal.PickupFolder) {
 			Logger.printLine('Init', 'Pickup is enabled on this FileWorker instance, now accepting requests', 'debug')
+			await createMissingLinks();
 			startWorker();
 			startWorker3();
 		}
@@ -546,257 +549,275 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		})
 	}
+	function createMissingLinks() {
+		return Promise.all(fs.readdirSync(systemglobal.PickupFolder)
+			.filter(e => e.startsWith('.')).map(async (e) => {
+				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
+				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
+					const linkname = `${cacheresponse.rows[0].eid}-${cacheresponse.rows[0].real_filename}`
+					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
+						fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
+						Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
+					}
+				}
+			}))
+	}
 
 	function proccessJob(MessageContents, cb) {
 		try {
-			if (MessageContents.fileParts) {
-				db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0`, [MessageContents.fileUUID], function (err, cacheresponse) {
-					if (err || cacheresponse.length === 0) {
-						mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
-						cb(true)
-					} else {
-						if (cacheresponse[0].filecached === 1) {
-							let itemsCompleted = [];
-							const fileName = MessageContents.fileName
-							const fileNameUniq = `.${cacheresponse[0].fileid}`
-							const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
-							let requests = MessageContents.fileParts.sort().reduce((promiseChain, item) => {
-								return promiseChain.then(() => new Promise((resolve) => {
-									const URLtoGet = item
-									const DestFilename = path.join(systemglobal.TempFolder, getIDfromText(URLtoGet))
-									const stream = request.get({
-										url: URLtoGet,
-										headers: {
-											'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-											'accept-language': 'en-US,en;q=0.9',
-											'cache-control': 'max-age=0',
-											'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-											'sec-ch-ua-mobile': '?0',
-											'sec-fetch-dest': 'document',
-											'sec-fetch-mode': 'navigate',
-											'sec-fetch-site': 'none',
-											'sec-fetch-user': '?1',
-											'upgrade-insecure-requests': '1',
-											'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-										},
-									}).pipe(fs.createWriteStream(DestFilename))
-									// Write File to Temp Filesystem
-									stream.on('finish', function () {
-										Logger.printLine("MPFDownload", `Downloaded Part : ${DestFilename}`, "debug", {
-											URL: URLtoGet,
-											DestFilename: DestFilename,
-											CompleteFilename: fileName
-										})
-										itemsCompleted.push(DestFilename);
-										resolve()
-									});
-									stream.on("error", function (err){
-										mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}`, "err", "MPFDownload", err)
-										resolve()
-									})
-								}))
-							}, Promise.resolve());
-							requests.then(() => {
-								if (itemsCompleted.length === MessageContents.fileParts.length) {
-									rimraf(CompleteFilename, function(err) {
-										// Do Nothing
-									});
-									splitFile.mergeFiles(itemsCompleted.sort(), CompleteFilename)
-										.then(async () => {
-											fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
-											mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" was complied successfully and is now available!\nDownload URL: ${systemglobal.Pickup_Base_URL}${fileNameUniq}`, "info", "MPFDownload")
-											db.safe(`UPDATE kanmi_records
-															 SET filecached = 1
-															 WHERE fileid = ?
-															   AND source = 0`, [MessageContents.fileUUID], function (err, setcacheresponse) {
-												if (err) {
-													mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" failed to cache!`, "err", "MPFCache", err)
-												} else {
-													Logger.printLine("MPFCache", `File ${fileName.replace(/[/\\?%*:|"<> ]/g, '_')} was cached successfully!`, 'info')
-												}
+			if (MessageContents.messageType === 'command' && MessageContents.messageAction) {
+				switch (MessageContents.messageAction) {
+					case 'CacheSpannedFile':
+						if (MessageContents.fileUUID) {
+							db.safe(`SELECT kanmi_records.*, discord_multipart_files.url, discord_multipart_files.valid
+									 FROM kanmi_records,
+										  discord_multipart_files
+									 WHERE kanmi_records.fileid = ?
+									   AND kanmi_records.source = 0
+									   AND kanmi_records.fileid = discord_multipart_files.fileid`, [MessageContents.fileUUID], function (err, cacheresponse) {
+								if (err || cacheresponse.length === 0) {
+									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+									cb(true)
+								} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+									cb(true)
+								} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+									cb(true)
+								} else if (cacheresponse[0].filecached) {
+									mqClient.sendMessage(`MultiPart File ${MessageContents.fileUUID} is already cached and available`, "info", "MPFDownload")
+									cb(true)
+								} else {
+									let itemsCompleted = [];
+									const fileName = cacheresponse[0].real_filename
+									const fileNameUniq = '.' + cacheresponse[0].fileid
+									const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
+									const PartsFilePath = path.join(systemglobal.TempFolder, `PARITY-${cacheresponse[0].fileid}`);
+									fs.mkdirSync(PartsFilePath, {recursive: true})
+									let requests = cacheresponse.filter(e => e.valid === 1 && !(!e.url)).map(e => e.url).sort().reduce((promiseChain, URLtoGet, URLIndex) => {
+										return promiseChain.then(() => new Promise((resolve) => {
+											const DestFilename = path.join(PartsFilePath, `${URLIndex}.par`)
+											const stream = request.get({
+												url: URLtoGet,
+												headers: {
+													'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+													'accept-language': 'en-US,en;q=0.9',
+													'cache-control': 'max-age=0',
+													'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+													'sec-ch-ua-mobile': '?0',
+													'sec-fetch-dest': 'document',
+													'sec-fetch-mode': 'navigate',
+													'sec-fetch-site': 'none',
+													'sec-fetch-user': '?1',
+													'upgrade-insecure-requests': '1',
+													'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+												},
+											}).pipe(fs.createWriteStream(DestFilename))
+											// Write File to Temp Filesystem
+											stream.on('finish', function () {
+												Logger.printLine("MPFDownload", `Downloaded Part #${URLIndex} : ${DestFilename}`, "debug", {
+													URL: URLtoGet,
+													DestFilename: DestFilename,
+													CompleteFilename: fileName
+												})
+												itemsCompleted.push(DestFilename);
+												resolve()
+											});
+											stream.on("error", function (err) {
+												mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}`, "err", "MPFDownload", err)
+												resolve()
 											})
-											if (MessageContents.userRequest && MessageContents.userRequest !== 'none') {
-												mqClient.sendMessage(`File is now available <@!${MessageContents.userRequest.toString()}>\nDownload URL: ${systemglobal.Pickup_Base_URL}${fileNameUniq}`, "message", "MPFDownload")
-											}
-											for (let part of itemsCompleted) {
-												fs.unlink(part, function (err) {
-
-												})
-											}
-											if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(fileName.toString()).split(".").pop().toLowerCase()) !== -1) {
-												if (cacheresponse[0].attachment_hash === null) {
-													// Encode Video File
-													function encodeVideo(filename, intent, fulfill) {
-														return new Promise(function (fulfill) {
-															const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-															let scriptOutput = "";
-															const spawn = require('child_process').spawn;
-															let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-															console.log("[FFMPEG] Starting to encode video...")
-															const child = spawn(EncoderConf.Exec, ffmpegParam);
-															// You can also use a variable to save the output
-															// for when the script closes later
-															child.stdout.setEncoding('utf8');
-															child.stdout.on('data', function (data) {
-																//Here is where the output goes
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.stderr.setEncoding('utf8');
-															child.stderr.on('data', function (data) {
-																//Here is where the error output goes
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.on('close', function (code) {
-																if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-																	const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(output);
-																} else {
-																	mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(null)
-																}
-															});
-														})
-													}
-
-													await encodeVideo(CompleteFilename, true)
-														.then((fulfill) => {
-															if (fulfill != null) {
-																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																	messageReturn: false,
-																	messageID: cacheresponse[0].id,
-																	messageChannelID: cacheresponse[0].channel,
-																	messageServerID: cacheresponse[0].server,
-																	messageType: 'command',
-																	messageAction: 'ReplaceContent',
-																	itemCacheName: `${cacheresponse[0].id}.mp4`,
-																	itemCacheData: fulfill,
-																	itemCacheType: 1
-																}, function (callback) {
-																	if (callback) {
-																		Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																	} else {
-																		Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																	}
-																});
-															} else {
-																mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
-															}
-														})
-														.catch((er) => {
-															mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
-														})
-
-												}
-												if (cacheresponse[0].cache_proxy === null) {
-													// Generate Video Preview Image
-													function previewVideo(filename, intent, fulfill) {
-														return new Promise(function (fulfill) {
-															const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
-															let scriptOutput = "";
-															const spawn = require('child_process').spawn;
-															let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-															console.log("[FFMPEG] Getting Preview Image...")
-															const child = spawn(EncoderConf.Exec, ffmpegParam);
-															child.stdout.setEncoding('utf8');
-															child.stdout.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.stderr.setEncoding('utf8');
-															child.stderr.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.on('close', function (code) {
-																if (code === 0 && fileSize(outputfile) > 0.00001) {
-																	const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(output);
-																} else {
-																	mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(null)
-																}
-															});
-														})
-													}
-
-													await previewVideo(CompleteFilename)
-														.then((imageFulfill) => {
-															if (imageFulfill != null) {
-																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																	messageReturn: false,
-																	messageID: cacheresponse[0].id,
-																	messageChannelID: cacheresponse[0].channel,
-																	messageServerID: cacheresponse[0].server,
-																	messageType: 'command',
-																	messageAction: 'ReplaceContent',
-																	itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-																	itemCacheData: imageFulfill,
-																	itemCacheType: 0
-																}, function (callback) {
-																	if (callback) {
-																		Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																	} else {
-																		Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																	}
-																});
-															} else {
-																mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
-															}
-														})
-														.catch((er) => {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
-														})
-												}
-
-											}
-
-											cb(true);
-										})
-										.catch((err) => {
-											mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild!`, "err", "MPFDownload", err)
-											for (let part of itemsCompleted) {
-												fs.unlink(part, function (err) {
-													if (err && err.code === 'EBUSY'){
-
-													} else if (err && err.code === 'ENOENT'){
-
+										}))
+									}, Promise.resolve());
+									requests.then(async () => {
+										if (itemsCompleted.length === cacheresponse[0].paritycount) {
+											rimraf(CompleteFilename, function (err) { });
+											try {
+												await splitFile.mergeFiles(itemsCompleted.sort(function (a, b) {
+													return a - b
+												}), CompleteFilename)
+												fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
+												mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" was build successfully and is now available!`, "info", "MPFDownload")
+												db.safe(`UPDATE kanmi_records
+														 SET filecached = 1
+														 WHERE fileid = ?
+														   AND source = 0`, [MessageContents.fileUUID], function (err, setcacheresponse) {
+													if (err) {
+														mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" failed to be set as cache!`, "err", "MPFCache", err)
 													} else {
-														mqClient.sendMessage("Error removing file part from temporary folder!", "err", "MPFDownload", err)
+														Logger.printLine("MPFCache", `File ${fileName.replace(/[/\\?%*:|"<> ]/g, '_')} was cached successfully!`, 'info')
 													}
 												})
+												if (MessageContents.userRequest && MessageContents.userRequest !== 'none')
+													mqClient.sendMessage(`File is now available <@!${MessageContents.userRequest.toString()}>${(systemglobal.Base_URL) ? '\nDownload URL: ' + systemglobal.Base_URL + '/stream/' + cacheresponse[0].fileid + '/' + fileName : ''}`, "message", "MPFDownload")
+												rimraf(PartsFilePath, function (err) { });
+												if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(fileName.toString()).split(".").pop().toLowerCase()) !== -1) {
+													if (cacheresponse[0].attachment_hash === null) {
+														// Encode Video File
+														function encodeVideo(filename, intent, fulfill) {
+															return new Promise(function (fulfill) {
+																const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
+																let scriptOutput = "";
+																const spawn = require('child_process').spawn;
+																let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+																console.log("[FFMPEG] Starting to encode video...")
+																const child = spawn(EncoderConf.Exec, ffmpegParam);
+																// You can also use a variable to save the output
+																// for when the script closes later
+																child.stdout.setEncoding('utf8');
+																child.stdout.on('data', function (data) {
+																	//Here is where the output goes
+																	console.log(data);
+																	data = data.toString();
+																	scriptOutput += data;
+																});
+																child.stderr.setEncoding('utf8');
+																child.stderr.on('data', function (data) {
+																	//Here is where the error output goes
+																	console.log(data);
+																	data = data.toString();
+																	scriptOutput += data;
+																});
+																child.on('close', function (code) {
+																	if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+																		deleteFile(outputfile, function (ready) {
+																			// Do Nothing
+																		})
+																		fulfill(output);
+																	} else {
+																		mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+																		deleteFile(outputfile, function (ready) {
+																			// Do Nothing
+																		})
+																		fulfill(null)
+																	}
+																});
+															})
+														}
+
+														await encodeVideo(CompleteFilename, true)
+															.then((fulfill) => {
+																if (fulfill != null) {
+																	mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																		fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																		messageReturn: false,
+																		messageID: cacheresponse[0].id,
+																		messageChannelID: cacheresponse[0].channel,
+																		messageServerID: cacheresponse[0].server,
+																		messageType: 'command',
+																		messageAction: 'ReplaceContent',
+																		itemCacheName: `${cacheresponse[0].id}.mp4`,
+																		itemCacheData: fulfill,
+																		itemCacheType: 1
+																	}, function (callback) {
+																		if (callback) {
+																			Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																		} else {
+																			Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																		}
+																	});
+																} else {
+																	mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
+																}
+															})
+															.catch((er) => {
+																mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
+															})
+
+													}
+													if (cacheresponse[0].cache_proxy === null) {
+														// Generate Video Preview Image
+														function previewVideo(filename, intent, fulfill) {
+															return new Promise(function (fulfill) {
+																const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
+																let scriptOutput = "";
+																const spawn = require('child_process').spawn;
+																let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+																console.log("[FFMPEG] Getting Preview Image...")
+																const child = spawn(EncoderConf.Exec, ffmpegParam);
+																child.stdout.setEncoding('utf8');
+																child.stdout.on('data', function (data) {
+																	console.log(data);
+																	data = data.toString();
+																	scriptOutput += data;
+																});
+																child.stderr.setEncoding('utf8');
+																child.stderr.on('data', function (data) {
+																	console.log(data);
+																	data = data.toString();
+																	scriptOutput += data;
+																});
+																child.on('close', function (code) {
+																	if (code === 0 && fileSize(outputfile) > 0.00001) {
+																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+																		deleteFile(outputfile, function (ready) {
+																			// Do Nothing
+																		})
+																		fulfill(output);
+																	} else {
+																		mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+																		deleteFile(outputfile, function (ready) {
+																			// Do Nothing
+																		})
+																		fulfill(null)
+																	}
+																});
+															})
+														}
+
+														await previewVideo(CompleteFilename)
+															.then((imageFulfill) => {
+																if (imageFulfill != null) {
+																	mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																		fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																		messageReturn: false,
+																		messageID: cacheresponse[0].id,
+																		messageChannelID: cacheresponse[0].channel,
+																		messageServerID: cacheresponse[0].server,
+																		messageType: 'command',
+																		messageAction: 'ReplaceContent',
+																		itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+																		itemCacheData: imageFulfill,
+																		itemCacheType: 0
+																	}, function (callback) {
+																		if (callback) {
+																			Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																		} else {
+																			Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																		}
+																	});
+																} else {
+																	mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
+																}
+															})
+															.catch((er) => {
+																mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
+															})
+													}
+												}
+											} catch (err) {
+												mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild!`, "err", "MPFDownload", err)
+												for (let part of itemsCompleted) {
+													fs.unlink(part, function (err) {
+														if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
+															mqClient.sendMessage(`Error removing file part from temporary folder! - ${err.message}`, "err", "MPFDownload", err)
+														}
+													})
+												}
 											}
 											cb(true)
-										});
-								} else {
-									mqClient.sendMessage(`Failed to download all parts for the MultiPart File, ${fileName}`, "error", "MPFDownload")
-									cb(true)
+										} else {
+											mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
+											cb(true)
+										}
+									})
 								}
 							})
+						} else {
+							cb(true)
 						}
-					}
-				})
-			} else if (MessageContents.messageType === 'command' && MessageContents.messageAction) {
-				switch (MessageContents.messageAction) {
+						break;
 					case 'GenerateVideoPreview':
 						db.safe(`SELECT * FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
 							if (err) {

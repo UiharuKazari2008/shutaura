@@ -1066,6 +1066,22 @@ This code is publicly released and is restricted by its project license
                                 cb(true);
                             })
                         break;
+                    case 'CacheColor':
+                        const messageData = await db.query(`SELECT id, channel, attachment_name, attachment_hash, cache_proxy FROM kanmi_records WHERE id = ? AND channel = ?`, [MessageContents.messageID, MessageContents.messageChannelID])
+                        if (messageData.error) {
+                            printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
+                            cb(false);
+                        } else if (messageData.rows.length > 0 && messageData.rows[0].cache_proxy) {
+                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments/${messageData.rows[0].cache_proxy}`)
+                            cb(true);
+                        } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
+                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments/` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
+                            cb(true);
+                        } else {
+                            Logger.printLine("Discord", `Unable to cache item ${MessageContents.messageID}!`, "warn")
+                            cb(true);
+                        }
+                        break;
                     case 'CacheImage':
                     case 'CacheVideo':
                         discordClient.getMessage(ChannelID, MessageContents.messageID)
@@ -1129,13 +1145,7 @@ This code is publicly released and is restricted by its project license
                                                                         name: `${message.attachments[0].filename.trim().replace(/[/\\?%*:|"<> ]/g, '_').split('.')[0]}-t9-preview.jpg`
                                                                     })
                                                                         .then((data) => {
-                                                                            mqClient.sendData(systemglobal.Sequenzia_In, {
-                                                                                id: message.id,
-                                                                                url: data.attachments[0].proxy_url,
-                                                                                extra: false,
-                                                                                command: 'cacheColor'
-                                                                            }, function (ok) {
-                                                                            })
+                                                                            cacheColor(message.id, data.attachments[0].proxy_url)
                                                                             db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop(), message.id], (err, result) => {
                                                                                 if (err) {
                                                                                     SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
@@ -1269,13 +1279,7 @@ This code is publicly released and is restricted by its project license
                                                                             name: `${message.id}-t9-preview-video.jpg`
                                                                         })
                                                                             .then((data) => {
-                                                                                mqClient.sendData(systemglobal.Sequenzia_In, {
-                                                                                    id: message.id,
-                                                                                    url: data.attachments[0].proxy_url,
-                                                                                    extra: false,
-                                                                                    command: 'cacheColor'
-                                                                                }, function (ok) {
-                                                                                })
+                                                                                cacheColor(message.id, data.attachments[0].proxy_url)
                                                                                 db.safe(`UPDATE kanmi_records
                                                                                      SET cache_proxy = ?
                                                                                      WHERE id = ?
@@ -1430,13 +1434,7 @@ This code is publicly released and is restricted by its project license
                                                     file: Buffer.from(MessageContents.itemCacheData, 'base64')
                                                 })
                                                     .then((data) => {
-                                                        mqClient.sendData(systemglobal.Sequenzia_In, {
-                                                            id: MessageContents.messageID,
-                                                            url: data.attachments[0].proxy_url,
-                                                            extra: false,
-                                                            command: 'cacheColor'
-                                                        }, function (ok) {
-                                                        })
+                                                        cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
                                                         db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
@@ -1466,13 +1464,7 @@ This code is publicly released and is restricted by its project license
                                                     file: Buffer.from(MessageContents.itemCacheData, 'base64')
                                                 })
                                                     .then((data) => {
-                                                        mqClient.sendData(systemglobal.Sequenzia_In, {
-                                                            id: MessageContents.messageID,
-                                                            url: data.attachments[0].proxy_url,
-                                                            extra: false,
-                                                            command: 'cacheColor'
-                                                        }, function (ok) {
-                                                        })
+                                                        cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
                                                         let filename
                                                         let filehash
                                                         const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
@@ -2941,7 +2933,7 @@ This code is publicly released and is restricted by its project license
                             const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
                             return `${(activeProccessing.length > 0) ? '⏳ ' + activeProccessing.length + ' Tasks Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() : '💤 No Active Tasks'}`
                         case 'enable':
-                            generateStatus(true, msg.guildID, args[1].replace("<#", "").replace(">", ""), (args.length > 3) ? args[2] : 1);
+                            generateStatus(true, msg.guildID, args[1].replace("<#", "").replace(">", ""));
                             return `Added a insights display to <#${args[1].replace("<#", "").replace(">", "")}>`
                         case 'disable':
                             if (Timers.has(`StatusReport${msg.guildID}`)) {
@@ -2983,7 +2975,7 @@ This code is publicly released and is restricted by its project license
             caseInsensitive: false,
             description: "Status Controls",
             fullDescription: "Enable/Disable Insights Display and Manage Stored Values\n" +
-                "   **tasks** - Prints current request queue\n   **enable** - Add an insights display to this server\n      channel, [level]\n**disable** - Removes an insights display for this server\n      [system]\n"+
+                "   **tasks** - Prints current request queue\n   **enable** - Add an insights display to this server\n      channel\n**disable** - Removes an insights display for this server\n      [system]\n"+
                 "   **delete** - Deletes a stored status record from the cache/database\n      name\n   **list** - Lists all stored status records in the cache/database",
             usage: "command [arguments]",
             guildOnly: true
@@ -3593,7 +3585,7 @@ This code is publicly released and is restricted by its project license
             musicFolders = fs.readdirSync(systemglobal.RadioFolder);
         }
     }
-    async function generateStatus(forceUpdate, guildID, channelID, Mode) {
+    async function generateStatus(forceUpdate, guildID, channelID) {
         let data
         try {
             data = await localParameters.getItem('statusgen-' + guildID)
@@ -4146,10 +4138,12 @@ This code is publicly released and is restricted by its project license
             .map(statusRecord => {
                 let statusItems = [];
                 const _si = statusRecord.data;
-                if (_si.flowCountTotal <= 4) { statusItems.push(`**🛑 Queue Empty!**`) } else
-                if (_si.flowCountTotal <= 32) { statusItems.push(`**🔻 Queue Underflow!**`) } else
-                if (_si.overFlow) { statusItems.push(`**🌊 Queue Overflow!**`); systemWarning = true }
-                // else if (_si.statusIcon) { statusItems.push(`${_si.statusIcon} Queue Active`); }
+                if (_si.flowVolume) {
+                    if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) { statusItems.push(`**🛑 Queue Empty!**`); if (_si.flowMinAlert) { systemWarning = true; bannerFault.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is empty!`) } } else
+                    if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) { statusItems.push(`**🔻 Queue Underflow!**`); if (_si.flowMinAlert) { systemWarning = true; bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is running out of items!`) } } else
+                    if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) { statusItems.push(`**🌊 Queue Overflow!**`); if (_si.flowMaxAlert) { systemWarning = true; bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is overflowing!, Rectifying`) } }
+                    // else if (_si.statusIcon) { statusItems.push(`${_si.statusIcon} Queue Active`); }
+                }
                 if (_si.flowCountTotal > 1) {
                     let _siT = [];
                     if (_si.flowCountSend > 0) { _siT.push(`📨 ${_si.flowCountSend}`) }
@@ -4931,6 +4925,40 @@ This code is publicly released and is restricted by its project license
                 SendMessage("Failed to Unpin the message to a channel", "warn", guildid, "Discord", er)
             });
     }
+    async function cacheColor(msgid, url) {
+        return new Promise(resolve => {
+            request.get({
+                url: url,
+                headers: {
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'cache-control': 'max-age=0',
+                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'none',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                },
+            }, async (err, res, body) => {
+                if (err) {
+                    SendMessage(`Failed to download message attachments from discord for color cache - ${err.message}`, "err", 'main', "Polyfill", err)
+                    resolve(false);
+                } else if (!body || (body && body.length < 100) ) {
+                    SendMessage(`Failed to download message attachments from discord for color cache - No Data`, "err", 'main', "Polyfill")
+                    resolve(false);
+                } else {
+                    const _color = await getAverageColor(data, {mode: 'precision'})
+                    const result = await db.query(`UPDATE kanmi_records SET colorR = ?, colorG = ?, colorB = ?, dark_color = ? WHERE id = ?`, [_color.value[0], _color.value[1], _color.value[2], (_color.isDark) ? '1' : '0', msgid])
+                    if (result.error)
+                        Logger.printLine('SQL', `Failed to save color for ${msgid}`, 'error', result.erro);
+                    resolve(true)
+                }
+            })
+        })
+    }
     // Discord Framework - File Systems Tasks
     function jfsMove(message, moveTo, cb, delay) {
         if (message.attachments.length === 0 || (message.attachments.length > 0 && message.attachments.filter(e => e.size > 7900000).length === 0)) {
@@ -5385,127 +5413,19 @@ This code is publicly released and is restricted by its project license
         })
     }
     function jfsGetSF(fileUUID, options) {
-        db.safe(`SELECT discord_servers.chid_filedata, kanmi_records.server, kanmi_records.real_filename, kanmi_records.content_full FROM kanmi_records, discord_servers WHERE kanmi_records.fileid = ? AND kanmi_records.server = discord_servers.serverid AND kanmi_records.source = 0`, [fileUUID], (err, filedata) => {
+        db.safe(`SELECT fileid, filecached, real_filename, paritycount FROM kanmi_records WHERE fileid = ? AND source = 0`, [fileUUID], (err, filedata) => {
             if (err) {
                 SendMessage("SQL Error occurred when retrieving the server data table", "err", 'main', "SQL", err)
             } else if (filedata.length > 0) {
-                db.safe(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [fileUUID], function (err, filelookupresults) {
-                    if (err) {
-                        SendMessage("SQL Error occurred when retrieving the Spanned File lookup table", "err", 'main', "SQL", err)
-                    } else {
-                        if (filelookupresults.length > 1) {
-                            let files = []
-                            for (let item in filelookupresults) {
-                                if ( filelookupresults[item].url && filelookupresults[item].url.includes("cdn.discord") ) {
-                                    files.push(filelookupresults[item].url)
-                                    Logger.printLine("SFDownload", `File is a cached URL : ${filelookupresults[item].url}`, "info")
-                                    if (parseInt(item) === filelookupresults.length - 1) {
-                                        discordClient.getMessage(filedata[0].chid_filedata, filelookupresults[item].messageid)
-                                            .then((message) => {
-                                                const ExpectParts = parseInt(message.content.split('\n📦 Part: ').pop().split('/').pop())
-                                                if (filelookupresults.length === ExpectParts) {
-                                                    let fileName
-                                                    // Get Filename from message: Trust file names in messages more then the file part (due to renaming)
-                                                    if (filedata[0].real_filename !== null) {
-                                                        fileName = filedata[0].real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                    } else if (filedata[0].content_full.includes('🏷 Name:')) {
-                                                        const splitName = filedata[0].content_full.split("🏷 Name:").pop().trim().split('\n')[0].split(" (")
-                                                        if (splitName.length > 2) {
-                                                            splitName.forEach(function (part, index) {
-                                                                if (index === splitName.length - 2) {
-                                                                    fileName += part.trim()
-                                                                } else if (index !== splitName.length - 1) {
-                                                                    fileName += part.trim() + ' ('
-                                                                }
-                                                            })
-                                                            fileName = fileName.trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                        } else {
-                                                            fileName = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                        }
-                                                    } else {
-                                                        // If there was no filename found on the post then get it from the part
-                                                        fileName = message.content.split('\n🏷 Name:').pop().trim().split('\n📦 Part:')[0]
-                                                    }
-                                                    Logger.printLine("SFDownload", `Sending request to download ${ExpectParts} parts for ${fileName} to FileWorker`, "info", {
-                                                        fileParts: files.sort(),
-                                                        fileName: fileName,
-                                                        expectParts: ExpectParts,
-                                                    })
-                                                    mqClient.sendData(systemglobal.FileWorker_In, {
-                                                        fileParts: files.sort(),
-                                                        fileName: fileName,
-                                                        expectParts: ExpectParts,
-                                                        userRequest: options.userID,
-                                                        fileUUID: fileUUID,
-                                                    }, function (ok) {
-
-                                                    })
-                                                } else {
-                                                    SendMessage(`Did not receive all expected files, File may not have finished uploading! Expected ${ExpectParts} but got ${filelookupresults.length}`, "err", filedata[0].server, "SFDownload")
-                                                }
-                                            })
-                                            .catch((er) => {
-                                                SendMessage("Failed to find the message record for the a Spanned File!", "err", filedata[0].server, "SFDownload", er)
-                                            })
-                                    }
-                                } else {
-                                    discordClient.getMessage(filedata[0].chid_filedata, filelookupresults[item].messageid)
-                                        .then((message) => {
-                                            files.push(message.attachments[0].url)
-                                            Logger.printLine("SFDownload", `File Will be pulled from Discord : ${message.attachments[0].url}`, "info")
-                                            if (parseInt(item) === filelookupresults.length - 1) {
-                                                const ExpectParts = parseInt(message.content.split('\n📦 Part: ').pop().split('/').pop())
-                                                if (filelookupresults.length === ExpectParts) {
-                                                    let fileName
-                                                    // Get Filename from message: Trust file names in messages more then the file part (due to renaming)
-                                                    if (filedata[0].real_filename !== null) {
-                                                        fileName = filedata[0].real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                    } else if (filedata[0].content_full.includes('🏷 Name:')) {
-                                                        const splitName = filedata[0].content_full.split("🏷 Name:").pop().trim().split('\n')[0].split(" (")
-                                                        if (splitName.length > 2) {
-                                                            splitName.forEach(function (part, index) {
-                                                                if (index === splitName.length - 2) {
-                                                                    fileName += part.trim()
-                                                                } else if (index !== splitName.length - 1) {
-                                                                    fileName += part.trim() + ' ('
-                                                                }
-                                                            })
-                                                            fileName = fileName.trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                        } else {
-                                                            fileName = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_')
-                                                        }
-                                                    } else {
-                                                        // If there was no filename found on the post then get it from the part
-                                                        fileName = message.content.split('\n🏷 Name:').pop().trim().split('\n📦 Part:')[0]
-                                                    }
-                                                    Logger.printLine("SFDownload", `Sending request to download ${ExpectParts} parts for ${fileName} to FileWorker`, "info", {
-                                                        fileParts: files.sort(),
-                                                        fileName: fileName,
-                                                        expectParts: ExpectParts,
-                                                    })
-                                                    mqClient.sendData(systemglobal.FileWorker_In, {
-                                                        fileParts: files.sort(),
-                                                        fileName: fileName,
-                                                        expectParts: ExpectParts,
-                                                        userRequest: options.userID,
-                                                    }, function (ok) {
-
-                                                    })
-                                                } else {
-                                                    SendMessage(`Did not receive all expected files, File may not have finished uploading! Expected ${ExpectParts} but got ${filelookupresults.length}`, "err", filedata[0].server, "SFDownload")
-                                                }
-                                            }
-                                        })
-                                        .catch((er) => {
-                                            SendMessage("Failed to find the message record for the a Spanned File!", "err", filedata[0].server, "SFDownload", er)
-                                        })
-                                }
-                            }
-                        } else {
-                            SendMessage("No Spanned File Parts were found in the database, with ID " + fileUUID, "err", filedata[0].server, "SFDownload")
-                        }
-                    }
-                })
+                if (filedata[0].filecached) {
+                    Logger.printLine("SFDownload", `File ${fileUUID} is already cached!`, "info")
+                } else {
+                    Logger.printLine("SFDownload", `Sending request to download ${filedata[0].paritycount} parts for ${filedata[0].real_filename} to FileWorker`, "info")
+                    mqClient.sendData(systemglobal.FileWorker_In, {
+                        userRequest: options.userID,
+                        fileUUID: fileUUID,
+                    }, function (ok) { })
+                }
             } else {
                 SendMessage("No Spanned File was found in the database, with ID " + fileUUID, "err", filedata[0].server, "SFDownload")
             }
@@ -5929,12 +5849,7 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
-                                    mqClient.sendData(systemglobal.Sequenzia_In, {
-                                        id: msg.id,
-                                        url: `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`,
-                                        extra: false,
-                                        command: 'cacheColor'
-                                    }, function (ok) { })
+                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
                             }
                         }
