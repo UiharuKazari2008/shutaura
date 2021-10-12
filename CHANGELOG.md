@@ -1,5 +1,41 @@
 # Kanmi Sequenzia Framework
 
+## v19.2 (RC1 JFS v1.5)
+
+- Updater
+  - Accept cli arguments to allow for manual updates
+  - Useing exec insted of Spawn due to situation where it will lock up
+- Twitter
+  - Added support to adjust flowcontrol defaults and such via config
+  - Added Option for Under/Over flow schedules insted of releaseing multiple at a time 
+- Discord
+  - Now uses twitter provided flowcontrol values instead of the defaults
+  - Dropped spanned file building support as fileworker can handle it directly now
+  - Now handles cache requests
+- FileWorker
+  - Updated to support direct requests
+  - Fixed various issues with file building
+  - systemglobal.Base_URL is now used for base URL as /stream handles all file requests
+  - Now automatically recreates missing symlinks
+
+### Updater Command Line Options
+**Do not use this as a way to automatically update, use the built-in service in the ecosystem**
+```shell
+node js/updater.js --check --install --force
+```
+- check
+  - Checks for updates (Required at all times otherwise it will launch in service mode)
+- install
+  - Installs the latest updates
+- force
+  - Forces Install, Patching, Bypass Update Block Check, 
+- soft
+  - Do not use `git reset --hard`
+- nopatch
+  - Do not install patch files for database and configuration updates
+- nobackup
+  - Do not backup the affected database tables (Only use this if you failed to install an update, to be safe then sorry) 
+
 ## v19.1 (RC1 JFS v1.5)
 - Corrected issue with Backup system where it could not get the Discord MQ parameters from SQL
 - Added new TX2 triggers
