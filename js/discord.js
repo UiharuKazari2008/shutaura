@@ -4104,7 +4104,7 @@ This code is publicly released and is restricted by its project license
                 const _si = statusRecord.data;
                 if (_si.flowVolume) {
                     if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) {
-                        if (!_si.flowMode || (_si.flowMode && _si.flowMode !== 0)) {
+                        if (_si.flowMode !== 0) {
                             systemFault = true;
                             bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
                         }
@@ -4115,7 +4115,7 @@ This code is publicly released and is restricted by its project license
                         }
                     }
                     else if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) {
-                        if (!_si.flowMode || (_si.flowMode && _si.flowMode !== 0)) {
+                        if (_si.flowMode !== 0) {
                             systemFault = true;
                             bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
                         }
@@ -4126,7 +4126,7 @@ This code is publicly released and is restricted by its project license
                         }
                     }
                     else if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) {
-                        if (!_si.flowMode || (_si.flowMode && _si.flowMode !== 2)) {
+                        if (_si.flowMode !== 2) {
                             systemFault = true;
                             bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
                         }
@@ -4137,7 +4137,7 @@ This code is publicly released and is restricted by its project license
                         }
                     }
                     else if (_si.statusIcon) {
-                        if (!_si.flowMode || (_si.flowMode && _si.flowMode !== 1)) {
+                        if (_si.flowMode !== 1) {
                             systemFault = true;
                             bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
                         }
