@@ -742,33 +742,73 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						const likeCollection = tweetQueue.filter(e => { return e.action === 2 }).length;
 						const likeRtCollection = tweetQueue.filter(e => { return e.action === 1 }).length;
 						const sendCollection = tweetQueue.filter(e => { return e.action === 4 }).length;
+						const stats = rtCollection + ((sendCollection > likeRtCollection) ? sendCollection : likeRtCollection)
 
 						Logger.printLine(`Collector`, `Account ${twitterUser}: Current Collector Stacks - Like: ${likeCollection} Retweet: ${rtCollection} LikeRT: ${likeRtCollection} Send: ${sendCollection}`, `info`);
 
-						let messageText = ''
-						let messageIcon = ''
-						if (twit.config.short_name) {
-							messageText += `${twit.config.short_name} `
+						if (stats < ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64) && twitterFlowTimers.has(`flow_low_${twitterUser}`)) {
+							if (twitterFlowState.get(twitterUser) !== 0) {
+								if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+									twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_low_${twitterUser}`).start()
+								overflowControl.set(twitterUser, 0)
+								twitterFlowState.set(twitterUser, 0)
+							}
+						} else if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) && twitterFlowTimers.has(`flow_max_${twitterUser}`)) {
+							if (twitterFlowState.get(twitterUser) !== 2) {
+								if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+									twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_max_${twitterUser}`).start()
+								overflowControl.set(twitterUser, ((twit.flowcontrol.max_rate) ? twit.flowcontrol.max_rate : 1))
+								twitterFlowState.set(twitterUser, 2)
+							}
+						} else if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
+							if (twitterFlowState.get(twitterUser) !== 2) {
+								const _fcc = ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) / ((twit.flowcontrol.max_divide) ? twit.flowcontrol.volume.max_divide : 500)
+								if (_fcc < 1) {
+									overflowControl.set(twitterUser, 0)
+								} else {
+									overflowControl.set(twitterUser, _fcc.toFixed(0))
+								}
+							}
+						} else {
+							if (twitterFlowState.get(twitterUser) !== 1) {
+								if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+									twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+								if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+									twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).start()
+								overflowControl.set(twitterUser, 0)
+								twitterFlowState.set(twitterUser, 1)
+							}
 						}
-						const stats = rtCollection + ((sendCollection > likeRtCollection) ? sendCollection : likeRtCollection)
 
-						if (stats <= ((twit.flowcontrol.volume.empty) ? twit.flowcontrol.volume.empty : 4)) {
-							messageIcon = '🛑'
-						} else if (stats <= ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64)) {
-							messageIcon = '⚠'
-						} else if (stats <= ((twit.flowcontrol.volume.warning) ? twit.flowcontrol.volume.warning : 128)) {
-							messageIcon = '🟢'
-						} else if (stats >= ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
-							messageIcon = '🌊'
-						} else {
-							messageIcon = '✅'
-						}
-						if (stats >= 1 ) {
-							messageText += `${messageIcon} ${stats}`
-						} else {
-							messageText += `${messageIcon} Sleeping`
-						}
 						if (twit.flowcontrol.status_name) {
+							let messageText = ''
+							let messageIcon = ''
+							if (twit.config.short_name) {
+								messageText += `${twit.config.short_name} `
+							}
+
+							if (stats <= ((twit.flowcontrol.volume.empty) ? twit.flowcontrol.volume.empty : 4)) {
+								messageIcon = '🛑'
+							} else if (stats <= ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64)) {
+								messageIcon = '⚠'
+							} else if (stats <= ((twit.flowcontrol.volume.warning) ? twit.flowcontrol.volume.warning : 128)) {
+								messageIcon = '🟢'
+							} else if (stats >= ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
+								messageIcon = '🌊'
+							} else {
+								messageIcon = '✅'
+							}
+							if (stats >= 1 ) {
+								messageText += `${messageIcon} ${stats}`
+							} else {
+								messageText += `${messageIcon} Sleeping`
+							}
+
 							mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
 								fromClient: `return.${facilityName}.${e[0]}.${systemglobal.SystemName}`,
 								messageReturn: false,
@@ -784,6 +824,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									flowCountLike: likeCollection,
 									flowCountRt: rtCollection,
 									flowVolume: twit.flowcontrol.volume,
+									flowMode: twitterFlowState.get(twitterUser),
 									flowMinAlert: twit.flowcontrol.min_alert,
 									flowMaxAlert: twit.flowcontrol.max_alert,
 									statusText: messageText,
@@ -793,48 +834,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								},
 								updateIndicators: true
 							}, (ok) => { if (!ok) { console.error('Failed to send update to MQ') } })
-						}
-
-						if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
-							if (twitterFlowTimers.has(`flow_max_${twitterUser}`)) {
-								if (twitterFlowState.get(twitterUser) !== 2) {
-									if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
-										twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
-									twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
-									twitterFlowTimers.get(`flow_max_${twitterUser}`).start()
-									overflowControl.set(twitterUser, ((twit.flowcontrol.max_rate) ? twit.flowcontrol.max_rate : 1))
-									twitterFlowState.set(twitterUser, 2)
-								}
-							}
-							else {
-								const _fcc = ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) / ((twit.flowcontrol.max_divide) ? twit.flowcontrol.volume.max_divide : 500)
-								if (_fcc < 1) {
-									overflowControl.set(twitterUser, 0)
-								} else {
-									overflowControl.set(twitterUser, _fcc.toFixed(0))
-								}
-							}
-						} else if (stats > ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64) && twit.flowcontrol.schedule_min) {
-							if (twitterFlowTimers.has(`flow_low_${twitterUser}`)) {
-								if (twitterFlowState.get(twitterUser) !== 0) {
-									if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
-										twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
-									twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
-									twitterFlowTimers.get(`flow_low_${twitterUser}`).start()
-									overflowControl.set(twitterUser, 0)
-									twitterFlowState.set(twitterUser, 0)
-								}
-							}
-						} else if (twitterFlowState.has(twitterUser) && twitterFlowState.get(twitterUser) !== 1) {
-							if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
-								twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
-							if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
-								twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
-							twitterFlowTimers.get(`flow_normal_${twitterUser}`).start()
-							overflowControl.set(twitterUser, 0)
-							twitterFlowState.set(twitterUser, 1)
-						} else {
-							overflowControl.set(twitterUser, 0)
 						}
 					}
 				})
