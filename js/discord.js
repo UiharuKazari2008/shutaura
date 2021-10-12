@@ -341,13 +341,13 @@ This code is publicly released and is restricted by its project license
 
             const _prefetch1 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.priority');
             if (_prefetch1.length > 0 && _prefetch1[0].param_value)
-                systemglobal.Prefetch_1_Count = parseInt(_prefetch1[0].param_data.tokens.toString());
+                systemglobal.Prefetch_1_Count = parseInt(_prefetch1[0].param_value.toString());
             const _prefetch2 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.standard');
             if (_prefetch2.length > 0 && _prefetch2[0].param_value)
-                systemglobal.Prefetch_2_Count = parseInt(_prefetch2[0].param_data.tokens.toString());
+                systemglobal.Prefetch_2_Count = parseInt(_prefetch2[0].param_value.toString());
             const _prefetch3 = systemparams_sql.filter(e => e.param_key === 'discord.prefetch.backlog');
             if (_prefetch3.length > 0 && _prefetch3[0].param_value)
-                systemglobal.Prefetch_3_Count = parseInt(_prefetch3[0].param_data.tokens.toString());
+                systemglobal.Prefetch_3_Count = parseInt(_prefetch3[0].param_value.toString());
 
             const _discord_refresh_cache = systemparams_sql.filter(e => e.param_key === 'discord.timers');
             if (_discord_refresh_cache.length > 0 && _discord_refresh_cache[0].param_data) {
