@@ -5813,7 +5813,7 @@ This code is publicly released and is restricted by its project license
                                 sqlObject.dark_color = options.color.isDark;
                             }
                             // Write to database
-                            const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ? ON DUPLICATE KEY SET ?`, [sqlObject]);
+                            const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
                                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                                 console.error(addedMessage.error)
