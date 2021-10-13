@@ -94,6 +94,7 @@ This code is publicly released and is restricted by its project license
     let PixivSaveChannel = new Map();
     let Timers = new Map();
     let activeTasks = new Map();
+    let activeAlerts = new Map();
     let statusValues = new Map();
     let tempThread = new Map();
 
@@ -3936,6 +3937,7 @@ This code is publicly released and is restricted by its project license
                 const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
                 if (_bcF.length > 0) {
                     if (e.data.active && e.data.total > 25) {
+                        const _si = e.data;
                         let lns = [];
                         if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
                             systemWarning = true;
@@ -3949,7 +3951,7 @@ This code is publicly released and is restricted by its project license
                                 bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
                             }
 
-                            const _si = e.data;
+
                             if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
                                 lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
                             } else if (_bcF.length > 0 && _bcF[0].files > 0) {
@@ -4356,6 +4358,10 @@ This code is publicly released and is restricted by its project license
                 }
             }
         }))
+
+        //const orphanedParity = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid NOT IN (SELECT fileid FROM kanmi_records WHERE fileid IS NOT NULL)`)
+
+
         activeTasks.delete('VALIDATE_PARTS');
         setTimeout(revalidateFiles, 3600000)
     }
