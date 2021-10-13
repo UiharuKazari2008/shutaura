@@ -6125,7 +6125,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 // Get Messages from Discord
                                 function getMessages(lastmessage, shouldresolve) {
-                                    discordClient.getMessages(item.channelid, 1500, lastmessage)
+                                    discordClient.getMessages(item.channelid, 5000, lastmessage)
                                         .then(function (messages) {
                                             parseMessageArray(messages, (ok) => {
                                                 if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
@@ -6197,7 +6197,7 @@ This code is publicly released and is restricted by its project license
                 let failCount = 0;
                 while (true) {
                     try {
-                        const messages = await discordClient.getMessages(guild.chid_filedata, 1500, lastmessage)
+                        const messages = await discordClient.getMessages(guild.chid_filedata, 5000, lastmessage)
                         failCount = 0;
                         await Promise.all(messages.map(async message => {
                             const found_message = find_response.rows.filter(e => e.messageid === message.id);
@@ -6239,7 +6239,7 @@ This code is publicly released and is restricted by its project license
                             messageCount += messages.length
                             activeTasks.set(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`,  { started: chStart, details: messageCount });
                             SendMessage(`Searching for 5000 messages before ${lastmessage} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
-                            lastmessage = (messages.map(e => parseInt(e.id)).sort()[0]).toString();
+                            lastmessage = (messages.map(e => parseInt(e.id)).sort().pop()).toString();
                         } else {
                             SendMessage(`Completed verification of ${discordClient.guilds.get(guild.serverid).name} parity channel, Other tasks are possibly still running`, "info", guild.serverid, "RepairFileSystem")
                             activeTasks.delete(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`);
