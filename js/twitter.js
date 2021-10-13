@@ -1137,6 +1137,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 															} else {
 																let username = response.user.screen_name;
 																Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${username} for ${tweetID}`, "info", response);
+																if (actionIntent === 'statuses/retweet')
+																	mqClient.sendMessage(`Tweet interaction successfully for account #${twitterUser}!\nhttps://twitter.com/${username}/status/${response.id_str}`, "info", "Twitter")
 															}
 														})
 													});
