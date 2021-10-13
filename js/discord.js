@@ -4038,9 +4038,12 @@ This code is publicly released and is restricted by its project license
                 if (v.details) {
                     _it += `[${v.details}]`
                 }
-                _ioOA.push(_it)
+                _ioOA.push(`*${_it}*`)
             })
-            _ioT.push(`⚙ ${activeTasks.size} Active Jobs (${_ioOA.join('/')})`)
+            _ioT.push(`⚙ ${activeTasks.size} Active Jobs`)
+            _ioT.push(..._ioOA)
+        } else {
+            _ioT.push(`💤 No Active Jobs`)
         }
         if (discordMQMessages > 0) {
             _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
@@ -4546,7 +4549,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function downloadMessageFile(fullmsg, destination, deleteItem) {
-        await activeTasks.set(`DOWNLOAD_${fullmsg.id}`, { started: Date.now().valueOf() });
+        await activeTasks.set(`SAVE_${fullmsg.id}`, { started: Date.now().valueOf() });
         let sendTo = fullmsg.channel.id
         if (destination) {
             sendTo = destination
@@ -4566,10 +4569,10 @@ This code is publicly released and is restricted by its project license
             if (fullmsg.embeds[0].timestamp)
                 messageEdited.full_timestamp = fullmsg.embeds[0].timestamp
 
-            jfsMove(messageEdited, destination, function (cb) { activeTasks.delete(`DOWNLOAD_${fullmsg.id}`); }, true);
+            jfsMove(messageEdited, destination, function (cb) { activeTasks.delete(`SAVE_${fullmsg.id}`); }, true);
         }
         else if (fullmsg.content.includes("pixiv.") && fullmsg.attachments.length > 0) {
-            jfsMove(fullmsg, destination, function (cb) { activeTasks.delete(`DOWNLOAD_${fullmsg.id}`); }, true)
+            jfsMove(fullmsg, destination, function (cb) { activeTasks.delete(`SAVE_${fullmsg.id}`); }, true)
         }
         else if ((fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && (fullmsg.embeds[0].title.includes('📨 Tweet') || fullmsg.embeds[0].title.includes('✳ Retweet')) && sendTo !== discordServers.get(fullmsg.guildID).chid_download)) {
             let messageEdited = fullmsg;
@@ -4593,6 +4596,7 @@ This code is publicly released and is restricted by its project license
             db.safe(`SELECT * FROM twitter_list WHERE listid = ?`, [listID], function (err, listinfo) {
                 if (err) {
                     Logger.printLine("SQL", `SQL Error when getting Twitter Lists records`, "emergency", err)
+                    activeTasks.delete(`SAVE_${fullmsg.id}`);
                 } else {
                     db.safe(`SELECT channelid FROM twitter_user_redirect WHERE twitter_username = ?`, [username], function (err, channelreplacement) {
                         if (err) {
@@ -4608,6 +4612,7 @@ This code is publicly released and is restricted by its project license
                         }
                         if (image) {
                             jfsMove(messageEdited, channelID, function (cb) { }, true);
+                            activeTasks.delete(`SAVE_${fullmsg.id}`);
                         } else if (fullmsg.embeds.length > 0 && fullmsg.embeds[0].video) {
                             const ID = getIDfromText(fullmsg.embeds[0].url);
                             const FileName = `${username}-${ID}.mp4`;
@@ -4619,7 +4624,7 @@ This code is publicly released and is restricted by its project license
                                 itemVideoURL: fullmsg.embeds[0].video.url
                             }, function (ok) {
                                 if (ok) {
-                                    activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                                    activeTasks.delete(`SAVE_${fullmsg.id}`);
                                     Logger.printLine("TwitterDownload", `Tweet ${TweetID} will be downloaded to ${channelID}, Sent to file worker proxy downloader`, "info", fullmsg.embeds[0], {
                                         messageChannelID: channelID,
                                         messageReturn: false,
@@ -4631,7 +4636,7 @@ This code is publicly released and is restricted by its project license
                             })
                         } else {
                             sendTwitterAction(fullmsg.content, 'Download', "add", fullmsg.attachments, fullmsg.channel.id, fullmsg.guildID, fullmsg.embeds, destination);
-                            activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                            activeTasks.delete(`SAVE_${fullmsg.id}`);
                             if (deleteItem) {
                                 setTimeout(function () {
                                     discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id, "Clean out download request")
@@ -4650,7 +4655,7 @@ This code is publicly released and is restricted by its project license
                 sendTwitterAction(fullmsg.content, "LikeRT", "add", fullmsg.attachments, sendTo, fullmsg.guildID, fullmsg.embeds);
             }
             sendTwitterAction(fullmsg.content, 'Download', "add", fullmsg.attachments, fullmsg.channel.id, fullmsg.guildID, fullmsg.embeds, destination);
-            activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+            activeTasks.delete(`SAVE_${fullmsg.id}`);
             if (deleteItem) {
                 setTimeout(function () {
                     discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id, "Clean out download request")
@@ -4693,7 +4698,7 @@ This code is publicly released and is restricted by its project license
             }
             mqClient.sendData(systemglobal.FileWorker_In, content, function (ok) {
                 if (ok) {
-                    activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                    activeTasks.delete(`SAVE_${fullmsg.id}`);
                     Logger.printLine("Download", `Video ${content.itemVideoURL} will be downloaded to ${discordServers.get(fullmsg.guildID).chid_download_video.toString()}, Sent to file worker proxy downloader`, "debug", content)
                     if (deleteItem) {
                         setTimeout(function () {
@@ -4710,12 +4715,12 @@ This code is publicly released and is restricted by its project license
             db.safe(`SELECT * FROM flickr_watchlist WHERE approval_ch = ?`, [fullmsg.channel.id], function (err, flickrchannel) {
                 if (err) {
                     SendMessage("SQL Error occurred when retrieving the download data", "err", 'main', "SQL", err)
-                    activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                    activeTasks.delete(`SAVE_${fullmsg.id}`);
                 } else {
                     db.safe(`SELECT * FROM discord_download WHERE channelid = ?`, [fullmsg.channel.id], function (err, downloaddata) {
                         if (err) {
                             SendMessage("SQL Error occurred when retrieving the download data", "err", 'main', "SQL", err)
-                            activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                            activeTasks.delete(`SAVE_${fullmsg.id}`);
                         } else {
                             if (downloaddata && downloaddata.length > 0) {
                                 destination = downloaddata[0].channelto.toString()
@@ -4747,7 +4752,7 @@ This code is publicly released and is restricted by its project license
                             }
                             mqClient.sendData(systemglobal.FileWorker_In, content, function (ok) {
                                 if (ok) {
-                                    activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+                                    activeTasks.delete(`SAVE_${fullmsg.id}`);
                                     Logger.printLine("Download", `Image ${content.itemFileURL} will be downloaded to ${discordServers.get(fullmsg.guildID).chid_download_video.toString()}, Sent to file worker proxy downloader`, "debug", content)
                                     if (deleteItem) {
                                         setTimeout(function () {
@@ -4765,12 +4770,12 @@ This code is publicly released and is restricted by its project license
             })
         }
         else {
-            activeTasks.delete(`DOWNLOAD_${fullmsg.id}`);
+            activeTasks.delete(`SAVE_${fullmsg.id}`);
             Logger.printLine("Download", `Can't download ${fullmsg.id}`, "debug")
         }
     }
     async function downloadRemoteFile(msg, serverdata) {
-        await activeTasks.set(`REMOTE_DOWNLOAD_${msg.id}`, { started: Date.now().valueOf() });
+        await activeTasks.set(`RSAVE_${msg.id}`, { started: Date.now().valueOf() });
         const isRecommended = (msg.content.includes("RECOM"))
         const contents = msg.content.replace('REQUEST ', '').split("  _DEST_  ")[0].replace('RECOM','').trim().replace('FORCE','').trim()
         const forceAllItems = (msg.content.includes('FORCE'))
@@ -4781,7 +4786,7 @@ This code is publicly released and is restricted by its project license
         }
         if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image) && !(msg.content.includes("pixiv.net/") || msg.content.includes("youtube.com") || msg.content.includes("youtu.be") || msg.content.includes("twitter.com"))) {
             downloadMessageFile(msg, moveTo, true)
-            activeTasks.delete(`REMOTE_DOWNLOAD_${msg.id}`);
+            activeTasks.delete(`RSAVE_${msg.id}`);
         } else if (url.length > 0) {
             await Promise.all(url.map(async (urlItem) => {
                 if (urlItem.includes("twitter.com") && !urlItem.includes("/status/")) {
@@ -4882,9 +4887,9 @@ This code is publicly released and is restricted by its project license
                     })
                 }
             }));
-            activeTasks.delete(`REMOTE_DOWNLOAD_${msg.id}`);
+            activeTasks.delete(`RSAVE_${msg.id}`);
         } else {
-            activeTasks.delete(`REMOTE_DOWNLOAD_${msg.id}`);
+            activeTasks.delete(`RSAVE_${msg.id}`);
         }
     }
     // Discord Framework - Data Management
