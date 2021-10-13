@@ -2256,7 +2256,7 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'rmrf':
-                            if (args.lenght > 1) {
+                            if (args.length > 1) {
                                 const channelfrom = args[1].replace("<#", "").replace(">", "");
                                 const messagesToDelete = await db.query(`SELECT id, channel, server, fileid FROM kanmi_records WHERE channel = ?`, [channelfrom])
                                 if (messagesToDelete.error) {
