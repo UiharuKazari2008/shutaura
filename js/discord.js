@@ -2272,7 +2272,7 @@ This code is publicly released and is restricted by its project license
                                             messageType: 'command',
                                             messageAction: 'RemovePost'
                                         })
-                                    }))
+                                    }), ok => {})
                                     return `Deleted ${messagesToDelete.rows.length} messages`
                                 }
                             } else {
