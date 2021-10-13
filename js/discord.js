@@ -501,7 +501,7 @@ This code is publicly released and is restricted by its project license
         discordautoreact = _discordautoreactions.rows;
 
         Logger.printLine("SQL", "Getting Clear Button Reactions", "debug")
-        const _add_clear_btn = await db.query(`SELECT DISTINCT channelid FROM discord_autoclean UNION SELECT DISTINCT lastthread AS channelid FROM discord_autothread WHERE pinbutton = 1`)
+        const _add_clear_btn = await db.query(`SELECT DISTINCT channelid FROM discord_autoclean WHERE clearbtn = 1 UNION SELECT DISTINCT lastthread AS channelid FROM discord_autothread WHERE pinbutton = 1`)
         if (_add_clear_btn.error) { Logger.printLine("SQL", "Error getting discord clear reactions records!", "emergency", _add_clear_btn.error); return false }
         addClearButton = _add_clear_btn.rows.map(e => e.channelid);
 
