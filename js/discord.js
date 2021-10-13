@@ -2271,7 +2271,7 @@ This code is publicly released and is restricted by its project license
                                                 channel: {id: msgdel.channel},
                                                 guild: {id: msgdel.server},
                                                 guildID: msgdel.server
-                                            }, true, true, false)
+                                            }, true, true)
                                         }
                                     }))
                                     return `Deleted ${messagesToDelete.rows.length} messages`
@@ -6078,7 +6078,7 @@ This code is publicly released and is restricted by its project license
         }
         activeTasks.delete(`EDIT_MSG_${msg.id}`)
     }
-    async function messageDelete(msg, bulk, deleteMsg, noMFDel) {
+    async function messageDelete(msg, bulk, deleteMsg) {
         if (!bulk) {
             Logger.printLine("Discord", `Message Deleted: ${msg.id}@${msg.channel.id}`, "debug");
             await activeTasks.set(`DEL_MSG_${msg.id}`, { started: Date.now().valueOf() });
@@ -6104,12 +6104,6 @@ This code is publicly released and is restricted by its project license
                     }
                 }
                 if (serverdata.rows.length > 0 && (serverdata.rows[0].classification === null || (serverdata.rows[0].classification !== 'system' && serverdata.rows[0].classification !== 'timelime'))) {
-                    if (!noMFDel) {
-                        const cachedItem = await db.query(`SELECT fileid FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
-                        if (cachedItem.rows.length > 0 && cachedItem.rows[0].fileid) {
-                            await jfsRemoveSF(undefined, undefined, undefined, cachedItem.rows[0].fileid)
-                        }
-                    }
                     const removeItem = await db.query(`DELETE FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
                     if (removeItem.error) {
                         SendMessage("SQL Error occurred when deleting the message from the cache", "err", 'main', "SQL", removeItem.error);
