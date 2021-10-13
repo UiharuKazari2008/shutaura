@@ -5648,35 +5648,6 @@ This code is publicly released and is restricted by its project license
                 default :
                     // Save to Database IF NOT crated by self
                     if (msg.author.id !== selfstatic.id || (options && (options.forceAdd || options.isMoved))) {
-                        if (options && options.logLine) {
-                            Logger.printLine("Discord", options.logLine, "debug", {
-                                messageID: msg.id,
-                                channelID: msg.channel.id,
-                                channelName: msg.channel.name,
-                                memberID: msg.author.id,
-                                memberNick: msg.author.nick,
-                                guildID: msg.guildID,
-                                guildName: msg.channel.guild.name,
-                                messageContent: msg.content,
-                                messageAttachments: msg.attachments,
-                                messageEmbeds: msg.embeds
-                            })
-                        } else {
-                            const username = (msg.author.nick) ? msg.author.nick : msg.author.username;
-                            const isThread = (msg.channel.type === 11 || msg.channel.type === 12);
-                            Logger.printLine("Discord", `New Message: ${msg.id}@"${msg.channel.name}"${(isThread) ? " (Thread)" : ""} from "${username}"@"${msg.channel.guild.name}"`, "debug", {
-                                messageID: msg.id,
-                                channelID: msg.channel.id,
-                                channelName: msg.channel.name,
-                                memberID: msg.author.id,
-                                memberNick: msg.author.nick,
-                                guildID: msg.guildID,
-                                guildName: msg.channel.guild.name,
-                                messageContent: msg.content,
-                                messageAttachments: msg.attachments,
-                                messageEmbeds: msg.embeds
-                            });
-                        }
                         if (discordChannels.has(msg.channel.id)) {
                             const chDbval = discordChannels.get(msg.channel.id)
                             // Notify Channel
@@ -5911,6 +5882,35 @@ This code is publicly released and is restricted by its project license
                                     addStandardReactions(msg)
                                 }
                             }
+                        }
+                        if (options && options.logLine) {
+                            Logger.printLine("Discord", options.logLine, "debug", {
+                                messageID: msg.id,
+                                channelID: msg.channel.id,
+                                channelName: msg.channel.name,
+                                memberID: msg.author.id,
+                                memberNick: msg.author.nick,
+                                guildID: msg.guildID,
+                                guildName: msg.channel.guild.name,
+                                messageContent: msg.content,
+                                messageAttachments: msg.attachments,
+                                messageEmbeds: msg.embeds
+                            })
+                        } else {
+                            const username = (msg.author.nick) ? msg.author.nick : msg.author.username;
+                            const isThread = (msg.channel.type === 11 || msg.channel.type === 12);
+                            Logger.printLine("Discord", `New Message: ${msg.id}@"${msg.channel.name}"${(isThread) ? " (Thread)" : ""} from "${username}"@"${msg.channel.guild.name}"`, "debug", {
+                                messageID: msg.id,
+                                channelID: msg.channel.id,
+                                channelName: msg.channel.name,
+                                memberID: msg.author.id,
+                                memberNick: msg.author.nick,
+                                guildID: msg.guildID,
+                                guildName: msg.channel.guild.name,
+                                messageContent: msg.content,
+                                messageAttachments: msg.attachments,
+                                messageEmbeds: msg.embeds
+                            });
                         }
                     }
                     if (msg.author.id === selfstatic.id && !(options && options.forceAdd)) { // IF ( Message is self created )
