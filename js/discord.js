@@ -692,6 +692,8 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
+                const jobid = crypto.randomBytes(5).toString("hex");
+                activeTasks.set(`MQ_MSG_1_${jobid}`, {started: Date.now().valueOf()});
                 work(msg, function(ok) {
                     try {
                         if (ok)
@@ -701,6 +703,7 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
+                    activeTasks.delete(`MQ_MSG_1_${jobid}`);
                 });
             }
         });
@@ -746,6 +749,8 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
+                const jobid = crypto.randomBytes(5).toString("hex");
+                activeTasks.set(`MQ_MSG_2_${jobid}`, {started: Date.now().valueOf()});
                 work2(msg, function(ok) {
                     try {
                         if (ok)
@@ -755,6 +760,7 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
+                    activeTasks.delete(`MQ_MSG_2_${jobid}`);
                 });
             }
         });
@@ -800,6 +806,8 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
+                const jobid = crypto.randomBytes(5).toString("hex");
+                activeTasks.set(`MQ_MSG_3_${jobid}`, {started: Date.now().valueOf()});
                 work3(msg, function(ok) {
                     try {
                         if (ok)
@@ -809,6 +817,7 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
+                    activeTasks.delete(`MQ_MSG_3_${jobid}`);
                 });
             }
         });
@@ -1064,7 +1073,7 @@ This code is publicly released and is restricted by its project license
                             printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
                             cb(false);
                         } else if (messageData.rows.length > 0 && messageData.rows[0].cache_proxy) {
-                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments${messageData.rows[0].cache_proxy}`)
+                            await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${messageData.rows[0].cache_proxy}`)
                             cb(true);
                         } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
                             await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments/` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
@@ -4919,10 +4928,10 @@ This code is publicly released and is restricted by its project license
             });
     }
     async function cacheColor(msgid, url) {
-        const imageFilesFormats = ['jpg', 'jfif', 'png', 'webm', 'gif']
-        if (url.split('.').length > 1 && imageFilesFormats.indexOf(url.split('.').pop().toLowerCase()) !== -1) {
-            await activeTasks.set(`CACHE_COLOR_${msgid}`, {started: Date.now().valueOf()});
-            return new Promise(resolve => {
+        await activeTasks.set(`CACHE_COLOR_${msgid}`, {started: Date.now().valueOf()});
+        return new Promise(resolve => {
+            const imageFilesFormats = ['jpg', 'jfif', 'png', 'webm', 'gif']
+            if (url.split('.').length > 1 && imageFilesFormats.indexOf(url.split('.').pop().toLowerCase()) !== -1) {
                 request.get({
                     url: url,
                     headers: {
@@ -4956,15 +4965,17 @@ This code is publicly released and is restricted by its project license
                             resolve(true)
                             activeTasks.delete(`CACHE_COLOR_${msgid}`);
                         } catch (err) {
+                            resolve(true)
                             Logger.printLine('cacheColor', `Failed to save color for ${msgid} - ${url}`, 'error');
                             activeTasks.delete(`CACHE_COLOR_${msgid}`);
                         }
                     }
                 })
-            })
-        } else {
-            return false
-        }
+            } else {
+                resolve(true)
+                activeTasks.delete(`CACHE_COLOR_${msgid}`);
+            }
+        })
     }
     // Discord Framework - File Systems Tasks
     async function jfsMove(message, moveTo, cb, delay) {
