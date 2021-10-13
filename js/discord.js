@@ -1043,15 +1043,8 @@ This code is publicly released and is restricted by its project license
                     case 'RemovePost':
                         discordClient.getMessage(ChannelID, MessageContents.messageID)
                             .then(function(fullmsg) {
-                                db.safe(`SELECT * FROM discord_servers WHERE serverid = ?`, [ChannelData.guild.id], function (err, serverdata) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
-                                        cb(true);
-                                    } else {
-                                        jfsRemove(fullmsg)
-                                        cb(true);
-                                    }
-                                })
+                                jfsRemove(fullmsg)
+                                cb(true);
                             })
                             .catch((er) => {
                                 Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
@@ -6169,7 +6162,7 @@ This code is publicly released and is restricted by its project license
                                     discordClient.getMessages(item.channelid, 5000, lastmessage)
                                         .then(function (messages) {
                                             parseMessageArray(messages, (ok) => {
-                                                if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
+                                                if (messages.length === 5000 && (!limiter || (limiter && limiter <= messageCount))) {
                                                     messageCount += messages.length
                                                     activeTasks.set(`REPAIR_${channelItem.channelid}`,  { started: chStart, details: messageCount });
                                                     SendMessage(`Searching for 5000 messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
@@ -6276,7 +6269,7 @@ This code is publicly released and is restricted by its project license
                                 SendMessage(`Unable to proccess message ${message.id}, No data was attached to the message`, "error", 'main', "PartsInspector")
                             }
                         }))
-                        if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
+                        if (messages.length === 5000 && (!limiter || (limiter && limiter <= messageCount))) {
                             messageCount += messages.length
                             activeTasks.set(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`,  { started: chStart, details: messageCount });
                             SendMessage(`Searching for 5000 messages before ${lastmessage} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
