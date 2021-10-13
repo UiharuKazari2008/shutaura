@@ -2271,8 +2271,8 @@ This code is publicly released and is restricted by its project license
                                             messageServerID: msgdel.server,
                                             messageType: 'command',
                                             messageAction: 'RemovePost'
-                                        })
-                                    }), ok => {})
+                                        }, ok => {})
+                                    }))
                                     return `Deleted ${messagesToDelete.rows.length} messages`
                                 }
                             } else {
