@@ -48,6 +48,7 @@ This code is publicly released and is restricted by its project license
 
     let init = 0;
     let gracefulShutdown = false;
+    let forceShutdown = false;
     let playingFolder = "";
     let toPlayFolder = "";
     let EncoderConf = {
@@ -887,7 +888,11 @@ This code is publicly released and is restricted by its project license
         function checkForShutdownCleance() {
             const activeJobs = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
             const activeSysJobs = activeTasks.size
-            if (activeSysJobs > 0 || activeJobs > 0) {
+            if (forceShutdown) {
+                amqpConn.close();
+                console.log(`Shutdown Clearance Overided`)
+                cb(true)
+            } else if (activeSysJobs > 0 || activeJobs > 0) {
                 console.log(`Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeSysJobs})`)
                 setTimeout(checkForShutdownCleance, 15000)
             } else {
@@ -6938,6 +6943,10 @@ This code is publicly released and is restricted by its project license
         shutdownSystem((ok) => {
             reply({ answer : ok })
         })
+    })
+    tx2.action('overide-lock', async (reply) => {
+        forceShutdown = true;
+        reply({ answer : ok });
     })
 
     process.on('SIGINT', function() {
