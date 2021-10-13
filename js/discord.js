@@ -6946,7 +6946,7 @@ This code is publicly released and is restricted by its project license
     })
     tx2.action('overide-lock', async (reply) => {
         forceShutdown = true;
-        reply({ answer : ok });
+        reply({ answer : true });
     })
 
     process.on('SIGINT', function() {
