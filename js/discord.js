@@ -2377,7 +2377,7 @@ This code is publicly released and is restricted by its project license
                                 if (args[1] === 'all') {
                                     db.simple(`SELECT channelid FROM kanmi_channels WHERE parent != 'isparent' AND classification NOT LIKE '%system%' AND classification NOT LIKE '%timeline%' AND source = 0`, async function (err, result) {
                                         if (!(err) && result && result.length > 0) {
-                                            let limit = 5000
+                                            let limit = undefined
                                             let forceLarge = false
                                             if (args.length > 2 && !isNaN(parseInt(args[2]))) {
                                                 limit = parseInt(args[2])
@@ -2393,25 +2393,25 @@ This code is publicly released and is restricted by its project license
                                         }
                                     })
                                 } else if (args[1] === 'parts' || args[1] === 'parity') {
-                                    let limit = 5000
+                                    let limit = undefined
                                     let messagesBefore = 0
-                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
-                                        messagesBefore = parseInt(args[2])
+                                    if (args.length > 4 && !isNaN(parseInt(args[4]))) {
+                                        messagesBefore = parseInt(args[4])
                                     }
-                                    if (args.length > 3 && !isNaN(parseInt(args[3]))) {
-                                        limit = parseInt(args[3])
+                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
+                                        limit = parseInt(args[2])
                                     }
                                     SendMessage(`✅ Started Full Filesystem Parity Repair...`, "system", msg.guildID, "RepairFileSystem");
                                     spannedPartsRecache(messagesBefore, limit);
                                 } else {
                                     const channelFrom = args[1].replace("<#", "").replace(">", "");
-                                    let limit = 5000
+                                    let limit = undefined
                                     let messagesBefore = 0
-                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
-                                        messagesBefore = parseInt(args[2])
+                                    if (args.length > 4 && !isNaN(parseInt(args[4]))) {
+                                        messagesBefore = parseInt(args[4])
                                     }
-                                    if (args.length > 3 && !isNaN(parseInt(args[3]))) {
-                                        limit = parseInt(args[3])
+                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
+                                        limit = parseInt(args[2])
                                     }
                                     SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem");
                                     messageRecache([{channelid: channelFrom}], msg.guildID, messagesBefore, limit, true);
@@ -2451,7 +2451,7 @@ This code is publicly released and is restricted by its project license
                 "   **lsarc** - List Archive Channel Maps\n   **mkarc** - Create Archive Channel Map\n      [ChFrom, ChTo]\n   **rmarc** - Removes Archive Channel Map\n      [Channel]\n" +
                 "   **mvc** - Manage the Collector\n      **enable** - Enable\n      **disable** - Disable\n      **status** - Displays status\n" +
                 "      **done** - Moves all items to a channel\n         [Channel]\n      **search** - Search a channel for items to add\n         [Channel, Term]\n      **clear** - Clears all\n" +
-                "   **repair** - Repairs a JFS folder or parity\n      [[ChannelID, all, or parts], (before), (numofmessages), (force)]",
+                "   **repair** - Repairs a JFS folder or parity\n      [[ChannelID, all, or parts], (num to search), (force), (before id)]",
             usage: "command [arguments]",
             guildOnly: true
         })
@@ -6125,13 +6125,13 @@ This code is publicly released and is restricted by its project license
                                 }
                                 // Get Messages from Discord
                                 function getMessages(lastmessage, shouldresolve) {
-                                    discordClient.getMessages(item.channelid, limiter, lastmessage)
+                                    discordClient.getMessages(item.channelid, 1500, lastmessage)
                                         .then(function (messages) {
                                             parseMessageArray(messages, (ok) => {
-                                                if (messages.length === limiter) {
+                                                if (messages.length === 1500 || (limiter && limiter <= messageCount)) {
                                                     messageCount += messages.length
                                                     activeTasks.set(`REPAIR_${channelItem.channelid}`,  { started: chStart, details: messageCount });
-                                                    SendMessage(`Searching for ${limiter} messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
+                                                    SendMessage(`Searching for 1500 messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
                                                     getMessages(messages[0].id, shouldresolve)
                                                 } else {
                                                     if (shouldresolve) {
@@ -6196,7 +6196,7 @@ This code is publicly released and is restricted by its project license
                 let failCount = 0;
                 while (true) {
                     try {
-                        const messages = await discordClient.getMessages(guild.chid_filedata, limiter, lastmessage)
+                        const messages = await discordClient.getMessages(guild.chid_filedata, 1500, lastmessage)
                         failCount = 0;
                         await Promise.all(messages.map(async message => {
                             const found_message = find_response.rows.filter(e => e.messageid === message.id);
@@ -6234,10 +6234,10 @@ This code is publicly released and is restricted by its project license
                                 SendMessage(`Unable to proccess message ${message.id}, No data was attached to the message`, "error", 'main', "PartsInspector")
                             }
                         }))
-                        if (messages.length === limiter) {
+                        if (messages.length === 1500 || (limiter && limiter <= messageCount)) {
                             messageCount += messages.length
                             activeTasks.set(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`,  { started: chStart, details: messageCount });
-                            SendMessage(`Searching for ${limiter} messages before ${messages[0].id} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
+                            SendMessage(`Searching for 1500 messages before ${messages[0].id} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
                         } else {
                             SendMessage(`Completed verification of ${discordClient.guilds.get(guild.serverid).name} parity channel, Other tasks are possibly still running`, "info", guild.serverid, "RepairFileSystem")
                             activeTasks.delete(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`);
