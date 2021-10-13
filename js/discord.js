@@ -5813,7 +5813,7 @@ This code is publicly released and is restricted by its project license
                                 sqlObject.dark_color = options.color.isDark;
                             }
                             // Write to database
-                            const addedMessage = await db.query(`INSERT INTO kanmi_records SET ?`, [sqlObject]);
+                            const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ? ON DUPLICATE KEY SET ?`, [sqlObject]);
                             if (addedMessage.error) {
                                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                                 console.error(addedMessage.error)
@@ -6675,7 +6675,7 @@ This code is publicly released and is restricted by its project license
             if (channel.topic) {
                 topic = channel.topic;
             }
-            db.safe(`INSERT INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, nsfw = ?, last_message = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, nsfw, lastmessage, role, write, manage, topic, fetch], function (err, result) {
+            db.safe(`INSERT IGNORE INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, nsfw = ?, last_message = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, nsfw, lastmessage, role, write, manage, topic, fetch], function (err, result) {
                 if (err) {
                     SendMessage("SQL Error occurred when writing the channel to the database", "err", 'main', "SQL", err)
                 }

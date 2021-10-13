@@ -143,7 +143,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         if (previousVideos.indexOf(getVideofromURL(article.link)) !== -1) {
                                             Logger.printLine("YouTube", `New video from "${article.author}" - "${article.title}"`, "info", article)
                                             sendVideoToDiscord(list.channelid, article)
-                                            await db.query(`INSERT INTO youtube_history_videos VALUES (?, ?, NOW())`, [getVideofromURL(article.link), list.yuser])
+                                            await db.query(`INSERT IGNORE INTO youtube_history_videos VALUES (?, ?, NOW())`, [getVideofromURL(article.link), list.yuser])
                                         }
                                     }))
                                 }
@@ -230,7 +230,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     if (!ok) {
                                         mqClient.sendMessage(`Failed to send Podcast Episode - "${podcast.meta.title}"`, "err", "SQL", err, episode)
                                     } else {
-                                        await db.query(`INSERT INTO podcast_history VALUES (?, ?, ?, NOW())`, [episode.enclosure.url, thash, list.url])
+                                        await db.query(`INSERT IGNORE INTO podcast_history VALUES (?, ?, ?, NOW())`, [episode.enclosure.url, thash, list.url])
                                     }
                                 })
                                 counter++;
@@ -321,7 +321,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     mqClient.sendMessage(`Failed to send Image - ${list.username}:${image.id}`, "err", "SQL", err, MessageParameters)
                                                 } else {
                                                     Logger.printLine("Flickr", `New Image from ${list.username} - ${MessageParameters.itemReferral}`, "info")
-                                                    await db.query(`INSERT INTO flickr_history VALUES (?, ?, NOW())`, [image.id, list.username])
+                                                    await db.query(`INSERT IGNORE INTO flickr_history VALUES (?, ?, NOW())`, [image.id, list.username])
                                                 }
                                             })
                                         } else {
@@ -342,7 +342,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             mqClient.sendMessage(`Failed to send Image - ${list.username}:${image.id}`, "err", "SQL", err)
                                         } else {
                                             Logger.printLine("Flickr", `New Image from ${list.username} - ${messageBody}`, "info")
-                                            db.query(`INSERT INTO flickr_history VALUES (?, ?, NOW())`, [image.id, list.username])
+                                            db.query(`INSERT IGNORE INTO flickr_history VALUES (?, ?, NOW())`, [image.id, list.username])
                                         }
                                     });
                                 }

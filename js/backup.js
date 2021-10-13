@@ -127,7 +127,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         
         async function backupCompleted(destPath) {
-            const saveBackupSQL = await db.query(`INSERT INTO kanmi_backups SET system_name = ?, bid = ?, eid = ?`, [backupSystemName, `${backupSystemName}-${message.eid}`, message.eid])
+            const saveBackupSQL = await db.query(`REPLACE INTO kanmi_backups SET system_name = ?, bid = ?, eid = ?`, [backupSystemName, `${backupSystemName}-${message.eid}`, message.eid])
             if (saveBackupSQL.error) {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as backup complete`, "err", saveBackupSQL.error)
                 cb(false)

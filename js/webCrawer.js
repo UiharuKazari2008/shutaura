@@ -316,7 +316,7 @@ This code is publicly released and is restricted by its project license
                                             })
                                         })
                                     }))
-                                    await db.query(`INSERT INTO web_visitedpages VALUES (?, NOW())`, [postURL])
+                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [postURL])
                                 } catch (err) {
                                     Logger.printLine('MPZeroPull-Post', `Failed to pull the Blog post page "${postURL}" - ${err.message}`, 'error');
                                     console.log(err);
@@ -378,7 +378,7 @@ This code is publicly released and is restricted by its project license
                             text: `${figureURL}`
                         }, async (ok) => {
                             if (ok) {
-                                await db.query(`INSERT INTO web_visitedpages VALUES (?, NOW())`, [figureURL])
+                                await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [figureURL])
                                 Logger.printLine('MFCPODPull-PostImage', `Sent MFC POD post "${figureURL}"`, 'debug');
                             } else {
                                 Logger.printLine('MFCPODPull-PostImage', `Failed to send the MFC POD post"${figureURL}"`, 'error');
@@ -446,7 +446,7 @@ This code is publicly released and is restricted by its project license
                                         }
                                     });
                                 }));
-                                await db.query(`INSERT INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.link]);
+                                await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.link]);
                             } else {
                                 Logger.printLine('SankakuGallery', `No Images found for "${thisArticle.title}"`, 'error');
                             }
@@ -485,7 +485,7 @@ This code is publicly released and is restricted by its project license
                             } else {
                                 sendMixToDiscord(user.channelid, track, response, true, async (ok) => {
                                     if (ok) {
-                                        await db.query(`INSERT INTO web_visitedpages VALUES (?, NOW())`, [track.url])
+                                        await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [track.url])
                                         Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
                                     } else {
                                         Logger.printLine('Mixcloud-Pull', `Failed to send mixcloud download "${track.url}"`, 'error');

@@ -2006,7 +2006,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												if (!ok) {
 													Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
 												} else {
-													const addtohistory = await db.query(`INSERT INTO twitter_history_mention VALUES (?, ?, NOW())`, [_tweetID, id])
+													const addtohistory = await db.query(`INSERT IGNORE INTO twitter_history_mention VALUES (?, ?, NOW())`, [_tweetID, id])
 													if (addtohistory.error) {
 														Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", addtohistory.error)
 													}
@@ -2059,7 +2059,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						} else {
 					listUsers.users.filter(e => twitterusers.rows.filter(f => e.screen_name.toLowerCase() === f.username.toLowerCase()).length === 0).map(e => e.screen_name).forEach(e => {
 						console.log(`Added User : ${e}`)
-						db.query(`INSERT INTO twitter_list_users SET username = ?, listid = ?`, [e, list.listid])
+						db.query(`INSERT IGNORE INTO twitter_list_users SET username = ?, listid = ?`, [e, list.listid])
 					})
 
 					let tweetRequests = tweets.reduce((promiseChain1, tweet) => {
@@ -2071,13 +2071,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length === 0) {
 								if (tweet.text.includes("RT @") && list.blockselfrt === 1 && tweet.user.screen_name.includes(tweet.text.split('RT @').pop().split(': ')[0])) {
 									Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because its a self RT`, "warn", tweet)
-									db.safe(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
+									db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
 										if (err) { Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", err) }
 									});
 									tweetResolve(false);
 								} else if (tweet.text.includes("RT @") && list.blockselfrt === 1 && twitterusers.rows.filter(e => { return e.username.toLowerCase() === tweet.text.split('RT @').pop().split(': ')[0].toLowerCase() }).length > 0) {
 									Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because @${tweet.user.screen_name} can't RT a list member (@${tweet.text.split('RT @').pop().split(': ')[0]})`, "warn", tweet)
-									db.safe(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
+									db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
 										if (err) { Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", err) }
 									});
 									tweetResolve(false);
@@ -2102,7 +2102,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										}, competedTweet => {
 											tweetResolve(true);
 											if (competedTweet) {
-												db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
+												db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
 												messageArray.push(...competedTweet);
 											}
 										})
@@ -2126,7 +2126,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										}, competedTweet => {
 											tweetResolve(true);
 											if (competedTweet) {
-												db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
+												db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
 												messageArrayPriority.push(...competedTweet);
 											}
 										})
@@ -2134,7 +2134,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								}
 							} else if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length > 0 ) {
 								Logger.printLine("TwitterInbound", `Account ${id}: Tweet was blocked because it contained the word [ ${blocked.join(', ')} ]`, "warn", tweet)
-								db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
+								db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
 								tweetResolve(false);
 							} else {
 								tweetResolve(false);

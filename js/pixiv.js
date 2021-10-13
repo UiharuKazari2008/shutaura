@@ -580,7 +580,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
                                             } else {
                                                 if (index + 1 === images.length && !duplicates) {
-                                                    await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                                    await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                                 }
                                             }
                                             _mqMessage = null;
@@ -603,7 +603,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
                                         } else {
                                             if (!duplicates) {
-                                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                                await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
                                         }
                                         _mqMessage = null;
