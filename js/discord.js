@@ -5431,7 +5431,8 @@ This code is publicly released and is restricted by its project license
                         try {
                             await discordClient.deleteMessage(messagepart.channelid, messagepart.messageid, "Cleanup Message Parts")
                         } catch (er) {
-                            SendMessage("Failed to delete the fileparts from the storage channel", "err", guildid, "SFrm", er)
+                            if (er && !er.message.includes("Unknown"))
+                                SendMessage("Failed to delete the fileparts from the storage channel", "err", guildid, "SFrm", er)
                         }
                     }))
                 } else {
