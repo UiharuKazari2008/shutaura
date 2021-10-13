@@ -6132,7 +6132,7 @@ This code is publicly released and is restricted by its project license
                                                     messageCount += messages.length
                                                     activeTasks.set(`REPAIR_${channelItem.channelid}`,  { started: chStart, details: messageCount });
                                                     SendMessage(`Searching for 5000 messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
-                                                    lastmessage = messages.map(e => parseInt(e.id)).sort().pop();
+                                                    lastmessage = (messages.map(e => parseInt(e.id)).sort()[0]).toString();
                                                     getMessages(lastmessage, shouldresolve)
                                                 } else {
                                                     if (shouldresolve) {
@@ -6239,7 +6239,7 @@ This code is publicly released and is restricted by its project license
                             messageCount += messages.length
                             activeTasks.set(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`,  { started: chStart, details: messageCount });
                             SendMessage(`Searching for 5000 messages before ${lastmessage} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
-                            lastmessage = messages.map(e => parseInt(e.id)).sort().pop();
+                            lastmessage = (messages.map(e => parseInt(e.id)).sort()[0]).toString();
                         } else {
                             SendMessage(`Completed verification of ${discordClient.guilds.get(guild.serverid).name} parity channel, Other tasks are possibly still running`, "info", guild.serverid, "RepairFileSystem")
                             activeTasks.delete(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`);
