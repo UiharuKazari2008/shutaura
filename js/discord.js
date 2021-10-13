@@ -4451,7 +4451,7 @@ This code is publicly released and is restricted by its project license
                         messageEmbeds: originalembeds,
                         accountID: parseInt(_destination.toString())
                     }, function (ok) {
-                        SendMessage(`Message (${type}/${action}) forwarded to Twitter / ${_destination}`, "info", 'main', "Twitter")
+                        Logger.printLine("Twitter", `Message (${type}/${action}) forwarded to Twitter / ${_destination}`, "info", 'main')
                     })
                 }
             } else if (channelNsfw === false || channelNsfw === undefined) {
