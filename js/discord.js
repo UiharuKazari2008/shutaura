@@ -5438,7 +5438,7 @@ This code is publicly released and is restricted by its project license
                     SendMessage("No Spanned File was found in the database for " + fileUUID, "err", guildid, "SFrm")
                 }
             }
-            if (channelnumber && messageid) {
+            if (channelnumber && messsageid) {
                 try {
                     await discordClient.deleteMessage(channelnumber, messsageid)
                     if (channelnumber !== discordServers.get(guildid).chid_download) {
