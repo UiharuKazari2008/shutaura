@@ -4948,12 +4948,17 @@ This code is publicly released and is restricted by its project license
                         resolve(false);
                         activeTasks.delete(`CACHE_COLOR_${msgid}`);
                     } else {
-                        const _color = await getAverageColor(body, {mode: 'precision'})
-                        const result = await db.query(`UPDATE kanmi_records SET colorR = ?, colorG = ?, colorB = ?, dark_color = ? WHERE id = ?`, [_color.value[0], _color.value[1], _color.value[2], (_color.isDark) ? '1' : '0', msgid])
-                        if (result.error)
-                            Logger.printLine('SQL', `Failed to save color for ${msgid}`, 'error', result.error);
-                        resolve(true)
-                        activeTasks.delete(`CACHE_COLOR_${msgid}`);
+                        try {
+                            const _color = await getAverageColor(body, {mode: 'precision'})
+                            const result = await db.query(`UPDATE kanmi_records SET colorR = ?, colorG = ?, colorB = ?, dark_color = ? WHERE id = ?`, [_color.value[0], _color.value[1], _color.value[2], (_color.isDark) ? '1' : '0', msgid])
+                            if (result.error)
+                                Logger.printLine('SQL', `Failed to save color for ${msgid}`, 'error', result.error);
+                            resolve(true)
+                            activeTasks.delete(`CACHE_COLOR_${msgid}`);
+                        } catch (err) {
+                            Logger.printLine('cacheColor', `Failed to save color for ${msgid} - ${url}`, 'error');
+                            activeTasks.delete(`CACHE_COLOR_${msgid}`);
+                        }
                     }
                 })
             })
