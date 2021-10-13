@@ -3978,10 +3978,10 @@ This code is publicly released and is restricted by its project license
                             };
                         } else {
                             if (_bcF[0].files > 0) {
-                                extraText.push(`${getPrefix(i, a.length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
                             if (_bcF[0].parts > 0) {
-                                extraText.push(`${getPrefix(i, a.length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
                         }
                     } else {
