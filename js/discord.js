@@ -2255,6 +2255,31 @@ This code is publicly released and is restricted by its project license
                                 SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
                             }
                             break;
+                        case 'rmrf':
+                            if (args.lenght > 1) {
+                                const channelfrom = args[1].replace("<#", "").replace(">", "");
+                                const messagesToDelete = await db.query(`SELECT id, channel, server, fileid FROM kanmi_records WHERE channel = ?`, [channelfrom])
+                                if (messagesToDelete.error) {
+                                    return "❌ SQL Failure"
+                                } else {
+                                    await Promise.all(messagesToDelete.rows.map(async msgdel => {
+                                        if (msgdel.fileid) {
+                                            await jfsRemoveSF(msgdel.channel, msgdel.id, msgdel.server, msgdel.fileid)
+                                        } else {
+                                            await messageDelete({
+                                                id: msgdel.id,
+                                                channel: {id: msgdel.channel},
+                                                guild: {id: msgdel.server},
+                                                guildID: msgdel.server
+                                            }, true, true, false)
+                                        }
+                                    }))
+                                    return `Deleted ${messagesToDelete.rows.length} messages`
+                                }
+                            } else {
+                                return "⁉ Missing required information"
+                            }
+                            break;
                         case 'name':
                             if (args.length > 2) {
                                 const channel = args[1].replace("<#", "").replace(">", "");
@@ -3919,30 +3944,32 @@ This code is publicly released and is restricted by its project license
                 const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
                 if (_bcF.length > 0) {
                     if (e.data.active && e.data.total > 25) {
+                        let lns = [];
                         if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
-                        }
-                        if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
-                        } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
-                        }
-                        let lns = [];
-                        const _si = e.data;
-                        if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
-                            lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                        } else if (_bcF.length > 0 && _bcF[0].files > 0) {
-                            lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        }
-                        if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
-                            lns.push(`🔄🧩 ${_bcF[0].toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} // ${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                        } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
-                            lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
-                            lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        } else {
+                            if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
+                            } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
+                            }
+
+                            const _si = e.data;
+                            if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
+                                lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                            } else if (_bcF.length > 0 && _bcF[0].files > 0) {
+                                lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            }
+                            if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
+                                lns.push(`🔄🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                            } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
+                                lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
+                                lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            }
                         }
                         if (lns.length > 0) {
                             return {
@@ -5380,12 +5407,17 @@ This code is publicly released and is restricted by its project license
                 })
         }
     }
-    async function jfsRemoveSF(channelnumber, messsageid, guildid) {
+    async function jfsRemoveSF(channelnumber, messsageid, guildid, fileid) {
         await activeTasks.set(`JFSPARITY_DEL_${messsageid}`, { started: Date.now().valueOf() });
         try {
-            const messagetoyeet = await discordClient.getMessage(channelnumber, messsageid)
-            const input = messagetoyeet.content.split("**\n*")[0].replace("**🧩 File : ", '')
-            const fileUUID = input.trim().replace(/\n|\r/g, '')
+            let fileUUID = 0
+            if (fileid) {
+                fileUUID = fileid
+            } else {
+                const messagetoyeet = await discordClient.getMessage(channelnumber, messsageid)
+                const input = messagetoyeet.content.split("**\n*")[0].replace("**🧩 File : ", '')
+                fileUUID = input.trim().replace(/\n|\r/g, '')
+            }
             const messagestodelete = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [fileUUID])
             if (messagestodelete.error) {
                 SendMessage("SQL Error occurred when retrieving the Spanned File lookup table", "err", 'main', "SQL", messagestodelete.error)
@@ -5406,13 +5438,15 @@ This code is publicly released and is restricted by its project license
                     SendMessage("No Spanned File was found in the database for " + fileUUID, "err", guildid, "SFrm")
                 }
             }
-            try {
-                await discordClient.deleteMessage(channelnumber, messsageid)
-                if (channelnumber !== discordServers.get(guildid).chid_download) {
-                    SendMessage(`🗑 Deleted the Multi-Part File`, "info", guildid, "RMSF")
+            if (channelnumber && messageid) {
+                try {
+                    await discordClient.deleteMessage(channelnumber, messsageid)
+                    if (channelnumber !== discordServers.get(guildid).chid_download) {
+                        SendMessage(`🗑 Deleted the Multi-Part File`, "info", guildid, "RMSF")
+                    }
+                } catch (er) {
+                    SendMessage("There was a error getting the discord message for the Spanned File deletion process", "err", guildid, "RMSF", er)
                 }
-            } catch (er) {
-                SendMessage("There was a error getting the discord message for the Spanned File deletion process", "err", guildid, "RMSF", er)
             }
             activeTasks.delete(`JFSPARITY_DEL_${messsageid}`)
         } catch (err) {
@@ -6043,7 +6077,7 @@ This code is publicly released and is restricted by its project license
         }
         activeTasks.delete(`EDIT_MSG_${msg.id}`)
     }
-    async function messageDelete(msg, bulk) {
+    async function messageDelete(msg, bulk, deleteMsg, noMFDel) {
         if (!bulk) {
             Logger.printLine("Discord", `Message Deleted: ${msg.id}@${msg.channel.id}`, "debug");
             await activeTasks.set(`DEL_MSG_${msg.id}`, { started: Date.now().valueOf() });
@@ -6069,11 +6103,24 @@ This code is publicly released and is restricted by its project license
                     }
                 }
                 if (serverdata.rows.length > 0 && (serverdata.rows[0].classification === null || (serverdata.rows[0].classification !== 'system' && serverdata.rows[0].classification !== 'timelime'))) {
+                    if (!noMFDel) {
+                        const cachedItem = await db.query(`SELECT fileid FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
+                        if (cachedItem.rows.length > 0 && cachedItem.rows[0].fileid) {
+                            await jfsRemoveSF(undefined, undefined, undefined, cachedItem.rows[0].fileid)
+                        }
+                    }
                     const removeItem = await db.query(`DELETE FROM kanmi_records WHERE id = ? AND source = 0`, [msg.id])
                     if (removeItem.error) {
                         SendMessage("SQL Error occurred when deleting the message from the cache", "err", 'main', "SQL", removeItem.error);
                     }
                 }
+            }
+        }
+        if (deleteMsg) {
+            try {
+                await discordClient.deleteMessage(msg.channel.id, msg.id, "Delete Request")
+            } catch (err) {
+
             }
         }
         if (!bulk)
