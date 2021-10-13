@@ -6128,11 +6128,12 @@ This code is publicly released and is restricted by its project license
                                     discordClient.getMessages(item.channelid, 1500, lastmessage)
                                         .then(function (messages) {
                                             parseMessageArray(messages, (ok) => {
-                                                if (messages.length === 1500 && !(limiter && limiter >= messageCount)) {
+                                                if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
                                                     messageCount += messages.length
                                                     activeTasks.set(`REPAIR_${channelItem.channelid}`,  { started: chStart, details: messageCount });
-                                                    SendMessage(`Searching for 1500 messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
-                                                    getMessages(messages[0].id, shouldresolve)
+                                                    SendMessage(`Searching for 5000 messages before ${messages[0].id} in "${item.short_name}" ...`, "info", guildid, "RepairFileSystem")
+                                                    lastmessage = messages.map(e => parseInt(e.id)).sort().pop();
+                                                    getMessages(lastmessage, shouldresolve)
                                                 } else {
                                                     if (shouldresolve) {
                                                         resolve()
@@ -6234,10 +6235,11 @@ This code is publicly released and is restricted by its project license
                                 SendMessage(`Unable to proccess message ${message.id}, No data was attached to the message`, "error", 'main', "PartsInspector")
                             }
                         }))
-                        if (messages.length === 1500 && !(limiter && limiter >= messageCount)) {
+                        if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
                             messageCount += messages.length
                             activeTasks.set(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`,  { started: chStart, details: messageCount });
-                            SendMessage(`Searching for 1500 messages before ${messages[0].id} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
+                            SendMessage(`Searching for 5000 messages before ${lastmessage} in parity channel ...`, "info", guild.serverid, "RepairFileSystem")
+                            lastmessage = messages.map(e => parseInt(e.id)).sort().pop();
                         } else {
                             SendMessage(`Completed verification of ${discordClient.guilds.get(guild.serverid).name} parity channel, Other tasks are possibly still running`, "info", guild.serverid, "RepairFileSystem")
                             activeTasks.delete(`PARITY_REPAIR_${(guild.short_name) ? guild.short_name : guild.serverid}`);
