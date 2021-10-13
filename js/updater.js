@@ -376,11 +376,11 @@
         tx2.action('update-now', async (reply) => {
             if (systemglobal.UpdateProjects) {
                 await Promise.all(systemglobal.UpdateProjects.map(async project => {
-                    await updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
+                    updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
                 }))
                 reply({answer: `Updated ${systemglobal.UpdateProjects.length} projects`})
             } else {
-                await updateProject()
+                updateProject()
                 reply({answer: `Updated project`})
             }
         })
