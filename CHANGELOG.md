@@ -1,7 +1,13 @@
 # Kanmi Sequenzia Framework
 
-## v19.2 (RC1 JFS v1.5)
+## v19.2.1 (RC1 JFS v1.5)
+- Fixed various small issues with FileWorker
+- Twitter/Discord will now report its current flow controller mode and report if the controller is mismatched to its current state
+  - These will be registered as faults
+- 
 
+
+## v19.2 (RC1 JFS v1.5)
 - Updater
   - Accept cli arguments to allow for manual updates
   - Useing exec insted of Spawn due to situation where it will lock up
