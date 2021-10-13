@@ -692,8 +692,6 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
-                const jobid = crypto.randomBytes(5).toString("hex");
-                activeTasks.set(`MQ_MSG_1_${jobid}`, {started: Date.now().valueOf()});
                 work(msg, function(ok) {
                     try {
                         if (ok)
@@ -703,7 +701,6 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
-                    activeTasks.delete(`MQ_MSG_1_${jobid}`);
                 });
             }
         });
@@ -749,8 +746,6 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
-                const jobid = crypto.randomBytes(5).toString("hex");
-                activeTasks.set(`MQ_MSG_2_${jobid}`, {started: Date.now().valueOf()});
                 work2(msg, function(ok) {
                     try {
                         if (ok)
@@ -760,7 +755,6 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
-                    activeTasks.delete(`MQ_MSG_2_${jobid}`);
                 });
             }
         });
@@ -806,8 +800,6 @@ This code is publicly released and is restricted by its project license
                 })
             });
             function processMsg(msg) {
-                const jobid = crypto.randomBytes(5).toString("hex");
-                activeTasks.set(`MQ_MSG_3_${jobid}`, {started: Date.now().valueOf()});
                 work3(msg, function(ok) {
                     try {
                         if (ok)
@@ -817,7 +809,6 @@ This code is publicly released and is restricted by its project license
                     } catch (e) {
                         closeOnErr(e);
                     }
-                    activeTasks.delete(`MQ_MSG_3_${jobid}`);
                 });
             }
         });
