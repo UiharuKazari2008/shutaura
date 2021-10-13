@@ -2263,16 +2263,15 @@ This code is publicly released and is restricted by its project license
                                     return "❌ SQL Failure"
                                 } else {
                                     await Promise.all(messagesToDelete.rows.map(async msgdel => {
-                                        if (msgdel.fileid) {
-                                            await jfsRemoveSF(msgdel.channel, msgdel.id, msgdel.server, msgdel.fileid)
-                                        } else {
-                                            await messageDelete({
-                                                id: msgdel.id,
-                                                channel: {id: msgdel.channel},
-                                                guild: {id: msgdel.server},
-                                                guildID: msgdel.server
-                                            }, true, true)
-                                        }
+                                        mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                            fromClient: `return.Discord.${systemglobal.SystemName}`,
+                                            messageReturn: false,
+                                            messageID: msgdel.id,
+                                            messageChannelID: msgdel.channel,
+                                            messageServerID: msgdel.server,
+                                            messageType: 'command',
+                                            messageAction: 'RemovePost'
+                                        })
                                     }))
                                     return `Deleted ${messagesToDelete.rows.length} messages`
                                 }
