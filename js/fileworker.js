@@ -633,7 +633,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												await splitFile.mergeFiles(itemsCompleted.sort(function (a, b) {
 													return a - b
 												}), CompleteFilename)
-												fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
+												try {
+													fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
+												} catch (err) {
+													mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" could not be linked to symlink!`, "info", "MPFDownload")
+												}
 												mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" was build successfully and is now available!`, "info", "MPFDownload")
 												db.safe(`UPDATE kanmi_records
 														 SET filecached = 1
