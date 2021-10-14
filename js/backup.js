@@ -29,7 +29,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const limiter1 = new RateLimiter(1, 250);
     const limiter2 = new RateLimiter(1, 250);
     const request = require('request').defaults({ encoding: null });
-    const fs = require("fs-extra");
+    const fsEx = require("fs-extra");
+    const fs = require("fs");
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
 
@@ -109,9 +110,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
+    const trashBin = path.join(systemglobal.Backup_Base_Path, 'trash')
 
     if (!fs.existsSync(systemglobal.TempFolder)){
         fs.mkdirSync(systemglobal.TempFolder);
+    }
+    if (!fs.existsSync(systemglobal.Backup_Base_Path)){
+        fs.mkdirSync(systemglobal.Backup_Base_Path);
     }
 
     async function backupMessage (message, cb) {
@@ -120,13 +125,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             destName += '-' + message.real_filename.replace(message.id, '')
         } else if (message.attachment_name) {
             destName += '-' + message.attachment_name.replace(message.id, '')
-        } else if (message.filecached === 1) {
-            destName += '-' + message.real_filename(message.id, '')
         } else if (message.attachment_hash) {
             destName += '-' + message.attachment_hash.split('/').pop()
         }
         
-        async function backupCompleted(destPath) {
+        async function backupCompleted() {
             const saveBackupSQL = await db.query(`REPLACE INTO kanmi_backups SET system_name = ?, bid = ?, eid = ?`, [backupSystemName, `${backupSystemName}-${message.eid}`, message.eid])
             if (saveBackupSQL.error) {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as backup complete`, "err", saveBackupSQL.error)
@@ -143,21 +146,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (message.attachment_extra !== null) {
             cb(false)
         } else if (message.filecached === 1 && systemglobal.Pickup_Base_Path && fs.existsSync(path.join(systemglobal.Pickup_Base_Path, `.${message.fileid}`))) {
-            const destPath = path.join(systemglobal.Backup_Base_Path, message.server, message.channel, 'files')
-            filePath = path.join(systemglobal.Pickup_Base_Path, `.${message.fileid}`)
+            const destPath = path.join(systemglobal.Backup_Base_Path, message.server, message.channel, 'files');
+            const filePath = path.join(systemglobal.Pickup_Base_Path, `.${message.fileid}`);
 
-            fs.ensureDirSync(destPath);
+            fsEx.ensureDirSync(destPath);
             Logger.printLine("BackupFile", `Copy Local File for Backup of ${message.id} ${destName}`, "debug")
             try {
-                await fs.copyFileSync(filePath, path.join(destPath, destName))
-                await backupCompleted(path.join(destPath, destName).toString())
+                await fs.copyFileSync(filePath, path.join(destPath, destName));
+                await backupCompleted(path.join(destPath, destName).toString());
             } catch (err) {
                 Logger.printLine("CopyFile", `Failed to copy backup ${message.id} in ${message.channel}`, "err", err)
                 if (err.code === "ENOENT") {
                     try {
-                        await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [message.eid])
+                        await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [message.eid]);
                     } catch (err) {
-                        Logger.printLine("BackupFile", `Failed to clear cache url for ${destName}`, "error")
+                        Logger.printLine("BackupFile", `Failed to clear cache url for ${destName}`, "error");
                     }
                 }
                 cb(false)
@@ -205,7 +208,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     cb(false)
                 } else {
-                    fs.ensureDirSync(destPath);
+                    fsEx.ensureDirSync(destPath);
                     await fs.writeFile(path.join(destPath, destName), body, async (err) => {
                         body = null;
 
@@ -263,7 +266,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 const destPath = path.join(systemglobal.Backup_Base_Path, message.server, message.channel, 'parts', message.fileid)
 
                                 try {
-                                    await fs.ensureDirSync(destPath);
+                                    await fsEx.ensureDirSync(destPath);
                                     await fs.writeFileSync(path.join(destPath, partName), body)
                                     const saveBackupPartSQL = await db.query(`INSERT INTO discord_multipart_backups SET system_name = ?, bid = ?, messageid = ? ON DUPLICATE KEY UPDATE messageid = ?`, [backupSystemName, `${backupSystemName}-${part.messageid}`, part.messageid, part.messageid])
                                     if (saveBackupPartSQL.error) {
