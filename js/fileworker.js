@@ -1314,7 +1314,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				sharp(filename)
 					.resize(resizeParam)
 					.toFormat('jpg')
-					.withMetadata()
 					.toBuffer({resolveWithObject: true})
 					.then(({data, info}) => { callback(data.toString('base64')) })
 					.catch((err) => { callback(false) });
