@@ -112,7 +112,7 @@
         return await new Promise((resolve => {
             exec(['git', ...options].join(' '), { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), timeout: 60000, encoding: 'utf8' }, (err, stdout, stderr) => {
                 if (err) {
-                    console.err(err)
+                    console.error(err)
                     resolve(false)
                 } else {
                     if (stderr.length > 1)
@@ -126,7 +126,7 @@
         return await new Promise((resolve => {
             exec('npm install', { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), encoding: 'utf8' }, (err, stdout, stderr) => {
                 if (err) {
-                    console.err(err)
+                    console.error(err)
                     resolve(false)
                 } else {
                     if (stderr.length > 1)
