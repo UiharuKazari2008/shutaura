@@ -591,7 +591,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
 									const PartsFilePath = path.join(systemglobal.TempFolder, `PARITY-${cacheresponse[0].fileid}`);
 									fs.mkdirSync(PartsFilePath, {recursive: true})
-									let requests = cacheresponse.filter(e => e.valid === 1 && !(!e.url)).map(e => e.url).sort().reduce((promiseChain, URLtoGet, URLIndex) => {
+									let requests = cacheresponse.filter(e => e.valid === 1 && !(!e.url)).map(e => e.url).sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0).reduce((promiseChain, URLtoGet, URLIndex) => {
 										return promiseChain.then(() => new Promise((resolve) => {
 											const DestFilename = path.join(PartsFilePath, `${URLIndex}.par`)
 											const stream = request.get({
