@@ -364,29 +364,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 if (!systemglobal.Backup_Parts_Disabled) {
                     await findBackupParts()
-                } else {
-                    mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
-                        fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                        messageReturn: false,
-                        messageChannelID: '0',
-                        messageChannelName: `syncstat_${backupSystemName}`,
-                        messageType: 'status',
-                        messageData: {
-                            hostname: backupSystemName,
-                            systemname: systemglobal.SystemName,
-                            total: total,
-                            runCount,
-                            statusText: `✅ Complete`,
-                            active: false,
-                            timestamp: Date.now().valueOf()
-                        },
-                        updateIndicators: true
-                    }, (ok) => {
-                        if (!ok) {
-                            console.error('Failed to send update to MQ')
-                        }
-                    })
                 }
+                mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+                    fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                    messageReturn: false,
+                    messageChannelID: '0',
+                    messageChannelName: `syncstat_${backupSystemName}`,
+                    messageType: 'status',
+                    messageData: {
+                        hostname: backupSystemName,
+                        systemname: systemglobal.SystemName,
+                        total: total,
+                        runCount,
+                        statusText: `✅ Complete`,
+                        active: false,
+                        timestamp: Date.now().valueOf()
+                    },
+                    updateIndicators: true
+                }, (ok) => {
+                    if (!ok) {
+                        console.error('Failed to send update to MQ')
+                    }
+                })
                 if (total > 0) {
                     Logger.printLine("Backup", `Completed Backup #${runCount} with ${total} files`, "info");
                 }
