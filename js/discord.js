@@ -5796,12 +5796,12 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (options && options.size) {
-                                    sqlObject.sizeW = options.size[0];
-                                    sqlObject.sizeH = options.size[1];
+                                    sqlObject.sizeH = options.size[0];
+                                    sqlObject.sizeW = options.size[1];
                                     sqlObject.sizeR = options.size[2];
                                 } else if (msg.attachments && msg.attachments.length > 0 && msg.attachments[0].width !== undefined && msg.attachments[0].width > 0) {
-                                    sqlObject.sizeW = msg.attachments[0].width;
                                     sqlObject.sizeH = msg.attachments[0].height;
+                                    sqlObject.sizeW = msg.attachments[0].width;
                                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                                 }
                                 if (options && options.preview) {
