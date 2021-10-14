@@ -384,22 +384,6 @@
                 reply({answer: `Updated project`})
             }
         })
-        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-            setTimeout(() => {
-                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                    }
-                })
-            }, 5000)
-            setInterval(() => {
-                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                    }
-                })
-            }, 60000)
-        }
     }
 
     process.on('uncaughtException', function(err) {

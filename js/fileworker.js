@@ -584,9 +584,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
 									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
 									cb(true)
-								} else if (cacheresponse[0].filecached) {
-									mqClient.sendMessage(`MultiPart File ${MessageContents.fileUUID} is already cached and available`, "info", "MPFDownload")
-									cb(true)
 								} else {
 									let itemsCompleted = [];
 									const fileName = cacheresponse[0].real_filename

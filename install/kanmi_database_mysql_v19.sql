@@ -430,7 +430,6 @@ CREATE TABLE `kanmi_channels` (
   `short_name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   `description` text,
   `nsfw` tinyint(1) NOT NULL DEFAULT '0',
-  `last_message` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
   PRIMARY KEY (`cid`),
   UNIQUE KEY `channelid_UNIQUE` (`channelid`),
   KEY `fds_idx` (`serverid`)
