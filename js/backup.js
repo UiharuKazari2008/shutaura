@@ -74,14 +74,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_home_guild.length > 0 && _home_guild[0].param_value) {
                 systemglobal.DiscordHomeGuild = _home_guild[0].param_value;
             }
-            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
-            if (_seq_config.length > 0 && _seq_config[0].param_data) {
-                if (_seq_config[0].param_data.cache_base_url)
-                    systemglobal.Cache_Base_URL = _seq_config[0].param_data.cache_base_url;
-                if (_seq_config[0].param_data.pickup_base_url)
-                    systemglobal.Pickup_Base_URL = _seq_config[0].param_data.pickup_base_url;
-            }
-            // {"cache_base_url": "https://cdn.seq.moe/", "pickup_base_url": "https://seq.moe/cds/files/"}
             const _backup_config = systemparams_sql.filter(e => e.param_key === 'backup');
             if (_backup_config.length > 0 && _backup_config[0].param_data) {
                 if (_backup_config[0].param_data.backup_parts)
