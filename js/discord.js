@@ -5906,7 +5906,7 @@ This code is publicly released and is restricted by its project license
                                             }
                                         }
                                         if (systemglobal.Base_URL)
-                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?search=id:${msg.id}&nsfw=true`
+                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
                                         await Promise.all(chDbval.notify.split(' ').map(async ch => {
                                             try {
                                                 await discordClient.createMessage(ch, { embed });
