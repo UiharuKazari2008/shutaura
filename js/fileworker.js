@@ -518,7 +518,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						ignoreInitial: false
 					});
 					datawatcher1.on('add', function (filePath) {
-						if (!(filePath.includes('HOLD-'))) {
+						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-'))) {
 							onboardFileAdd(slash("./" + filePath), "1")
 						}
 					})
@@ -1352,48 +1352,57 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			// Encode Video File
 			function encodeVideo(filename, intent, fulfill) {
 				return new Promise(function (fulfill) {
-					const outputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO');
-					let scriptOutput = "";
-					const spawn = require('child_process').spawn;
-					let ffmpegParam = []
-					if (intent === true) {
-						ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+					const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
+					if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
+						const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
+						deleteFile(possiblePreview, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
 					} else {
-						ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
-					}
-					console.log("[FFMPEG] Starting to encode video...")
-					const child = spawn(EncoderConf.Exec, ffmpegParam);
-					// You can also use a variable to save the output
-					// for when the script closes later
-					child.stdout.setEncoding('utf8');
-					child.stdout.on('data', function (data) {
-						//Here is where the output goes
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.stderr.setEncoding('utf8');
-					child.stderr.on('data', function (data) {
-						//Here is where the error output goes
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.on('close', function (code) {
-						if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-							const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(output);
+						const outputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO');
+						let scriptOutput = "";
+						const spawn = require('child_process').spawn;
+						let ffmpegParam = []
+						if (intent === true) {
+							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 						} else {
-							mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(null)
+							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
 						}
-					});
+						console.log("[FFMPEG] Starting to encode video...")
+						const child = spawn(EncoderConf.Exec, ffmpegParam);
+						// You can also use a variable to save the output
+						// for when the script closes later
+						child.stdout.setEncoding('utf8');
+						child.stdout.on('data', function (data) {
+							//Here is where the output goes
+							console.log(data);
+							data = data.toString();
+							scriptOutput += data;
+						});
+						child.stderr.setEncoding('utf8');
+						child.stderr.on('data', function (data) {
+							//Here is where the error output goes
+							console.log(data);
+							data = data.toString();
+							scriptOutput += data;
+						});
+						child.on('close', function (code) {
+							if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+								deleteFile(outputfile, function (ready) {
+									// Do Nothing
+								})
+								fulfill(output);
+							} else {
+								mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+								deleteFile(outputfile, function (ready) {
+									// Do Nothing
+								})
+								fulfill(null)
+							}
+						});
+					}
 				})
 			}
 			// Generate Video Preview Image
