@@ -199,7 +199,9 @@
     }
     async function isUpdateAvailable(project, branch) {
         const update = await git(['remote', 'update'], project)
-        return (update) ? await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD', (branch)? branch : selectedBranch], project) : false
+        if (branch)
+            await git(['checkout', branch], project)
+        return (update) ? await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD'], project) : false
     }
     async function commitMessages(project) {
         return await git(['log', '--pretty=format:%s', 'HEAD^..FETCH_HEAD'], project)
@@ -243,12 +245,6 @@
                 if (!systemglobal.SoftUpdateRepos || args.soft) {
                     if (await git(['reset', '--hard', `origin${(branch) ? '/' + branch : ''}`], project) === false) {
                         await Logger.printLine('GetUpdated', `Failed reset repo! Timeout`, 'critical');
-                        return false;
-                    }
-                }
-                if (branch) {
-                    if (await git(['checkout', branch], project) === false) {
-                        await Logger.printLine('GetUpdated', `Failed checkout repo! Timeout`, 'critical');
                         return false;
                     }
                 }
