@@ -347,7 +347,7 @@
                 await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}${(applyPatch) ? '\n**This update requires a patch to be applied, Run updater manually with --force or run the update-database script**' : ''}`, 'notify', 'GetUpdated')
             }
         } else {
-            await mqClient.sendMessage(`No Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdates')
+            await Logger.printLine('GetUpdates', `No Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info')
         }
         return true
     }
