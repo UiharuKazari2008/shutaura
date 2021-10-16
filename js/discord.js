@@ -5905,7 +5905,8 @@ This code is publicly released and is restricted by its project license
                                                 "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                             }
                                         }
-                                        embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?search=id:${msg.id}&nsfw=true`
+                                        if (systemglobal.Base_URL)
+                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?search=id:${msg.id}&nsfw=true`
                                         await Promise.all(chDbval.notify.split(' ').map(async ch => {
                                             try {
                                                 await discordClient.createMessage(ch, { embed });
