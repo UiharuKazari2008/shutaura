@@ -591,7 +591,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     async function getNewIllust() {
         try {
-            const results = await pixivClient.illustFollow();
+            let results = await pixivClient.illustFollow();
             if (results && results.illusts && results.illusts.length > 0) {
                 let list = [...results.illusts];
                 let i = 1
@@ -604,8 +604,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         }
                         i++
-                        const page = await pixivClient.requestUrl(results.next_url)
-                        list.push(...page.illusts);
+                        results = await pixivClient.requestUrl(results.next_url)
+                        list.push(...results.illusts);
                     } catch (err) {
                         Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
                         Logger.printLine("getNewIllust", `Returned ${list.length} items for new illustrations (Caught err)`, "debug")
@@ -623,7 +623,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function getRecommended(userID, channelID, count) {
         try {
-            const results = await pixivClient.illustRelated(userID);
+            let results = await pixivClient.illustRelated(userID);
             if (results && results.illusts && results.illusts.length > 0) {
                 let i = 1
                 await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
@@ -634,8 +634,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         }
                         i++
-                        const page = await pixivClient.requestUrl(results.next_url)
-                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
+                        results = await pixivClient.requestUrl(results.next_url)
+                        await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                         await sleep(15000)
                     } catch (err) {
                         Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
@@ -652,7 +652,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function getNewRecomIllust() {
         try {
-            const results = await pixivClient.illustRecommended();
+            let results = await pixivClient.illustRecommended();
             if (results && results.illusts && results.illusts.length > 0) {
                 await saveRecomIllus(results.illusts.reverse())
                 let i = 1
@@ -662,8 +662,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         }
                         i++
-                        const page = await pixivClient.requestUrl(results.next_url)
-                        await saveRecomIllus(page.illusts.reverse());
+                        results = await pixivClient.requestUrl(results.next_url)
+                        await saveRecomIllus(results.illusts.reverse());
                     } catch (err) {
                         Logger.printLine("getNewRecomIllust", `Stopped getting new recommended (Caught err)`, "debug")
                         break;
@@ -678,7 +678,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function getUserllustAll(userID, channelID, duplicates) {
         try {
-            const results = await pixivClient.userIllusts(userID);
+            let results = await pixivClient.userIllusts(userID);
             if (results && results.illusts && results.illusts.length > 0) {
                 await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
                 while (true) {
@@ -687,8 +687,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (End of Pages)`, "debug")
                             break;
                         }
-                        const page = await pixivClient.requestUrl(results.next_url)
-                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
+                        results = await pixivClient.requestUrl(results.next_url)
+                        await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
                         await sleep(15000)
                     } catch (err) {
                         Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (Caught err)`, "debug")
