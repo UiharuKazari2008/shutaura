@@ -5331,6 +5331,7 @@ This code is publicly released and is restricted by its project license
                                                 id: message.id,
                                                 action: 'jfsRotate'
                                             })
+                                            resolve(true)
                                         })
                                         .catch((er) => {
                                             SendMessage("Failed to send message to discord", "err", message.guildID, "Rotate", er)
