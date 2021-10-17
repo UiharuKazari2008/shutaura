@@ -235,129 +235,68 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
 
     }
-    function resizeImage(fileBuffer, callback) {
-        // Get Image Dimentions
-        const dimensions = sizeOf(fileBuffer);
-        const scaleSize = 4000 // Lets Shoot for 2100?
-        let resizeParam = {
-            fit: sharp.fit.inside,
-            withoutEnlargement: true
-        }
-        if (dimensions.width > dimensions.height) { // Landscape Resize
-            resizeParam.width = scaleSize
-        } else { // Portrait or Square Image
-            resizeParam.height = scaleSize
-        }
-        sharp(fileBuffer)
-            .resize(resizeParam)
-            .toFormat('jpg')
-            .withMetadata()
-            .toBuffer({resolveWithObject: true})
-            .then(({data, info}) => { callback(data.toString('base64')) })
-            .catch((err) => { callback(false) });
-    }
-    function getImagetoB64(imageURL, returnedImage) {
-        request.get({
-            url: imageURL,
-            headers: {
-                Referer: 'http://www.pixiv.net/',
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                'accept-language': 'en-US,en;q=0.9',
-                'cache-control': 'max-age=0',
-                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-site': 'none',
-                'sec-fetch-user': '?1',
-                'upgrade-insecure-requests': '1',
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+    function resizeImage(fileBuffer) {
+        return new Promise(callback => {
+            // Get Image Dimentions
+            const dimensions = sizeOf(fileBuffer);
+            const scaleSize = 4000 // Lets Shoot for 2100?
+            let resizeParam = {
+                fit: sharp.fit.inside,
+                withoutEnlargement: true
             }
-        }, function (err, res, body) {
-            if (err) {
-                returnedImage(null)
-            } else {
-                const imageBuffer = Buffer.from(body)
-                const fileSizeInMegabytes = imageBuffer.byteLength / 1000000.0;
-                if (fileSizeInMegabytes > 7.8) {
-                    resizeImage(imageBuffer, function (data) {
-                        if (data !== false) {
-                            returnedImage(data)
-                        } else {
-                            Logger.printLine("PixivDownload", "Failed to resize the image", "error")
-                        }
-                    })
-                } else {
-                    returnedImage(imageBuffer.toString('base64'))
-                }
+            if (dimensions.width > dimensions.height) { // Landscape Resize
+                resizeParam.width = scaleSize
+            } else { // Portrait or Square Image
+                resizeParam.height = scaleSize
             }
+            sharp(fileBuffer)
+                .resize(resizeParam)
+                .toFormat('jpg')
+                .withMetadata()
+                .toBuffer({resolveWithObject: true})
+                .then(({data, info}) => { callback(data.toString('base64')) })
+                .catch((err) => {
+                    Logger.printLine("PixivDownload", "Failed to resize the image - " + err.message, "error");
+                    callback(null)
+                });
         })
     }
-    function getItem(illust, complete) {
-        if (illust.meta_pages.length > 0) {
-            Logger.printLine("PixivDownload", `Getting Illustration https://pixiv.net/en/artworks/${illust.id} : ${illust.meta_pages.length} Pages Wanted`, "debug", illust)
-            let images = []
-            getImagetoB64(illust.user.profile_image_urls.medium, function (avatar) {
-                if (avatar !== null) {
-                    Logger.printLine("PixivDownload", `Got Avatar for ${illust.user.id}`, "debug", {
-                        url: illust.user.profile_image_urls.medium
-                    })
+    function getImagetoB64(imageURL) {
+        return new Promise(async returnedImage => {
+            request.get({
+                url: imageURL,
+                headers: {
+                    Referer: 'http://www.pixiv.net/',
+                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'cache-control': 'max-age=0',
+                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'none',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
                 }
-                let requests = illust.meta_pages.reduce((promiseChain, page) => {
-                    return promiseChain.then(() => new Promise((resolve) => {
-                        getImagetoB64(page.image_urls.original, function (image) {
-                            if (image !== null) {
-                                Logger.printLine("PixivDownload", `Got ${page.image_urls.original}`, "debug", {
-                                    url: page.image_urls.original
-                                })
-                                images.push({
-                                    data: image,
-                                    avatar: (avatar) ? avatar : undefined,
-                                    name: getIDfromText(page.image_urls.original),
-                                })
-                                resolve()
-                            } else {
-                                resolve()
-                                complete(false)
-                            }
-                        })
-                    }))
-                }, Promise.resolve());
-                requests.then(() => {
-                    Logger.printLine("PixivDownload", `Done Downloading Illustrations`, 'debug')
-                    complete(images)
-                })
-            })
-        } else if (illust.meta_single_page.original_image_url) {
-            Logger.printLine("PixivDownload", `Getting Illustration https://pixiv.net/en/artworks/${illust.id} : Single Image Wanted`, "info", illust.meta_single_page)
-            getImagetoB64(illust.user.profile_image_urls.medium, function (avatar) {
-                if (avatar !== null) {
-                    Logger.printLine("PixivDownload", `Got Avatar for ${illust.user.id}`, "debug", {
-                        url: illust.user.profile_image_urls.medium
-                    })
-                }
-                getImagetoB64(illust.meta_single_page.original_image_url, function (image) {
-                    if (image !== null) {
-                        Logger.printLine("PixivDownload", `Got ${illust.meta_single_page.original_image_url}`, "debug", {
-                            url: illust.meta_single_page.original_image_url
-                        })
-                        complete([{
-                            data: image,
-                            avatar: (avatar) ? avatar : undefined,
-                            name: getIDfromText(illust.meta_single_page.original_image_url),
-                        }])
+            }, async (err, res, body) => {
+                if (err) {
+                    returnedImage(null)
+                } else {
+                    const imageBuffer = Buffer.from(body)
+                    const fileSizeInMegabytes = imageBuffer.byteLength / 1000000.0;
+                    if (fileSizeInMegabytes > 7.8) {
+                        returnedImage(await resizeImage(imageBuffer))
                     } else {
-                        complete(false)
+                        returnedImage(imageBuffer.toString('base64'))
                     }
-                })
+                }
             })
-        } else {
-            Logger.printLine("PixivDownload", `No images could be found for that post!`, "warn", illust)
-            complete(false)
-        }
+        })
+
     }
     async function parseItems(list, channel, level, message, duplicates) {
-        const sentTo = `${systemglobal.Discord_Out}${(level === "priority") ? '.priority' : ''}`
+        const sentTo = `${systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
         const _pconfig = await db.query(`SELECT * FROM pixiv_accounts WHERE paccount = ?`, [systemglobal.PixivUser]);
         function sendEmbed(post, level, addUser, objectMode, last, download_channelid) {
             let messageObject = {
@@ -375,10 +314,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     "icon_url": (post.file.avatar) ? "attachment://avatar.png" : undefined
                 }
             }
-            let reactions = []
-            if (last) {
-                reactions.push("Like", "ExpandSearch")
-            }
+            let reactions = ["Like", "ExpandSearch"]
             if (post.channelID === download_channelid) {
                 reactions.push("RemoveFile")
             } else {
@@ -441,10 +377,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         function sendImage(post, addUser, last, download_channelid) {
             const messageText = `**🎆 ${post.userName} (${post.userNameID}) - ${post.userID}** : ***${post.finalText}***${(post.description) ? '\n' + post.description : ''}`;
-            let reactions = []
-            if (last) {
-                reactions.push("Like", "ExpandSearch")
-            }
+            let reactions = ["Like", "ExpandSearch"]
             if (post.channelID === download_channelid) {
                 reactions.push("RemoveFile")
             } else {
@@ -480,8 +413,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             };
             let requests = list.reduce((promiseChain, item, i, a) => {
                 return promiseChain.then(() => new Promise(async (resolve) => {
-                    let messageArray = [];
-                    let downloadedMessages = [];
                     let post = {
                         userID: item.user.id,
                         userName: item.user.name,
@@ -556,66 +487,43 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             post.channelID = channel
                         }
 
-                        await getItem(item, async images => {
-                            Logger.printLine("IlluParser", `Got Illustration ${post.link} : ${images.length} Items Returned`, "debug", post)
-                            if (!images) {
-                                mqClient.sendMessage(`Failed to get illustrations for the Pixiv User : ${post.userID}`, "warn", "IlluParser")
-                                resolve()
-                                images = null;
-                            } else {
-                                if (images.length > 1) {
-                                    Logger.printLine("IlluParser", `New Illustration from ${post.userName} : ${post.postID} : ${images.length} Pages`, "info", post)
-                                    await images.forEach(async (image, index) => {
-                                        post.finalText = `${post.postTitle} (${index + 1}/${images.length})`;
-                                        post.file = image
-
-                                        let _mqMessage = {};
-                                        if (autoDownload.rows.length > 0) {
-                                            _mqMessage = await sendImage(post, followUser, (a.length === i + 1), _pconfig.rows[0].download_channelid);
-                                        } else {
-                                            _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (a.length === i + 1), _pconfig.rows[0].download_channelid);
-                                        }
-                                        await mqClient.sendData(sentTo, _mqMessage, async function (ok) {
-                                            if (!ok) {
-                                                Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                            } else {
-                                                if (index + 1 === images.length && !duplicates) {
-                                                    await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
-                                                }
-                                            }
-                                            _mqMessage = null;
-                                        });
-                                    })
-                                } else {
-                                    post.finalText = `${post.postTitle}`;
-                                    Logger.printLine("IlluParser", `New Illustration from ${post.userName} : ${post.postID} : Single Page`, "info", post);
-                                    post.file = images[0];
-
-                                    let _mqMessage = {};
-                                    if (autoDownload.rows.length > 0) {
-                                        _mqMessage = await sendImage(post, followUser, (a.length === i + 1), _pconfig.rows[0].download_channelid);
-
-                                    } else {
-                                        _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (a.length === i + 1), _pconfig.rows[0].download_channelid)
-                                    }
-                                    await mqClient.sendData(sentTo, _mqMessage, async function (ok) {
-                                        if (!ok) {
-                                            Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                        } else {
-                                            if (!duplicates) {
-                                                await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
-                                            }
-                                        }
-                                        _mqMessage = null;
-                                    });
+                        const avatar = await getImagetoB64(item.user.profile_image_urls.medium);
+                        const images = ((() => {
+                            if (item.meta_pages.length > 0)
+                                return item.meta_pages.map(e => e.image_urls.original)
+                            return [item.meta_single_page.original_image_url]
+                        })())
+                        Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 0) ? `${images.length} Pages` : `Single Image Wanted`), "info")
+                        for (let index in images) {
+                            const image = await getImagetoB64(images[index])
+                            if (image) {
+                                Logger.printLine("PixivDownload", `Downloaded Image ${images[index]}`, "debug")
+                                post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${index + 1}/${images.length})` : '');
+                                post.file = {
+                                    data: image,
+                                    avatar: (avatar) ? avatar : undefined,
+                                    name: getIDfromText(images[index]),
                                 }
-                                resolve()
+
+                                let _mqMessage = {};
+                                if (autoDownload.rows.length > 0) {
+                                    _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                } else {
+                                    _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                }
+                                const sent = await mqClient.publishData(sentTo, _mqMessage)
+                                if (!sent) {
+                                    Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
+                                } else if (parseInt(index) + 1 === images.length && !duplicates) {
+                                    await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                }
+                                _mqMessage = undefined;
+                                post.file = {};
                             }
-                        })
-                    } else {
-                        //Logger.printLine("IlluParser", `Won't get Illustration ${item.id}, Already exists`, 'debug')
-                        resolve()
+                        }
+                        Logger.printLine("PixivDownload", `Done Downloading Illustration : ${post.postID}`, 'debug')
                     }
+                    resolve()
                 }));
             }, Promise.resolve());
             requests.then(async () => {
@@ -656,7 +564,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("PostRecomIllt", `Recommended Illustration ${recommIllust.rows[0].id} is in history, Try Again...`, "warn")
                 postRecommPost();
             } else if (recommIllust.rows[0].data) {
-                await parseItems([recommIllust.rows[0].data], "recom", 'standard')
+                await parseItems([recommIllust.rows[0].data], "recom")
             } else {
                 try {
                     const results = await pixivClient.illustDetail(recommIllust.rows[0].id);
@@ -722,12 +630,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     try {
                         if (!results.next_url || i === ((count) ? count : 8)) {
                             Logger.printLine("getNewIllust", `Returned items for new illustrations (End of Pages)`, "debug")
-                            await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'standard')
+                            await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                             break;
                         }
                         i++
                         const page = await pixivClient.requestUrl(results.next_url)
-                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", 'standard')
+                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                         await sleep(15000)
                     } catch (err) {
                         Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
@@ -772,7 +680,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         try {
             const results = await pixivClient.userIllusts(userID);
             if (results && results.illusts && results.illusts.length > 0) {
-                await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", undefined, undefined, duplicates)
+                await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
                 while (true) {
                     try {
                         if (!results.next_url) {
@@ -780,7 +688,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         }
                         const page = await pixivClient.requestUrl(results.next_url)
-                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", undefined, undefined, duplicates)
+                        await parseItems(page.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
                         await sleep(15000)
                     } catch (err) {
                         Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (Caught err)`, "debug")
@@ -837,7 +745,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await getRecommended(message.postID, (message.messageChannelID) ? message.messageChannelID : "recompost", (message.messageChannelID) ? 15 : 2)
                     pixivClient.illustRelated(message.postID)
                         .then(function (list) {
-                            parseItems(list.illusts.reverse(), (message.messageChannelID) ? message.messageChannelID : "recompost", 'standard', message)
+                            parseItems(list.illusts.reverse(), (message.messageChannelID) ? message.messageChannelID : "recompost", 'backlog', message)
                         })
                 }
                 complete(true)
