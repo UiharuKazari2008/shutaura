@@ -22,6 +22,9 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
+import {resolve} from "path";
+import moment from "moment";
+
 (async () => {
 	let systemglobal = require('../config.json');
 	const facilityName = 'Twitter-Worker';
@@ -509,224 +512,226 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		})
 	}
-	function sendTweetToDiscordv2(obj, cb) {
-		const twit = twitterAccounts.get(obj.accountid);
-		let textContents = obj.tweet.text.split('https://t.co/')[0].trim()
-		if (textContents.includes('#'))
-			textContents = textContents.replace(/#+([a-zA-Z0-9_]+)/ig, v => `[${v}](https://twitter.com/hashtag/${v.substring(1)})`)
-		if (textContents.includes('@'))
-			textContents = textContents.replace(/@+([a-zA-Z0-9_]+)/ig, v => `[${v}](https://twitter.com/${v.substring(1)})`)
-		let messageObject = {
-			"title": `📨 Tweet`,
-			"description": textContents,
-			"url": `https://twitter.com/${obj.tweet.user.screen_name}/status/${obj.tweet.id_str}`,
-			"color": 4886750 + obj.list_num,
-			"timestamp": new Date(Date.parse(obj.tweet.created_at.replace(/( \+)/, ' UTC$1'))).toISOString(),
-			"image": {
-				"url" : null
-			},
-			"author": {
-				"name": `${obj.tweet.user.name} (@${obj.tweet.user.screen_name})`,
-				"url": `https://twitter.com/${obj.tweet.user.screen_name}/`,
-				"icon_url": obj.tweet.user.profile_image_url
-			},
-			"footer": {
-				"icon_url": null,
-				"text": "Twitter"
+	function sendTweetToDiscordv2(obj) {
+		return new Promise(cb => {
+			const twit = twitterAccounts.get(obj.accountid);
+			let textContents = obj.tweet.text.split('https://t.co/')[0].trim()
+			if (textContents.includes('#'))
+				textContents = textContents.replace(/#+([a-zA-Z0-9_]+)/ig, v => `[${v}](https://twitter.com/hashtag/${v.substring(1)})`)
+			if (textContents.includes('@'))
+				textContents = textContents.replace(/@+([a-zA-Z0-9_]+)/ig, v => `[${v}](https://twitter.com/${v.substring(1)})`)
+			let messageObject = {
+				"title": `📨 Tweet`,
+				"description": textContents,
+				"url": `https://twitter.com/${obj.tweet.user.screen_name}/status/${obj.tweet.id_str}`,
+				"color": 4886750 + obj.list_num,
+				"timestamp": new Date(Date.parse(obj.tweet.created_at.replace(/( \+)/, ' UTC$1'))).toISOString(),
+				"image": {
+					"url" : null
+				},
+				"author": {
+					"name": `${obj.tweet.user.name} (@${obj.tweet.user.screen_name})`,
+					"url": `https://twitter.com/${obj.tweet.user.screen_name}/`,
+					"icon_url": obj.tweet.user.profile_image_url
+				},
+				"footer": {
+					"icon_url": null,
+					"text": "Twitter"
+				}
 			}
-		}
-		let messageText = undefined
-		let reactions = [];
-		let rt_stat = false;
-		let rt_user = '';
-		if (obj.nsfw === 0 || obj.disablelike === 1) {
-			if (!(obj.mergelike === 1)) {
-				reactions.push("Like");
-				reactions.push("Retweet");
-			} else { reactions.push("LikeRT"); }
-			if (obj.replyenabled === 1 && obj.channelid !== twit.config.activitychannelid) { reactions.push("ReplyTweet"); }
-		}
-		if (obj.tweet.retweeted_status) {
-			messageText = `${moment(Date.now()).format('HH:mm')}`
-			messageObject.title = `✳ Retweet`;
-			messageObject.description = obj.tweet.retweeted_status.text.split('https://t.co/')[0].trim();
-			messageObject.url = `https://twitter.com/${obj.tweet.retweeted_status.user.screen_name}/status/${obj.tweet.retweeted_status.id_str}`;
-			messageObject.color = 11140940 + obj.list_num;
-			messageObject.timestamp = new Date(Date.parse(obj.tweet.retweeted_status.created_at.replace(/( \+)/, ' UTC$1'))).toISOString();
-			messageObject.author.name = `${obj.tweet.retweeted_status.user.name} (@${obj.tweet.retweeted_status.user.screen_name})`;
-			messageObject.author.icon_url = obj.tweet.retweeted_status.user.profile_image_url;
-			messageObject.footer.text = `from ${obj.tweet.user.name} (@${obj.tweet.user.screen_name})`
-			messageObject.footer.icon_url = obj.tweet.user.profile_image_url
+			let messageText = undefined
+			let reactions = [];
+			let rt_stat = false;
+			let rt_user = '';
+			if (obj.nsfw === 0 || obj.disablelike === 1) {
+				if (!(obj.mergelike === 1)) {
+					reactions.push("Like");
+					reactions.push("Retweet");
+				} else { reactions.push("LikeRT"); }
+				if (obj.replyenabled === 1 && obj.channelid !== twit.config.activitychannelid) { reactions.push("ReplyTweet"); }
+			}
+			if (obj.tweet.retweeted_status) {
+				messageText = `${moment(Date.now()).format('HH:mm')}`
+				messageObject.title = `✳ Retweet`;
+				messageObject.description = obj.tweet.retweeted_status.text.split('https://t.co/')[0].trim();
+				messageObject.url = `https://twitter.com/${obj.tweet.retweeted_status.user.screen_name}/status/${obj.tweet.retweeted_status.id_str}`;
+				messageObject.color = 11140940 + obj.list_num;
+				messageObject.timestamp = new Date(Date.parse(obj.tweet.retweeted_status.created_at.replace(/( \+)/, ' UTC$1'))).toISOString();
+				messageObject.author.name = `${obj.tweet.retweeted_status.user.name} (@${obj.tweet.retweeted_status.user.screen_name})`;
+				messageObject.author.icon_url = obj.tweet.retweeted_status.user.profile_image_url;
+				messageObject.footer.text = `from ${obj.tweet.user.name} (@${obj.tweet.user.screen_name})`
+				messageObject.footer.icon_url = obj.tweet.user.profile_image_url
 
-			rt_user = obj.tweet.retweeted_status.user.name;
-			rt_stat = true;
-		} else if (obj.fromname === "Mention") {
-			messageObject.color = 16759360;
-			messageObject.footer.text = `🆔:${obj.accountid}`
-			messageObject.footer.icon = undefined
-			if (twit.config.activity_userid)
-				messageText = `<@${twit.config.activity_userid}>`;
-		} else {
-			messageText = `${moment(Date.now()).format('HH:mm')}`
-			messageObject.footer.icon = undefined;
-		}
-		if (obj.tweet.entities.media)
-			reactions.push("Download")
-		if (rt_stat && obj.tweet.user.screen_name !== rt_user && (obj.listusers && obj.listusers.length > 0 && obj.listusers.filter(e => { return e.screen_name.toLowerCase() === rt_user.toLowerCase() }).length === 0 ))
-			reactions.push("AddUser")
-		if (obj.tweet.extended_entities && obj.tweet.extended_entities.media && obj.tweet.extended_entities.media.length > 0 && obj.tweet.extended_entities.media[0].type === 'photo') {
-			let mediaObject = [];
-			if (obj.tweet.extended_entities && obj.tweet.extended_entities.media) { mediaObject = obj.tweet.extended_entities.media; } else if (obj.tweet.entities.media) { mediaObject = obj.tweet.entities.media; }
-			let messageArray = [];
-			let requests = mediaObject.reduce((promiseChain, media, index, array) => {
-				return promiseChain.then(() => new Promise((resolve) => {
-					if (media.type === 'photo') {
-						messageObject.video = undefined;
-						const filename = `${obj.tweet.user.screen_name}-${obj.tweet.id_str}.${media.media_url.split('.').pop()}`
-						getImagetoB64(`${media.media_url}:large`, null, (image) => {
-							let _title = messageObject.title;
-							if (array.length > 1 && index === array.length -1) {
-								_title += ` (${index + 1} of ${array.length}) ↩️`;
-							} else if (array.length > 1) {
-								_title += ` (${index + 1} of ${array.length}) ⤵️`;
-							}
-							let _react = [];
-							messageObject.description = obj.tweet.text.split('https://t.co/')[0].trim();
-							if (index !== array.length -1 ) {
-								//messageObject.description = undefined;
-								_react = ['Download'];
-							} else {
-								_react = reactions;
-							}
-							if (image !== null) {
-								Logger.printLine("TweetDownload", `Account ${obj.accountid}: Got ${media.media_url}:large`, "debug", { url: `${media.media_url}:large` })
-								messageObject.image.url = `attachment://${filename}`
-								db.safe(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], (err, autodownload) => {
-									if (err) {
-										Logger.printLine("SQL", `Error looking up autodownload for ${(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()}!`, "error", err);
-									}
-									if ((!err && autodownload && autodownload.length > 0) || (obj.bypasscds && obj.bypasscds === 1)) {
-										let channelID = obj.saveid;
-										db.safe(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], function (err, channelreplacement) {
-											if (err) {
-												Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
-											} else if (channelreplacement.length > 0) {
-												channelID = channelreplacement[0].channelid
-											}
+				rt_user = obj.tweet.retweeted_status.user.name;
+				rt_stat = true;
+			} else if (obj.fromname === "Mention") {
+				messageObject.color = 16759360;
+				messageObject.footer.text = `🆔:${obj.accountid}`
+				messageObject.footer.icon = undefined
+				if (twit.config.activity_userid)
+					messageText = `<@${twit.config.activity_userid}>`;
+			} else {
+				messageText = `${moment(Date.now()).format('HH:mm')}`
+				messageObject.footer.icon = undefined;
+			}
+			if (obj.tweet.entities.media)
+				reactions.push("Download")
+			if (rt_stat && obj.tweet.user.screen_name !== rt_user && (obj.listusers && obj.listusers.length > 0 && obj.listusers.filter(e => { return e.screen_name.toLowerCase() === rt_user.toLowerCase() }).length === 0 ))
+				reactions.push("AddUser")
+			if (obj.tweet.extended_entities && obj.tweet.extended_entities.media && obj.tweet.extended_entities.media.length > 0 && obj.tweet.extended_entities.media[0].type === 'photo') {
+				let mediaObject = [];
+				if (obj.tweet.extended_entities && obj.tweet.extended_entities.media) { mediaObject = obj.tweet.extended_entities.media; } else if (obj.tweet.entities.media) { mediaObject = obj.tweet.entities.media; }
+				let messageArray = [];
+				let requests = mediaObject.reduce((promiseChain, media, index, array) => {
+					return promiseChain.then(() => new Promise((resolve) => {
+						if (media.type === 'photo') {
+							messageObject.video = undefined;
+							const filename = `${obj.tweet.user.screen_name}-${obj.tweet.id_str}.${media.media_url.split('.').pop()}`
+							getImagetoB64(`${media.media_url}:large`, null, (image) => {
+								let _title = messageObject.title;
+								if (array.length > 1 && index === array.length -1) {
+									_title += ` (${index + 1} of ${array.length}) ↩️`;
+								} else if (array.length > 1) {
+									_title += ` (${index + 1} of ${array.length}) ⤵️`;
+								}
+								let _react = [];
+								messageObject.description = obj.tweet.text.split('https://t.co/')[0].trim();
+								if (index !== array.length -1 ) {
+									//messageObject.description = undefined;
+									_react = ['Download'];
+								} else {
+									_react = reactions;
+								}
+								if (image !== null) {
+									Logger.printLine("TweetDownload", `Account ${obj.accountid}: Got ${media.media_url}:large`, "debug", { url: `${media.media_url}:large` })
+									messageObject.image.url = `attachment://${filename}`
+									db.safe(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], (err, autodownload) => {
+										if (err) {
+											Logger.printLine("SQL", `Error looking up autodownload for ${(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()}!`, "error", err);
+										}
+										if ((!err && autodownload && autodownload.length > 0) || (obj.bypasscds && obj.bypasscds === 1)) {
+											let channelID = obj.saveid;
+											db.safe(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], function (err, channelreplacement) {
+												if (err) {
+													Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
+												} else if (channelreplacement.length > 0) {
+													channelID = channelreplacement[0].channelid
+												}
+												messageArray.push({
+													fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+													messageType : 'sfile',
+													messageReturn: false,
+													messageChannelID : channelID,
+													itemFileData: image,
+													itemFileName: filename,
+													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
+												})
+												resolve();
+											})
+										} else if (obj.channelid !== null) {
 											messageArray.push({
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-												messageType : 'sfile',
+												messageType : 'sfileext',
 												messageReturn: false,
-												messageChannelID : channelID,
+												messageChannelID : obj.channelid,
 												itemFileData: image,
 												itemFileName: filename,
-												messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
-											})
+												messageText: messageText,
+												messageObject: {...messageObject, title: _title},
+												addButtons : _react
+											});
 											resolve();
-										})
-									} else if (obj.channelid !== null) {
-										messageArray.push({
-											fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-											messageType : 'sfileext',
-											messageReturn: false,
-											messageChannelID : obj.channelid,
-											itemFileData: image,
-											itemFileName: filename,
-											messageText: messageText,
-											messageObject: {...messageObject, title: _title},
-											addButtons : _react
-										});
-										resolve();
-									} else {
-										resolve();
-									}
-								})
-							} else if (obj.channelid !== null) {
-								messageObject.image.url = `${media.media_url}:large`
-								messageArray.push({
-									fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-									messageType : 'sobj',
-									messageReturn: false,
-									messageChannelID : obj.channelid,
-									messageText: messageText,
-									messageObject: {...messageObject, title: _title},
-									addButtons : _react
-								})
-								resolve();
-							}
-						})
-					} else {
-						Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "error", {
-							tweetList: obj.fromname,
-							tweetUser: obj.tweet.user.screen_name,
-							tweetID: obj.tweet.id_str,
-							tweetText: obj.tweet.text,
-							tweetType: "media",
-							tweetAction: 'allow',
-							tweetRT : rt_stat.toString(),
-						})
-						resolve();
-					}
-				}))
-			}, Promise.resolve());
-			requests.then(() => {
-				Logger.printLine("Twitter", `Account ${obj.accountid}: New Media Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
-					tweetList: obj.fromname,
-					tweetUser: obj.tweet.user.screen_name,
-					tweetID: obj.tweet.id_str,
-					tweetText: obj.tweet.text,
-					tweetType: "media",
-					tweetAction: 'allow',
-					tweetRT : rt_stat.toString(),
+										} else {
+											resolve();
+										}
+									})
+								} else if (obj.channelid !== null) {
+									messageObject.image.url = `${media.media_url}:large`
+									messageArray.push({
+										fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+										messageType : 'sobj',
+										messageReturn: false,
+										messageChannelID : obj.channelid,
+										messageText: messageText,
+										messageObject: {...messageObject, title: _title},
+										addButtons : _react
+									})
+									resolve();
+								}
+							})
+						} else {
+							Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "error", {
+								tweetList: obj.fromname,
+								tweetUser: obj.tweet.user.screen_name,
+								tweetID: obj.tweet.id_str,
+								tweetText: obj.tweet.text,
+								tweetType: "media",
+								tweetAction: 'allow',
+								tweetRT : rt_stat.toString(),
+							})
+							resolve();
+						}
+					}))
+				}, Promise.resolve());
+				requests.then(() => {
+					Logger.printLine("Twitter", `Account ${obj.accountid}: New Media Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
+						tweetList: obj.fromname,
+						tweetUser: obj.tweet.user.screen_name,
+						tweetID: obj.tweet.id_str,
+						tweetText: obj.tweet.text,
+						tweetType: "media",
+						tweetAction: 'allow',
+						tweetRT : rt_stat.toString(),
+					})
+					cb(messageArray);
 				})
-				cb(messageArray);
-			})
-		} else if ((obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) {
-			let messageContents = `📨 __***${obj.tweet.user.name} (@${obj.tweet.user.screen_name})***__\n`  + "```" + obj.tweet.text + "```\n" +
-				"https://twitter.com/" + obj.tweet.user.screen_name + "/status/" + obj.tweet.id_str;
-			cb([{
-				fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-				messageType : 'stext',
-				messageReturn: false,
-				messageChannelID : obj.channelid,
-				messageText: messageContents + ' ' + messageText,
-				addButtons : reactions
-			}]);
-		} else {
-			if (obj.txtallowed === 1) {
-				Logger.printLine("Twitter", `Account ${obj.accountid}: New Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
-					tweetList: obj.fromname,
-					tweetUser: obj.tweet.user.screen_name,
-					tweetID: obj.tweet.id_str,
-					tweetText: obj.tweet.text,
-					tweetType: "text",
-					tweetAction: 'allow',
-					tweetRT : rt_stat.toString(),
-				})
-				messageObject.image = undefined;
-				messageObject.video = undefined;
+			} else if ((obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) {
+				let messageContents = `📨 __***${obj.tweet.user.name} (@${obj.tweet.user.screen_name})***__\n`  + "```" + obj.tweet.text + "```\n" +
+					"https://twitter.com/" + obj.tweet.user.screen_name + "/status/" + obj.tweet.id_str;
 				cb([{
 					fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-					messageType : 'sobj',
+					messageType : 'stext',
 					messageReturn: false,
 					messageChannelID : obj.channelid,
-					messageText: messageText,
-					messageObject: messageObject,
+					messageText: messageContents + ' ' + messageText,
 					addButtons : reactions
 				}]);
 			} else {
-				/*Logger.printLine("Twitter", `Blocked Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "warn", {
-					tweetList: obj.fromname,
-					tweetUser: obj.tweet.user.screen_name,
-					tweetID: obj.tweet.id_str,
-					tweetText: obj.tweet.text,
-					tweetType: "text",
-					tweetAction: 'block',
-					tweetRT : rt_stat.toString(),
-				})*/
-				cb([]);
+				if (obj.txtallowed === 1) {
+					Logger.printLine("Twitter", `Account ${obj.accountid}: New Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
+						tweetList: obj.fromname,
+						tweetUser: obj.tweet.user.screen_name,
+						tweetID: obj.tweet.id_str,
+						tweetText: obj.tweet.text,
+						tweetType: "text",
+						tweetAction: 'allow',
+						tweetRT : rt_stat.toString(),
+					})
+					messageObject.image = undefined;
+					messageObject.video = undefined;
+					cb([{
+						fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+						messageType : 'sobj',
+						messageReturn: false,
+						messageChannelID : obj.channelid,
+						messageText: messageText,
+						messageObject: messageObject,
+						addButtons : reactions
+					}]);
+				} else {
+					/*Logger.printLine("Twitter", `Blocked Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "warn", {
+                        tweetList: obj.fromname,
+                        tweetUser: obj.tweet.user.screen_name,
+                        tweetID: obj.tweet.id_str,
+                        tweetText: obj.tweet.text,
+                        tweetType: "text",
+                        tweetAction: 'block',
+                        tweetRT : rt_stat.toString(),
+                    })*/
+					cb([]);
+				}
 			}
-		}
+		})
 	}
 
 	function updateStats() {
@@ -1476,12 +1481,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				})
 			})
 			Logger.printLine("Twitter", `Account ${twitterUser}: Returning ${tweets.length} tweets for user ${message.userID}`, "info")
-			let downloadTweets = [];
 			let listRequests = tweets.filter(e => ((e.extended_entities && e.extended_entities.media) || e.entities.media)).reduce((promiseChain, tweet) => {
 				return promiseChain.then(() => new Promise(async (tweetResolve) => {
 					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str]);
 					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
-						sendTweetToDiscordv2({
+						const competedTweet = await sendTweetToDiscordv2({
 							channelid: `${(message.messageChannelID) ? message.messageChannelID : discordaccount[0].chid_download}`,
 							saveid: discordaccount[0].chid_download,
 							nsfw: 0,
@@ -1497,27 +1501,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							disablelike: 0,
 							list_num: 0,
 							accountid: twitterUser,
-						}, async competedTweet => {
-							if (competedTweet) {
-								if (lasttweet.rows.length === 0)
-									await db.query(`INSERT INTO twitter_history_inbound VALUES (?, null, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str])
-								downloadTweets.push(...competedTweet);
-							}
-							tweetResolve(true);
 						})
-					} else {
-						tweetResolve(true);
+						if (competedTweet && competedTweet.length > 0) {
+							let sent = true
+							for (let i in competedTweet) {
+								const _sent = await mqClient.publishData(`${systemglobal.Discord_Out}`, competedTweet[i])
+								if (!_sent)
+									sent = false;
+							}
+							if (lasttweet.rows.length === 0 && sent)
+								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, null, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str])
+						}
 					}
+					tweetResolve(true);
 				}))
 			}, Promise.resolve());
 			listRequests.then(async (ok) => {
-				await Promise.all(downloadTweets.map(async (item) => {
-					await mqClient.sendData( `${systemglobal.Discord_Out}`, item, function (ok) {
-						if (!ok) {
-							Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
-						}
-					});
-				}))
 				cb(true);
 			})
 		} catch (err) {
@@ -1894,18 +1893,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (message.messageAction === "remove" && intent === "Retweet") {
 			command = 'statuses/unretweet'
 		}
-		let arguments = {
-			id : null
-		}
+		let tweetArgs = { id : null }
 		if ( message.messageEmbeds && message.messageEmbeds.length > 0 && message.messageEmbeds[0].title && (message.messageEmbeds[0].title.includes('📨 Tweet') || message.messageEmbeds[0].title.includes('✳ Retweet'))) {
-			arguments.id = message.messageEmbeds[0].url.split("/").pop();
+			tweetArgs.id = message.messageEmbeds[0].url.split("/").pop();
 		} else if ( message.messageEmbeds && message.messageEmbeds.title && (message.messageEmbeds.title.includes('📨 Tweet') || message.messageEmbeds.title.includes('✳ Retweet'))) {
-			arguments.id = message.messageEmbeds.url.split("/").pop();
+			tweetArgs.id = message.messageEmbeds.url.split("/").pop();
 		} else if (message.messageText.length > 0) {
-			arguments.id = getIDfromText(message.messageText)
+			tweetArgs.id = getIDfromText(message.messageText)
 		}
 
-		twit.client.post(command, arguments, function(err, response){
+		twit.client.post(command, tweetArgs, function(err, response){
 			if (err) {
 				mqClient.sendMessage(`Unable to interact with tweet ${arguments.id} with ${command} for account #${accountID}\nTicket will be Dropped!`, "warn", "TweetInteract", err)
 				cb(true);
@@ -1988,7 +1985,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (lasttweet.error) {
 								Logger.printLine("SQL", `SQL Error when getting Twitter history records`, "emergency", lasttweet.error)
 							} else if (lasttweet.rows.length === 0 ) {
-								await sendTweetToDiscordv2({
+								const competedTweet = await sendTweetToDiscordv2({
 									channelid: twit.config.activitychannelid,
 									nsfw: 0,
 									txtallowed: 1,
@@ -2001,22 +1998,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									autolike: 0,
 									list_num: -1,
 									accountid: id
-								}, async complete => {
-									if (complete && complete.length > 0) {
-										await complete.forEach(async (message) => {
-											await mqClient.sendData( `${systemglobal.Discord_Out}.priority`, message, async (ok) => {
-												if (!ok) {
-													Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
-												} else {
-													const addtohistory = await db.query(`INSERT IGNORE INTO twitter_history_mention VALUES (?, ?, NOW())`, [_tweetID, id])
-													if (addtohistory.error) {
-														Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", addtohistory.error)
-													}
-												}
-											});
-										})
-									}
 								})
+								if (competedTweet && competedTweet.length > 0) {
+									let sent = true
+									for (let i in competedTweet) {
+										const _sent = await mqClient.publishData(`${systemglobal.Discord_Out}.priority`, competedTweet[i])
+										if (!_sent)
+											sent = false;
+									}
+									if (sent)
+										await db.query(`INSERT IGNORE INTO twitter_history_mention VALUES (?, ?, NOW())`, [_tweetID, id])
+								}
 							}
 						}
 					} else {
@@ -2084,55 +2076,34 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									});
 									tweetResolve(false);
 								} else {
-									if (list.channelid_rt && tweet.text.includes("RT @")) {
-										await sendTweetToDiscordv2({
-											channelid: list.channelid_rt,
-											saveid: list.saveid,
-											nsfw: (list.nsfw === 1) ? (list.redirect_taccount !== list.taccount) ? 0 : list.nsfw : list.nsfw,
-											txtallowed: list.textallowed,
-											fromname: list.name,
-											tweet,
-											redirect: list.redirect_taccount,
-											bypasscds: list.bypasscds,
-											autolike: list.autolike,
-											replyenabled: list.replyenabled,
-											mergelike: list.mergelike,
-											listusers: listUsers.users,
-											disablelike: list.disablelike,
-											list_num: list.id,
-											accountid: id,
-										}, competedTweet => {
-											tweetResolve(true);
-											if (competedTweet) {
-												db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
-												messageArray.push(...competedTweet);
-											}
-										})
-									} else {
-										await sendTweetToDiscordv2({
-											channelid: list.channelid,
-											saveid: list.saveid,
-											nsfw: (list.nsfw === 1) ? (list.redirect_taccount !== list.taccount) ? 0 : list.nsfw : list.nsfw,
-											txtallowed: list.textallowed,
-											fromname: list.name,
-											tweet,
-											redirect: list.redirect_taccount,
-											bypasscds: list.bypasscds,
-											autolike: list.autolike,
-											replyenabled: list.replyenabled,
-											mergelike: list.mergelike,
-											listusers: listUsers.users,
-											disablelike: list.disablelike,
-											list_num: list.id,
-											accountid: id,
-										}, competedTweet => {
-											tweetResolve(true);
-											if (competedTweet) {
-												db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
-												messageArrayPriority.push(...competedTweet);
-											}
-										})
+									const competedTweet = await sendTweetToDiscordv2({
+										channelid: (list.channelid_rt && tweet.text.includes("RT @")) ? list.channelid_rt : list.channelid,
+										saveid: list.saveid,
+										nsfw: (list.nsfw === 1) ? (list.redirect_taccount !== list.taccount) ? 0 : list.nsfw : list.nsfw,
+										txtallowed: list.textallowed,
+										fromname: list.name,
+										tweet,
+										redirect: list.redirect_taccount,
+										bypasscds: list.bypasscds,
+										autolike: list.autolike,
+										replyenabled: list.replyenabled,
+										mergelike: list.mergelike,
+										listusers: listUsers.users,
+										disablelike: list.disablelike,
+										list_num: list.id,
+										accountid: id,
+									})
+									if (competedTweet && competedTweet.length > 0) {
+										let sent = true
+										for (let i in competedTweet) {
+											const _sent = await mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, competedTweet[i])
+											if (!_sent)
+												sent = false;
+										}
+										if (sent)
+											await db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
 									}
+									tweetResolve(true);
 								}
 							} else if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length > 0 ) {
 								Logger.printLine("TwitterInbound", `Account ${id}: Tweet was blocked because it contained the word [ ${blocked.join(', ')} ]`, "warn", tweet)
@@ -2164,16 +2135,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						});
 					})
 					messageArray = null;
-				}
-				if (messageArrayPriority.length > 0) {
-					await messageArrayPriority.forEach(async (message) => {
-						await mqClient.sendData( `${systemglobal.Discord_Out}.priority`, message, function (ok) {
-							if (!ok) {
-								Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
-							}
-						});
-					})
-					messageArrayPriority = null;
 				}
 				console.log(`Account ${id}: Completed Pass`);
 			})
