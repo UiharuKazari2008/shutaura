@@ -497,7 +497,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         for (let index in images) {
                             const image = await getImagetoB64(images[index])
                             if (image) {
-                                post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${index + 1}/${images.length})` : '');
+                                post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
                                 post.file = {
                                     data: image,
                                     avatar: (avatar) ? avatar : undefined,
@@ -626,11 +626,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const results = await pixivClient.illustRelated(userID);
             if (results && results.illusts && results.illusts.length > 0) {
                 let i = 1
+                await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                 while (true) {
                     try {
                         if (!results.next_url || i === ((count) ? count : 8)) {
                             Logger.printLine("getNewIllust", `Returned items for new illustrations (End of Pages)`, "debug")
-                            await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                             break;
                         }
                         i++
@@ -743,10 +743,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (message.messageAction === "add") {
                     Logger.printLine("ExpandSearch", `Remote Request to get related images: ${message.postID}`, "debug", message)
                     await getRecommended(message.postID, (message.messageChannelID) ? message.messageChannelID : "recompost", (message.messageChannelID) ? 15 : 2)
-                    pixivClient.illustRelated(message.postID)
-                        .then(function (list) {
-                            parseItems(list.illusts.reverse(), (message.messageChannelID) ? message.messageChannelID : "recompost", 'backlog', message)
-                        })
                 }
                 complete(true)
                 break;
@@ -766,6 +762,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 complete(true)
                 break;
             case 'GetRecommended' :
+                Logger.printLine("ExpandSearch", `Remote Request to get new recommended images`, "debug", message)
                 postRecommPost()
                 complete(true)
                 break;
