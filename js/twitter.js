@@ -22,9 +22,6 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
-import {resolve} from "path";
-import moment from "moment";
-
 (async () => {
 	let systemglobal = require('../config.json');
 	const facilityName = 'Twitter-Worker';
