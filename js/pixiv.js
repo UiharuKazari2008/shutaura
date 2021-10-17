@@ -493,11 +493,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return item.meta_pages.map(e => e.image_urls.original)
                             return [item.meta_single_page.original_image_url]
                         })())
-                        Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 0) ? `${images.length} Pages` : `Single Image Wanted`), "info")
+                        Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 1) ? `${images.length} Pages` : `Single Image Wanted`), "info")
                         for (let index in images) {
                             const image = await getImagetoB64(images[index])
                             if (image) {
-                                Logger.printLine("PixivDownload", `Downloaded Image ${images[index]}`, "debug")
                                 post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${index + 1}/${images.length})` : '');
                                 post.file = {
                                     data: image,
@@ -519,9 +518,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                                 _mqMessage = undefined;
                                 post.file = {};
+                            } else {
+                                Logger.printLine("PixivDownload", `Failed to downloaded image ${images[index]}! Skipped!`, "debug")
                             }
                         }
-                        Logger.printLine("PixivDownload", `Done Downloading Illustration : ${post.postID}`, 'debug')
                     }
                     resolve()
                 }));
