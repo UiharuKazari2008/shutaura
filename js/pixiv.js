@@ -611,7 +611,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 while (true) {
                     try {
                         if (!results.next_url || i === 4) {
-                            Logger.printLine("getNewIllust", `Returned ${list.length} items for new illustrations (End of Pages)`, "debug")
+                            Logger.printLine("getNewIllust", `Returned items for new illustrations (End of Pages)`, "debug")
                             break;
                         }
                         i++
