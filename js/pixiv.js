@@ -496,15 +496,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return [item.meta_single_page.original_image_url]
                             })())
                             Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 1) ? `${images.length} Pages` : `Single Image Wanted`), "info")
-                            let requests = images.reduce((promiseChain, image, index) => {
+                            let requests = images.reduce((promiseChain, url, index) => {
                                 return promiseChain.then(() => new Promise(async (sentImage) => {
-                                    const image = await getImagetoB64(image)
+                                    const image = await getImagetoB64(url)
                                     if (image) {
                                         post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
                                         post.file = {
                                             data: image,
                                             avatar: (avatar) ? avatar : undefined,
-                                            name: getIDfromText(image),
+                                            name: getIDfromText(url),
                                         }
 
                                         let _mqMessage = {};
@@ -524,7 +524,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             post.file = {};
                                         })
                                     } else {
-                                        Logger.printLine("PixivDownload", `Failed to downloaded image ${image}! Skipped!`, "debug")
+                                        Logger.printLine("PixivDownload", `Failed to downloaded url ${url}! Skipped!`, "debug")
                                         sentImage(false);
                                     }
                                 }));
