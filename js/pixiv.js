@@ -296,241 +296,254 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     }
     async function parseItems(list, channel, level, message, duplicates) {
-        const sentTo = `${systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
-        const _pconfig = await db.query(`SELECT * FROM pixiv_accounts WHERE paccount = ?`, [systemglobal.PixivUser]);
-        function sendEmbed(post, level, addUser, objectMode, last, download_channelid) {
-            let messageObject = {
-                "type": "image",
-                "title": `🎆 ${post.finalText}`,
-                "description": (post.description) ? post.description : undefined,
-                "url": post.link,
-                "color": post.color,
-                "timestamp": post.postDate,
-                "image": {
-                    "url": `attachment://${post.file.name}`
-                },
-                "author": {
-                    "name": `${post.userName} (${post.userNameID}) - ${post.userID}`,
-                    "icon_url": (post.file.avatar) ? "attachment://avatar.png" : undefined
-                }
-            }
-            let reactions = ["Like", "ExpandSearch"]
-            if (post.channelID === download_channelid) {
-                reactions.push("RemoveFile")
-            } else {
-                reactions.push("Download")
-            }
-            if (last) {
-                if (addUser) {
-                    reactions.push("AddUser")
-                }
-                reactions.push("Archive", "MoveMessage")
-            }
-
-            if (post.file.avatar && objectMode) {
-                return {
-                    fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                    messageType: 'smultifileext',
-                    messageReturn: false,
-                    messageChannelID: post.channelID,
-                    messageText: '',
-                    messageLink: post.link,
-                    messageObject: messageObject,
-                    itemFileArray: [
-                        {
-                            fileName: post.file.name,
-                            fileData: post.file.data
-                        },
-                        {
-                            fileName: 'avatar.png',
-                            fileData: post.file.avatar
-                        }
-                    ],
-                    addButtons: reactions
-                }
-            } else if (objectMode) {
-                return {
-                    fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                    messageType: 'sfileext',
-                    messageReturn: false,
-                    messageChannelID: post.channelID,
-                    messageText: '',
-                    messageLink: post.link,
-                    messageObject: messageObject,
-                    itemFileData: post.file.data,
-                    itemFileName: post.file.name,
-                    addButtons: reactions
-                }
-            } else {
-                return {
-                    fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                    messageType: 'sfile',
-                    messageReturn: false,
-                    messageChannelID: post.channelID,
-                    messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}***`,
-                    messageLink: post.link,
-                    itemFileData: post.file.data,
-                    itemFileName: post.file.name,
-                    addButtons: reactions
-                }
-            }
-        }
-        function sendImage(post, addUser, last, download_channelid) {
-            const messageText = `**🎆 ${post.userName} (${post.userNameID}) - ${post.userID}** : ***${post.finalText}***${(post.description) ? '\n' + post.description : ''}`;
-            let reactions = ["Like", "ExpandSearch"]
-            if (post.channelID === download_channelid) {
-                reactions.push("RemoveFile")
-            } else {
-                reactions.push("Download")
-            }
-            if (last) {
-                if (addUser) {
-                    reactions.push("AddUser")
-                }
-                reactions.push("Archive", "MoveMessage")
-            }
-
-            return {
-                fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                messageReturn: false,
-                messageChannelID: post.channelID,
-                messageText: messageText,
-                messageLink: post.link,
-                itemFileData: post.file.data,
-                itemFileName: post.file.name,
-                addButtons: reactions
-            }
-        }
-
-        if (_pconfig.error || _pconfig.rows.length === 0) {
-            Logger.printLine("SQL", "Error getting pixiv accounts records!", "error", _pconfig.error)
-        } else {
-            const staticChannels = {
-                feed: _pconfig.rows[0].feed_channelid,
-                feed_nsfw: (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw :_pconfig.rows[0].feed_channelid,
-                recommended: (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : _pconfig.rows[0].feed_channelid,
-                recommended_nsfw: (_pconfig.rows[0].recom_channelid_nsfw) ? _pconfig.rows[0].recom_channelid_nsfw : (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw : _pconfig.rows[0].feed_channelid,
-            };
-            let requests = list.reduce((promiseChain, item, i, a) => {
-                return promiseChain.then(() => new Promise(async (resolve) => {
-                    let post = {
-                        userID: item.user.id,
-                        userName: item.user.name,
-                        userNameID: item.user.account,
-                        postID: item.id,
-                        postTitle: item.title,
-                        postNSFW: item.x_restrict,
-                        postSanity: item.sanity_level,
-                        postDate: item.create_date,
-                        userIcon: item.user.profile_image_urls.medium,
-                        link: `https://pixiv.net/en/artworks/${item.id}`,
+        return new Promise(async (completedPage) => {
+            const sentTo = `${systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
+            const _pconfig = await db.query(`SELECT * FROM pixiv_accounts WHERE paccount = ?`, [systemglobal.PixivUser]);
+            function sendEmbed(post, level, addUser, objectMode, last, download_channelid) {
+                let messageObject = {
+                    "type": "image",
+                    "title": `🎆 ${post.finalText}`,
+                    "description": (post.description) ? post.description : undefined,
+                    "url": post.link,
+                    "color": post.color,
+                    "timestamp": post.postDate,
+                    "image": {
+                        "url": `attachment://${post.file.name}`
+                    },
+                    "author": {
+                        "name": `${post.userName} (${post.userNameID}) - ${post.userID}`,
+                        "icon_url": (post.file.avatar) ? "attachment://avatar.png" : undefined
                     }
+                }
+                let reactions = ["Like", "ExpandSearch"]
+                if (post.channelID === download_channelid) {
+                    reactions.push("RemoveFile")
+                } else {
+                    reactions.push("Download")
+                }
+                if (last) {
+                    if (addUser) {
+                        reactions.push("AddUser")
+                    }
+                    reactions.push("Archive", "MoveMessage")
+                }
 
-                    const foundillu = await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [post.postID]);
-                    const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
-                    if (foundillu.error) {
-                        mqClient.sendMessage(`SQL Error when getting to the illustration history records`, "err", foundillu.error)
-                        resolve()
-                    } else if (duplicates || foundillu.rows.length === 0) {
-                        let followUser = (!item.user.is_followed);
-                        if (autoDownload.rows.length > 0) {
-                            if (autoDownload.rows[0].channelid) {
-                                post.channelID = autoDownload.rows[0].channelid
-                                post.color = 6010879;
-                            } else if (post.postSanity === 6 || post.postNSFW === 1) {
-                                post.channelID = _pconfig.rows[0].save_channelid_nsfw
-                                post.color = 16711724;
-                            } else {
-                                post.channelID = _pconfig.rows[0].save_channelid
-                                post.color = 6010879;
+                if (post.file.avatar && objectMode) {
+                    return {
+                        fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                        messageType: 'smultifileext',
+                        messageReturn: false,
+                        messageChannelID: post.channelID,
+                        messageText: '',
+                        messageLink: post.link,
+                        messageObject: messageObject,
+                        itemFileArray: [
+                            {
+                                fileName: post.file.name,
+                                fileData: post.file.data
+                            },
+                            {
+                                fileName: 'avatar.png',
+                                fileData: post.file.avatar
                             }
-                        } else if (channel === "new") {
-                            if (post.postSanity === 6 || post.postNSFW === 1) {
-                                post.channelID = staticChannels.feed_nsfw
-                                post.color = 16711724;
-                            } else {
-                                post.channelID = staticChannels.feed
-                                post.color = 6010879;
-                            }
-                        } else if (channel === "recom" || channel === "recompost") {
-                            if (channel === "recompost") {
-                                post.description = `✳️ Related to post ${message.messageText} (${message.postID}) by ${message.messageArtist}`
-                            }
-                            if (post.postSanity === 6 || post.postNSFW === 1) {
-                                if (channel === "recompost") {
-                                    post.color = 16711787;
-                                } else {
+                        ],
+                        addButtons: reactions
+                    }
+                } else if (objectMode) {
+                    return {
+                        fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                        messageType: 'sfileext',
+                        messageReturn: false,
+                        messageChannelID: post.channelID,
+                        messageText: '',
+                        messageLink: post.link,
+                        messageObject: messageObject,
+                        itemFileData: post.file.data,
+                        itemFileName: post.file.name,
+                        addButtons: reactions
+                    }
+                } else {
+                    return {
+                        fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                        messageType: 'sfile',
+                        messageReturn: false,
+                        messageChannelID: post.channelID,
+                        messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}***`,
+                        messageLink: post.link,
+                        itemFileData: post.file.data,
+                        itemFileName: post.file.name,
+                        addButtons: reactions
+                    }
+                }
+            }
+            function sendImage(post, addUser, last, download_channelid) {
+                const messageText = `**🎆 ${post.userName} (${post.userNameID}) - ${post.userID}** : ***${post.finalText}***${(post.description) ? '\n' + post.description : ''}`;
+                let reactions = ["Like", "ExpandSearch"]
+                if (post.channelID === download_channelid) {
+                    reactions.push("RemoveFile")
+                } else {
+                    reactions.push("Download")
+                }
+                if (last) {
+                    if (addUser) {
+                        reactions.push("AddUser")
+                    }
+                    reactions.push("Archive", "MoveMessage")
+                }
+
+                return {
+                    fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                    messageReturn: false,
+                    messageChannelID: post.channelID,
+                    messageText: messageText,
+                    messageLink: post.link,
+                    itemFileData: post.file.data,
+                    itemFileName: post.file.name,
+                    addButtons: reactions
+                }
+            }
+
+            if (_pconfig.error || _pconfig.rows.length === 0) {
+                Logger.printLine("SQL", "Error getting pixiv accounts records!", "error", _pconfig.error)
+                completedPage(false);
+            } else {
+                const staticChannels = {
+                    feed: _pconfig.rows[0].feed_channelid,
+                    feed_nsfw: (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw :_pconfig.rows[0].feed_channelid,
+                    recommended: (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : _pconfig.rows[0].feed_channelid,
+                    recommended_nsfw: (_pconfig.rows[0].recom_channelid_nsfw) ? _pconfig.rows[0].recom_channelid_nsfw : (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw : _pconfig.rows[0].feed_channelid,
+                };
+                let requests = list.reduce((promiseChain, item, i, a) => {
+                    return promiseChain.then(() => new Promise(async (resolve) => {
+                        let post = {
+                            userID: item.user.id,
+                            userName: item.user.name,
+                            userNameID: item.user.account,
+                            postID: item.id,
+                            postTitle: item.title,
+                            postNSFW: item.x_restrict,
+                            postSanity: item.sanity_level,
+                            postDate: item.create_date,
+                            userIcon: item.user.profile_image_urls.medium,
+                            link: `https://pixiv.net/en/artworks/${item.id}`,
+                        }
+
+                        const foundillu = await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [post.postID]);
+                        const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
+                        if (foundillu.error) {
+                            mqClient.sendMessage(`SQL Error when getting to the illustration history records`, "err", foundillu.error)
+                            resolve()
+                        } else if (duplicates || foundillu.rows.length === 0) {
+                            let followUser = (!item.user.is_followed);
+                            if (autoDownload.rows.length > 0) {
+                                if (autoDownload.rows[0].channelid) {
+                                    post.channelID = autoDownload.rows[0].channelid
+                                    post.color = 6010879;
+                                } else if (post.postSanity === 6 || post.postNSFW === 1) {
+                                    post.channelID = _pconfig.rows[0].save_channelid_nsfw
                                     post.color = 16711724;
+                                } else {
+                                    post.channelID = _pconfig.rows[0].save_channelid
+                                    post.color = 6010879;
                                 }
-                                post.channelID = staticChannels.recommended_nsfw
-                            } else {
+                            } else if (channel === "new") {
+                                if (post.postSanity === 6 || post.postNSFW === 1) {
+                                    post.channelID = staticChannels.feed_nsfw
+                                    post.color = 16711724;
+                                } else {
+                                    post.channelID = staticChannels.feed
+                                    post.color = 6010879;
+                                }
+                            } else if (channel === "recom" || channel === "recompost") {
                                 if (channel === "recompost") {
-                                    post.color = 14156031;
-                                } else {
-                                    post.color = 7264269;
+                                    post.description = `✳️ Related to post ${message.messageText} (${message.postID}) by ${message.messageArtist}`
                                 }
-                                post.channelID = staticChannels.recommended;
-                            }
-                        } else if (channel === "download") {
-                            if (post.postSanity === 6 || post.postNSFW === 1) {
-                                post.color = 16711724;
+                                if (post.postSanity === 6 || post.postNSFW === 1) {
+                                    if (channel === "recompost") {
+                                        post.color = 16711787;
+                                    } else {
+                                        post.color = 16711724;
+                                    }
+                                    post.channelID = staticChannels.recommended_nsfw
+                                } else {
+                                    if (channel === "recompost") {
+                                        post.color = 14156031;
+                                    } else {
+                                        post.color = 7264269;
+                                    }
+                                    post.channelID = staticChannels.recommended;
+                                }
+                            } else if (channel === "download") {
+                                if (post.postSanity === 6 || post.postNSFW === 1) {
+                                    post.color = 16711724;
+                                } else {
+                                    post.color = 6010879;
+                                }
+                                post.channelID = _pconfig.rows[0].download_channelid
                             } else {
-                                post.color = 6010879;
+                                if (post.postSanity === 6 || post.postNSFW === 1) {
+                                    post.color = 16711724;
+                                } else {
+                                    post.color = 6010879;
+                                }
+                                post.channelID = channel
                             }
-                            post.channelID = _pconfig.rows[0].download_channelid
+
+                            const avatar = await getImagetoB64(item.user.profile_image_urls.medium);
+                            const images = ((() => {
+                                if (item.meta_pages.length > 0)
+                                    return item.meta_pages.map(e => e.image_urls.original)
+                                return [item.meta_single_page.original_image_url]
+                            })())
+                            Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 1) ? `${images.length} Pages` : `Single Image Wanted`), "info")
+                            let requests = images.reduce((promiseChain, image, index) => {
+                                return promiseChain.then(() => new Promise(async (sentImage) => {
+                                    const image = await getImagetoB64(image)
+                                    if (image) {
+                                        post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
+                                        post.file = {
+                                            data: image,
+                                            avatar: (avatar) ? avatar : undefined,
+                                            name: getIDfromText(image),
+                                        }
+
+                                        let _mqMessage = {};
+                                        if (autoDownload.rows.length > 0) {
+                                            _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                        } else {
+                                            _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                        }
+                                        mqClient.sendData(sentTo, _mqMessage, async(ok) => {
+                                            if (!ok) {
+                                                Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
+                                            } else if (parseInt(index) + 1 === images.length && !duplicates) {
+                                                await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                            }
+                                            sentImage(ok);
+                                            _mqMessage = null;
+                                            post.file = {};
+                                        })
+                                    } else {
+                                        Logger.printLine("PixivDownload", `Failed to downloaded image ${image}! Skipped!`, "debug")
+                                        sentImage(false);
+                                    }
+                                }));
+                            }, Promise.resolve());
+                            requests.then(async () => {
+                                Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug');
+                                resolve();
+                            })
                         } else {
-                            if (post.postSanity === 6 || post.postNSFW === 1) {
-                                post.color = 16711724;
-                            } else {
-                                post.color = 6010879;
-                            }
-                            post.channelID = channel
+                            resolve()
                         }
-
-                        const avatar = await getImagetoB64(item.user.profile_image_urls.medium);
-                        const images = ((() => {
-                            if (item.meta_pages.length > 0)
-                                return item.meta_pages.map(e => e.image_urls.original)
-                            return [item.meta_single_page.original_image_url]
-                        })())
-                        Logger.printLine("IlluParser", `Getting Illustration from ${post.userName} : ${post.postID} : ` + ((images.length > 1) ? `${images.length} Pages` : `Single Image Wanted`), "info")
-                        for (let index in images) {
-                            const image = await getImagetoB64(images[index])
-                            if (image) {
-                                post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
-                                post.file = {
-                                    data: image,
-                                    avatar: (avatar) ? avatar : undefined,
-                                    name: getIDfromText(images[index]),
-                                }
-
-                                let _mqMessage = {};
-                                if (autoDownload.rows.length > 0) {
-                                    _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
-                                } else {
-                                    _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
-                                }
-                                const sent = await mqClient.publishData(sentTo, _mqMessage)
-                                if (!sent) {
-                                    Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                } else if (parseInt(index) + 1 === images.length && !duplicates) {
-                                    await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
-                                }
-                                _mqMessage = undefined;
-                                post.file = {};
-                            } else {
-                                Logger.printLine("PixivDownload", `Failed to downloaded image ${images[index]}! Skipped!`, "debug")
-                            }
-                        }
-                    }
-                    resolve()
-                }));
-            }, Promise.resolve());
-            requests.then(async () => {
-                Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug')
-            })
-        }
-
+                    }));
+                }, Promise.resolve());
+                requests.then(async () => {
+                    Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug')
+                    completedPage(false);
+                })
+            }
+        })
     }
     async function saveRecomIllus(list) {
         // noinspection ES6MissingAwait
@@ -593,24 +606,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         try {
             let results = await pixivClient.illustFollow();
             if (results && results.illusts && results.illusts.length > 0) {
-                let list = [...results.illusts];
+                await parseItems(results.illusts.reverse(), "new", 'priority')
                 let i = 1
                 while (true) {
                     try {
                         if (!results.next_url || i === 4) {
                             Logger.printLine("getNewIllust", `Returned ${list.length} items for new illustrations (End of Pages)`, "debug")
-                            await parseItems(list.reverse(), "new", 'priority')
-                            list = null;
                             break;
                         }
                         i++
                         results = await pixivClient.requestUrl(results.next_url)
-                        list.push(...results.illusts);
+                        await parseItems(results.illusts.reverse(), "new", 'priority')
                     } catch (err) {
                         Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
                         Logger.printLine("getNewIllust", `Returned ${list.length} items for new illustrations (Caught err)`, "debug")
-                        await parseItems(list.reverse(), "new", 'priority')
-                        list = null;
+                        await parseItems(results.illusts.reverse(), "new", 'priority')
+                        results = null;
                         break;
                     }
                 }
