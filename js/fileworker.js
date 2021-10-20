@@ -1005,7 +1005,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						cb(true);
 						break;
 				}
-			} else {
+			} else if (MessageContents.itemFileName) {
 				let tempFilePath = path.join(systemglobal.TempFolder, MessageContents.itemFileName.split("?")[0]);
 				if (MessageContents.itemFileURL) { // Download a normal URL
 					// Download File from URL
@@ -1238,6 +1238,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					mqClient.sendMessage("No Known Filetype was passed to the FileWorker for parsing, Message Dropped", "err", "Ingest")
 					cb(true)
 				}
+			} else {
+				mqClient.sendMessage("No Known Filetype was passed to the FileWorker for parsing, Message Dropped", "err", "Ingest")
+				console.log(MessageContents)
+				cb(true)
 			}
 		} catch (err) {
 			Logger.printLine("JobParser", "Error Parsing Remote Job - " + err.message, "critical")

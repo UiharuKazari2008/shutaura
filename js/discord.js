@@ -5477,6 +5477,8 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("SFDownload", `Sending request to download ${filedata[0].paritycount} parts for ${filedata[0].real_filename} to FileWorker`, "info")
                     mqClient.sendData(systemglobal.FileWorker_In, {
                         userRequest: options.userID,
+                        messageType: 'command',
+                        messageAction: 'CacheSpannedFile',
                         fileUUID: fileUUID,
                     }, function (ok) { })
                 }
