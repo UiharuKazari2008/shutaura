@@ -65,6 +65,19 @@ module.exports = function (facility, sgoveride) {
             }
         });
     }
+    function publishData(client, content) {
+        return new Promise(ok => {
+            let exchange = "kanmi.exchange";
+            let cleanObject = clone(content)
+            if ( content.hasOwnProperty('itemFileData' ) ) {
+                delete cleanObject.itemFileData
+            }
+            publish(exchange, client, new Buffer.from(JSON.stringify(content), 'utf-8'), function (callback) {
+                ok(callback);
+            });
+        })
+
+    }
     function closeOnErr(err) {
         if (!err) return false;
         Logger.printLine("KanmiMQ", "Connection Closed due to error", "error", err)
@@ -196,6 +209,7 @@ module.exports = function (facility, sgoveride) {
         });
     }
     module.sendData = sendData;
+    module.publishData = publishData;
 
     return module
 }
