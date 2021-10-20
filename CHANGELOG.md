@@ -9,6 +9,7 @@
 - Fixed new content notifiactions from discord and added support for multiple channels using " " delimiter
 - FileWorker has default encoder configuration instead of requiring the lines in config
 - Pixiv/Twitter now has chains in place to force itms to download in order and prevent async downloads and memory leaks
+- Fixed Image rotation dead locking discord
 
 
 ## v19.2 (RC1 JFS v1.5)
