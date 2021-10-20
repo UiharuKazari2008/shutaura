@@ -47,9 +47,14 @@ function getVideofromURL(message){
     return '' + url[0].toString().split('=').pop().toString();
 }
 function fileSize(filename) {
-    const stats = fs.statSync(filename);
-    const fileSizeInBytes = stats["size"]
-    return fileSizeInBytes / 1000000.0
+    try {
+        const stats = fs.statSync(filename);
+        const fileSizeInBytes = stats["size"]
+        return fileSizeInBytes / 1000000.0
+    } catch (e) {
+        console.error(`Failed to read ${filename}`)
+        return 0
+    }
 }
 async function asyncForEach(array, callback) {
     for (let index = 0; index < array.length; index++) {
