@@ -1236,14 +1236,19 @@ This code is publicly released and is restricted by its project license
                                                                     });
                                                                     child.on('close', function (code) {
                                                                         if (code === 0 && fileSize(outputfile) > 0.00001) {
-                                                                            const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-                                                                            deleteFile(outputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            deleteFile(inputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            fulfill(output);
+                                                                            try {
+                                                                                const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+                                                                                deleteFile(outputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                deleteFile(inputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                fulfill(output);
+                                                                            } catch (err) {
+                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                fulfill(null);
+                                                                            }
                                                                         } else {
                                                                             mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
                                                                             deleteFile(outputfile, function (ready) {

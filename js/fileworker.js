@@ -55,13 +55,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let discordServers = new Map();
 	let FolderPairs = new Map();
 	let EncoderConf = {
-		Exec      : `${systemglobal.ffmpeg_exec}`,
-		VScale    : `${systemglobal.ffmpeg_scale}`,
-		VCodec    : `${systemglobal.ffmpeg_vcodec}`,
-		VBitrate  : `${systemglobal.ffmpeg_vbitrate}`,
-		VCRF      : `${systemglobal.ffmpeg_vcrf}`,
-		ACodec    : `${systemglobal.ffmpeg_acodec}`,
-		ABitrate  : `${systemglobal.ffmpeg_abitrate}`
+		Exec: "ffmpeg",
+		VScale: "640:-1",
+		VCodec: "h264",
+		VBitrate: "500K",
+		VCRF: "30",
+		ACodec: "aac",
+		ABitrate: "128K"
 	}
 
 	const { fileSize } = require('./utils/tools');
@@ -681,11 +681,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																});
 																child.on('close', function (code) {
 																	if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(output);
+																		try {
+																			const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+																			deleteFile(outputfile, function (ready) {
+																				// Do Nothing
+																			})
+																			fulfill(output);
+																		} catch (err) {
+																			fulfill(null);
+																			Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+																		}
 																	} else {
 																		mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
 																		deleteFile(outputfile, function (ready) {
@@ -751,11 +756,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																});
 																child.on('close', function (code) {
 																	if (code === 0 && fileSize(outputfile) > 0.00001) {
-																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(output);
+																		try {
+																			const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+																			deleteFile(outputfile, function (ready) {
+																				// Do Nothing
+																			})
+																			fulfill(output);
+																		} catch (err) {
+																			fulfill(null);
+																			Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+																		}
 																	} else {
 																		mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
 																		deleteFile(outputfile, function (ready) {
@@ -855,11 +865,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												});
 												child.on('close', function (code) {
 													if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-														const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(output);
+														try {
+															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+															deleteFile(outputfile, function (ready) {
+																// Do Nothing
+															})
+															fulfill(output);
+														} catch (err) {
+															fulfill(null);
+															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+														}
 													} else {
 														mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
 														deleteFile(outputfile, function (ready) {
@@ -925,11 +940,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												});
 												child.on('close', function (code) {
 													if (code === 0 && fileSize(outputfile) > 0.00001) {
-														const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(output);
+														try {
+															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+															deleteFile(outputfile, function (ready) {
+																// Do Nothing
+															})
+															fulfill(output);
+														} catch (err) {
+															fulfill(null);
+															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+														}
 													} else {
 														mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
 														deleteFile(outputfile, function (ready) {
@@ -1354,18 +1374,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				return new Promise(function (fulfill) {
 					const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
 					if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
-						const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
-						deleteFile(possiblePreview, function (ready) {
-							// Do Nothing
-						})
-						fulfill(output);
+						try {
+							const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
+							deleteFile(possiblePreview, function (ready) {
+								// Do Nothing
+							})
+							fulfill(output);
+						} catch (err) {
+							fulfill(null);
+							Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+						}
 					} else {
 						const outputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO');
 						let scriptOutput = "";
 						const spawn = require('child_process').spawn;
 						let ffmpegParam = []
 						if (intent === true) {
-							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 						} else {
 							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
 						}
@@ -1389,11 +1414,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						});
 						child.on('close', function (code) {
 							if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(output);
+								try {
+									const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+									deleteFile(outputfile, function (ready) {
+										// Do Nothing
+									})
+									fulfill(output);
+								} catch (err) {
+									fulfill(null);
+									Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+								}
 							} else {
 								mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
 								deleteFile(outputfile, function (ready) {
@@ -1428,11 +1458,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 					child.on('close', function (code) {
 						if (code === 0 && fileSize(outputfile) > 0.00001) {
-							const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(output);
+							try {
+								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+								deleteFile(outputfile, function (ready) {
+									// Do Nothing
+								})
+								fulfill(output);
+							} catch (err) {
+								fulfill(null);
+								Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+							}
 						} else {
 							mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
 							deleteFile(outputfile, function (ready) {
@@ -1569,31 +1604,36 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 					let requests = names.reduce((promiseChain, partpath, key) => {
 						return promiseChain.then(() => new Promise((resolve) => {
-							const partBase64String = fs.readFileSync(partpath, {encoding: 'base64'})
-							mqClient.sendData(parameters.sendTo, {
-								ItemID: `${itemID}-${key}`,
-								sendTo: parameters.sendTo,
-								messageReturn: false,
-								fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-								fileUUID: filepartsid,
-								filePartN: key,
-								filePartTotal: names.length,
-								messageType: "sfile",
-								messageChannelID: MPFChannelID,
-								messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_')}\n📦 Part: ${key}/${names.length}`,
-								itemFileName: path.basename(partpath).split("?")[0],
-								itemFileData: '' + partBase64String
-							}, async (ok) => {
-								if (ok) {
-									Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-									fs.unlinkSync(partpath)
-									sentParts++
-									resolve();
-								} else {
-									Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-									resolve();
-								}
-							});
+							try {
+								const partBase64String = fs.readFileSync(partpath, {encoding: 'base64'})
+								mqClient.sendData(parameters.sendTo, {
+									ItemID: `${itemID}-${key}`,
+									sendTo: parameters.sendTo,
+									messageReturn: false,
+									fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+									fileUUID: filepartsid,
+									filePartN: key,
+									filePartTotal: names.length,
+									messageType: "sfile",
+									messageChannelID: MPFChannelID,
+									messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_')}\n📦 Part: ${key}/${names.length}`,
+									itemFileName: path.basename(partpath).split("?")[0],
+									itemFileData: '' + partBase64String
+								}, async (ok) => {
+									if (ok) {
+										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										fs.unlinkSync(partpath)
+										sentParts++
+										resolve();
+									} else {
+										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										resolve();
+									}
+								});
+							} catch (err) {
+								Logger.sendMessage(`Failed to read the file part ${partpath}`, 'error', 'PartsInspector', err)
+								resolve();
+							}
 						}))
 					}, Promise.resolve());
 					requests.then(() => {
@@ -1820,8 +1860,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							ready(false)
 						} else {
 							fs.close(fd, function () {
-								parameters.itemFileData = fs.readFileSync(object.FilePath.toString(), {encoding: 'base64'}).toString()
-								ready(true)
+								try {
+									parameters.itemFileData = fs.readFileSync(object.FilePath.toString(), {encoding: 'base64'}).toString()
+									ready(true)
+								} catch (e) {
+									ready(false)
+								}
 							})
 						}
 					})
@@ -1944,6 +1988,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									cb(false)
 								}
 							});
+						} else {
+							Logger.printLine("SendFile", `Failed to access file ${object.FileName.toString()}`, "error")
+							cb(true)
 						}
 					})
 				}
