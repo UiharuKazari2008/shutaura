@@ -4,7 +4,12 @@
 - Fixed various small issues with FileWorker
 - Twitter/Discord will now report its current flow controller mode and report if the controller is mismatched to its current state
   - These will be registered as faults
-- 
+- Discord requires seq.common settings to report completed file access URLs
+- Fixed various FFMPEG errors with image preview and video previews
+- Fixed new content notifiactions from discord and added support for multiple channels using " " delimiter
+- FileWorker has default encoder configuration instead of requiring the lines in config
+- Pixiv/Twitter now has chains in place to force itms to download in order and prevent async downloads and memory leaks
+- Fixed Image rotation dead locking discord
 
 
 ## v19.2 (RC1 JFS v1.5)

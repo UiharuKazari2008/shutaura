@@ -263,6 +263,13 @@ This code is publicly released and is restricted by its project license
             // Pixiv Inbox MQ - Required - Dynamic
             // Pixiv_In = "inbox.pixiv"
             // mq.pixiv.in = "inbox.pixiv"
+            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+            if (_seq_config.length > 0 && _seq_config[0].param_data) {
+               if (_seq_config[0].param_data.base_url)
+                    systemglobal.Base_URL = _seq_config[0].param_data.base_url;
+            }
+            // Sequenzia Common Configuration
+            // seq.common = { base_url: "https://seq.moe/" }
             const _accepted_img_cache = systemparams_sql.filter(e => e.param_key === 'cache.accepted_formats');
             if (_accepted_img_cache.length > 0 && _accepted_img_cache[0].param_data) {
                 if (_accepted_img_cache[0].param_data.images)
@@ -1216,7 +1223,7 @@ This code is publicly released and is restricted by its project license
                                                                     console.error(err)
                                                                 } else {
                                                                     const spawn = require('child_process').spawn;
-                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', inputfile, '-f', 'image2', '-vframes', '1', outputfile]
+                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
                                                                     console.log("[FFMPEG] Getting Preview Image...")
                                                                     const child = spawn(EncoderConf.Exec, ffmpegParam);
                                                                     child.stdout.setEncoding('utf8');
@@ -1229,14 +1236,19 @@ This code is publicly released and is restricted by its project license
                                                                     });
                                                                     child.on('close', function (code) {
                                                                         if (code === 0 && fileSize(outputfile) > 0.00001) {
-                                                                            const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-                                                                            deleteFile(outputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            deleteFile(inputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            fulfill(output);
+                                                                            try {
+                                                                                const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+                                                                                deleteFile(outputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                deleteFile(inputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                fulfill(output);
+                                                                            } catch (err) {
+                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                fulfill(null);
+                                                                            }
                                                                         } else {
                                                                             mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
                                                                             deleteFile(outputfile, function (ready) {
@@ -5324,6 +5336,7 @@ This code is publicly released and is restricted by its project license
                                                 id: message.id,
                                                 action: 'jfsRotate'
                                             })
+                                            resolve(true)
                                         })
                                         .catch((er) => {
                                             SendMessage("Failed to send message to discord", "err", message.guildID, "Rotate", er)
@@ -5464,6 +5477,8 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("SFDownload", `Sending request to download ${filedata[0].paritycount} parts for ${filedata[0].real_filename} to FileWorker`, "info")
                     mqClient.sendData(systemglobal.FileWorker_In, {
                         userRequest: options.userID,
+                        messageType: 'command',
+                        messageAction: 'CacheSpannedFile',
                         fileUUID: fileUUID,
                     }, function (ok) { })
                 }
@@ -5685,15 +5700,6 @@ This code is publicly released and is restricted by its project license
                         if (discordChannels.has(msg.channel.id)) {
                             const chDbval = discordChannels.get(msg.channel.id)
                             // Notify Channel
-                            if ((!options ||(options && !options.isMoved && !options.forceAdd)) && chDbval.notify !== null) {
-                                let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
-                                let messageContent = msg.content.trim().replace(/^.*File : .*$/mg, "");
-                                try {
-                                    const sendNotify = await discordClient.createMessage(chDbval.notify, `💾 New Content added to ${channelName}!\nhttps://seq.moe/files?channel=${msg.channel.id}&search=${msg.id.substring(0, 7)}\n${messageContent}`);
-                                } catch (err) {
-                                    Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
-                                }
-                            }
                             let sqlObject = {
                                 source: 0,
                                 id: msg.id,
@@ -5819,7 +5825,8 @@ This code is publicly released and is restricted by its project license
                                         messageAction: 'CacheImage',
                                     }, function (ok) { })
                                 }
-                            } else if (msg.attachments.length > 1) {
+                            }
+                            else if (msg.attachments.length > 1) {
                                 sqlObject.attachment_name = 'multi'
                                 let _fileextra = []
                                 for (let index in msg.attachments) {
@@ -5863,6 +5870,62 @@ This code is publicly released and is restricted by its project license
                                 }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
                                     cacheColor(msg.id, `https://cdn.discordapp.com/attachments${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                }
+
+                                if (chDbval.notify !== null) {
+                                    try {
+                                        let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
+                                        //systemglobal.Base_URL
+                                        const guildInfo = discordClient.guilds.get(msg.guildID)
+                                        let embedText = sqlObject.content_full
+                                        if (sqlObject.fileid) {
+                                            embedText = embedText.split('\n').splice(3).join('\n')
+                                        }
+                                        let embed = {
+                                            "color": 16746515,
+                                            "timestamp": (sqlObject.date) ? sqlObject.date : (new Date(msg.timestamp)).toISOString(),
+                                            "footer": {
+                                                "text": guildInfo.name,
+                                                "icon_url": guildInfo.iconURL
+                                            },
+                                            "description": (embedText.length > 2) ? embedText : undefined,
+                                            "title": `New Content added to ${channelName}!`
+                                        }
+                                        if (sqlObject.user !== discordClient) {
+                                            const memberAccount = await db.query(`SELECT * FROM discord_users WHERE id = ? LIMIT 1`, [sqlObject.user])
+                                            if (memberAccount.error) {
+
+                                            } else if (memberAccount.rows.length > 0) {
+                                                embed["author"] = {
+                                                    "name": (memberAccount.rows[0].nice_name) ? memberAccount.rows[0].nice_name : memberAccount.rows[0].username,
+                                                    "icon_url": (memberAccount.rows[0].avatar) ? `https://cdn.discordapp.com/avatars/${memberAccount.rows[0].id}/${memberAccount.rows[0].avatar}.png` : "https://cdn.discordapp.com/embed/avatars/1.png"
+                                                }
+                                            }
+                                        }
+                                        if (sqlObject.real_filename) {
+                                            embed["title"] = sqlObject.real_filename
+                                        } else if (embedText.length <= 2) {
+                                            embed["title"] = sqlObject.attachment_name
+                                        }
+                                        if ((sqlObject.attachment_hash || sqlObject.cache_proxy) &&
+                                            ['jpg','png','gif','jfif','jpeg'].indexOf(((sqlObject.cache_proxy) ? sqlObject.cache_proxy : sqlObject.attachment_name).split('.').pop().toLowerCase()) !== -1) {
+                                            embed[(sqlObject.fileid) ? "thumbnail" : "image"] = {
+                                                "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                            }
+                                        }
+                                        if (systemglobal.Base_URL)
+                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
+                                        await Promise.all(chDbval.notify.split(' ').map(async ch => {
+                                            try {
+                                                await discordClient.createMessage(ch, { embed });
+                                            } catch (err) {
+                                                Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
+                                            }
+                                        }))
+                                    } catch (err) {
+                                        Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
+                                        console.error(err)
+                                    }
                                 }
                             }
                         }

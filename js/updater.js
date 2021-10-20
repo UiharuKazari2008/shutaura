@@ -112,7 +112,7 @@
         return await new Promise((resolve => {
             exec(['git', ...options].join(' '), { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), timeout: 60000, encoding: 'utf8' }, (err, stdout, stderr) => {
                 if (err) {
-                    console.err(err)
+                    console.error(err)
                     resolve(false)
                 } else {
                     if (stderr.length > 1)
@@ -126,7 +126,7 @@
         return await new Promise((resolve => {
             exec('npm install', { cwd : path.join(process.cwd(), `./${(project) ? '../' + project : ''}`), encoding: 'utf8' }, (err, stdout, stderr) => {
                 if (err) {
-                    console.err(err)
+                    console.error(err)
                     resolve(false)
                 } else {
                     if (stderr.length > 1)
@@ -199,7 +199,9 @@
     }
     async function isUpdateAvailable(project, branch) {
         const update = await git(['remote', 'update'], project)
-        return (update) ? await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD', (branch)? branch : selectedBranch], project) : false
+        if (branch)
+            await git(['checkout', branch], project)
+        return (update) ? await git(['--no-pager', 'diff', '--name-only', 'FETCH_HEAD'], project) : false
     }
     async function commitMessages(project) {
         return await git(['log', '--pretty=format:%s', 'HEAD^..FETCH_HEAD'], project)
@@ -243,12 +245,6 @@
                 if (!systemglobal.SoftUpdateRepos || args.soft) {
                     if (await git(['reset', '--hard', `origin${(branch) ? '/' + branch : ''}`], project) === false) {
                         await Logger.printLine('GetUpdated', `Failed reset repo! Timeout`, 'critical');
-                        return false;
-                    }
-                }
-                if (branch) {
-                    if (await git(['checkout', branch], project) === false) {
-                        await Logger.printLine('GetUpdated', `Failed checkout repo! Timeout`, 'critical');
                         return false;
                     }
                 }
@@ -347,7 +343,7 @@
                 await mqClient.sendMessage(`${filesToUpdate.length} Updates are available for ${(project) ? project : 'sequenzia-framework'}${(applyPatch) ? '\n**This update requires a patch to be applied, Run updater manually with --force or run the update-database script**' : ''}`, 'notify', 'GetUpdated')
             }
         } else {
-            await mqClient.sendMessage(`No Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdates')
+            await Logger.printLine('GetUpdates', `No Updates are available for ${(project) ? project : 'sequenzia-framework'}`, 'info')
         }
         return true
     }
