@@ -5366,7 +5366,7 @@ This code is publicly released and is restricted by its project license
             SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", response.error)
             cb(false)
         } else if (response.rows.length > 0 && response.rows[0].fileid) {
-            const completeText = response.rows[0].content_full.split("🏷 Name:")[0].trim() + '🏷 Name: ' + name.trim().replace(/[/\\?%*:|"<> ]/g, '_') + ' (' + response.rows[0].content_full.content.split("🏷 Name:").pop().split(' (').pop()
+            const completeText = response.rows[0].content_full.split("🏷 Name:")[0].trim() + '🏷 Name: ' + name.trim().replace(/[/\\?%*:|"<> ]/g, '_') + ' (' + response.rows[0].content_full.split("🏷 Name:").pop().split(' (').pop()
             const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [completeText, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid])
             if (updatedFile.error) {
                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", updatedFile.error)
