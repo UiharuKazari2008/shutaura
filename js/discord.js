@@ -1223,7 +1223,7 @@ This code is publicly released and is restricted by its project license
                                                                     console.error(err)
                                                                 } else {
                                                                     const spawn = require('child_process').spawn;
-                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', inputfile, '-f', 'image2', '-vframes', '1', outputfile]
+                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
                                                                     console.log("[FFMPEG] Getting Preview Image...")
                                                                     const child = spawn(EncoderConf.Exec, ffmpegParam);
                                                                     child.stdout.setEncoding('utf8');
@@ -1236,14 +1236,19 @@ This code is publicly released and is restricted by its project license
                                                                     });
                                                                     child.on('close', function (code) {
                                                                         if (code === 0 && fileSize(outputfile) > 0.00001) {
-                                                                            const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-                                                                            deleteFile(outputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            deleteFile(inputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            fulfill(output);
+                                                                            try {
+                                                                                const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+                                                                                deleteFile(outputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                deleteFile(inputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                fulfill(output);
+                                                                            } catch (err) {
+                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                fulfill(null);
+                                                                            }
                                                                         } else {
                                                                             mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
                                                                             deleteFile(outputfile, function (ready) {
@@ -5472,6 +5477,8 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("SFDownload", `Sending request to download ${filedata[0].paritycount} parts for ${filedata[0].real_filename} to FileWorker`, "info")
                     mqClient.sendData(systemglobal.FileWorker_In, {
                         userRequest: options.userID,
+                        messageType: 'command',
+                        messageAction: 'CacheSpannedFile',
                         fileUUID: fileUUID,
                     }, function (ok) { })
                 }
