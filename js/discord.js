@@ -4365,7 +4365,7 @@ This code is publicly released and is restricted by its project license
                 }
             } catch (err) {
                 if (err.message === 'Unknown Message') {
-                    SendMessage(`Spanned Part "${e.messageid}" does not exist in discord - ${e.fileid}`, "crit", 'main', "ValidateParts")
+                    Logger.printLine("ValidateParts", `Spanned Part "${e.messageid}" does not exist in discord - ${e.fileid}`, "error")
                     await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [e.messageid])
                 }
             }
@@ -4384,7 +4384,7 @@ This code is publicly released and is restricted by its project license
                     })
                 })
                 if (!filesize) {
-                    SendMessage(`Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "crit", 'main', "ValidateParts")
+                    Logger.printLine("ValidateParts", `Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "error")
                     await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [f.messageid])
                 }
             }))
