@@ -5281,6 +5281,9 @@ This code is publicly released and is restricted by its project license
                     })
                 } catch (err) {
                     SendMessage("Failed to get message part to move to the new discord server", "err", data.guildID, "Move", err)
+                    if (err.message && err.message.toLowerCase().includes('unknown message')) {
+                        await db.query(`DELETE FROM discord_multipart_files WHERE channelid = ? AND messageid = ?`, [filepart.channelid, filepart.messageid])
+                    }
                 }
             }))
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
