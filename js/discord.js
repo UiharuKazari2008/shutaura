@@ -4370,7 +4370,7 @@ This code is publicly released and is restricted by its project license
                 }
             }
         }))
-        const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL`)
+        const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC`)
         await Promise.all( files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length).map(async e => {
             await Promise.all(parts.rows.filter(f => f.fileid === e.fileid).map(async f => {
                 const filesize = await new Promise((resolve) => {
