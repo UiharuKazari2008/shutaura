@@ -4341,8 +4341,8 @@ This code is publicly released and is restricted by its project license
     }
     async function revalidateFiles() {
         activeTasks.set('VALIDATE_PARTS' ,{ started: Date.now().valueOf() });
-        const partsToValidate = await db.query(`SELECT * FROM discord_multipart_files WHERE valid = 0`)
-        await Promise.all( partsToValidate.rows.map(async e => {
+        const parts = await db.query(`SELECT * FROM discord_multipart_files`)
+        await Promise.all( parts.rows.filter(e => e.valid === 0).map(async e => {
             try {
                 const partMessage = await discordClient.getMessage(e.channelid, e.messageid)
                 if (partMessage) {
@@ -4370,7 +4370,25 @@ This code is publicly released and is restricted by its project license
                 }
             }
         }))
-
+        const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL`)
+        await Promise.all( files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length).map(async e => {
+            await Promise.all(parts.rows.filter(f => f.fileid === e.fileid).map(async f => {
+                const filesize = await new Promise((resolve) => {
+                    remoteSize(f.url, async (err, size) => {
+                        if (!err || (size !== undefined && size > 0)) {
+                            resolve(size)
+                        } else {
+                            console.error(err)
+                            resolve(false)
+                        }
+                    })
+                })
+                if (!filesize) {
+                    SendMessage(`Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "crit", 'main', "ValidateParts")
+                    await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [f.messageid])
+                }
+            }))
+        }))
         //const orphanedParity = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid NOT IN (SELECT fileid FROM kanmi_records WHERE fileid IS NOT NULL)`)
 
 
