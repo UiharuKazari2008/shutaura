@@ -5213,7 +5213,7 @@ This code is publicly released and is restricted by its project license
     async function jfsMigrateFileParts(data) {
         await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: Date.now().valueOf() })
         const input = data.content.split("**\n*")[0].replace("**🧩 File : ", '').replace(/\n|\r/g, '').trim();
-        const fileParts = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [input])
+        const fileParts = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ? AND serverid != ?`, [input, data.guildID])
         const newServerData = await db.query(`SELECT * FROM discord_servers WHERE serverid = ?`, [data.guildID])
         if (fileParts.error) {
             Logger.printLine('MoveMessage-Parts', `Unable to get file parts for ${input}`, 'error', fileParts.error);
