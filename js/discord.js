@@ -4342,9 +4342,11 @@ This code is publicly released and is restricted by its project license
     async function revalidateFiles() {
         activeTasks.set('VALIDATE_PARTS' ,{ started: Date.now().valueOf() });
         try {
+            console.log(`Started Validation of Parts...`)
             const parts = await db.query(`SELECT * FROM discord_multipart_files`)
             const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC`)
 
+            console.log(parts.rows.filter(e => e.valid === 0).length)
             for (let e of parts.rows.filter(e => e.valid === 0)) {
                 try {
                     const partMessage = await discordClient.getMessage(e.channelid, e.messageid)
@@ -4373,7 +4375,9 @@ This code is publicly released and is restricted by its project license
                     }
                 }
             }
+            console.log(files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length).length)
             for (let e of files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length)) {
+                console.log(parts.rows.filter(f => f.fileid === e.fileid).length)
                 for (let f of parts.rows.filter(f => f.fileid === e.fileid)) {
                     const filesize = await new Promise((resolve) => {
                         remoteSize(f.url, async (err, size) => {
@@ -4385,12 +4389,14 @@ This code is publicly released and is restricted by its project license
                             }
                         })
                     })
+                    console.log(filesize)
                     if (!filesize) {
                         Logger.printLine("ValidateParts", `Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "error")
                         await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [f.messageid])
                     }
                 }
             }
+            console.log('done')
             //const orphanedParity = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid NOT IN (SELECT fileid FROM kanmi_records WHERE fileid IS NOT NULL)`)
         } catch (e) {
             console.error(e)
