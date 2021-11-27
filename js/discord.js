@@ -4341,58 +4341,60 @@ This code is publicly released and is restricted by its project license
     }
     async function revalidateFiles() {
         activeTasks.set('VALIDATE_PARTS' ,{ started: Date.now().valueOf() });
-        const parts = await db.query(`SELECT * FROM discord_multipart_files`)
-        const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC`)
+        try {
+            const parts = await db.query(`SELECT * FROM discord_multipart_files`)
+            const files = await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC`)
 
-        for (let e of parts.rows.filter(e => e.valid === 0)) {
-            try {
-                const partMessage = await discordClient.getMessage(e.channelid, e.messageid)
-                if (partMessage) {
-                    if (partMessage.attachments.length > 0) {
-                        if (!e.url === partMessage.attachments[0].url) {
-                            const updatedPart = await db.query(`UPDATE discord_multipart_files SET url = ?, valid = 1 WHERE messageid = ?`, [partMessage.attachments[0].url, e.messageid])
-                            if (updatedPart.error) {
-                                Logger.printLine("ValidateParts", `Failed to write attachments value for Spanned Part in database - ${e.fileid}`, "error", updatedPart.error)
+            for (let e of parts.rows.filter(e => e.valid === 0)) {
+                try {
+                    const partMessage = await discordClient.getMessage(e.channelid, e.messageid)
+                    if (partMessage) {
+                        if (partMessage.attachments.length > 0) {
+                            if (!e.url === partMessage.attachments[0].url) {
+                                const updatedPart = await db.query(`UPDATE discord_multipart_files SET url = ?, valid = 1 WHERE messageid = ?`, [partMessage.attachments[0].url, e.messageid])
+                                if (updatedPart.error) {
+                                    Logger.printLine("ValidateParts", `Failed to write attachments value for Spanned Part in database - ${e.fileid}`, "error", updatedPart.error)
+                                }
+                            } else {
+                                Logger.printLine("ValidateParts", `Spanned Part File has the same URL, possibly damaged? - ${e.fileid} - "${partMessage.attachments[0].url}"`, "warning")
+                                const updatedPart = await db.query(`UPDATE discord_multipart_files SET valid = 1 WHERE messageid = ?`, [e.messageid])
+                                if (updatedPart.error) {
+                                    Logger.printLine("ValidateParts", `Failed to validate part for Spanned Part in database - ${e.fileid}`, "error", updatedPart.error)
+                                }
                             }
                         } else {
-                            Logger.printLine("ValidateParts", `Spanned Part File has the same URL, possibly damaged? - ${e.fileid} - "${partMessage.attachments[0].url}"`, "warning")
-                            const updatedPart = await db.query(`UPDATE discord_multipart_files SET valid = 1 WHERE messageid = ?`, [e.messageid])
-                            if (updatedPart.error) {
-                                Logger.printLine("ValidateParts", `Failed to validate part for Spanned Part in database - ${e.fileid}`, "error", updatedPart.error)
-                            }
+                            Logger.printLine("ValidateParts", `Failed to get valid attachments for Spanned Part - ${e.fileid}`, "error")
                         }
-                    } else {
-                        Logger.printLine("ValidateParts", `Failed to get valid attachments for Spanned Part - ${e.fileid}`, "error")
+                    }
+                } catch (err) {
+                    if (err.message === 'Unknown Message') {
+                        Logger.printLine("ValidateParts", `Spanned Part "${e.messageid}" does not exist in discord - ${e.fileid}`, "error")
+                        await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [e.messageid])
                     }
                 }
-            } catch (err) {
-                if (err.message === 'Unknown Message') {
-                    Logger.printLine("ValidateParts", `Spanned Part "${e.messageid}" does not exist in discord - ${e.fileid}`, "error")
-                    await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [e.messageid])
-                }
             }
-        }
-        for (let e of files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length)) {
-            for (let f of parts.rows.filter(f => f.fileid === e.fileid)) {
-                const filesize = await new Promise((resolve) => {
-                    remoteSize(f.url, async (err, size) => {
-                        if (!err || (size !== undefined && size > 0)) {
-                            resolve(size)
-                        } else {
-                            console.error(err)
-                            resolve(false)
-                        }
+            for (let e of files.rows.filter(e => e.paritycount <= parts.rows.filter(f => f.fileid === e.fileid).length)) {
+                for (let f of parts.rows.filter(f => f.fileid === e.fileid)) {
+                    const filesize = await new Promise((resolve) => {
+                        remoteSize(f.url, async (err, size) => {
+                            if (!err || (size !== undefined && size > 0)) {
+                                resolve(size)
+                            } else {
+                                console.error(err)
+                                resolve(false)
+                            }
+                        })
                     })
-                })
-                if (!filesize) {
-                    Logger.printLine("ValidateParts", `Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "error")
-                    await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [f.messageid])
+                    if (!filesize) {
+                        Logger.printLine("ValidateParts", `Spanned Part "${f.messageid}" does not exist in discord - ${f.fileid}`, "error")
+                        await db.query(`DELETE FROM discord_multipart_files WHERE messageid = ?`, [f.messageid])
+                    }
                 }
             }
+            //const orphanedParity = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid NOT IN (SELECT fileid FROM kanmi_records WHERE fileid IS NOT NULL)`)
+        } catch (e) {
+            console.error(e)
         }
-        //const orphanedParity = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid NOT IN (SELECT fileid FROM kanmi_records WHERE fileid IS NOT NULL)`)
-
-
         activeTasks.delete('VALIDATE_PARTS');
         setTimeout(revalidateFiles, 3600000)
     }
