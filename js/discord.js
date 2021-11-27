@@ -4375,8 +4375,8 @@ This code is publicly released and is restricted by its project license
                     }
                 }
             }
-            console.log(files.rows.filter(e => e.paritycount < parts.rows.filter(f => f.fileid === e.fileid).length).length)
-            for (let e of files.rows.filter(e => e.paritycount < parts.rows.filter(f => f.fileid === e.fileid).length)) {
+            console.log(files.rows.filter(e => e.paritycount > parts.rows.filter(f => f.fileid === e.fileid).length).length)
+            for (let e of files.rows.filter(e => e.paritycount > parts.rows.filter(f => f.fileid === e.fileid).length)) {
                 console.log(parts.rows.filter(f => f.fileid === e.fileid).length)
                 for (let f of parts.rows.filter(f => f.fileid === e.fileid)) {
                     const filesize = await new Promise((resolve) => {
