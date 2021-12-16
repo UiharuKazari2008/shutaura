@@ -31,6 +31,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const sharp = require('sharp');
     const sizeOf = require('image-size');
     const colors = require('colors');
+    const moment = require('moment');
     const amqp = require('amqplib/callback_api');
     let amqpConn = null;
     const PixivApi = require('pixiv-api-client');
@@ -65,6 +66,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_pixiv_config.length > 0 && _pixiv_config[0].param_data) {
                 if (_pixiv_config[0].param_data.disable_history)
                     systemglobal.Pixiv_No_History = _pixiv_config[0].param_data.disable_history;
+                if (_pixiv_config[0].param_data.cron_recomm_release)
+                    systemglobal.Pixiv_Cron_Recommended = _pixiv_config[0].param_data.cron_recomm_release;
+                if (_pixiv_config[0].param_data.add_time_to_posts)
+                    systemglobal.Pixiv_Append_Time = _pixiv_config[0].param_data.add_time_to_posts;
             }
             const _watchdog_host = systemparams_sql.filter(e => e.param_key === 'watchdog.host');
             if (_watchdog_host.length > 0 && _watchdog_host[0].param_value) {
@@ -197,9 +202,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         cron.schedule('*/5 * * * *', () => {
                             getNewIllust();
                         });
-                        cron.schedule('*/10 * * * *', () => {
-                            postRecommPost();
-                        });
+                        if (systemglobal.Pixiv_Cron_Recommended && cron.validate(systemglobal.Pixiv_Cron_Recommended.toString())) {
+                            cron.schedule(systemglobal.Pixiv_Cron_Recommended.toString(), () => {
+                                postRecommPost();
+                            });
+                        } else {
+                            cron.schedule('*/10 * * * *', () => {
+                                postRecommPost();
+                            });
+                        }
                     }
                 })
             } else {
@@ -340,7 +351,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageType: 'smultifileext',
                         messageReturn: false,
                         messageChannelID: post.channelID,
-                        messageText: '',
+                        messageText: (systemglobal.Pixiv_Append_Time) ? `${moment(Date.now()).format('HH:mm')}` : '',
                         messageLink: post.link,
                         messageObject: messageObject,
                         itemFileArray: [
@@ -361,7 +372,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageType: 'sfileext',
                         messageReturn: false,
                         messageChannelID: post.channelID,
-                        messageText: '',
+                        messageText: (systemglobal.Pixiv_Append_Time) ? `${moment(Date.now()).format('HH:mm')}` : '',
                         messageLink: post.link,
                         messageObject: messageObject,
                         itemFileData: post.file.data,
