@@ -15,7 +15,8 @@ const stage1DatabaseUpdate = [
     {
         table: 'kanmi_channels',
         add: [
-            'nice_title MEDIUMINT null after nice_name'
+            'nice_title TEXT null after nice_name',
+            'image_hash varchar(255) null after nice_title'
         ],
         drop: [],
         modify: [],
