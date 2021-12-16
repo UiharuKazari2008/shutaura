@@ -445,7 +445,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = (systemglobal.Pixiv_No_History) ? (item.isBookmarked) ? { rows: [ true ] } : { rows: [] } : await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [post.postID]);
+                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) ? { rows: [ true ] } : { rows: [] } : await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [post.postID]);
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
                         if (foundillu.error) {
                             mqClient.sendMessage(`SQL Error when getting to the illustration history records`, "err", foundillu.error)
@@ -533,7 +533,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                            } else if (parseInt(index) + 1 === images.length && !duplicates && !systemglobal.Pixiv_No_History) {
+                                            } else if (parseInt(index) + 1 === images.length && !duplicates && (!systemglobal.Pixiv_No_History || channel === "new")) {
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
                                             sentImage(ok);
