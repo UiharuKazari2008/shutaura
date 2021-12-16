@@ -84,6 +84,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     await loadDatabaseCache();
+    console.log(systemglobal)
     if (args.whost) {
         systemglobal.Watchdog_Host = args.whost
     }
