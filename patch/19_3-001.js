@@ -10,6 +10,7 @@ if (fs.existsSync('./../update.config.json'))
 
 let _systemparams = { error: { sqlMessage: 'Did not Initalize' }, rows: [] }
 
+// Always add APPLYPATCH to git log
 const stage1DatabaseUpdate = [
     {
         table: 'kanmi_channels',
