@@ -438,7 +438,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (foundillu.error) {
                             mqClient.sendMessage(`SQL Error when getting to the illustration history records`, "err", foundillu.error)
                             resolve()
-                        } else if (duplicates || (foundillu.rows.length === 0 || systemglobal.Pixiv_No_History)) {
+                        } else if (duplicates || foundillu.rows.length === 0) {
                             let followUser = (!item.user.is_followed);
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
