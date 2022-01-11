@@ -532,35 +532,51 @@ This code is publicly released and is restricted by its project license
             request({
                 url: 'https://mixclouddownloader.net/'
             }, (error, response, body) => {
-                if (error) { return reject(error) }
-                if (!body) { return resolve(false) }
-
-                const $ = cheerio.load(body)
-                const csrfToken = $("input[name=csrf_token]")[0].attribs.value
-                request.post({
-                    url: `https://mixclouddownloader.net/download-track/`,
-                    headers: {
-                        Origin: 'https://mixclouddownloader.net',
-                        Referer: 'https://mixclouddownloader.net/',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
-                    },
-                    form: {
-                        csrf_token: csrfToken,
-                        'mix-url': track.url
+                try {
+                    if (error) {
+                        return reject(error)
                     }
-                }, (error, response, body) => {
-                    if (error) { return reject(error) }
-                    if (!body) { return resolve(false) }
-
-                    const $1 = cheerio.load(body)
-                    const downloadURL = $1("a:contains('Download link')")[0].attribs.href
-
-                    if (downloadURL.length > 0) {
-                        resolve(downloadURL)
-                    } else {
-                        resolve(null)
+                    if (!body) {
+                        return resolve(false)
                     }
-                })
+
+                    const $ = cheerio.load(body)
+                    const csrfToken = $("input[name=csrf_token]")[0].attribs.value
+                    request.post({
+                        url: `https://mixclouddownloader.net/download-track/`,
+                        headers: {
+                            Origin: 'https://mixclouddownloader.net',
+                            Referer: 'https://mixclouddownloader.net/',
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
+                        },
+                        form: {
+                            csrf_token: csrfToken,
+                            'mix-url': track.url
+                        }
+                    }, (error, response, body) => {
+                        try {
+                            if (error) {
+                                return reject(error)
+                            }
+                            if (!body) {
+                                return resolve(false)
+                            }
+
+                            const $1 = cheerio.load(body)
+                            const downloadURL = $1("a:contains('Download link')")[0].attribs.href
+
+                            if (downloadURL.length > 0) {
+                                resolve(downloadURL)
+                            } else {
+                                resolve(null)
+                            }
+                        } catch (e) {
+                            return reject(error)
+                        }
+                    })
+                } catch (e) {
+                    return reject(error)
+                }
             })
         })
     }
