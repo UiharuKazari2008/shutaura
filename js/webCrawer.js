@@ -122,6 +122,7 @@ This code is publicly released and is restricted by its project license
     }
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
+    console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
 
     function getImagetoB64(imageURL, refer, returnedImage) {
