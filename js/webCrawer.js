@@ -628,7 +628,7 @@ This code is publicly released and is restricted by its project license
             }
         }
         if (systemglobal.MPZero_Pages && systemglobal.MPZero_Pages.length > 0) {
-            pullMPzero(systemglobal.MPZero_Pages, (systemglobal.MPZero_Backlog));
+            pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog));
             Timers.set(`MPZ${systemglobal.MPZero_Channel}`, setInterval(() => {
                 pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog), false);
             }, parseInt(systemglobal.MPZero_Interval.toString())));
