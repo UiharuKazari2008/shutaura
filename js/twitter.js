@@ -43,7 +43,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const RateLimiter = require('limiter').RateLimiter;
 
 	const request = require('request').defaults({ encoding: null });
-	const textToPicture = require('text-to-picture');
+	const textToPicture = require('text-to-picture-kazari');
 
 	const { getIDfromText, getURLfromText } = require('./utils/tools');
 	const path = require("path");

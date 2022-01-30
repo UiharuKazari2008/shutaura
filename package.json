@@ -14,8 +14,8 @@
   ],
   "private": true,
   "dependencies": {
-    "2fa": "^0.1.2",
     "@ffprobe-installer/ffprobe": "^1.2.0",
+    "2fa": "^0.1.2",
     "amqplib": "*",
     "cheerio": "^1.0.0-rc.5",
     "chokidar": "*",
@@ -55,7 +55,7 @@
     "sharp": "*",
     "slash": "^3.0.0",
     "split-file": "^2.2.1",
-    "text-to-picture": "https://code.acr.moe/kazari/text-to-picture/-/archive/master/text-to-picture-master.tar",
+    "text-to-picture-kazari": "github:UiharuKazari2008/text-to-picture",
     "twit": "^2.2.11",
     "tx2": "^1.0.4",
     "youtube-dl": "^3.5.0"
@@ -63,10 +63,5 @@
   "engines": {
     "node": ">= 6.0.0",
     "npm": ">= 3.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://code.acr.moe/kazari/sequenzia-framework"
-  },
-  "devDependencies": {}
+  }
 }
