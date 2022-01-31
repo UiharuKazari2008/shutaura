@@ -1,5 +1,17 @@
 # Kanmi Sequenzia Framework
 
+## v19.3 (RC1 JFS v1.5)
+**Contains a Database minor patch**
+- Various small fixes
+- Pixiv
+  - Added support to set the cron deliver rate for recommende post
+  - Added No History option to rely on bookmarks insted of keeping History
+  - Added support to add time to posts liek Twitter posts
+- Discord
+  - Updated part validation system
+- Authware
+  - Added token generation to on boot
+
 ## v19.2.1 (RC1 JFS v1.5)
 - Fixed various small issues with FileWorker
 - Twitter/Discord will now report its current flow controller mode and report if the controller is mismatched to its current state

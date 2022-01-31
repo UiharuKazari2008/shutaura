@@ -652,6 +652,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })
             Logger.printLine("Discord", "Registering Commands", "debug")
             registerCommands();
+            memberTokenGeneration();
             init = 1
             setInterval(() => { updateLocalCache() }, 300000)
         }
