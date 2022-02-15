@@ -1070,7 +1070,7 @@ This code is publicly released and is restricted by its project license
                             printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
                             cb(false);
                         } else if (messageData.rows.length > 0 && messageData.rows[0].cache_proxy) {
-                            await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${messageData.rows[0].cache_proxy}`)
+                            await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments/' : '')}${messageData.rows[0].cache_proxy}`)
                             cb(true);
                         } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
                             await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments/` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
