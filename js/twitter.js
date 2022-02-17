@@ -605,6 +605,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									const autodownload = await (db.query(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()])).rows
 									if ((autodownload && autodownload.length > 0) || (obj.channelid === null || obj.channelid === 0) || (obj.bypasscds && obj.bypasscds === 1)) {
 										const channelreplacement = await (db.query(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()])).rows
+										console.log(channelreplacement)
+										console.log(obj)
 										messageArray.push({
 											fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 											messageType : 'sfile',
