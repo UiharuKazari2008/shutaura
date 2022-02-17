@@ -609,7 +609,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 											messageType : 'sfile',
 											messageReturn: false,
-											messageChannelID : (channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
+											messageChannelID : (channelreplacement && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
 											itemFileData: image,
 											itemFileName: filename,
 											messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`

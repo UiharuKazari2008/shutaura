@@ -5147,7 +5147,8 @@ This code is publicly released and is restricted by its project license
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
                                     .catch((er) => {
-                                        SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
+                                        if (!er || !er.includes('Unknown Message'))
+                                            SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
                                     })
                             }
                             try {
