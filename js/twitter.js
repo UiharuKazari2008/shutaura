@@ -611,6 +611,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												if (err) {
 													Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
 												}
+												console.log(channelreplacement)
+												console.log(obj.saveid)
 												messageArray.push({
 													fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 													messageType : 'sfile',
