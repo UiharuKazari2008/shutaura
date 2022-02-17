@@ -584,7 +584,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (media.type === 'photo') {
 							messageObject.video = undefined;
 							const filename = `${obj.tweet.user.screen_name}-${obj.tweet.id_str}.${media.media_url.split('.').pop()}`
-							getImagetoB64(`${media.media_url}:large`, null, async (image) => {
+							getImagetoB64(`${media.media_url}:large`, null, (image) => {
 								let _title = messageObject.title;
 								if (array.length > 1 && index === array.length -1) {
 									_title += ` (${index + 1} of ${array.length}) ↩️`;
@@ -602,36 +602,44 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								if (image !== null) {
 									Logger.printLine("TweetDownload", `Account ${obj.accountid}: Got ${media.media_url}:large`, "debug", { url: `${media.media_url}:large` })
 									messageObject.image.url = `attachment://${filename}`
-									const autodownload = await (db.query(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()])).rows
-									if ((autodownload && autodownload.length > 0) || (obj.channelid === null || obj.channelid === 0) || (obj.bypasscds && obj.bypasscds === 1)) {
-										const channelreplacement = await (db.query(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()])).rows
-										console.log(channelreplacement)
-										console.log(obj)
-										messageArray.push({
-											fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-											messageType : 'sfile',
-											messageReturn: false,
-											messageChannelID : (channelreplacement && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
-											itemFileData: image,
-											itemFileName: filename,
-											messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
-										})
-										resolve();
-									} else {
-										messageArray.push({
-											fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-											messageType : 'sfileext',
-											messageReturn: false,
-											messageChannelID : obj.channelid,
-											itemFileData: image,
-											itemFileName: filename,
-											messageText: messageText,
-											messageObject: {...messageObject, title: _title},
-											addButtons : _react
-										});
-										resolve();
-									}
-								} else if (obj.channelid !== null || obj.channelid !== 0) {
+									db.safe(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], (err, autodownload) => {
+										if (err) {
+											Logger.printLine("SQL", `Error looking up autodownload for ${(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()}!`, "error", err);
+										}
+										if ((!err && autodownload && autodownload.length > 0) || (obj.bypasscds && obj.bypasscds === 1)) {
+											db.safe(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], function (err, channelreplacement) {
+												if (err) {
+													Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
+												}
+												messageArray.push({
+													fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+													messageType : 'sfile',
+													messageReturn: false,
+													messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
+													itemFileData: image,
+													itemFileName: filename,
+													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
+												})
+												resolve();
+											})
+										} else if (obj.channelid !== null || obj.channelid !== 0) {
+											messageArray.push({
+												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+												messageType : 'sfileext',
+												messageReturn: false,
+												messageChannelID : obj.channelid,
+												itemFileData: image,
+												itemFileName: filename,
+												messageText: messageText,
+												messageObject: {...messageObject, title: _title},
+												addButtons : _react
+											});
+											resolve();
+										} else {
+											resolve();
+										}
+									})
+								} else if (obj.channelid !== null) {
 									messageObject.image.url = `${media.media_url}:large`
 									messageArray.push({
 										fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
@@ -642,8 +650,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										messageObject: {...messageObject, title: _title},
 										addButtons : _react
 									})
-									resolve();
-								} else {
 									resolve();
 								}
 							})
