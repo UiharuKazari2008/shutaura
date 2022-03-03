@@ -634,7 +634,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												itemFileName: filename,
 												messageText: messageText,
 												messageObject: {...messageObject, title: _title},
-												addButtons : _react
+												addButtons : _react,tweetMetadata: {
+													account: obj.accountid,
+													list: obj.list_num,
+													id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+													userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+												}
 											});
 											resolve();
 										} else {
@@ -650,7 +655,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										messageChannelID : obj.channelid,
 										messageText: messageText,
 										messageObject: {...messageObject, title: _title},
-										addButtons : _react
+										addButtons : _react,
+										tweetMetadata: {
+											account: obj.accountid,
+											list: obj.list_num,
+											id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+											userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+										}
 									})
 									resolve();
 								}
@@ -690,7 +701,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					messageReturn: false,
 					messageChannelID : obj.channelid,
 					messageText: messageContents + ' ' + messageText,
-					addButtons : reactions
+					addButtons : reactions,
+					tweetMetadata: {
+						account: obj.accountid,
+						list: obj.list_num,
+						id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+						userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+					}
 				}]);
 			} else {
 				if (obj.txtallowed === 1) {
@@ -712,7 +729,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						messageChannelID : obj.channelid,
 						messageText: messageText,
 						messageObject: messageObject,
-						addButtons : reactions
+						addButtons : reactions,
+						tweetMetadata: {
+							account: obj.accountid,
+							list: obj.list_num,
+							id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+							userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+						}
 					}]);
 				} else {
 					/*Logger.printLine("Twitter", `Blocked Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "warn", {
