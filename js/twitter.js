@@ -636,7 +636,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												messageObject: {...messageObject, title: _title},
 												addButtons : _react,tweetMetadata: {
 													account: obj.accountid,
-													list: obj.list_num,
+													list: obj.list_id,
 													id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
 													userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
 												}
@@ -658,7 +658,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										addButtons : _react,
 										tweetMetadata: {
 											account: obj.accountid,
-											list: obj.list_num,
+											list: obj.list_id,
 											id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
 											userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
 										}
@@ -704,7 +704,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					addButtons : reactions,
 					tweetMetadata: {
 						account: obj.accountid,
-						list: obj.list_num,
+						list: obj.list_id,
 						id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
 						userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
 					}
@@ -732,7 +732,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						addButtons : reactions,
 						tweetMetadata: {
 							account: obj.accountid,
-							list: obj.list_num,
+							list: obj.list_id,
 							id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
 							userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
 						}
@@ -1519,6 +1519,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							listusers: false,
 							disablelike: 0,
 							list_num: 0,
+							list_id: 0,
 							accountid: twitterUser,
 						})
 						if (competedTweet && competedTweet.length > 0) {
@@ -2016,6 +2017,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									mergelike: 0,
 									autolike: 0,
 									list_num: -1,
+									list_id: -1,
 									accountid: id
 								})
 								if (competedTweet && competedTweet.length > 0) {
@@ -2110,6 +2112,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										listusers: listUsers.users,
 										disablelike: list.disablelike,
 										list_num: list.id,
+										list_id: list.listid,
 										accountid: id,
 									})
 									if (competedTweet && competedTweet.length > 0) {
