@@ -1761,7 +1761,7 @@ This code is publicly released and is restricted by its project license
                             channelid: data.channel.id,
                             listid: MessageContents.tweetMetadata.list,
                             tweetid: MessageContents.tweetMetadata.id,
-                            userid: MessageContents.tweetMetadata.userid
+                            userid: MessageContents.tweetMetadata.userId
                         }])
                     } catch (e) {
                         Logger.printLine("Discord", "Failed to save tweet to database", "warning", e);
