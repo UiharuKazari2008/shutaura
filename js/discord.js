@@ -1754,6 +1754,19 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("Discord", "Error checking channel message count for first pinning", "warning", e);
                     }
                 }
+                if (MessageContents.tweetMetadata) {
+                    try {
+                        const addTweet = await db.query(`INSERT INTO twitter_tweets SET ?`, [{
+                            messageid: data.id,
+                            channelid: data.channel.id,
+                            listid: MessageContents.tweetMetadata.list,
+                            tweetid: MessageContents.tweetMetadata.id,
+                            userid: MessageContents.tweetMetadata.userid
+                        }])
+                    } catch (e) {
+                        Logger.printLine("Discord", "Failed to save tweet to database", "warning", e);
+                    }
+                }
             }
         } catch (er) {
             SendMessage(`Failed to send message to discord - ${er.message}`, "err", "main", "Send", er.message)
