@@ -6502,7 +6502,7 @@ This code is publicly released and is restricted by its project license
                     if (discordreact[0] !== undefined) {
                         discordClient.getMessage(msg.channel.id, msg.id)
                             .then(async (fullmsg) => {
-                                if (userID === 0 || isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id)) {
+                                if (userID === 0 || (isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id))) {
                                     if (discordreact[0].automove_channelid === null) {
                                         let _rname = discordreact[0].reaction_name
                                         if (discordreact[0].reaction_name.includes('DownloadTo')) {
