@@ -1057,7 +1057,7 @@ This code is publicly released and is restricted by its project license
                                             const downloadReaction = discordreact.filter(e => e.reaction_name === 'Download' && e.serverid === fullmsg.guildID).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
                                             console.log(downloadReaction)
                                             if (downloadReaction.length > 0) {
-                                                messageReactionAdd(fullmsg, downloadReaction.pop(), null)
+                                                messageReactionAdd(fullmsg, downloadReaction[0], null)
                                             } else {
                                                 Logger.printLine("Discord", "Command was dropped, unable to get default download reaction", "warn")
                                                 cb(true);
