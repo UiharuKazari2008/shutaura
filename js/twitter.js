@@ -2168,6 +2168,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	}
 	async function getLikes() {
+		const twitterlist = (await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])).rows.map(e => e.listid);
 		limiter5.removeTokens(1, function () {
 			let params = {
 				count: 100
@@ -2177,7 +2178,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (err) {
 					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
 				} else {
-					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterLikeDownload.indexOf(e.listid) !== -1)
+					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1)
 					const tweetIDs = tweetsDB.map(e => e.tweetid)
 					tweets.forEach(e => {
 						const i = tweetIDs.indexOf((e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
