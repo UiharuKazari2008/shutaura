@@ -1068,11 +1068,11 @@ This code is publicly released and is restricted by its project license
                                                 cb(true);
                                             }
                                         })
-                                        .catch((er) => {
+                                        .catch(async (er) => {
                                             Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
                                             console.error(er)
                                             if (er && er.includes('Unknown Message')) {
-                                                const deleteTweet = await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
+                                                await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
                                             }
                                             cb(true);
                                         })
