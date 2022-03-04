@@ -1054,7 +1054,12 @@ This code is publicly released and is restricted by its project license
                                 case "DefaultDownload":
                                     discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
                                         .then(function(fullmsg) {
-                                            const downloadReaction = discordreact.filter(e => e.reaction_name === 'Download' && e.serverid === fullmsg.guildID).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
+                                            const downloadReaction = discordreact.filter(e => e.reaction_name === 'Download' && e.serverid === fullmsg.guildID).map(e => {
+                                                return {
+                                                    id: (e.reaction_custom !== null) ? e.reaction_custom.toString().split(':')[1] : null,
+                                                    name: (e.reaction_custom !== null) ? e.reaction_custom.toString().split(':')[0] : e.reaction_emoji.toString()
+                                                }
+                                            })
                                             console.log(downloadReaction)
                                             if (downloadReaction.length > 0) {
                                                 messageReactionAdd(fullmsg, downloadReaction[0], null)
