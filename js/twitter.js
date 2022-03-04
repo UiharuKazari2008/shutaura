@@ -58,6 +58,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
+	let twitterLikeDownload = [];
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -149,7 +150,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const MQWorker1 = `${systemglobal.Twitter_In}`
 	// Twitter Timeline Checkins
 	const limiter1 = new RateLimiter(1, (systemglobal.Twitter_Timeline_Pull) ? parseInt(systemglobal.Twitter_Timeline_Pull.toString()) * 1000 : 1000);
-	const limiter5 = new RateLimiter(300, 15 * 60 * 1000);
+	const limiter5 = new RateLimiter(75, 15 * 60 * 1000);
 	// RabbitMQ
 	const limiter3 = new RateLimiter(10, 1000);
 	// Twitter Media Upload
@@ -2054,6 +2055,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			let messageArrayPriority = [];
 			let messageArray = [];
+			twitterLikeDownload = twitterlist.rows.filter(e => e.remotecds_onlike === 1).map(e => e.listid)
 			let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
 				return promiseChain.then(() => new Promise((listResolve) => {
 					limiter1.removeTokens(1, function () {
@@ -2161,6 +2163,37 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				console.log(`Account ${id}: Completed Pass`);
 			})
 		})
+	}
+	async function getLikes() {
+		limiter5.removeTokens(1, function () {
+			let params = {
+				count: 100
+			}
+			twit.client.get('favorites/list', params, async function (err, tweets) {
+				if (err) {
+					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
+				} else {
+					const tweetIDs = tweets.map(e => ((e.retweeted_status && e.retweeted_status.id_str)) ? e.retweeted_status.id_str : e.id_str)
+					await (db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterLikeDownload.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid) !== -1).forEach(tweet => {
+						mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+							fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+							messageAction: 'ActionPost',
+							messageType: 'command',
+							messageIntent: 'DefaultDownload',
+							messageReturn: false,
+							messageChannelID: tweet.channelid,
+							messageID: tweet.messageid
+						}, function (ok) {
+							if (ok) {
+								Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to downloaded`, "info", {
+									fromClient : `return.${facilityName}.${systemglobal.SystemName}`
+								})
+							}
+						})
+					})
+				}
+			})
+		});
 	}
 
 	process.on('uncaughtException', function(err) {

@@ -1048,6 +1048,36 @@ This code is publicly released and is restricted by its project license
                                 cb(true);
                             })
                         break;
+                    case 'ActionPost':
+                        if (MessageContents.messageIntent) {
+                            switch (MessageContents.messageIntent) {
+                                case "DefaultDownload":
+                                    discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
+                                        .then(function(fullmsg) {
+                                            const downloadReaction = discordreact.filter(e => e.reaction_name === 'Download' && e.serverid === fullmsg.guildID ).map(e => (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
+                                            if (downloadReaction.length > 0) {
+                                                messageReactionAdd(fullmsg, downloadReaction.pop(), '0')
+                                            } else {
+                                                Logger.printLine("Discord", "Command was dropped, unable to get default download reaction", "warn")
+                                                cb(true);
+                                            }
+                                        })
+                                        .catch((er) => {
+                                            Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
+                                            console.error(er)
+                                            cb(true);
+                                        })
+                                    break;
+                                default:
+                                    Logger.printLine("Discord", "Command was dropped, unable to take action on post because invalid intent was signaled", "warn", er)
+                                    cb(true);
+                                    break;
+                            }
+                        } else {
+                            Logger.printLine("Discord", "Command was dropped, unable to take action on post because no intent was signaled", "warn", er)
+                            cb(true);
+                        }
+                        break;
                     case 'RemovePost':
                         discordClient.getMessage(ChannelID, MessageContents.messageID)
                             .then(function(fullmsg) {
@@ -6219,6 +6249,7 @@ This code is publicly released and is restricted by its project license
         }
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
+        const deleteTweet = await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
     }
     async function messageDeleteBulk(msg_array) {
         const dateNow = new Date().valueOf();
@@ -6454,9 +6485,9 @@ This code is publicly released and is restricted by its project license
     }
     // Discord Events - Actions
     function messageReactionAdd(msg, emoji, user) {
-        const userID = (user.id) ? user.id : user
-        const isBot = discordClient.users.get(userID).is_bot
-        if ((!isBot || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.lenth > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id) ) {
+        const userID = (user.id) ? user.id : (user) ? user : '0'
+        const isBot = (user) ? discordClient.users.get(userID).is_bot : false
+        if ((!isBot || userID === 0 || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.length > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id) ) {
             Logger.printLine("Discord", `Reaction Added: ${emoji.name} - ${msg.guildID}`, "debug", emoji)
             db.safe(`SELECT * FROM discord_reactions WHERE reaction_emoji = ? AND serverid = ?`, [emoji.name, msg.guildID], function (err, discordreact) {
                 if (err) {
@@ -6465,7 +6496,7 @@ This code is publicly released and is restricted by its project license
                     if (discordreact[0] !== undefined) {
                         discordClient.getMessage(msg.channel.id, msg.id)
                             .then(async (fullmsg) => {
-                                if (isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id)) {
+                                if (userID === 0 || isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id)) {
                                     if (discordreact[0].automove_channelid === null) {
                                         let _rname = discordreact[0].reaction_name
                                         if (discordreact[0].reaction_name.includes('DownloadTo')) {
@@ -6532,7 +6563,7 @@ This code is publicly released and is restricted by its project license
                                             case 'ReqFile' :
                                                 const input = fullmsg.content.split("**\n*")[0].replace("**🧩 File : ", '')
                                                 jfsGetSF(input.trim().replace(/\n|\r/g, ''), {
-                                                    userID: userID
+                                                    userID: (userID) ? userID : undefined
                                                 })
                                                 break;
                                             case 'RemoveFile' :
