@@ -1063,6 +1063,7 @@ This code is publicly released and is restricted by its project license
                                             console.log(downloadReaction)
                                             if (downloadReaction.length > 0) {
                                                 messageReactionAdd(fullmsg, downloadReaction[0], null)
+                                                cb(true);
                                             } else {
                                                 Logger.printLine("Discord", "Command was dropped, unable to get default download reaction", "warn")
                                                 cb(true);
