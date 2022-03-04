@@ -5202,7 +5202,7 @@ This code is publicly released and is restricted by its project license
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
                                     .catch((er) => {
-                                        if (!er || !er.includes('Unknown Message'))
+                                        if (!er || (er && er.includes('Unknown Message')))
                                             SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
                                     })
                             }
@@ -6261,7 +6261,7 @@ This code is publicly released and is restricted by its project license
         }
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
-        const deleteTweet = await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
+        await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
     }
     async function messageDeleteBulk(msg_array) {
         const dateNow = new Date().valueOf();
