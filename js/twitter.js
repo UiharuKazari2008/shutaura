@@ -2194,7 +2194,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									fromClient : `return.${facilityName}.${systemglobal.SystemName}`
 								})
 								await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [tweet.messageid])
-
 							}
 						})
 					})

@@ -1052,6 +1052,9 @@ This code is publicly released and is restricted by its project license
                         if (MessageContents.messageIntent) {
                             switch (MessageContents.messageIntent) {
                                 case "DefaultDownload":
+                                    cb(true);
+                                    break;
+                                /*case "DefaultDownload":
                                     discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
                                         .then(function(fullmsg) {
                                             const downloadReaction = discordreact.filter(e => e.reaction_name === 'Download' && e.serverid === fullmsg.guildID).map(e => {
@@ -1078,7 +1081,7 @@ This code is publicly released and is restricted by its project license
                                             cb(true);
                                         })
                                     break;
-                                default:
+                                */default:
                                     Logger.printLine("Discord", "Command was dropped, unable to take action on post because invalid intent was signaled", "warn", er)
                                     cb(true);
                                     break;
