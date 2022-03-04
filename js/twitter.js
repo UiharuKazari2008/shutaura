@@ -2176,28 +2176,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (err) {
 					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
 				} else {
-					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1)
-					const tweetIDs = tweetsDB.map(e => e.tweetid)
-					tweets.forEach(e => {
-						const i = tweetIDs.indexOf((e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
-						if (i !== -1) {
-							const tweet = tweetsDB[i];
-							mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
-								fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-								messageAction: 'ActionPost',
-								messageType: 'command',
-								messageIntent: 'DefaultDownload',
-								messageReturn: false,
-								messageChannelID: tweet.channelid,
-								messageID: tweet.messageid
-							}, function (ok) {
-								if (ok) {
-									Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to downloaded`, "info", {
-										fromClient : `return.${facilityName}.${systemglobal.SystemName}`
-									})
-								}
-							})
-						}
+					const tweetIDs = Array.from(tweets).map(e => (e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
+					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid))
+					tweetsDB.forEach(tweet => {
+						mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+							fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+							messageAction: 'ActionPost',
+							messageType: 'command',
+							messageIntent: 'DefaultDownload',
+							messageReturn: false,
+							messageChannelID: tweet.channelid,
+							messageID: tweet.messageid
+						}, function (ok) {
+							if (ok) {
+								Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to downloaded`, "info", {
+									fromClient : `return.${facilityName}.${systemglobal.SystemName}`
+								})
+							}
+						})
 					})
 				}
 			})
