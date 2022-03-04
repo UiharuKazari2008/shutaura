@@ -58,7 +58,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
-	let twitterLikeDownload = [];
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -2058,7 +2057,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			let messageArrayPriority = [];
 			let messageArray = [];
-			twitterLikeDownload = twitterlist.rows.filter(e => e.remotecds_onlike === 1).map(e => e.listid)
 			let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
 				return promiseChain.then(() => new Promise((listResolve) => {
 					limiter1.removeTokens(1, function () {
