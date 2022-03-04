@@ -444,6 +444,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				getTweets();
 				getMentions();
 			});
+			cron.schedule('* * * * *', () => {
+				getLikes();
+			});
 			cron.schedule('4,34 * * * *', verifyQueue);
 		})
 		process.send('ready');
@@ -2169,6 +2172,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			let params = {
 				count: 100
 			}
+			const twit = twitterAccounts.get(1)
 			twit.client.get('favorites/list', params, async function (err, tweets) {
 				if (err) {
 					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
