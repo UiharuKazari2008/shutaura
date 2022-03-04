@@ -34,7 +34,7 @@ This code is publicly released and is restricted by its project license
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
-    let exciteDeepPage = new Map();
+    let pullDeepMPZPage = 0;
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
 
@@ -82,7 +82,7 @@ This code is publicly released and is restricted by its project license
                 if (_intervals[0].param_data.myfigurecollection)
                     systemglobal.MFC_Interval = parseInt(_intervals[0].param_data.myfigurecollection.toString()) * 3600000
                 if (_intervals[0].param_data.mpzero)
-                    systemglobal.Exblog_Interval = parseInt(_intervals[0].param_data.mpzero.toString()) * 3600000
+                    systemglobal.MPZero_Interval = parseInt(_intervals[0].param_data.mpzero.toString()) * 3600000
                 if (_intervals[0].param_data.sankakucomplex)
                     systemglobal.SankakuComplex_Interval = parseInt(_intervals[0].param_data.sankakucomplex.toString()) * 3600000
             }
@@ -99,18 +99,18 @@ This code is publicly released and is restricted by its project license
                     systemglobal.SankakuComplex_Pages = _sankakucomplex[0].param_data.pages;
             }
             // {"pages": [{"url": "https://www.sankakucomplex.com/tag/cosplay/", "channel": "806544860311846933"}]}
-            const _exciteblogs = systemparams_sql.filter(e => e.param_key === 'webparser.excite');
-            if (_exciteblogs.length > 0 && _exciteblogs[0].param_data && _exciteblogs[0].param_data.blogs) {
-                systemglobal.Exblogs = _exciteblogs[0].param_data.blogs.map(e => {
-                    return {
-                        channel: e.channel,
-                        deepcrawl: (e.deepcrawl),
-                        backlog: (e.backlog),
-                        pages: e.pages
-                    }
-                })
+            const _mpzerocos = systemparams_sql.filter(e => e.param_key === 'webparser.mpzero');
+            if (_mpzerocos.length > 0 && _mpzerocos[0].param_data) {
+                if (_mpzerocos[0].param_data.channel)
+                    systemglobal.MPZero_Channel = _mpzerocos[0].param_data.channel;
+                if (_mpzerocos[0].param_data.deepcrawl)
+                    systemglobal.MPZero_Deep_Crawl = (_mpzerocos[0].param_data.deepcrawl);
+                if (_mpzerocos[0].param_data.backlog)
+                    systemglobal.MPZero_Backlog = (_mpzerocos[0].param_data.backlog);
+                if (_mpzerocos[0].param_data.pages)
+                    systemglobal.MPZero_Pages = _mpzerocos[0].param_data.pages;
             }
-            // {"blogs" : ["pages": ["https://mpzerocos.exblog.jp/page/1/", "https://mpzerocos.exblog.jp/page/2/"], "backlog": false, "channel": "806544860311846933", "deepcrawl": false ] }
+            // {"pages": ["https://mpzerocos.exblog.jp/page/1/", "https://mpzerocos.exblog.jp/page/2/"], "backlog": false, "channel": "806544860311846933", "deepcrawl": false}
         }
     }
     await loadDatabaseCache();
@@ -250,9 +250,8 @@ This code is publicly released and is restricted by its project license
     }
 
 
-    async function pullExciteBlog(pages, uploadChannelID, backlog, ondemand) {
-        const blogName = pages[0].split('.exblog.jp')[0].split('/').pop();
-        const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${blogName}%'`)
+    async function pullMPzero(pages, uploadChannelID, backlog, ondemand) {
+        const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%mpzerocos%'`)
         await Promise.all(pages.map((pageURL) => {
             // ForEach Page of this Blog
             if (backlog) {
@@ -307,54 +306,50 @@ This code is publicly released and is restricted by its project license
                                                         }
                                                     }, backlog, function (ok) {
                                                         if (ok) {
-                                                            Logger.printLine('ExciteBlogPuller-PostImage', `Sent blog post image "${imageName}"`, 'debug');
+                                                            Logger.printLine('MPZeroPull-PostImage', `Sent blog post image "${imageName}"`, 'debug');
                                                         } else {
-                                                            Logger.printLine('ExciteBlogPuller-PostImage', `Failed to send the Blog post image "${imageName}"`, 'error');
+                                                            Logger.printLine('MPZeroPull-PostImage', `Failed to send the Blog post image "${imageName}"`, 'error');
                                                         }
                                                     })
                                                 } else {
-                                                    Logger.printLine('ExciteBlogPuller-PostImage', `Failed to pull the Blog post image "${imageName}"`, 'error');
+                                                    Logger.printLine('MPZeroPull-PostImage', `Failed to pull the Blog post image "${imageName}"`, 'error');
                                                 }
                                             })
                                         })
                                     }))
                                     await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [postURL])
                                 } catch (err) {
-                                    Logger.printLine('ExciteBlogPuller-Post', `Failed to pull the Blog post page "${postURL}" - ${err.message}`, 'error');
+                                    Logger.printLine('MPZeroPull-Post', `Failed to pull the Blog post page "${postURL}" - ${err.message}`, 'error');
                                     console.log(err);
                                 }
                             });
                         }
                     }))
                 } catch (err) {
-                    Logger.printLine('ExciteBlogPuller', `Failed to pull the Blog page - ${err.message}`, 'error', err);
+                    Logger.printLine('MPZeroPull', `Failed to pull the Blog page - ${err.message}`, 'error', err);
                     console.log(err);
                 }
             }
         }))
     }
-    async function pullDeepMPZ(blogName, channel) {
-        if (exciteDeepPage.has(blogName) && exciteDeepPage.get(blogName) < 1000) {
-            let page = exciteDeepPage.get(blogName)
-            if (isNaN(page)) {
-                page = 1
-            }
-            Logger.printLine('Exblog', `Starting at page ${page}`, 'info');
-            await pullExciteBlog([
-                `https://${blogName}.exblog.jp/page/${page}/`,
-                `https://${blogName}.exblog.jp/page/${page + 1}/`,
+    async function pullDeepMPZ(channel) {
+        if (pullDeepMPZPage < 1000) {
+            Logger.printLine('MPZero', `Starting at page ${pullDeepMPZPage}`, 'info');
+            await pullMPzero([
+                `https://mpzerocos.exblog.jp/page/${pullDeepMPZPage}/`,
+                `https://mpzerocos.exblog.jp/page/${pullDeepMPZPage + 1}/`,
             ], channel, true, true);
-            page += 2;
-            Logger.printLine('Exblog', `Saving next pages are ${page}`, 'info');
-            fs.writeFileSync(`./ex${blogName}-backlog`, page.toString() , 'utf-8');
-            Timers.set(`EX${blogName}${channel}`, setTimeout(() => {
-                pullDeepMPZ(channel);
+            pullDeepMPZPage += 2;
+            Logger.printLine('MPZero', `Saving next pages are ${pullDeepMPZPage}`, 'info');
+            fs.writeFileSync('./mpz-backlog', pullDeepMPZPage.toString() , 'utf-8');
+            Timers.set(`MPZDEEP${systemglobal.MPZero_Channel}`, setTimeout(() => {
+                pullDeepMPZ(systemglobal.MPZero_Channel);
             }, 900000));
         } else {
-            let timer = Timers.get(`EX${blogName}${channel}`);
-            Logger.printLine('Exblog', `MAXIMUM PAGE LIMIT`, 'info');
-            fs.writeFileSync(`./ex${blogName}-backlog`, "20000" , 'utf-8');
-            if (timer) { clearInterval(timer); Timers.delete(`EX${blogName}${channel}`) }
+            let timer = Timers.get(`MPZDEEP${systemglobal.MPZero_Channel}`);
+            Logger.printLine('MPZero', `MAXIMUM PAGE LIMIT`, 'info');
+            fs.writeFileSync('./mpz-backlog', "20000" , 'utf-8');
+            if (timer) { clearInterval(timer); Timers.delete(`MPZDEEP${systemglobal.MPZero_Channel}`) }
         }
     }
     async function getFiguresOTD(c) {
@@ -619,31 +614,28 @@ This code is publicly released and is restricted by its project license
         }, parseInt(systemglobal.MFC_Interval.toString())));
         Logger.printLine('MyFigureCollection', `MyFigureCollection Enabled`, 'info');
     }
-    // Excite Blogs
-    if (systemglobal.Exblogs && systemglobal.Exblogs.length > 0 && systemglobal.Exblog_Interval) {
-        systemglobal.Exblogs.map(blog => {
-            const blogName = blog.pages[0].split('.exblog.jp')[0].split('/').pop();
-            if (blog.deepcrawl) {
-                const pageNum = fs.readFileSync(`./ex${blogName}-backlog`, "utf-8");
-                if (pageNum && !isNaN(parseInt(pageNum))) {
-                    exciteDeepPage.set(blogName, parseInt(pageNum));
-                    if (exciteDeepPage.get(blogName) < 1001) {
-                        pullDeepMPZ(`${blogName}`, blog.channel);
-                    }
-                } else {
-                    Logger.printLine('Exblog', `Failed to read page number`, 'error');
+    // MPZero Cosplay
+    if (systemglobal.MPZero_Channel && systemglobal.MPZero_Interval) {
+        if (systemglobal.MPZero_Deep_Crawl) {
+            const pageNum = fs.readFileSync('./mpz-backlog', "utf-8");
+            if (pageNum && !isNaN(parseInt(pageNum))) {
+                pullDeepMPZPage = parseInt(pageNum);
+                if (pullDeepMPZPage < 1001) {
+                    pullDeepMPZ(systemglobal.MPZero_Channel);
                 }
-            }
-            if (blog.pages && blog.pages.length > 0) {
-                pullExciteBlog(blog.pages, blog.channel, (blog.backlog));
-                Timers.set(`EX${blogName}${blog.channel}`, setInterval(() => {
-                    pullExciteBlog(blog.pages, blog.channel, (blog.backlog), false);
-                }, parseInt(systemglobal.Exblog_Interval.toString())));
-                Logger.printLine('Exblog', `Exblog Enabled`, 'info');
             } else {
-                Logger.printLine('Exblog', `No Page URLs were added, Ignoring`, 'error');
+                Logger.printLine('MPZero', `Failed to read page number`, 'error');
             }
-        })
+        }
+        if (systemglobal.MPZero_Pages && systemglobal.MPZero_Pages.length > 0) {
+            pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog));
+            Timers.set(`MPZ${systemglobal.MPZero_Channel}`, setInterval(() => {
+                pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog), false);
+            }, parseInt(systemglobal.MPZero_Interval.toString())));
+            Logger.printLine('MPZero', `MPZero Enabled`, 'info');
+        } else {
+            Logger.printLine('MPZero', `No Page URLs were added, Ignoring`, 'error');
+        }
     }
     // SankakuComplex
     if (systemglobal.SankakuComplex_Pages && systemglobal.SankakuComplex_Interval) {
