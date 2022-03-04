@@ -2177,7 +2177,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (err) {
 					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
 				} else {
-					console.log(tweets)
 					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterLikeDownload.indexOf(e.listid) !== -1)
 					const tweetIDs = tweetsDB.map(e => e.tweetid)
 					tweets.forEach(e => {
