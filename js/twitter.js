@@ -442,8 +442,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				updateStats();
 				getTweets();
 				getMentions();
-			});
-			cron.schedule('* * * * *', () => {
 				getLikes();
 			});
 			cron.schedule('4,34 * * * *', verifyQueue);
@@ -2169,7 +2167,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const twitterlist = (await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])).rows.map(e => e.listid);
 		limiter5.removeTokens(1, function () {
 			let params = {
-				count: 100
+				count: 200
 			}
 			const twit = twitterAccounts.get(1)
 			twit.client.get('favorites/list', params, async function (err, tweets) {
