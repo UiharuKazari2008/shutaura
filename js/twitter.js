@@ -2193,7 +2193,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to downloaded`, "info", {
 									fromClient : `return.${facilityName}.${systemglobal.SystemName}`
 								})
-								//await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [tweet.messageid])
+								await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [tweet.messageid])
 							}
 						})
 					})
