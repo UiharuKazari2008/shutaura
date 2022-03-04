@@ -1062,7 +1062,7 @@ This code is publicly released and is restricted by its project license
                                             })
                                             console.log(downloadReaction)
                                             if (downloadReaction.length > 0) {
-                                                messageReactionAdd(fullmsg, downloadReaction[0], null)
+                                                messageReactionAdd(fullmsg, downloadReaction[0], '0')
                                                 cb(true);
                                             } else {
                                                 Logger.printLine("Discord", "Command was dropped, unable to get default download reaction", "warn")
@@ -6501,9 +6501,9 @@ This code is publicly released and is restricted by its project license
     }
     // Discord Events - Actions
     function messageReactionAdd(msg, emoji, user) {
-        const userID = (!user) ? '0' : (user.id) ? user.id : user
-        const isBot = (user) ? discordClient.users.get(userID).is_bot : true
-        if (userID === 0 || ((!isBot || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.length > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id))) {
+        const userID = (user.id) ? user.id : user
+        const isBot = (user || user !== '0') ? discordClient.users.get(userID).is_bot : true
+        if (userID === '0' || ((!isBot || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.length > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id))) {
             Logger.printLine("Discord", `Reaction Added: ${emoji.name} - ${msg.guildID}`, "debug", emoji)
             db.safe(`SELECT * FROM discord_reactions WHERE reaction_emoji = ? AND serverid = ?`, [emoji.name, msg.guildID], function (err, discordreact) {
                 if (err) {
@@ -6512,7 +6512,7 @@ This code is publicly released and is restricted by its project license
                     if (discordreact[0] !== undefined) {
                         discordClient.getMessage(msg.channel.id, msg.id)
                             .then(async (fullmsg) => {
-                                if (userID === 0 || (isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id))) {
+                                if (userID === '0' || (isAuthorizedUser(discordreact[0].reaction_name, userID, fullmsg.guildID, fullmsg.channel.id) || isAuthorizedUser('interact', userID, fullmsg.guildID, fullmsg.channel.id))) {
                                     if (discordreact[0].automove_channelid === null) {
                                         let _rname = discordreact[0].reaction_name
                                         if (discordreact[0].reaction_name.includes('DownloadTo')) {
