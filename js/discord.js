@@ -3076,7 +3076,9 @@ This code is publicly released and is restricted by its project license
 
         switch (permission) {
             case 'interact':
-                if (authorizedUsers.has(guildid)) {
+                if (userid === '0') {
+                    action = true;
+                } else if (authorizedUsers.has(guildid)) {
                     authorizedUsers.get(guildid).forEach(function(user) {
                         if (user.toString() === userid.toString()) {
                             action = true;
@@ -3097,7 +3099,9 @@ This code is publicly released and is restricted by its project license
                 }
                 break;
             case 'command':
-                if (systemchannelid === channelid) {
+                if (userid === '0') {
+                    action = true;
+                } else if (systemchannelid === channelid) {
                     if (authorizedUsers.has(guildid)) {
                         authorizedUsers.get(guildid).forEach(function(user) {
                             if (user.toString() === userid.toString()) { action = true; }
@@ -3131,7 +3135,9 @@ This code is publicly released and is restricted by its project license
                         bots.push(user);
                     })
                 })
-                if (parseInt(bots.indexOf(userid.toString()).toString()) === -1) {
+                if (userid === '0') {
+                    action = true;
+                } else if (parseInt(bots.indexOf(userid.toString()).toString()) === -1) {
                     action = true;
                 }
                 break;
