@@ -1055,6 +1055,7 @@ This code is publicly released and is restricted by its project license
                                     discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
                                         .then(function(fullmsg) {
                                             downloadMessageFile(fullmsg, undefined, true)
+                                            cb(true);
                                         })
                                         .catch(async (er) => {
                                             Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
