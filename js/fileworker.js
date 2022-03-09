@@ -1729,7 +1729,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					try {
 						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
 						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", (process.platform === "darwin") ? "7500000" : "7500K", "--verbose", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
+						const nativeSplit = spawn("split", ["-b", (process.platform === "darwin") ? "7500000" : "7500K", (process.platform !== "darwin") ? "--verbose" : "", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
 
 						nativeSplit.stderr.on("data", data => {
 							Logger.printLine("MPFGen-Native", `${data}`, "error")
