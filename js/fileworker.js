@@ -1729,14 +1729,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					try {
 						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
 						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", (process.platform === "darwin") ? "7500000" : "7500K", (process.platform !== "darwin") ? "--verbose" : "", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
+						const nativeSplit = spawn("split", ["-b", (process.platform === "darwin") ? "7500000" : "7500K", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
 
 						nativeSplit.stderr.on("data", data => {
 							Logger.printLine("MPFGen-Native", `${data}`, "error")
 						});
 
 						nativeSplit.on('error', (err) => {
-							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${err.message}", Ticket will be dropped!`, "err", "MPFGen", err)
+							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
 							cb(true);
 						});
 
@@ -1760,7 +1760,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 								});
 							} else {
-								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen", err)
+								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
 								cb(true);
 							}
 						});
