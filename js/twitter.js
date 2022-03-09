@@ -2178,7 +2178,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
 				} else {
 					const tweetIDs = Array.from(tweets).map(e => (e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
-					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid))
+					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid) !== -1)
 					tweetsDB.forEach(tweet => {
 						mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
 							fromClient : `return.${facilityName}.${systemglobal.SystemName}`,

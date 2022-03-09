@@ -1055,6 +1055,7 @@ This code is publicly released and is restricted by its project license
                                     discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
                                         .then(function(fullmsg) {
                                             downloadMessageFile(fullmsg, undefined, true)
+                                            cb(true);
                                         })
                                         .catch(async (er) => {
                                             Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
@@ -5187,8 +5188,7 @@ This code is publicly released and is restricted by its project license
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
                                     .catch((er) => {
-                                        if (!er || (er && er.includes('Unknown Message')))
-                                            SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
+
                                     })
                             }
                             try {
