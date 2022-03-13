@@ -487,8 +487,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 for (let channel of fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))) {
                     const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid.toString()))]
                     const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
-                    const messagesFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))
-                    const partsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))
+                    const messagesFs = (fs.existsSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))) ? fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files')) : []
+                    const partsFs = (fs.existsSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))) ? fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts')) : []
 
                     //console.log(files)
                     //console.log(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1))
