@@ -20,6 +20,12 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
+import {exec} from "child_process";
+import path from "path";
+import systemglobal from "../config.json";
+import fs from "fs";
+import fsEx from "fs-extra";
+
 (async () => {
     let systemglobal = require('../config.json');
     const facilityName = 'Backup-IO';
@@ -29,6 +35,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const limiter1 = new RateLimiter(1, 250);
     const limiter2 = new RateLimiter(1, 250);
     const request = require('request').defaults({ encoding: null });
+    const { spawn, exec } = require("child_process");
     const fsEx = require("fs-extra");
     const fs = require("fs");
     const minimist = require("minimist");
@@ -104,11 +111,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
     const trashBin = path.join(systemglobal.Backup_Base_Path, 'trash')
 
-    if (!fs.existsSync(systemglobal.TempFolder)){
+    if (!fs.existsSync(systemglobal.TempFolder))
         fs.mkdirSync(systemglobal.TempFolder);
-    }
-    if (!fs.existsSync(systemglobal.Backup_Base_Path)){
+    if (!fs.existsSync(systemglobal.Backup_Base_Path)) {
         fs.mkdirSync(systemglobal.Backup_Base_Path);
+        if (!fs.existsSync(path.join(systemglobal.Backup_Base_Path, 'trash')))
+            fs.mkdirSync(path.join(systemglobal.Backup_Base_Path, 'trash'));
     }
 
     async function backupMessage (message, cb) {
@@ -411,6 +419,116 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             setTimeout(findBackupItems,(systemglobal.Backup_Interval_Min) ? systemglobal.Backup_Interval_Min * 60000 : 3600000);
         }
     }
+    async function findNonExistentBackupItems() {
+        const backupItems = await db.query(`SELECT x.eid, x.server, x.channel, x.id, x.real_filename, x.attachment_hash, x.fileid, x.attachment_name,y.bid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL))) x LEFT JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NOT NULL ORDER BY x.eid DESC`, [backupSystemName])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
+        } else if (backupItems.rows.length > 0) {
+            mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+                fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                messageReturn: false,
+                messageChannelID: '0',
+                messageChannelName: `syncstat_${backupSystemName}`,
+                messageType: 'status',
+                messageData: {
+                    hostname: backupSystemName,
+                    systemname: systemglobal.SystemName,
+                    runCount,
+                    statusText: `⏳ Recycling Inprogress`,
+                    active: false,
+                    timestamp: Date.now().valueOf()
+                },
+                updateIndicators: true
+            }, (ok) => {
+                if (!ok) {
+                    console.error('Failed to send update to MQ')
+                }
+            })
+            const fileNames = backupItems.rows.map(e => {
+                let destName = `${e.eid}`
+                if (e.real_filename) {
+                    destName += '-' + e.real_filename.replace(e.id, '')
+                } else if (e.attachment_name) {
+                    destName += '-' + e.attachment_name.replace(e.id, '')
+                } else if (e.attachment_hash) {
+                    destName += '-' + e.attachment_hash.split('/').pop()
+                }
+
+                return {
+                    server: e.server,
+                    channel: e.channel,
+                    name: destName,
+                    eid: e.eid,
+                    fileid: e.fileid
+                }
+            })
+            const servers = [...new Set(fileNames.map(e => e.server))]
+            const serversFs = fs.readdirSync(systemglobal.Backup_Base_Path)
+
+            await Promise.all(serversFs.filter(e => servers.indexOf(e.toString()) === -1).map(async delServer => {
+                Logger.printLine("Cleanup", `Server ${delServer} was not found to be in use, Moved to Recycling Bin`, "warn")
+                /*await new Promise(resolve => {
+                    exec(`mv "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}" "${path.join(trashBin, delServer).toString()}"`, (err, result) => {
+                        if (err)
+                            console.error(err)
+                        resolve((err))
+                    })
+                })*/
+            }))
+
+            await Promise.all(fs.readdirSync().map(async server => {
+                const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
+                const channelsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server))
+
+                await Promise.all(channelsFs.filter(e => channels.indexOf(e.toString()) === -1).map(async delChannel => {
+                    Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
+                    /*await new Promise(resolve => {
+                        fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
+                        exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
+                            if (err)
+                                console.error(err)
+                            resolve((err))
+                        })
+                    })*/
+                }))
+
+                await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).map(async channel => {
+                    const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.name))]
+                    const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
+                    const messagesFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))
+                    const partsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))
+
+                    await Promise.all(messagesFs.filter(e => files.indexOf(e.toString()) === -1).map(async delMessage => {
+                        Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
+                        /*await new Promise(resolve => {
+                            fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
+                            const eid = delMessage.split('-')[0]
+                            exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
+                                if (err) {
+                                    console.error(err)
+                                } else {
+                                    await db.query(`DELETE FROM kanmi_backups WHERE system_name = ? AND eid = ?`, [backupSystemName, eid])
+                                }
+                                resolve((err))
+                            })
+                        })*/
+                    }))
+                    await Promise.all(partsFs.filter(e => parts.indexOf(e.toString()) === -1).map(async delParts => {
+                        Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
+                        /*await new Promise(resolve => {
+                            fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
+                            exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
+                                if (err)
+                                    console.error(err)
+                                resolve((err))
+                            })
+                        })*/
+                    }))
+                }))
+            }))
+        }
+        setTimeout(findNonExistentBackupItems,(systemglobal.Cleanup_Interval_Min) ? systemglobal.Cleanup_Interval_Min * 60000 : 86400000);
+    }
     async function findBackupParts() {
         const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
@@ -550,6 +668,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     process.send('ready');
     if (systemglobal.Backup_Base_Path) {
+        await findNonExistentBackupItems();
         await findBackupItems();
     } else {
         Logger.printLine("Init", "Unable to start backup client, no directory setup!", "error")
