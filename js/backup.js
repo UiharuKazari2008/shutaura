@@ -106,12 +106,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const trashBin = path.join(systemglobal.Backup_Base_Path, 'trash')
 
     if (!fs.existsSync(systemglobal.TempFolder))
-        fs.mkdirSync(systemglobal.TempFolder);
-    if (!fs.existsSync(systemglobal.Backup_Base_Path)) {
-        fs.mkdirSync(systemglobal.Backup_Base_Path);
-        if (!fs.existsSync(path.join(systemglobal.Backup_Base_Path, 'trash')))
-            fs.mkdirSync(path.join(systemglobal.Backup_Base_Path, 'trash'));
-    }
+        fs.mkdirSync(systemglobal.TempFolder)
+    if (!fs.existsSync(systemglobal.Backup_Base_Path))
+        fs.mkdirSync(systemglobal.Backup_Base_Path)
+    if (!fs.existsSync(path.join(systemglobal.Backup_Base_Path, 'trash')))
+        fs.mkdirSync(path.join(systemglobal.Backup_Base_Path, 'trash'));
 
     async function backupMessage (message, cb) {
         let destName = `${message.eid}`
