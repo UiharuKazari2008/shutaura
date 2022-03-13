@@ -962,7 +962,7 @@ This code is publicly released and is restricted by its project license
             let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
             const ChannelData = discordClient.getChannel(ChannelID)
             if ((typeof ChannelData).toString() === 'undefined') {
-                SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)}`, "err", 'main', "SendData")
+                SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)} from ${MessageContents.fromClient}`, "err", 'main', "SendData")
                 cb(true);
             } else {
                 switch (MessageContents.messageAction) {
