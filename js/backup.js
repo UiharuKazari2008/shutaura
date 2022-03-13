@@ -495,9 +495,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     //console.log(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1))
 
                     await Promise.all(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1).map(async delMessage => {
-                        //Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
-                        /*await new Promise(resolve => {
-                            fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
+                        Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
+                        fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
+                        await new Promise(resolve => {
                             const eid = delMessage.split('-')[0]
                             exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
                                 if (err) {
@@ -507,18 +507,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                                 resolve((err))
                             })
-                        })*/
+                        })
                     }))
                     await Promise.all(partsFs.filter(e => parts.indexOf(e.toString()) === -1).map(async delParts => {
-                        //Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
-                        /*await new Promise(resolve => {
-                            fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
+                        Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
+                        fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
+                        await new Promise(resolve => {
                             exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
                                 if (err)
                                     console.error(err)
                                 resolve((err))
                             })
-                        })*/
+                        })
                     }))
                 }))
             }))
