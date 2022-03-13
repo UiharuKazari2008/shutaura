@@ -470,7 +470,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })*/
             }))
 
-            await Promise.all(fs.readdirSync().map(async server => {
+            await Promise.all(fs.readdirSync(systemglobal.Backup_Base_Path).map(async server => {
                 const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
                 const channelsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server))
 
