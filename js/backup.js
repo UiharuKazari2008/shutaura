@@ -429,6 +429,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     runCount,
                     statusText: `⏳ Recycling Inprogress`,
                     active: false,
+                    cleanup: true,
                     timestamp: Date.now().valueOf()
                 },
                 updateIndicators: true

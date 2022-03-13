@@ -4033,6 +4033,10 @@ This code is publicly released and is restricted by its project license
                             }
                         }
                     } else {
+                        if (e.data.cleanup) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is cleaning up the filesystem`)
+                        }
                         if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
