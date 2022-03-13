@@ -461,13 +461,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
             await Promise.all(serversFs.filter(e => servers.indexOf(e.toString()) === -1).map(async delServer => {
                 Logger.printLine("Cleanup", `Server ${delServer} was not found to be in use, Moved to Recycling Bin`, "warn")
-                /*await new Promise(resolve => {
+                await new Promise(resolve => {
                     exec(`mv "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}" "${path.join(trashBin, delServer).toString()}"`, (err, result) => {
                         if (err)
                             console.error(err)
                         resolve((err))
                     })
-                })*/
+                })
             }))
 
             await Promise.all(fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e))).map(async server => {
@@ -476,14 +476,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                 await Promise.all(channelsFs.filter(e => channels.indexOf(e.toString()) === -1).map(async delChannel => {
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
-                    /*await new Promise(resolve => {
+                    await new Promise(resolve => {
                         fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
                         exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
                             if (err)
                                 console.error(err)
                             resolve((err))
                         })
-                    })*/
+                    })
                 }))
 
                 await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e))).map(async channel => {
