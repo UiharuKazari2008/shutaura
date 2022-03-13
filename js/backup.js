@@ -486,7 +486,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
 
                 await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e))).map(async channel => {
-                    const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid))]
+                    const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid.toString()))]
                     const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
                     const messagesFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))
                     const partsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))
