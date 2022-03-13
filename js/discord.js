@@ -963,6 +963,7 @@ This code is publicly released and is restricted by its project license
             const ChannelData = discordClient.getChannel(ChannelID)
             if ((typeof ChannelData).toString() === 'undefined') {
                 SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)}`, "err", 'main', "SendData")
+                cb(true);
             } else {
                 switch (MessageContents.messageAction) {
                     case 'RequestDownload':
