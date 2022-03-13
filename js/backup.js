@@ -457,7 +457,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
             })
             const servers = [...new Set(fileNames.map(e => e.server))]
-            const serversFs = fs.readdirSync(systemglobal.Backup_Base_Path)
+            const serversFs = fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e)))
 
             await Promise.all(serversFs.filter(e => servers.indexOf(e.toString()) === -1).map(async delServer => {
                 Logger.printLine("Cleanup", `Server ${delServer} was not found to be in use, Moved to Recycling Bin`, "warn")
@@ -470,9 +470,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })*/
             }))
 
-            await Promise.all(fs.readdirSync(systemglobal.Backup_Base_Path).map(async server => {
+            await Promise.all(fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e))).map(async server => {
                 const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
-                const channelsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server))
+                const channelsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))
 
                 await Promise.all(channelsFs.filter(e => channels.indexOf(e.toString()) === -1).map(async delChannel => {
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
@@ -486,13 +486,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     })*/
                 }))
 
-                await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).map(async channel => {
-                    const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.name))]
+                await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e))).map(async channel => {
+                    const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid))]
                     const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
                     const messagesFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))
                     const partsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))
 
-                    await Promise.all(messagesFs.filter(e => files.indexOf(e.toString()) === -1).map(async delMessage => {
+                    await Promise.all(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1).map(async delMessage => {
                         Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
                         /*await new Promise(resolve => {
                             fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
