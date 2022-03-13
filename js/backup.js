@@ -476,8 +476,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                 await Promise.all(channelsFs.filter(e => channels.indexOf(e.toString()) === -1).map(async delChannel => {
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
+                    await fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
                     await new Promise(resolve => {
-                        fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
                         exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
                             if (err)
                                 console.error(err)
