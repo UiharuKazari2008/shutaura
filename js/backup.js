@@ -469,23 +469,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })
             }))
 
-            await Promise.all(fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e))).map(async server => {
+            for (let server of fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e)))) {
                 const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
                 const channelsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))
 
-                await Promise.all(channelsFs.filter(e => channels.indexOf(e.toString()) === -1).map(async delChannel => {
+                for (let delChannel of channelsFs.filter(e => channels.indexOf(e.toString()) === -1)) {
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
                     await fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
-                    return await new Promise(resolve => {
+                    await new Promise(resolve => {
                         exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
                             if (err)
                                 console.error(err)
                             resolve((err))
                         })
                     })
-                }))
-
-                await Promise.all(fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e))).map(async channel => {
+                }
+                for (let channel of fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))) {
                     const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid.toString()))]
                     const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
                     const messagesFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files'))
@@ -494,10 +493,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     //console.log(files)
                     //console.log(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1))
 
-                    await Promise.all(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1).map(async delMessage => {
+                    for (let delMessage of messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1)) {
                         Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
-                        return await new Promise(resolve => {
+                        await new Promise(resolve => {
                             const eid = delMessage.split('-')[0]
                             exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
                                 if (err) {
@@ -508,20 +507,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 resolve((err))
                             })
                         })
-                    }))
-                    await Promise.all(partsFs.filter(e => parts.indexOf(e.toString()) === -1).map(async delParts => {
+                    }
+                    for (let delParts of partsFs.filter(e => parts.indexOf(e.toString()) === -1)) {
                         Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
-                        return await new Promise(resolve => {
+                        await new Promise(resolve => {
                             exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
                                 if (err)
                                     console.error(err)
                                 resolve((err))
                             })
                         })
-                    }))
-                }))
-            }))
+                    }
+                }
+            }
         }
         setTimeout(findNonExistentBackupItems,(systemglobal.Cleanup_Interval_Min) ? systemglobal.Cleanup_Interval_Min * 60000 : 86400000);
     }
