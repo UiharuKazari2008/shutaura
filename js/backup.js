@@ -493,6 +493,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const partsFs = fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts'))
 
                     console.log(files)
+                    console.log(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1))
 
                     await Promise.all(messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1).map(async delMessage => {
                         //Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
