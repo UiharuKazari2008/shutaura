@@ -20,12 +20,6 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
-import {exec} from "child_process";
-import path from "path";
-import systemglobal from "../config.json";
-import fs from "fs";
-import fsEx from "fs-extra";
-
 (async () => {
     let systemglobal = require('../config.json');
     const facilityName = 'Backup-IO';
