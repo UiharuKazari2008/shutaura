@@ -2458,8 +2458,8 @@ This code is publicly released and is restricted by its project license
                                                 forceLarge = true
                                             }
 
-                                            SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem", 0, limit, forceLarge)
-                                            messageRecache(result, msg.guildID);
+                                            SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem")
+                                            messageRecache(result, msg.guildID, 0, limit, forceLarge);
                                         } else {
                                             SendMessage(`❌ Failed to start filesystem repair, could not find and folders!`, "system", msg.guildID, "RepairFileSystem")
                                         }
