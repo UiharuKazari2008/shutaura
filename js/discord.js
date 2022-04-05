@@ -6331,7 +6331,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 if (channelid.length === 1) {
                                     getMessages(startBefore, true)
-                                } else if (forceBypass === true && find_response.rows.length < 10000) {
+                                } else if (forceBypass === true || find_response.rows.length < 10000) {
                                     getMessages(startBefore, true)
                                 } else {
                                     SendMessage(`Skipped repairing <#${channelItem.channelid}> because there are more then 10000 items!`, "err", 'main', "RepairFileSystem")
