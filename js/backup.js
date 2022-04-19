@@ -464,7 +464,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await Promise.all(serversFs.filter(e => servers.indexOf(e.toString()) === -1).map(async delServer => {
                 Logger.printLine("Cleanup", `Server ${delServer} was not found to be in use, Moved to Recycling Bin`, "warn")
                 return await new Promise(resolve => {
-                    exec(`mv "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}" "${path.join(trashBin, delServer).toString()}"`, (err, result) => {
+                    exec(`mv -b "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}" "${path.join(trashBin, delServer).toString()}"`, (err, result) => {
                         if (err)
                             console.error(err)
                         resolve((err))
@@ -480,7 +480,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
                     await fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
                     await new Promise(resolve => {
-                        exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
+                        exec(`mv -b "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}" "${path.join(trashBin, server, delChannel).toString()}"`, (err, result) => {
                             if (err)
                                 console.error(err)
                             resolve((err))
@@ -501,7 +501,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
                         await new Promise(resolve => {
                             const eid = delMessage.split('-')[0]
-                            exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
+                            exec(`mv -b "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
                                 if (err) {
                                     console.error(err)
                                 } else {
@@ -515,7 +515,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
                         await new Promise(resolve => {
-                            exec(`mv "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
+                            exec(`mv -b "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
                                 if (err)
                                     console.error(err)
                                 resolve((err))
