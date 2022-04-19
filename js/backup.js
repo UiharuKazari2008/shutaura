@@ -215,7 +215,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })
         } else {
             Logger.printLine("BackupParts", `Can't backup item ${message.id}, No URLs Available`, "error")
-            await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [message.eid])
+            if (message.filecached === 1 && systemglobal.Pickup_Base_Path)
+                await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [message.eid])
             cb(false)
         }
     }
