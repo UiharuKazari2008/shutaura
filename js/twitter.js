@@ -694,7 +694,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 					cb(messageArray);
 				})
-			} else if (!(obj.bypasscds && obj.bypasscds === 1) && (obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) {
+			} else if (((obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) && (!obj.bypasscds || (obj.bypasscds && obj.bypasscds === 1 && obj.channelid !== null))) {
 				let messageContents = `📨 __***${obj.tweet.user.name} (@${obj.tweet.user.screen_name})***__\n`  + "```" + obj.tweet.text + "```\n" +
 					"https://twitter.com/" + obj.tweet.user.screen_name + "/status/" + obj.tweet.id_str;
 				cb([{
@@ -711,7 +711,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
 					}
 				}]);
-			} else if (!(obj.bypasscds && obj.bypasscds === 1)) {
+			} else if (!obj.bypasscds || (obj.bypasscds && obj.bypasscds === 1 && obj.channelid !== null)) {
 				if (obj.txtallowed === 1) {
 					Logger.printLine("Twitter", `Account ${obj.accountid}: New Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
 						tweetList: obj.fromname,
