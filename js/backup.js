@@ -294,7 +294,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     async function findBackupItems() {
         runCount++
-        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT rec.* FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(systemglobal.Pickup_Base_Path || systemglobal.Cache_Base_Path) ? ' OR (filecached IS NOT NULL AND filecached != 0 AND attachment_extra IS NULL)' : ''})) rec LEFT JOIN (SELECT * FROM kanmi_channels WHERE backup = 1) ch ON (ch.channelid = rec.channel)) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
+        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(systemglobal.Pickup_Base_Path || systemglobal.Cache_Base_Path) ? ' OR (filecached IS NOT NULL AND filecached != 0 AND attachment_extra IS NULL)' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
@@ -415,7 +415,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function findNonExistentBackupItems() {
-        const backupItems = await db.query(`SELECT x.eid, x.server, x.channel, x.id, x.real_filename, x.attachment_hash, x.fileid, x.attachment_name,y.bid FROM (SELECT rec.* FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL))) rec LEFT JOIN (SELECT * FROM kanmi_channels WHERE backup = 1) ch ON (ch.channelid = rec.channel)) x LEFT JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NOT NULL ORDER BY x.eid DESC`, [backupSystemName])
+        const backupItems = await db.query(`SELECT x.eid, x.server, x.channel, x.id, x.real_filename, x.attachment_hash, x.fileid, x.attachment_name,y.bid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL))) x LEFT JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NOT NULL ORDER BY x.eid DESC`, [backupSystemName])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
@@ -528,7 +528,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         setTimeout(findNonExistentBackupItems,(systemglobal.Cleanup_Interval_Min) ? systemglobal.Cleanup_Interval_Min * 60000 : 86400000);
     }
     async function findBackupParts() {
-        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT rec.* FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0) rec LEFT JOIN (SELECT * FROM kanmi_channels WHERE backup = 1) ch ON (ch.channelid = rec.channel)) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
+        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
