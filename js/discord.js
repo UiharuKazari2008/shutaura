@@ -88,6 +88,7 @@ This code is publicly released and is restricted by its project license
     let TwitterListsEncoded = new Map();
     let TwitterListAccounts = new Map();
     let TwitterRedirects = new Map();
+    let TwitterCDSBypass = new Map();
     let TwitterAutoLike = new Map();
     let TwitterLikeList = new Map();
     let TwitterPixivLike = new Map();
@@ -572,6 +573,9 @@ This code is publicly released and is restricted by its project license
             if (item.redirect_taccount !== null) {
                 TwitterRedirects.set(item.listid, item.redirect_taccount);
             }
+            if (item.bypasscds === 1) {
+                TwitterCDSBypass.set(item.listid, item.saveid);
+            }
             if (item.autolike !== null && item.autolike !== 0) {
                 TwitterAutoLike.set(item.listid, (item.redirect_taccount !== null) ? item.redirect_taccount : item.taccount);
             }
@@ -995,6 +999,11 @@ This code is publicly released and is restricted by its project license
                         if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
+                                    (async () => {
+                                        const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id]).rows
+                                        if (tweetMeta.length > 0 && TwitterCDSBypass.has(tweetMeta[0].listid))
+                                            sendTwitterAction(`https://twitter.com/${tweetMeta[0].userid}/status/${tweetMeta[0].tweetid}`, 'LikeRT', "add", undefined, fullmsg.channel.id, fullmsg.guildID, [], tweetMeta[0].listid);
+                                    })().then(r => {})
                                     jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
                                 })
                                 .catch((er) => {
@@ -4497,7 +4506,7 @@ This code is publicly released and is restricted by its project license
         if (type === "listManager" && !TwitterLists.has(chid) && !(embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color))) {
             SendMessage("The specified Twitter list was not found!", "err", guildid,"Twitter")
         } else {
-            if (overide || TwitterLists.has(chid) || (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) || TwitterLikeList.has(chid) || (embed && embed.length > 0 && TwitterPixivLike.has(embed[0].color)) || TwitterPixivLike.has(chid) || TwitterActivityChannels.has(chid) || (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download)) {
+            if (overide || TwitterCDSBypass.has(overide) || TwitterLists.has(chid) || (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) || TwitterLikeList.has(chid) || (embed && embed.length > 0 && TwitterPixivLike.has(embed[0].color)) || TwitterPixivLike.has(chid) || TwitterActivityChannels.has(chid) || (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download)) {
                 let originalembeds = []
                 let listID = ''
                 if (embed) {
@@ -4520,7 +4529,9 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
                     })
                 } else {
-                    if (TwitterLikeList.has(chid)) {
+                    if (TwitterCDSBypass.has(overide)) {
+                        listID = overide
+                    } else if (TwitterLikeList.has(chid)) {
                         listID = TwitterLikeList.get(chid)
                     } else if (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) {
                         listID = TwitterListsEncoded.get(embed[0].color);
