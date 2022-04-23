@@ -1000,9 +1000,9 @@ This code is publicly released and is restricted by its project license
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     (async () => {
-                                        const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id]).rows
-                                        if (tweetMeta.length > 0 && TwitterCDSBypass.has(tweetMeta[0].listid))
-                                            sendTwitterAction(`https://twitter.com/${tweetMeta[0].userid}/status/${tweetMeta[0].tweetid}`, 'LikeRT', "add", undefined, fullmsg.channel.id, fullmsg.guildID, [], tweetMeta[0].listid);
+                                        const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
+                                        if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid))
+                                            sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, fullmsg.channel.id, fullmsg.guildID, [], tweetMeta.rows[0].listid);
                                     })().then(r => {})
                                     jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
                                 })
