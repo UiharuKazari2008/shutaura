@@ -624,7 +624,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
 													itemFileData: image,
 													itemFileName: filename,
-													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
+													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`,
+													tweetMetadata: {
+														account: obj.accountid,
+														list: obj.list_id,
+														id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+														userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+													}
 												})
 												resolve();
 											})
@@ -638,7 +644,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												itemFileName: filename,
 												messageText: messageText,
 												messageObject: {...messageObject, title: _title},
-												addButtons : _react,tweetMetadata: {
+												addButtons : _react,
+												tweetMetadata: {
 													account: obj.accountid,
 													list: obj.list_id,
 													id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
