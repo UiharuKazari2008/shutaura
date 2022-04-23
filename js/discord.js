@@ -1002,7 +1002,7 @@ This code is publicly released and is restricted by its project license
                                     (async () => {
                                         const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
                                         if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid))
-                                            sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, fullmsg.channel.id, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                            sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
                                     })().then(r => {})
                                     jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
                                 })
@@ -4512,7 +4512,7 @@ This code is publicly released and is restricted by its project license
                 if (embed) {
                     originalembeds = embed
                 }
-                if (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download) {
+                if (!TwitterCDSBypass.has(overide) && discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download) {
                     mqClient.sendData(`${systemglobal.Twitter_In}`, {
                         fromWorker: systemglobal.SystemName,
                         botSelfID: selfstatic.id,
@@ -4529,10 +4529,10 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
                     })
                 } else {
-                    if (TwitterCDSBypass.has(overide)) {
-                        listID = overide
-                    } else if (TwitterLikeList.has(chid)) {
+                    if (TwitterLikeList.has(chid)) {
                         listID = TwitterLikeList.get(chid)
+                    } else if (TwitterCDSBypass.has(overide)) {
+                        listID = overide
                     } else if (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) {
                         listID = TwitterListsEncoded.get(embed[0].color);
                     } else {
