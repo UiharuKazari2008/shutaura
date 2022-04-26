@@ -1000,9 +1000,24 @@ This code is publicly released and is restricted by its project license
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     (async () => {
-                                        const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
-                                        if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid))
-                                            sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                        if (fullmsg.content.startsWith("**🎆  ") && fullmsg.content.includes("pixiv.") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
+                                            // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
+                                            const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
+                                            if (foundMessage.error) {
+                                                SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
+                                            } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
+                                                await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
+                                                const artistName = fullmsg.content.split('** : ***')[0].split('**🎆').pop().trim();
+                                                const sourceID = fullmsg.content.split('** : ***')[1].split(' [').pop().split(']').pop().trim();
+                                                sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], moveTo, fullmsg.guildID, []);
+                                            }
+                                            sendPixivAction(message.embeds[0], 'Like', "add");
+                                        } else {
+                                            const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
+                                            if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
+                                                sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                            }
+                                        }
                                     })().then(r => {})
                                     jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
                                 })
@@ -4672,7 +4687,7 @@ This code is publicly released and is restricted by its project license
             if (fullmsg.embeds[0] && fullmsg.embeds[0].description !== undefined) {
                 messageText += `**${fullmsg.embeds[0].description}**\n`
             }
-            messageEdited.content = `${messageText}**🎆 ${fullmsg.embeds[0].author.name}** : ***${fullmsg.embeds[0].title.replace('🎆 ', '')}***`
+            messageEdited.content = `${messageText}**🎆 ${fullmsg.embeds[0].author.name}** : ***${fullmsg.embeds[0].title.replace('🎆 ', '')}${(fullmsg.embeds[0].description) ? '\n' + fullmsg.embeds[0].description : ''}***`
             let image = (fullmsg.embeds[0].image) ? fullmsg.embeds[0].image : (fullmsg.attachments[0]) ? fullmsg.attachments[0] : undefined;
             image.filename = getIDfromText(image.url)
             messageEdited.attachments = [ image ];

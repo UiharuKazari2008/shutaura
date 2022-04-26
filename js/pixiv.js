@@ -345,7 +345,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     reactions.push("Archive", "MoveMessage")
                 }
 
-                if (post.file.avatar && objectMode) {
+                if (post.file.avatar && objectMode && post.channelID) {
                     return {
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'smultifileext',
@@ -366,7 +366,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         ],
                         addButtons: reactions
                     }
-                } else if (objectMode) {
+                } else if (objectMode && post.channelID) {
                     return {
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'sfileext',
@@ -384,8 +384,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'sfile',
                         messageReturn: false,
-                        messageChannelID: post.channelID,
-                        messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}***`,
+                        messageChannelID: (post.channelID) ? post.channelID : post.saveID,
+                        messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***`,
                         messageLink: post.link,
                         itemFileData: post.file.data,
                         itemFileName: post.file.name,
@@ -411,7 +411,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 return {
                     fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                     messageReturn: false,
-                    messageChannelID: post.channelID,
+                    messageChannelID: (post.channelID) ? post.channelID : post.saveID,
                     messageText: messageText,
                     messageLink: post.link,
                     itemFileData: post.file.data,
@@ -429,6 +429,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     feed_nsfw: (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw :_pconfig.rows[0].feed_channelid,
                     recommended: (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : _pconfig.rows[0].feed_channelid,
                     recommended_nsfw: (_pconfig.rows[0].recom_channelid_nsfw) ? _pconfig.rows[0].recom_channelid_nsfw : (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw : _pconfig.rows[0].feed_channelid,
+                    save: _pconfig.rows[0].save_channelid,
+                    save_nsfw: (_pconfig.rows[0].save_channelid_nsfw) ? _pconfig.rows[0].save_channelid_nsfw :_pconfig.rows[0].save_channelid
                 };
                 let requests = list.reduce((promiseChain, item, i, a) => {
                     return promiseChain.then(() => new Promise(async (resolve) => {
@@ -455,20 +457,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
                                     post.channelID = autoDownload.rows[0].channelid
+                                    post.saveID = autoDownload.rows[0].channelid
                                     post.color = 6010879;
                                 } else if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.channelID = _pconfig.rows[0].save_channelid_nsfw
+                                    post.saveID = _pconfig.rows[0].save_channelid_nsfw
                                     post.color = 16711724;
                                 } else {
                                     post.channelID = _pconfig.rows[0].save_channelid
+                                    post.saveID = _pconfig.rows[0].save_channelid
                                     post.color = 6010879;
                                 }
                             } else if (channel === "new") {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.channelID = staticChannels.feed_nsfw
+                                    post.saveID = staticChannels.save_nsfw
                                     post.color = 16711724;
                                 } else {
                                     post.channelID = staticChannels.feed
+                                    post.saveID = staticChannels.save
                                     post.color = 6010879;
                                 }
                             } else if (channel === "recom" || channel === "recompost") {
@@ -482,6 +489,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         post.color = 16711724;
                                     }
                                     post.channelID = staticChannels.recommended_nsfw
+                                    post.saveID = staticChannels.save_nsfw
                                 } else {
                                     if (channel === "recompost") {
                                         post.color = 14156031;
@@ -489,6 +497,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         post.color = 7264269;
                                     }
                                     post.channelID = staticChannels.recommended;
+                                    post.saveID = staticChannels.save
                                 }
                             } else if (channel === "download") {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
@@ -497,6 +506,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     post.color = 6010879;
                                 }
                                 post.channelID = _pconfig.rows[0].download_channelid
+                                post.saveID = _pconfig.rows[0].download_channelid
                             } else {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.color = 16711724;
@@ -504,6 +514,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     post.color = 6010879;
                                 }
                                 post.channelID = channel
+                                post.saveID = staticChannels.save
                             }
 
                             const avatar = await getImagetoB64(item.user.profile_image_urls.medium);
@@ -517,7 +528,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return promiseChain.then(() => new Promise(async (sentImage) => {
                                     const image = await getImagetoB64(url)
                                     if (image) {
-                                        post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
+                                        post.finalText = `${post.postTitle} [${post.postID}]` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
                                         post.file = {
                                             data: image,
                                             avatar: (avatar) ? avatar : undefined,
