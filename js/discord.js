@@ -1006,9 +1006,7 @@ This code is publicly released and is restricted by its project license
                                 .then(function(fullmsg) {
                                     (async () => {
                                         if (PixivChannels.has(fullmsg.channel.id) && fullmsg.content.includes("**🎆 ") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
-                                            console.log('Pixiv')
                                             if (TwitterPixivLike.has(fullmsg.channel.id) || TwitterPixivLike.has(MessageContents.messageData)) {
-                                                console.log('Pixiv Like Enabled')
                                                 // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
                                                 const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
                                                 const artistName = fullmsg.content.split('** : ***')[0].split('**🎆').pop().trim();
@@ -1019,12 +1017,10 @@ This code is publicly released and is restricted by its project license
                                                     await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
                                                     sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], MessageContents.messageData, fullmsg.guildID, []);
                                                 }
-                                                if (sourceID) {
+                                                if (sourceID)
                                                     sendPixivAction(sourceID, 'Like', "add");
-                                                }
                                             }
                                         } else {
-                                            console.log('Twitter')
                                             const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
                                             if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
                                                 sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
