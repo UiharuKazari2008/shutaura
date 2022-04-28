@@ -53,6 +53,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const systemparams_sql = _systemparams.rows.reverse();
 
         if (systemparams_sql.length > 0) {
+            const _home_guild = systemparams_sql.filter(e => e.param_key === 'discord.home_guild');
+            if (_home_guild.length > 0 && _home_guild[0].param_value) {
+                systemglobal.DiscordHomeGuild = _home_guild[0].param_value;
+            }
             const _mq_account = systemparams_sql.filter(e => e.param_key === 'mq.login');
             if (_mq_account.length > 0 && _mq_account[0].param_data) {
                 if (_mq_account[0].param_data.host)

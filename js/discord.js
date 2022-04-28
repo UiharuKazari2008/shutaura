@@ -1012,7 +1012,7 @@ This code is publicly released and is restricted by its project license
                                                 // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
                                                 const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
                                                 const artistName = fullmsg.content.split('** : ***')[0].split('**🎆').pop().trim();
-                                                const sourceID = fullmsg.content.split('** : ***')[1].split(' [').pop().split(']').pop().trim();
+                                                const sourceID = fullmsg.content.split('** : ***')[1].split('[').pop().split(']')[0].trim();
                                                 if (foundMessage.error) {
                                                     SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
                                                 } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
@@ -1021,8 +1021,6 @@ This code is publicly released and is restricted by its project license
                                                 }
                                                 if (sourceID) {
                                                     sendPixivAction(sourceID, 'Like', "add");
-                                                } else {
-                                                    Logger.printLine("PixivLike", "Failed to get a valid source ID", "warning")
                                                 }
                                             }
                                         } else {
