@@ -92,6 +92,7 @@ This code is publicly released and is restricted by its project license
     let TwitterAutoLike = new Map();
     let TwitterLikeList = new Map();
     let TwitterPixivLike = new Map();
+    let PixivChannels = new Map();
     let PixivSaveChannel = new Map();
     let Timers = new Map();
     let activeTasks = new Map();
@@ -584,6 +585,9 @@ This code is publicly released and is restricted by its project license
             TwitterActivityChannels.set(item.activitychannelid, item.taccount);
         }))
         await Promise.all(pixivaccount.map(item => {
+            PixivChannels.set(item.save_channelid, 1);
+            if (item.save_channelid_nsfw)
+                PixivChannels.set(item.save_channelid_nsfw, 2);
             if (item.like_taccount) {
                 TwitterPixivLike.set(6010879, item.like_taccount);
                 TwitterPixivLike.set(7264269, item.like_taccount);
@@ -1001,10 +1005,7 @@ This code is publicly released and is restricted by its project license
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     (async () => {
-                                        // 🎆 山水みこ (10466963) - 2477655 : とうらぶログ2 [53792114] (9/15)
-                                        console.log(fullmsg.content)
-                                        console.log(fullmsg.attachments.length)
-                                        if (fullmsg.content.startsWith("**🎆  ") && fullmsg.attachments.length > 0) {
+                                        if (PixivChannels.has(fullmsg.channel.id) && fullmsg.content.includes("**🎆 ") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
                                             console.log('Pixiv')
                                             if (TwitterPixivLike.has(fullmsg.channel.id) || TwitterPixivLike.has(MessageContents.messageData)) {
                                                 console.log('Pixiv Like Enabled')
