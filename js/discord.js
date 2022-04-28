@@ -588,7 +588,6 @@ This code is publicly released and is restricted by its project license
             PixivChannels.set(item.save_channelid, 1);
             if (item.save_channelid_nsfw)
                 PixivChannels.set(item.save_channelid_nsfw, 2);
-            PixivChannels.set(item.save_channelid, 1);
             if (item.like_taccount) {
                 TwitterPixivLike.set(6010879, item.like_taccount);
                 TwitterPixivLike.set(7264269, item.like_taccount);
@@ -1006,18 +1005,24 @@ This code is publicly released and is restricted by its project license
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     (async () => {
-                                        if (PixivChannels.has(fullmsg.channel.id) && fullmsg.content.startsWith("**🎆  ") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
-                                            // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
-                                            const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
-                                            if (foundMessage.error) {
-                                                SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
-                                            } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
-                                                await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
+                                        if (PixivChannels.has(fullmsg.channel.id) && fullmsg.content.includes("**🎆  ") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
+                                            if (TwitterPixivLike.has(fullmsg.channel.id) || TwitterPixivLike.has(MessageContents.messageData)) {
+                                                // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
+                                                const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
                                                 const artistName = fullmsg.content.split('** : ***')[0].split('**🎆').pop().trim();
                                                 const sourceID = fullmsg.content.split('** : ***')[1].split(' [').pop().split(']').pop().trim();
-                                                sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], moveTo, fullmsg.guildID, []);
+                                                if (foundMessage.error) {
+                                                    SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
+                                                } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
+                                                    await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
+                                                    sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], moveTo, fullmsg.guildID, []);
+                                                }
+                                                if (sourceID) {
+                                                    sendPixivAction(sourceID, 'Like', "add");
+                                                } else {
+                                                    Logger.printLine("PixivLike", "Failed to get a valid source ID", "warning")
+                                                }
                                             }
-                                            sendPixivAction(message.embeds[0], 'Like', "add");
                                         } else {
                                             const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
                                             if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
@@ -4636,10 +4641,12 @@ This code is publicly released and is restricted by its project license
             PostID = body
         } else if (typeof body === 'string') {
             PostID = body.split(' - ').pop().split(':')[0]
-        } else if (body.url) {
+        } else if (body.hasOwnProperty('url')) {
             PostID = body.url.split('/').pop();
             PostName = (body.title) ? body.title : undefined
             PostArtist = (body.author) ? body.author.name.split(") - ")[0] : undefined
+        } else {
+            PostID = body
         }
         try {
             if (systemglobal.CMS_Timeline_Parent && createThread) {
