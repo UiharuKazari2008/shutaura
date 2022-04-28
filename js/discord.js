@@ -1017,7 +1017,7 @@ This code is publicly released and is restricted by its project license
                                                     SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
                                                 } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
                                                     await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
-                                                    sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], moveTo, fullmsg.guildID, []);
+                                                    sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], MessageContents.messageData, fullmsg.guildID, []);
                                                 }
                                                 if (sourceID) {
                                                     sendPixivAction(sourceID, 'Like', "add");
