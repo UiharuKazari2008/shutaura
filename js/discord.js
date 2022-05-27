@@ -3962,7 +3962,7 @@ This code is publicly released and is restricted by its project license
                     if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
                         cdsAccess = true;
                 }
-                const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'backup.ignore');
+                const _backup_ignore = configForHost.filter(e => e.param_key === 'backup.ignore');
                 if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
                     if (_backup_ignore[0].param_data.channels)
                         ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel IS NOT '${e}'`))
