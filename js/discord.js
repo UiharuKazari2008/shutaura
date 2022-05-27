@@ -3965,9 +3965,9 @@ This code is publicly released and is restricted by its project license
                 const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
                 if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
                     if (_backup_ignore[0].param_data.channels)
-                        ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel IS NOT '${e}'`))
+                        ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
                     if (_backup_ignore[0].param_data.servers)
-                        ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server IS NOT '${e}'`))
+                        ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
                 }
             }
 
