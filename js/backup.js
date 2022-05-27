@@ -547,7 +547,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (systemglobal.Backup_Ignore_Servers && systemglobal.Backup_Ignore_Servers.length > 0)
             ignoreQuery.push(...systemglobal.Backup_Ignore_Servers.map(e => `server != '${e}'`))
 
-        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''})) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
+        const backupItems = await db.query(`SELECT x.*, y.bid FROM (SELECT kanmi_records.*, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.Backup_N_Per_Interval) ? systemglobal.Backup_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to backup from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
