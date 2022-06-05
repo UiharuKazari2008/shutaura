@@ -474,24 +474,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const servers = [...new Set(fileNames.map(e => e.server))]
             const serversFs = fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e)))
 
-            await Promise.all(serversFs.filter(e => servers.indexOf(e.toString()) === -1).map(async delServer => {
+            for (let delServer of serversFs.filter(e => servers.indexOf(e.toString()) === -1)) {
                 Logger.printLine("Cleanup", `Server ${delServer} was not found to be in use, Moved to Recycling Bin`, "warn")
-                fsEx.ensureDirSync(path.join(trashBin, delServer));
-                await new Promise(resolve => {
-                    exec(`mv -f "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}/*" "${path.join(trashBin, delServer).toString()}/"`, (err, result) => {
-                        if (err)
-                            console.error(err)
-                        resolve((err))
-                    })
-                })
-                return await new Promise(resolve => {
-                    exec(`rmdir -f "${path.join(systemglobal.Backup_Base_Path, delServer).toString()}"`, (err, result) => {
-                        if (err)
-                            console.error(err)
-                        resolve((err))
-                    })
-                })
-            }))
+                fsEx.ensureDirSync(path.join(trashBin));
+                fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, delServer), path.join(trashBin, delServer), { overwrite: true })
+            }
 
             for (let server of fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e)))) {
                 const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
@@ -499,22 +486,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                 for (let delChannel of channelsFs.filter(e => channels.indexOf(e.toString()) === -1)) {
                     Logger.printLine("Cleanup", `Channel ${server}/${delChannel} was not found to be in use, Moved to Recycling Bin`, "warn")
-                    await fsEx.ensureDirSync(path.join(trashBin, server, delChannel));
-                    await new Promise(resolve => {
-                        exec(`mv -f "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}/*" "${path.join(trashBin, server, delChannel).toString()}/"`, (err, result) => {
-                            if (err)
-                                console.error(err)
-                            resolve((err))
-                        })
-                    })
-                    await new Promise(resolve => {
-                        exec(`rmdir "${path.join(systemglobal.Backup_Base_Path, server, delChannel).toString()}"`, (err, result) => {
-                            if (err)
-                                console.error(err)
-                            resolve((err))
-                        })
-                    })
-
+                    fsEx.ensureDirSync(path.join(trashBin, server));
+                    fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, server, delChannel), path.join(trashBin, server, delChannel), { overwrite: true })
                 }
                 for (let channel of fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))) {
                     const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid.toString()))]
@@ -528,28 +501,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     for (let delMessage of messagesFs.filter(e => files.indexOf(e.toString().split('-')[0]) === -1)) {
                         Logger.printLine("Cleanup", `File ${server}/${channel}/${delMessage} was not found to be in use, Moved to Recycling Bin`, "warn")
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'files'));
-                        await new Promise(resolve => {
-                            const eid = delMessage.split('-')[0]
-                            exec(`mv -f "${path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage).toString()}" "${path.join(trashBin, server, channel, 'files', delMessage).toString()}"`, async (err, result) => {
-                                if (err) {
-                                    console.error(err)
-                                } else {
-                                    await db.query(`DELETE FROM kanmi_backups WHERE system_name = ? AND eid = ?`, [backupSystemName, eid])
-                                }
-                                resolve((err))
-                            })
-                        })
+                        const eid = delMessage.split('-')[0]
+                        fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'files', delMessage), path.join(trashBin, server, channel, 'files', delMessage), { overwrite: true })
+                        await db.query(`DELETE FROM kanmi_backups WHERE system_name = ? AND eid = ?`, [backupSystemName, eid])
                     }
                     for (let delParts of partsFs.filter(e => parts.indexOf(e.toString()) === -1)) {
                         Logger.printLine("Cleanup", `File Parts ${server}/${channel}/${delParts} was not found to be in use, Moved to Recycling Bin`, "warn")
                         fsEx.ensureDirSync(path.join(trashBin, server, channel, 'parts'));
-                        await new Promise(resolve => {
-                            exec(`mv -f "${path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString()}" "${path.join(trashBin, server, channel, 'parts', delParts).toString()}"`, async (err, result) => {
-                                if (err)
-                                    console.error(err)
-                                resolve((err))
-                            })
-                        })
+                        fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString(), path.join(trashBin, server, channel, 'parts', delParts), { overwrite: true })
                     }
                 }
             }
