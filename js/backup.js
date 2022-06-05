@@ -479,6 +479,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 fsEx.ensureDirSync(path.join(trashBin));
                 fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, delServer), path.join(trashBin, delServer), { overwrite: true })
             }
+            Logger.printLine("Cleanup", `Server cleanup completed`, "info")
 
             for (let server of fs.readdirSync(systemglobal.Backup_Base_Path).filter(e => !isNaN(parseInt(e)))) {
                 const channels = [...new Set(fileNames.filter(e => e.server === server).map(e => e.channel))]
@@ -489,6 +490,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     fsEx.ensureDirSync(path.join(trashBin, server));
                     fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, server, delChannel), path.join(trashBin, server, delChannel), { overwrite: true })
                 }
+                Logger.printLine("Cleanup", `Channels for ${server} cleanup completed`, "info")
                 for (let channel of fs.readdirSync(path.join(systemglobal.Backup_Base_Path, server)).filter(e => !isNaN(parseInt(e)))) {
                     const files = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel).map(e => e.eid.toString()))]
                     const parts = [...new Set(fileNames.filter(e => e.server === server && e.channel === channel && e.fileid !== null).map(e => e.fileid))]
@@ -511,7 +513,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         fsEx.moveSync(path.join(systemglobal.Backup_Base_Path, server, channel, 'parts', delParts).toString(), path.join(trashBin, server, channel, 'parts', delParts), { overwrite: true })
                     }
                 }
+                Logger.printLine("Cleanup", `Files for ${server} cleanup completed`, "info")
             }
+            Logger.printLine("Cleanup", `Filesystem cleanup completed`, "info")
         }
         setTimeout(findNonExistentBackupItems,(systemglobal.Cleanup_Interval_Min) ? systemglobal.Cleanup_Interval_Min * 60000 : 86400000);
     }
