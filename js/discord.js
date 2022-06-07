@@ -3954,6 +3954,7 @@ This code is publicly released and is restricted by its project license
             let partsDisabled = false;
             let cdsAccess = false;
             let backupInterval = 3600000;
+            let ignoreQuery = [];
             if (configForHost.rows.length > 0) {
                 const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
                 if (_backup_config.length > 0 && _backup_config[0].param_data) {
@@ -3964,11 +3965,21 @@ This code is publicly released and is restricted by its project license
                     if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
                         cdsAccess = true;
                 }
+                const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
+                if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
+                    if (_backup_ignore[0].param_data.channels)
+                        ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
+                    if (_backup_ignore[0].param_data.servers)
+                        ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
+                }
             }
-            const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
+
+
+
+            const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
             let partCounts = { rows: [] }
             if (!partsDisabled) {
-                partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
+                partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
             }
             return {
                 hostname: row.system_name,
