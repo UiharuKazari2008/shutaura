@@ -434,6 +434,9 @@ This code is publicly released and is restricted by its project license
             // discord.overides = { "users" : [], "websocket_is_user": true, "allow_bot_reactions" : [] }
             const _cms_options = systemparams_sql.filter(e => e.param_key === 'cms');
             if (_cms_options.length > 0 && _cms_options[0].param_data) {
+                if (_cms_options[0].param_data.disable_threads) {
+                    systemglobal.CMS_Disable_Threads = _cms_options[0].param_data.disable_threads;
+                }
                 if (_cms_options[0].param_data.timeline_chid) {
                     systemglobal.CMS_Timeline_Parent = _cms_options[0].param_data.timeline_chid;
                 }
@@ -4646,7 +4649,7 @@ This code is publicly released and is restricted by its project license
             PostID = body
         }
         try {
-            if (systemglobal.CMS_Timeline_Parent && createThread) {
+            if (systemglobal.CMS_Timeline_Parent && createThread && !systemglobal.CMS_Disable_Threads) {
                 const newMessage = await discordClient.createMessage((chid) ? chid : systemglobal.CMS_Timeline_Parent, (type === 'DownloadUser' || type === 'DownloadPost') ? `Downloading ${PostID} illustrations` : `Downloading related posts to ${PostID}`)
                 if (newMessage) {
                     const newThread = await discordClient.createThreadWithMessage(newMessage.channel.id, newMessage.id, {
@@ -4930,7 +4933,7 @@ This code is publicly released and is restricted by its project license
                         let chid = undefined
                         const username = urlItem.split('/').pop().trim()
                         try {
-                            if (systemglobal.CMS_Timeline_Parent) {
+                            if (systemglobal.CMS_Timeline_Parent && !systemglobal.CMS_Disable_Threads) {
                                 const newMessage = await discordClient.createMessage(systemglobal.CMS_Timeline_Parent, `Downloading ${username} illustrations`)
                                 if (newMessage) {
                                     const newThread = await discordClient.createThreadWithMessage(newMessage.channel.id, newMessage.id, {
