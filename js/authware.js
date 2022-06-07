@@ -575,7 +575,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         } else {
             let username = (member.nick) ? member.nick : member.user.username;
-            const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, username, member.user.avatar])
+            const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ?, banner = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?, banner = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, member.user.banner, username, member.user.avatar, member.user.banner])
 
             if (updateUser && updateUser.rows.length > 0) {
                 memberTokenGeneration();
