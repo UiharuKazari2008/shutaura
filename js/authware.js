@@ -575,7 +575,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         } else {
             let username = (member.nick) ? member.nick : member.user.username;
+            /*const banner = await new Promise(resolve => {
+                request.get(`https://discord.com/api/v9/api/users/`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            })*/
+
             const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ?, banner = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?, banner = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, member.user.banner, username, member.user.avatar, member.user.banner])
+            const full = await discordClient.getRESTGuildMember(guild.id, member.id)
+            console.log(full.user.username + " - " + full.user.banner)
 
             if (updateUser && updateUser.rows.length > 0) {
                 memberTokenGeneration();
@@ -645,6 +655,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     discordClient.on("ready", async () => {
         Logger.printLine("Discord", "Connected successfully to Discord!", "debug")
         Logger.printLine("Discord", `Using Account: ${discordClient.user.username} (${discordClient.user.id})`, "debug")
+        const gatewayURL = new URL(discordClient.gatewayURL);
+        Logger.printLine("Discord", `Gateway: ${gatewayURL.host} using v${gatewayURL.searchParams.getAll('v').pop()}`, "debug")
         if (init === 0) {
             discordClient.editStatus( "dnd", {
                 name: 'Initializing System',
@@ -675,9 +687,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
             await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
-                const member = await guild.getRESTMember(memberID + "")
+                const member = guild.members.get(memberID)
                 await memberRoleGeneration(guild, member);
-                console.log(member.user.username + " - " + member.user.banner)
             }))
         }))
         await updateLocalCache();
