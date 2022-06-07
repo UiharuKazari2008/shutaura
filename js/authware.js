@@ -675,7 +675,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
             await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
-                const member = guild.members.get(memberID)
+                const member = await guild.getRESTMember(memberID + "")
                 await memberRoleGeneration(guild, member);
                 console.log(member.user.username + " - " + member.user.banner)
             }))
