@@ -584,6 +584,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })*/
 
             const user = await discordClient.getRESTUser(member.id)
+            const userServer = await discordClient.getRESTGuildMember(guild.id, member.id)
+            console.log(`${user.username} - ${userServer.banner}`)
+
             const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ?, banner = ?, color = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?, banner = ?, color = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, user.banner, user.accentColor, username, member.user.avatar, user.banner, user.accentColor])
 
             if (updateUser && updateUser.rows.length > 0) {
