@@ -599,7 +599,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
     }
     async function postRecommPost() {
-        const recommIllust = await db.query(`SELECT * FROM pixiv_recomm_illu WHERE paccount = ? ORDER BY RAND() LIMIT 1`, [systemglobal.PixivUser]);
+        const recommIllust = await db.query(`SELECT * FROM pixiv_recomm_illu WHERE paccount = ? LIMIT 1`, [systemglobal.PixivUser]);
         if (recommIllust.error) {
             Logger.printLine(`PostRecomIllt`, `Failed to get recommended illustration records`, `error`, recommIllust.error);
         } else if (recommIllust.rows.length > 0) {
