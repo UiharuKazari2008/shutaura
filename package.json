@@ -30,7 +30,7 @@
     "flickr-sdk": "^3.10.0",
     "fs-extra": "^9.1.0",
     "get-urls": "^9.2.0",
-    "got": "^11.8.1",
+    "got": "^11.8.5",
     "graylog2": "^0.2.1",
     "image-size": "^0.8.3",
     "inquirer": "^8.2.0",
