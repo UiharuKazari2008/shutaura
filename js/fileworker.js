@@ -43,7 +43,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const globalRunKey = crypto.randomBytes(5).toString("hex");
 	let globalItemNumber = 0;
 	const FileType = require('file-type');
-	const youtubedl = require('youtube-dl');
+	//const youtubedl = require('youtube-dl');
 	const rimraf = require('rimraf');
 	const ExifImage = require('exif').ExifImage;
 	const moment = require('moment');
@@ -1144,7 +1144,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				} else if (MessageContents.itemVideoURL) { // Download a Video from
 					// Download Video in best Video Quality & Audio Quality and Output as MP4
 					console.log(MessageContents)
-					let videoinfo = {}
+					/*let videoinfo = {}
 					const video = youtubedl(MessageContents.itemVideoURL,
 						[],
 						{cwd: __dirname})
@@ -1199,7 +1199,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						})
 						cb(true);
-					})
+					})*/
+					cb(true);
 				} else if (MessageContents.itemFileRaw) { // Save a Raw File
 					fs.writeFile(tempFilePath, MessageContents.itemFileRaw, "base64", function (err) {
 						if (err) {
