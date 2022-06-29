@@ -38,12 +38,14 @@ This code is publicly released and is restricted by its project license
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
 
-    if (fs.existsSync('../user-config.json')) {
-        const userConfig = require('../user-config.json');
+    try {
+        const userConfig = require('./../user-config.json');
         systemglobal = {
             ...systemglobal,
             ...userConfig
         }
+    } catch (e) {
+
     }
 
     async function loadDatabaseCache() {

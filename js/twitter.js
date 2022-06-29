@@ -59,13 +59,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
 
-	if (fs.existsSync('../user-config.json')) {
-		const userConfig = require('../user-config.json');
-		systemglobal = {
-			...systemglobal,
-			...userConfig
-		}
-	}
+	try {
+        const userConfig = require('./../user-config.json');
+        systemglobal = {
+            ...systemglobal,
+            ...userConfig
+        }
+    } catch (e) {
+
+    }
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")

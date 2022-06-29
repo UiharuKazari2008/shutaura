@@ -45,12 +45,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Feed Watcher", "debug");
 
-    if (fs.existsSync('../user-config.json')) {
-        const userConfig = require('../user-config.json');
+    try {
+        const userConfig = require('./../user-config.json');
         systemglobal = {
             ...systemglobal,
             ...userConfig
         }
+    } catch (e) {
+
     }
 
     async function loadDatabaseCache() {
