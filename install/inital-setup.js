@@ -265,10 +265,15 @@ let authwareOnly = false;
                             values.role_manage = null;
                             break;
                         case 3:
-                        case 4:
                             values.classification = "pictures";
                             values.role = "photos_read";
                             values.role_write = 'photos_write';
+                            values.role_manage = 'photos_manage';
+                            break;
+                        case 4:
+                            values.classification = "nsfw";
+                            values.role = "nsfw_read";
+                            values.role_write = 'nsfw_write';
                             values.role_manage = 'photos_manage';
                             break;
                         case 5:
@@ -445,6 +450,12 @@ let authwareOnly = false;
                         position: 20,
                         name: 'Cards',
                         uri: 'cards'
+                    },
+                    {
+                        super: `personal`,
+                        position: 99,
+                        name: 'Personal',
+                        uri: 'cards'
                     }
                 ]
                 const classes = [
@@ -453,7 +464,14 @@ let authwareOnly = false;
                         super: 'images',
                         position: 0,
                         name: 'Pictures',
-                        icon: 'fa-image'
+                        icon: 'fa-camera'
+                    },
+                    {
+                        class: 'nsfw',
+                        super: 'images',
+                        position: 99,
+                        name: 'NSFW',
+                        icon: 'fa-minus-circle'
                     },
                     {
                         class: 'data',
@@ -461,6 +479,13 @@ let authwareOnly = false;
                         position: 0,
                         name: 'Files',
                         icon: 'fa-folder'
+                    },
+                    {
+                        class: 'private',
+                        super: 'personal',
+                        position: 0,
+                        name: 'Personal',
+                        icon: 'fa-folder-user'
                     },
                     {
                         class: 'archives',
