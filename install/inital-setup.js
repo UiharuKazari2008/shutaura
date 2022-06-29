@@ -27,7 +27,7 @@ let authwareOnly = false;
             systemglobal.DiscordHomeGuild = config.Home_Server_ID + "";
         }
 
-        fs.writeFileSync('./../config.json', JSON.stringify(systemglobal));
+        fs.writeFileSync('./../config.json', JSON.stringify(systemglobal, null, '\t'));
 
         let discordKey = undefined;
         switch (process.env.KANMI_TYPE) {
@@ -517,7 +517,7 @@ let authwareOnly = false;
             console.log(`All Done! Waiting for background tasks to sync...`)
 
             config.completed = true;
-            fs.writeFileSync('./config.json', JSON.stringify(config));
+            fs.writeFileSync('./config.json', JSON.stringify(config, null, '\t'));
 
             setTimeout(() => {
                 process.exit(0);
