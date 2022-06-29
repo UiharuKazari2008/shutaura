@@ -12,11 +12,6 @@ let authwareOnly = false;
 
 (async () => {
     try {
-        if (config.completed){
-            console.log("No setup required");
-            process.exit(0);
-        }
-
         if (config.Framework_Discord_Token) {
             systemglobal.Discord_Key = config.Framework_Discord_Token + "";
         }
@@ -28,6 +23,11 @@ let authwareOnly = false;
         }
 
         fs.writeFileSync('./../config.json', JSON.stringify(systemglobal, null, '\t'));
+
+        if (config.completed){
+            console.log("No setup required");
+            process.exit(0);
+        }
 
         let discordKey = undefined;
         switch (process.env.KANMI_TYPE) {
