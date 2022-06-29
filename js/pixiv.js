@@ -198,7 +198,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("TokenSystem", `Connected successfully to Pixiv as ${auth.user.name} (${auth.user.id})`, "debug")
 
                 sleep(500).then(() => {
-                    process.send('ready');
+                    if (process.send && typeof process.send === 'function') {
+                        process.send('ready');
+                    }
                     Logger.printLine("Init", "Pixiv Client is ready!", "info")
                     if (auth) {
                         getNewIllust();

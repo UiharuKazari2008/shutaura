@@ -5972,6 +5972,42 @@ This code is publicly released and is restricted by its project license
                                 sqlObject.colorB = options.color.value[2];
                                 sqlObject.dark_color = options.color.isDark;
                             }
+                            /*sqlObject.attachment_type = ((r,n) => {
+                                const _n = ((r) ? r : n).split('.').pop().toLowerCase()
+                                if (_n.startsWith('jp') || _n === 'jfif') // JPEG
+                                    return 1
+                                else if (_n === 'png') // PNG
+                                    return 2
+                                else if (_n === 'tiff') // TIFF
+                                    return 3
+                                else if (_n === 'bmp') // Bitmap
+                                    return 4
+                                else if (_n === 'webp') // WebP
+                                    return 5
+                                else if (_n === 'heif') // HEIF
+                                    return 6
+                                else if (_n.startsWith('gif')) // GIF
+                                    return 10
+                                else if (_n === 'psd' || _n === 'psb') // Photoshop
+                                    return 50
+                                else if (_n === 'mp4' || _n === 'mpeg4' || _n === 'mov' || _n === 'm4v' || _n === 'webm') // Possible Web Video
+                                    return 20
+                                else if (_n === 'ts' || _n === 'mkv' || _n === 'm2ts' || _n === 'mts') // Non-Web Video
+                                    return 21
+                                else if (_n === 'mp3' || _n === 'm4a' || _n === 'ogg' || _n === 'oga' || _n === 'mogg' || _n === 'opus' || _n === 'wav') // Web Audio
+                                    return 40
+                                else if (_n === 'flac' || _n === 'aiff' || _n === 'alac' || _n === 'wma') // Non-Web Audio
+                                    return 41
+                                else if (_n.startsWith('unity') || _n === 'material' || _n === 'shader' || _n === 'vrca') // Unity Format
+                                    return 61
+                                else if (_n === 'fbx' || _n === 'dae' || _n === 'obj' || _n.startsWith('c4')) // 3D Format
+                                    return 62
+                                else if (_n === 'zip' || _n === 'tar' || _n === 'rar' || _n.startsWith('7z') || _n.startsWith('bz')) // Archive
+                                    return 80
+                                else if (_n === 'iso' || _n === 'bin' || _n === 'cd' || _n === 'img') // Archive Disk
+                                    return 81
+                                return 0;
+                            })(sqlObject.real_filename, sqlObject.attachment_name)*/
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {

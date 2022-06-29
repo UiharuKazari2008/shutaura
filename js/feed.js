@@ -392,7 +392,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (systemglobal.Flickr_Key) {
             getFlickr();
         }
-        process.send('ready');
+        if (process.send && typeof process.send === 'function') {
+            process.send('ready');
+        }
     })
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)

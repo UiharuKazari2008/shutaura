@@ -670,7 +670,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         setInterval(memberTokenGeneration, 3600000);
         setTimeout(() => {
             discordClient.editStatus( "online", null);
-            process.send('ready');
+            if (process.send && typeof process.send === 'function') {
+                process.send('ready');
+            }
         }, 60000);
         await Promise.all(discordservers.map(async (server) => {
             const _br = (discordperms.filter(e => { return e.server === server.serverid && e.name === 'sysbot'}).pop()).role

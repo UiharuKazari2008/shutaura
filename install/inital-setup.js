@@ -189,7 +189,7 @@ let authwareOnly = false;
             const roles = await discordClient.getRESTGuildRoles(guild[0].id)
             let rolesRecords = []
             await Promise.all(roles.map(e => {
-                const r = e.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
+                const r = e.name.replaceAll(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
                 if (e.name.startsWith("🎫")) {
                     rolesRecords.push({
                         name: r.toLowerCase().trim().split(' ').join('_') + '_read',
@@ -250,19 +250,19 @@ let authwareOnly = false;
                 serverid: guild[0].id,
                 avatar: guild[0].icon,
                 name: guild[0].name,
-                short_name: guild[0].name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim().substring(0,3).toUpperCase()
+                short_name: guild[0].name.replaceAll(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim().substring(0,3).toUpperCase()
             };
             if (!authwareOnly) {
                 console.log("Reading Channels...")
                 const chs = await discordClient.getRESTGuildChannels(guild[0].id)
-                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(e.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()) !== -1).map(async channel => {
+                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(e.name.replaceAll(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()) !== -1).map(async channel => {
                     let values = {
                         source: 0,
                         channelid: channel.id,
                         serverid: guild[0].id,
                         position: channel.position,
                         name: channel.name,
-                        short_name: channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim(),
+                        short_name: channel.name.replaceAll(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim(),
                         parent: 'isparent',
                         nsfw: (channel.nsfw) ? 1 : 0,
                         description: null,
@@ -325,7 +325,7 @@ let authwareOnly = false;
                         description: (channel.topic) ? channel.topic : null,
                     }
                     const parent = parentMap.filter(e => e.id === channel.parentID)
-                    const channel_name = channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
+                    const channel_name = channel.name.replaceAll(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
                     if (parent.length > 0) {
                         values.classification = parent[0].class;
                         values.role = parent[0].role;

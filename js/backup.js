@@ -662,7 +662,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     });
 
 
-    process.send('ready');
+    if (process.send && typeof process.send === 'function') {
+        process.send('ready');
+    }
     if (systemglobal.Backup_Base_Path) {
         await findNonExistentBackupItems();
         await findBackupItems();

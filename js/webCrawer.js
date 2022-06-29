@@ -596,7 +596,11 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    setInterval(() => { process.send('ready'); }, 60000);
+    setInterval(() => {
+        if (process.send && typeof process.send === 'function') {
+            process.send('ready');
+        }
+    }, 60000);
 
     // Mixcloud
     if (systemglobal.Mixcloud_Interval) {

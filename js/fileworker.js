@@ -533,7 +533,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		} else {
 			Logger.printLine('Init', 'File Watching is disabled on this FileWorker instance!', 'warning')
 		}
-		process.send('ready');
+		if (process.send && typeof process.send === 'function') {
+			process.send('ready');
+		}
 		init = true
 	}
 	// Support Functions
