@@ -46,13 +46,13 @@ let authwareOnly = false;
 
         await discordClient.on("ready", async () => {
             const searchParents = [
-                "Control Center",
-                "System Status",
-                "System Data",
-                "Pictures",
-                "NSFW",
-                "Files",
-                "Archives",
+                "🚥 Control Center",
+                "📊 System Status",
+                "🔩 System Data",
+                "📷 Photos",
+                "🔞 NSFW",
+                "📂 Files",
+                "💼 Archives",
             ];
             let parentMap = [];
             let channels = [];
