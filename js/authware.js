@@ -51,7 +51,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Discord AuthWare", "info")
 
-    if (fs.existsSync('./../user-config.json')) {
+    if (fs.existsSync('../user-config.json')) {
+        console.log('External Configuration Found')
         const userConfig = require('./../user-config.json');
         systemglobal = {
             ...systemglobal,
