@@ -122,13 +122,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
     const trashBin = path.join(systemglobal.Backup_Base_Path, 'trash')
 
-    if (!fs.existsSync(systemglobal.TempFolder))
-        fs.mkdirSync(systemglobal.TempFolder)
-    if (!fs.existsSync(systemglobal.Backup_Base_Path))
-        fs.mkdirSync(systemglobal.Backup_Base_Path)
-    if (!fs.existsSync(path.join(systemglobal.Backup_Base_Path, 'trash')))
-        fs.mkdirSync(path.join(systemglobal.Backup_Base_Path, 'trash'));
-
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder))
+            fs.mkdirSync(systemglobal.TempFolder)
+        if (!fs.existsSync(systemglobal.Backup_Base_Path))
+            fs.mkdirSync(systemglobal.Backup_Base_Path)
+        if (!fs.existsSync(path.join(systemglobal.Backup_Base_Path, 'trash')))
+            fs.mkdirSync(path.join(systemglobal.Backup_Base_Path, 'trash'));
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
+    }
     async function backupMessage (message, cb) {
         let destName = `${message.eid}`
         if (message.real_filename) {

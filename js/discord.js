@@ -670,8 +670,13 @@ This code is publicly released and is restricted by its project license
 
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
-    if (!fs.existsSync(systemglobal.TempFolder)){
-        fs.mkdirSync(systemglobal.TempFolder);
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder)) {
+            fs.mkdirSync(systemglobal.TempFolder);
+        }
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
     }
 
     console.log(`System Configuration:`)

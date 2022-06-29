@@ -197,14 +197,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 	const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
-	if (!fs.existsSync(systemglobal.TempFolder)) {
-		fs.mkdirSync(systemglobal.TempFolder);
-	}
-	if (systemglobal.WatchFolder_1 && !fs.existsSync(systemglobal.WatchFolder_1)) {
-		fs.mkdirSync(systemglobal.WatchFolder_1);
-	}
-	if (systemglobal.PickupFolder && !fs.existsSync(systemglobal.PickupFolder)) {
-		fs.mkdirSync(systemglobal.PickupFolder);
+	try {
+		if (!fs.existsSync(systemglobal.TempFolder)) {
+			fs.mkdirSync(systemglobal.TempFolder);
+		}
+		if (systemglobal.WatchFolder_1 && !fs.existsSync(systemglobal.WatchFolder_1)) {
+			fs.mkdirSync(systemglobal.WatchFolder_1);
+		}
+		if (systemglobal.PickupFolder && !fs.existsSync(systemglobal.PickupFolder)) {
+			fs.mkdirSync(systemglobal.PickupFolder);
+		}
+	} catch (e) {
+		console.error('Failed to create the temp folder, not a issue if your using docker');
+		console.error(e);
 	}
 
 	// Normal Requests

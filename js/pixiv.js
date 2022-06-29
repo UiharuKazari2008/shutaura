@@ -122,8 +122,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
-    if (!fs.existsSync(systemglobal.TempFolder)){
-        fs.mkdirSync(systemglobal.TempFolder);
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder)) {
+            fs.mkdirSync(systemglobal.TempFolder);
+        }
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
     }
 
 // Kanmi MQ Backend

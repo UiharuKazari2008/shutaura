@@ -108,8 +108,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (systemglobal.Flickr_Key) {
         flickr = new Flickr(systemglobal.Flickr_Key);
     }
-    if (!fs.existsSync(systemglobal.TempFolder))
-        fs.mkdirSync(systemglobal.TempFolder);
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder)) {
+            fs.mkdirSync(systemglobal.TempFolder);
+        }
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
+    }
 
     // YouTube Notifications
     async function sendVideoToDiscord(channelid, article ) {
