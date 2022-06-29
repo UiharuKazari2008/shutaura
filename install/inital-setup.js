@@ -12,7 +12,7 @@ let authwareOnly = false;
 
 (async () => {
     try {
-        if (process.env.SETUP_TYPE && process.env.SETUP_SERVERID){
+        if (!(process.env.SETUP_TYPE && process.env.SETUP_SERVERID)){
             console.log("No setup required");
             process.exit(0);
         }
