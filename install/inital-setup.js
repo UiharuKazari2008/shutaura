@@ -3,44 +3,24 @@
 let systemglobal = require('./../config.json');
 const fs = require('fs');
 const path = require('path');
-const RateLimiter = require('limiter').RateLimiter;
-const minimist = require("minimist");
 const eris = require("eris");
-let args = minimist(process.argv.slice(2));
-const inquirer = require('inquirer');
-
 const db = require('./../js/utils/shutauraSQL')("InitSetup");
 
-const readline = require("readline");
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
 let discordClient = null;
 let authwareOnly = false;
 
 (async () => {
     try {
         let discordKey = undefined;
-        const type = await inquirer
-            .prompt([
-                {
-                    type: 'list',
-                    name: 'e',
-                    message: 'What system are you settings up?',
-                    choices: [
-                        'Storage / Omnibus',
-                        'Authentication Only'
-                    ]
-                }
-            ])
-        switch (type.e) {
-            case 'Storage / Omnibus':
-                discordKey = systemglobal.Discord_Key;
-                break;
-            case 'Authentication Only':
+        switch (process.env.KANMI_TYPE) {
+            case "auth":
                 discordKey = systemglobal.Authware_Key;
                 authwareOnly = true;
+                console.log("AuthWare Only Configuration")
+                break;
+            case "storage":
+                discordKey = systemglobal.Discord_Key;
+                console.log("Storage and AuthWare Configuration")
                 break;
             default:
                 console.error('Invalid Option')
@@ -71,37 +51,13 @@ let authwareOnly = false;
             let parentMap = [];
             let channels = [];
 
-            const joinBot = await inquirer
-                .prompt([
-                    {
-                        type: 'confirm',
-                        name: 'e',
-                        message: 'Have you added the bot to the server and assigned the role yet?',
-                    }
-                ])
-            if (!joinBot.e) {
-                console.log('Please add the bot to the server and assign the \'System Engine\' role for Framework or assign the \'Security Engine\' role to AuthWare');
-                process.exit(1)
-            }
-
             const guilds = await discordClient.getRESTGuilds()
             if (guilds.length === 0) {
                 console.error(`Bot is not a member of any servers`)
                 process.exit(1);
             }
             console.log(`DANGER: NEVER import an existing server again as it will erase all data associated with that server!\n`);
-            const guildSelect = await inquirer
-                .prompt([
-                    {
-                        type: 'list',
-                        name: 'e',
-                        message: 'Select server to configure?',
-                        choices: [
-                            ...guilds.map(e => `${e.name} - ${e.id}`)
-                        ]
-                    }
-                ])
-            const guild = guilds.filter(e => e.name === guildSelect.e.split(' - ')[0] && e.id === guildSelect.e.split(' - ')[1])
+            const guild = guilds.filter(e => e.id === process.env.KANMI_SERVERID + '')
             if (guild.length === 0) {
                 console.error(`${guildSelect.e} was not found`)
                 process.exit(1);
@@ -532,29 +488,8 @@ let authwareOnly = false;
             }
             const exsistingServer = await db.query(`SELECT * FROM discord_servers WHERE serverid = ?`, [guild[0].id])
             if (exsistingServer && exsistingServer.rows && exsistingServer.rows.length === 0) {
-                const names = await inquirer.prompt([
-                    {
-                        type: 'input',
-                        name: 'a',
-                        message: 'Server Path (Max 3 letters, Ex: SEQ, Leave blank for default):'
-                    },
-                    {
-                        type: 'input',
-                        name: 'b',
-                        message: 'Server Public Name (Name that is displayed in Sequenzia, Leave blank for default):'
-                    },
-                    {
-                        type: 'confirm',
-                        name: 'c',
-                        message: 'Enable Login to Web via this server (Always yes, for Onmibus setups)',
-                        default: true
-                    }
-                ])
-                if (names.a && names.a.length > 0)
-                    serverMap.short_name = names.a.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim().substring(0,3).toUpperCase()
-                if (names.b && names.b.length > 0)
-                    serverMap.nice_name = names.b
-                serverMap.authware_enabled = (authwareOnly || names.c) ? 1 : 0
+                serverMap.short_name = guild[0].name.trim().substring(0,3).toUpperCase()
+                serverMap.authware_enabled = 1
                 await db.query('REPLACE INTO discord_servers SET ?', serverMap);
                 console.log(`✅ Server Installed`)
             } else {
