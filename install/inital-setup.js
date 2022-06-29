@@ -77,7 +77,7 @@ let authwareOnly = false;
             console.log(`DANGER: NEVER import an existing server again as it will erase all data associated with that server!\n`);
             const guild = guilds.filter(e => e.id === config.Home_Server_ID + '')
             if (guild.length === 0) {
-                console.error(`${guildSelect.e} was not found`)
+                console.error(`${config.Home_Server_ID} was not found`)
                 process.exit(1);
             }
 
@@ -190,51 +190,50 @@ let authwareOnly = false;
             const roles = await discordClient.getRESTGuildRoles(guild[0].id)
             let rolesRecords = []
             await Promise.all(roles.map(e => {
-                const r = emojiStrip(e.name).trim()
-                console.log(`"${r}"`);
+                const r = e.name.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim()
                 if (e.name.startsWith("🎫")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_read',
+                        name: r.replace('🎫 ', '').toLowerCase().trim().split(' ').join('_') + '_read',
                         role: e.id,
                         server: guild[0].id
                     })
                 } else if (e.name.startsWith("📥")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_write',
+                        name: r.replace('📥 ', '').toLowerCase().trim().split(' ').join('_') + '_write',
                         role: e.id,
                         server: guild[0].id
                     })
                 } else if (e.name.startsWith("🔨")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_manage',
+                        name: r.replace('🔨 ', '').toLowerCase().trim().split(' ').join('_') + '_manage',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Sequenzia Access") {
+                } else if (r === "🔑 Sequenzia Access") {
                     rolesRecords.push({
                         name: 'system_user',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Content Manager") {
+                } else if (r === "🔍 Content Manager") {
                     rolesRecords.push({
                         name: 'system_interact',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Server Manager") {
+                } else if (r === "🧰 Server Manager") {
                     rolesRecords.push({
                         name: 'system_admin',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "System Engine" || r === "Security Engine" || r === "Data Reader" || r === "Modules") {
+                } else if (r === "⚡ System Engine" || r === "🔐 Security Engine" || r === "📀 Data Reader" || r === "🧱 Modules") {
                     rolesRecords.push({
                         name: 'sysbot',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Admin Mode") {
+                } else if (r === "🔓 Admin Mode") {
                     rolesRecords.push({
                         name: 'syselevated',
                         role: e.id,
@@ -257,14 +256,14 @@ let authwareOnly = false;
             if (!authwareOnly) {
                 console.log("Reading Channels...")
                 const chs = await discordClient.getRESTGuildChannels(guild[0].id)
-                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(emojiStrip(e.name).trim()) !== -1).map(async channel => {
+                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(e.name.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim()) !== -1).map(async channel => {
                     let values = {
                         source: 0,
                         channelid: channel.id,
                         serverid: guild[0].id,
                         position: channel.position,
                         name: channel.name,
-                        short_name: emojiStrip(channel.name).trim(),
+                        short_name: channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim(),
                         parent: 'isparent',
                         nsfw: (channel.nsfw) ? 1 : 0,
                         description: null,
@@ -321,14 +320,12 @@ let authwareOnly = false;
                         serverid: guild[0].id,
                         position: channel.position,
                         name: channel.name,
-                        short_name: emojiStrip(channel.name).trim(),
+                        short_name: channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(),
                         parent: channel.parentID,
                         nsfw: (channel.nsfw) ? 1 : 0,
                         description: (channel.topic) ? channel.topic : null,
                     }
                     const parent = parentMap.filter(e => e.id === channel.parentID)
-                    const channel_name = values.short_name
-                    console.log(`"${channel_name}"`)
                     if (parent.length > 0) {
                         values.classification = parent[0].class;
                         values.role = parent[0].role;
@@ -340,29 +337,29 @@ let authwareOnly = false;
                         values.role_write = null;
                         values.role_manage = null;
                     }
-                    switch (channel_name.toLowerCase()) {
-                        case 'mailbox':
+                    switch (channel.name.toLowerCase()) {
+                        case '📬mailbox':
                             values.watch_folder = `Tripcode`;
                             values.classification = 'data';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'tripcode':
+                        case '🧪tripcode':
                             values.watch_folder = `Tripcode`;
                             values.classification = 'data';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'notebook':
-                        case 'bookmarks':
+                        case '📓notebook':
+                        case '🔗bookmarks':
                             values.classification = 'notes';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'downloads':
+                        case '📥downloads':
                             values.classification = 'data';
                             values.role = 'admin';
                             values.role_write = 'admin';
@@ -377,32 +374,32 @@ let authwareOnly = false;
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'console':
+                        case '🧰console':
                             serverMap.chid_system = channel.id;
                             break;
-                        case 'notifications':
+                        case '🔔notifications':
                             values.classification = "system";
                             values.role = null;
                             values.role_write = null;
                             values.role_manage = null;
                             serverMap.chid_msg_notif = channel.id;
                             break;
-                        case 'infomation':
+                        case '🆗infomation':
                             serverMap.chid_msg_info = channel.id;
                             break;
-                        case 'warnings':
+                        case '🔶warnings':
                             serverMap.chid_msg_warn = channel.id;
                             break;
-                        case 'errors':
+                        case '❌errors':
                             serverMap.chid_msg_err = channel.id;
                             break;
-                        case 'critical':
+                        case '⛔critical':
                             serverMap.chid_msg_crit = channel.id;
                             break;
-                        case 'system-file-parity':
+                        case '🧩system-file-parity':
                             serverMap.chid_filedata = channel.id;
                             break;
-                        case 'system-cache':
+                        case '🧩system-cache':
                             serverMap.chid_filecache = channel.id;
                             break;
                         case 'archives-root':
