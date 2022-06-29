@@ -267,9 +267,9 @@ let authwareOnly = false;
                         case 3:
                         case 4:
                             values.classification = "pictures";
-                            values.role = "photo_read";
-                            values.role_write = 'photo_write';
-                            values.role_manage = 'photo_manage';
+                            values.role = "photos_read";
+                            values.role_write = 'photos_write';
+                            values.role_manage = 'photos_manage';
                             break;
                         case 5:
                             values.classification = "data";
@@ -326,8 +326,7 @@ let authwareOnly = false;
                     }
                     switch (channel.name.toLowerCase()) {
                         case '📬mailbox':
-                            values.watch_folder = `Tripcode`;
-                            values.classification = 'data';
+                            values.classification = 'system';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
@@ -356,10 +355,6 @@ let authwareOnly = false;
                             break;
                         case 'root-fs':
                             values.watch_folder = `Data`;
-                            values.classification = 'data';
-                            values.role = 'admin';
-                            values.role_write = 'admin';
-                            values.role_manage = 'admin';
                             break;
                         case '🧰console':
                             serverMap.chid_system = channel.id;
