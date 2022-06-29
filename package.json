@@ -20,6 +20,7 @@
     "chokidar": "*",
     "colors": "^1.4.0",
     "dateformat": "^3.0.3",
+    "emoji-strip": "^1.0.1",
     "eris": "github:bsian03/eris#dev",
     "exif": "^0.6.0",
     "fast-average-color-node": "^1.0.3",
