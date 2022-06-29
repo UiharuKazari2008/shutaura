@@ -159,6 +159,14 @@ This code is publicly released and is restricted by its project license
 
     Logger.printLine("Init", "Discord I/O", "info");
 
+    if (fs.existsSync('../user-config.json')) {
+        const userConfig = require('../user-config.json');
+        systemglobal = {
+            ...systemglobal,
+            ...userConfig
+        }
+    }
+
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")

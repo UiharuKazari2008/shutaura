@@ -49,6 +49,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let init = 0
 
     Logger.printLine("Init", "Discord AuthWare", "info")
+
+    if (fs.existsSync('../user-config.json')) {
+        const userConfig = require('../user-config.json');
+        systemglobal = {
+            ...systemglobal,
+            ...userConfig
+        }
+    }
+
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")

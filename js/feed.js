@@ -45,6 +45,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Feed Watcher", "debug");
 
+    if (fs.existsSync('../user-config.json')) {
+        const userConfig = require('../user-config.json');
+        systemglobal = {
+            ...systemglobal,
+            ...userConfig
+        }
+    }
+
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
         const _systemparams = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) AND (account = ? OR account IS NULL) AND (application = 'feed' OR application IS NULL) ORDER BY system_name, application, account`, [systemglobal.SystemName, systemglobal.RSSAccount])

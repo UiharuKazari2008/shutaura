@@ -38,6 +38,14 @@ This code is publicly released and is restricted by its project license
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
 
+    if (fs.existsSync('../user-config.json')) {
+        const userConfig = require('../user-config.json');
+        systemglobal = {
+            ...systemglobal,
+            ...userConfig
+        }
+    }
+
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
         const _systemparams = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) AND (application = 'webparser' OR application IS NULL) ORDER BY system_name, application`, [systemglobal.SystemName])

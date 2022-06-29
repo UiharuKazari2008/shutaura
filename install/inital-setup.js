@@ -1,7 +1,7 @@
 // noinspection ES6MissingAwait
 
 let systemglobal = require('./../config.json');
-let config = require('./config.json');
+const config = require('./../user-config.json');
 const fs = require('fs');
 const path = require('path');
 const eris = require("eris");
@@ -12,32 +12,20 @@ let authwareOnly = false;
 
 (async () => {
     try {
-        if (config.Framework_Discord_Token) {
-            systemglobal.Discord_Key = config.Framework_Discord_Token + "";
-        }
-        if (config.Authware_Discord_Token) {
-            systemglobal.Authware_Key = config.Authware_Discord_Token + "";
-        }
-        if (config.Home_Server_ID) {
-            systemglobal.DiscordHomeGuild = config.Home_Server_ID + "";
-        }
-
-        fs.writeFileSync('./../config.json', JSON.stringify(systemglobal, null, '\t'));
-
-        if (config.completed){
+        if (process.env.SETUP_TYPE && process.env.SETUP_SERVERID){
             console.log("No setup required");
             process.exit(0);
         }
 
         let discordKey = undefined;
-        switch (process.env.KANMI_TYPE) {
+        switch (process.env.SETUP_TYPE) {
             case "auth":
-                discordKey = (config.Authware_Discord_Token) ? config.Authware_Discord_Token : systemglobal.Authware_Key;
+                discordKey = (config.Authware_Discord_Token) ? config.Authware_Key : systemglobal.Authware_Key;
                 authwareOnly = true;
                 console.log("AuthWare Only Configuration")
                 break;
             case "storage":
-                discordKey = (config.Framework_Discord_Token) ? config.Framework_Discord_Token : systemglobal.Discord_Key;
+                discordKey = (config.Framework_Discord_Token) ? config.Discord_Key : systemglobal.Discord_Key;
                 console.log("Storage and AuthWare Configuration")
                 break;
             default:
@@ -74,10 +62,9 @@ let authwareOnly = false;
                 console.error(`Bot is not a member of any servers`)
                 process.exit(1);
             }
-            console.log(`DANGER: NEVER import an existing server again as it will erase all data associated with that server!\n`);
-            const guild = guilds.filter(e => e.id === config.Home_Server_ID + '')
+            const guild = guilds.filter(e => e.id === process.env.SETUP_SERVERID + '')
             if (guild.length === 0) {
-                console.error(`${config.Home_Server_ID} was not found`)
+                console.error(`${process.env.SETUP_SERVERID} was not found`)
                 process.exit(1);
             }
 
@@ -515,9 +502,6 @@ let authwareOnly = false;
             }
 
             console.log(`All Done! Waiting for background tasks to sync...`)
-
-            config.completed = true;
-            fs.writeFileSync('./config.json', JSON.stringify(config, null, '\t'));
 
             setTimeout(() => {
                 process.exit(0);

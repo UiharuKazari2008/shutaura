@@ -111,13 +111,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					ABitrate: `${_ffmpeg_config[0].param_data.abitrate}`
 				};
 			}
-			const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
-			if (_seq_config.length > 0 && _seq_config[0].param_data) {
-				if (_seq_config[0].param_data.pickup_base_url)
-					systemglobal.Pickup_Base_URL = _seq_config[0].param_data.pickup_base_url;
-				if (_seq_config[0].param_data.base_url)
-					systemglobal.Base_URL = _seq_config[0].param_data.base_url;
-			}
 
 			const _mq_discord_out = systemparams_sql.filter(e => e.param_key === 'mq.discord.out');
 			if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
@@ -651,8 +644,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														Logger.printLine("MPFCache", `File ${fileName.replace(/[/\\?%*:|"<> ]/g, '_')} was cached successfully!`, 'info')
 													}
 												})
-												if (MessageContents.userRequest && MessageContents.userRequest !== 'none')
-													mqClient.sendMessage(`File is now available <@!${MessageContents.userRequest.toString()}>${(systemglobal.Base_URL) ? '\nDownload URL: ' + systemglobal.Base_URL + '/stream/' + cacheresponse[0].fileid + '/' + fileName : ''}`, "message", "MPFDownload")
 												rimraf(PartsFilePath, function (err) { });
 												if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(fileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 													if (cacheresponse[0].attachment_hash === null) {
