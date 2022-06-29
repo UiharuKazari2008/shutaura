@@ -527,7 +527,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 					datawatcher1.on('add', function (filePath) {
 						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-'))) {
-							onboardFileAdd(slash("./" + filePath), "1")
+							onboardFileAdd(slash(filePath), "1")
 						}
 					})
 						.on('error', function (error) {
