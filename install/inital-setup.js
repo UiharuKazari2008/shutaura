@@ -1,25 +1,42 @@
 // noinspection ES6MissingAwait
 
 let systemglobal = require('./../config.json');
+let config = require('./config.json');
 const fs = require('fs');
 const path = require('path');
 const eris = require("eris");
 const db = require('./../js/utils/shutauraSQL')("InitSetup");
 
-let discordClient = null;
 let authwareOnly = false;
 
 (async () => {
     try {
+        if (config.completed){
+            console.log("No setup required");
+            process.exit(0);
+        }
+
+        if (config.Framework_Discord_Token) {
+            systemglobal.Discord_Key = config.Framework_Discord_Token + "";
+        }
+        if (config.Authware_Discord_Token) {
+            systemglobal.Authware_Key = config.Authware_Discord_Token + "";
+        }
+        if (config.Home_Server_ID) {
+            systemglobal.DiscordHomeGuild = config.Home_Server_ID + "";
+        }
+
+        fs.writeFileSync('./../config.json', JSON.stringify(systemglobal));
+
         let discordKey = undefined;
         switch (process.env.KANMI_TYPE) {
             case "auth":
-                discordKey = systemglobal.Authware_Key;
+                discordKey = (config.Authware_Discord_Token) ? config.Authware_Discord_Token : systemglobal.Authware_Key;
                 authwareOnly = true;
                 console.log("AuthWare Only Configuration")
                 break;
             case "storage":
-                discordKey = systemglobal.Discord_Key;
+                discordKey = (config.Framework_Discord_Token) ? config.Framework_Discord_Token : systemglobal.Discord_Key;
                 console.log("Storage and AuthWare Configuration")
                 break;
             default:
@@ -57,7 +74,7 @@ let authwareOnly = false;
                 process.exit(1);
             }
             console.log(`DANGER: NEVER import an existing server again as it will erase all data associated with that server!\n`);
-            const guild = guilds.filter(e => e.id === process.env.KANMI_SERVERID + '')
+            const guild = guilds.filter(e => e.id === config.Home_Server_ID + '')
             if (guild.length === 0) {
                 console.error(`${guildSelect.e} was not found`)
                 process.exit(1);
@@ -498,6 +515,9 @@ let authwareOnly = false;
             }
 
             console.log(`All Done! Waiting for background tasks to sync...`)
+
+            config.completed = true;
+            fs.writeFileSync('./config.json', JSON.stringify(config));
 
             setTimeout(() => {
                 process.exit(0);
