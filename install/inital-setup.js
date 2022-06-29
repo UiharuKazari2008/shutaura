@@ -414,9 +414,9 @@ let authwareOnly = false;
                     channels.push(values);
                 }))
                 let serverEmojis = await discordClient.getRESTGuildEmojis(guild[0].id)
-                await Promise.all(fs.readdirSync(path.join(process.cwd(), '/assets/emojis/')).filter(e => path.extname(e.toLowerCase()) === ".png" && expectedEmojis.filter(f => f.reaction_name.toLowerCase() === path.basename(e, path.extname(e.toLowerCase()))) && serverEmojis.filter(f => f.name === path.basename(e, path.extname(e.toLowerCase()))).length === 0).map(async e => {
+                await Promise.all(fs.readdirSync(path.join(process.cwd(), './../assets/emojis/')).filter(e => path.extname(e.toLowerCase()) === ".png" && expectedEmojis.filter(f => f.reaction_name.toLowerCase() === path.basename(e, path.extname(e.toLowerCase()))) && serverEmojis.filter(f => f.name === path.basename(e, path.extname(e.toLowerCase()))).length === 0).map(async e => {
                     await discordClient.createGuildEmoji(guild[0].id, {
-                        image: 'data:image/png;base64,' + fs.readFileSync(path.join(process.cwd(), '/assets/emojis/', e)).toString('base64'),
+                        image: 'data:image/png;base64,' + fs.readFileSync(path.join(process.cwd(), './../assets/emojis/', e)).toString('base64'),
                         name: path.basename(e, path.extname(e))
                     })
                     console.log(`✅ Installed Emoji "${path.basename(e, path.extname(e))}"`)
