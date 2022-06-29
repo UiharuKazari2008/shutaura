@@ -5,6 +5,7 @@ let config = require('./config.json');
 const fs = require('fs');
 const path = require('path');
 const eris = require("eris");
+const emojiStrip = require('emoji-strip');
 const db = require('./../js/utils/shutauraSQL')("InitSetup");
 
 let authwareOnly = false;
@@ -189,7 +190,7 @@ let authwareOnly = false;
             const roles = await discordClient.getRESTGuildRoles(guild[0].id)
             let rolesRecords = []
             await Promise.all(roles.map(e => {
-                const r = e.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
+                const r = emojiStrip(e.name).trim()
                 console.log(`"${r}"`);
                 if (e.name.startsWith("🎫")) {
                     rolesRecords.push({
@@ -251,19 +252,19 @@ let authwareOnly = false;
                 serverid: guild[0].id,
                 avatar: guild[0].icon,
                 name: guild[0].name,
-                short_name: guild[0].name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim().substring(0,3).toUpperCase()
+                short_name: emojiStrip(guild[0].name).trim().substring(0,3).toUpperCase()
             };
             if (!authwareOnly) {
                 console.log("Reading Channels...")
                 const chs = await discordClient.getRESTGuildChannels(guild[0].id)
-                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(e.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()) !== -1).map(async channel => {
+                await Promise.all(chs.filter(e => e.type === 4 && searchParents.indexOf(emojiStrip(e.name).trim()) !== -1).map(async channel => {
                     let values = {
                         source: 0,
                         channelid: channel.id,
                         serverid: guild[0].id,
                         position: channel.position,
                         name: channel.name,
-                        short_name: channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim(),
+                        short_name: emojiStrip(channel.name).trim(),
                         parent: 'isparent',
                         nsfw: (channel.nsfw) ? 1 : 0,
                         description: null,
@@ -320,13 +321,13 @@ let authwareOnly = false;
                         serverid: guild[0].id,
                         position: channel.position,
                         name: channel.name,
-                        short_name: channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(),
+                        short_name: emojiStrip(channel.name).trim(),
                         parent: channel.parentID,
                         nsfw: (channel.nsfw) ? 1 : 0,
                         description: (channel.topic) ? channel.topic : null,
                     }
                     const parent = parentMap.filter(e => e.id === channel.parentID)
-                    const channel_name = channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*!/g, '').trim()
+                    const channel_name = values.short_name
                     console.log(`"${channel_name}"`)
                     if (parent.length > 0) {
                         values.classification = parent[0].class;
