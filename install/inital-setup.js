@@ -3,7 +3,6 @@
 let systemglobal = require('./../config.json');
 if (process.env.SYSTEM_NAME)
     systemglobal.SystemName = process.env.SYSTEM_NAME
-const config = require('./../user-config.json');
 const fs = require('fs');
 const path = require('path');
 const eris = require("eris");
@@ -22,12 +21,12 @@ let authwareOnly = false;
         let discordKey = undefined;
         switch (process.env.SETUP_TYPE) {
             case "auth":
-                discordKey = (config.Authware_Key) ? config.Authware_Key : systemglobal.Authware_Key;
+                discordKey = systemglobal.Authware_Key;
                 authwareOnly = true;
                 console.log("AuthWare Only Configuration")
                 break;
             case "storage":
-                discordKey = (config.Discord_Key) ? config.Discord_Key : systemglobal.Discord_Key;
+                discordKey = systemglobal.Discord_Key;
                 console.log("Storage and AuthWare Configuration")
                 break;
             default:
