@@ -13,7 +13,6 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
-const systemglobal = require("../config.json");
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
