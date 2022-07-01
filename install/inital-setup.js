@@ -1,8 +1,8 @@
 // noinspection ES6MissingAwait
 
 let systemglobal = require('./../config.json');
-if (process.env.SYSTEM_NAME)
-    systemglobal.SystemName = process.env.SYSTEM_NAME
+if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+    systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
 const fs = require('fs');
 const path = require('path');
 const eris = require("eris");
@@ -15,7 +15,7 @@ let authwareOnly = false;
 
 (async () => {
     try {
-        if (!(process.env.SETUP_TYPE && process.env.SETUP_SERVERID)){
+        if (!(process.env.SETUP_TYPE && process.env.SETUP_TYPE.trim().length > 0 && process.env.SETUP_SERVERID && process.env.SETUP_SERVERID.trim().length > 0)){
             console.log("No setup required");
             process.exit(0);
         }
@@ -65,7 +65,7 @@ let authwareOnly = false;
                 console.error(`Bot is not a member of any servers`)
                 process.exit(1);
             }
-            const guild = guilds.filter(e => e.id === process.env.SETUP_SERVERID + '')
+            const guild = guilds.filter(e => e.id === process.env.SETUP_SERVERID.trim() + '')
             if (guild.length === 0) {
                 console.error(`${process.env.SETUP_SERVERID} was not found`)
                 process.exit(1);

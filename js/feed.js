@@ -23,8 +23,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 const systemglobal = require("../config.json");
 (async () => {
     let systemglobal = require('../config.json');
-    if (process.env.SYSTEM_NAME)
-        systemglobal.SystemName = process.env.SYSTEM_NAME
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Feed-Worker';
 
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));

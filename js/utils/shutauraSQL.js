@@ -1,20 +1,20 @@
 let systemglobal = require('../../config.json');
-if (process.env.SYSTEM_NAME)
-    systemglobal.SystemName = process.env.SYSTEM_NAME
-if (process.env.DATABASE_HOST)
-    systemglobal.SQLServer = process.env.DATABASE_HOST
-if (process.env.DATABASE_NAME)
-    systemglobal.SQLDatabase = process.env.DATABASE_NAME
-if (process.env.DATABASE_USERNAME)
-    systemglobal.SQLUsername = process.env.DATABASE_USERNAME
-if (process.env.DATABASE_PASSWORD)
-    systemglobal.SQLPassword = process.env.DATABASE_PASSWORD
-if (process.env.MQ_HOST)
-    systemglobal.MQServer = process.env.MQ_HOST
-if (process.env.RABBITMQ_DEFAULT_USER)
-    systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER
-if (process.env.RABBITMQ_DEFAULT_PASS)
-    systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS
+if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+    systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
+if (process.env.DATABASE_HOST && process.env.DATABASE_HOST.trim().length > 0)
+    systemglobal.SQLServer = process.env.DATABASE_HOST.trim()
+if (process.env.DATABASE_NAME && process.env.DATABASE_NAME.trim().length > 0)
+    systemglobal.SQLDatabase = process.env.DATABASE_NAME.trim()
+if (process.env.DATABASE_USERNAME && process.env.DATABASE_USERNAME.trim().length > 0)
+    systemglobal.SQLUsername = process.env.DATABASE_USERNAME.trim()
+if (process.env.DATABASE_PASSWORD && process.env.DATABASE_PASSWORD.trim().length > 0)
+    systemglobal.SQLPassword = process.env.DATABASE_PASSWORD.trim()
+if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+    systemglobal.MQServer = process.env.MQ_HOST.trim()
+if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+    systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+    systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
 const os = require('os');
 const mysql = require('mysql2');

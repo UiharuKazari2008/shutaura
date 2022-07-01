@@ -22,8 +22,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 (async () => {
     let systemglobal = require('../config.json');
-    if (process.env.SYSTEM_NAME)
-        systemglobal.SystemName = process.env.SYSTEM_NAME
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Discord-AuthWare';
 
     const eris = require('eris');
@@ -54,12 +54,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     Logger.printLine("Init", "Discord AuthWare", "info")
 
     // Load Enviorment Varibles
-    if (process.env.MQ_HOST)
-        systemglobal.MQServer = process.env.MQ_HOST
-    if (process.env.RABBITMQ_DEFAULT_USER)
-        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER
-    if (process.env.RABBITMQ_DEFAULT_PASS)
-        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS
+    if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+        systemglobal.MQServer = process.env.MQ_HOST.trim()
+    if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+    if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
