@@ -20,8 +20,11 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
+const systemglobal = require("../config.json");
 (async () => {
 	let systemglobal = require('../config.json');
+	if (process.env.SYSTEM_NAME)
+		systemglobal.SystemName = process.env.SYSTEM_NAME
 	const facilityName = 'FileWorker';
 
 	const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -69,6 +72,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const db = require('./utils/shutauraSQL')(facilityName);
 
 	Logger.printLine("Init", "FileWorker Server I/O", "debug")
+
+	if (process.env.MQ_HOST)
+		systemglobal.MQServer = process.env.MQ_HOST
+	if (process.env.RABBITMQ_DEFAULT_USER)
+		systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER
+	if (process.env.RABBITMQ_DEFAULT_PASS)
+		systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")

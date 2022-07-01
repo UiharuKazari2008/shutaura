@@ -22,6 +22,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME)
+        systemglobal.SystemName = process.env.SYSTEM_NAME
     const facilityName = 'Discord-AuthWare';
 
     const eris = require('eris');
@@ -50,6 +52,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let init = 0
 
     Logger.printLine("Init", "Discord AuthWare", "info")
+
+    // Load Enviorment Varibles
+    if (process.env.MQ_HOST)
+        systemglobal.MQServer = process.env.MQ_HOST
+    if (process.env.RABBITMQ_DEFAULT_USER)
+        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER
+    if (process.env.RABBITMQ_DEFAULT_PASS)
+        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS
 
     // Shutaura SQL Cache
     async function loadDatabaseCache() {

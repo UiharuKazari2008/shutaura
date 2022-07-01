@@ -1,4 +1,20 @@
-const systemglobal = require('../../config.json');
+let systemglobal = require('../../config.json');
+if (process.env.SYSTEM_NAME)
+    systemglobal.SystemName = process.env.SYSTEM_NAME
+if (process.env.DATABASE_HOST)
+    systemglobal.SQLServer = process.env.DATABASE_HOST
+if (process.env.DATABASE_NAME)
+    systemglobal.SQLDatabase = process.env.DATABASE_NAME
+if (process.env.DATABASE_USERNAME)
+    systemglobal.SQLUsername = process.env.DATABASE_USERNAME
+if (process.env.DATABASE_PASSWORD)
+    systemglobal.SQLPassword = process.env.DATABASE_PASSWORD
+if (process.env.MQ_HOST)
+    systemglobal.MQServer = process.env.MQ_HOST
+if (process.env.RABBITMQ_DEFAULT_USER)
+    systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER
+if (process.env.RABBITMQ_DEFAULT_PASS)
+    systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS
 
 const os = require('os');
 const mysql = require('mysql2');

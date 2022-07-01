@@ -13,8 +13,11 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
+const systemglobal = require("../config.json");
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME)
+        systemglobal.SystemName = process.env.SYSTEM_NAME
     const facilityName = 'WebCrawer';
 
     const fs = require('fs');

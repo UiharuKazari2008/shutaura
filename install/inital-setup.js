@@ -1,6 +1,8 @@
 // noinspection ES6MissingAwait
 
 let systemglobal = require('./../config.json');
+if (process.env.SYSTEM_NAME)
+    systemglobal.SystemName = process.env.SYSTEM_NAME
 const config = require('./../user-config.json');
 const fs = require('fs');
 const path = require('path');
