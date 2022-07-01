@@ -43,16 +43,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let runCount = 0;
     Logger.printLine("Init", "Backup I/O", "info");
 
-    try {
-        const userConfig = require('./../user-config.json');
-        systemglobal = {
-            ...systemglobal,
-            ...userConfig
-        }
-    } catch (e) {
-
-    }
-
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
         const _systemparams = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) AND (account = ? OR account IS NULL) AND (application = 'backup' OR application IS NULL) ORDER BY system_name, application, account`, [systemglobal.SystemName, systemglobal.BackupID])

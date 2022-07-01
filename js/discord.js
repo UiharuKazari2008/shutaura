@@ -159,15 +159,7 @@ This code is publicly released and is restricted by its project license
 
     Logger.printLine("Init", "Discord I/O", "info");
 
-    try {
-        const userConfig = require('./../user-config.json');
-        systemglobal = {
-            ...systemglobal,
-            ...userConfig
-        }
-    } catch (e) {
 
-    }
 
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
@@ -278,7 +270,7 @@ This code is publicly released and is restricted by its project license
             const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
             if (_seq_config.length > 0 && _seq_config[0].param_data) {
                if (_seq_config[0].param_data.base_url)
-                    systemglobal.Base_URL = _seq_config[0].param_data.base_url;
+                    systemglobal.base_url = _seq_config[0].param_data.base_url;
             }
             // Sequenzia Common Configuration
             // seq.common = { base_url: "https://seq.moe/" }
@@ -6046,7 +6038,7 @@ This code is publicly released and is restricted by its project license
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
-                                        //systemglobal.Base_URL
+                                        //systemglobal.base_url
                                         const guildInfo = discordClient.guilds.get(msg.guildID)
                                         let embedText = sqlObject.content_full
                                         if (sqlObject.fileid) {
@@ -6084,8 +6076,8 @@ This code is publicly released and is restricted by its project license
                                                 "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                             }
                                         }
-                                        if (systemglobal.Base_URL)
-                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
+                                        if (systemglobal.base_url)
+                                            embed["url"] = `${systemglobal.base_url}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
                                         await Promise.all(chDbval.notify.split(' ').map(async ch => {
                                             try {
                                                 await discordClient.createMessage(ch, { embed });
