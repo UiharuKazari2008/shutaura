@@ -9,6 +9,8 @@ const eris = require("eris");
 const emojiStrip = require('emoji-strip');
 const db = require('./../js/utils/shutauraSQL')("InitSetup");
 
+console.log(systemglobal)
+
 let authwareOnly = false;
 
 (async () => {
