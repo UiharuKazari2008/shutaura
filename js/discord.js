@@ -2371,7 +2371,7 @@ This code is publicly released and is restricted by its project license
                                 return "⁉ Missing required information"
                             }
                             break;
-                        case 'name':
+                        case 'chname':
                             if (args.length > 2) {
                                 const channel = args[1].replace("<#", "").replace(">", "");
                                 let newName = args.filter((e, i) => { if (i > 1) return e }).join(" ")
@@ -2562,15 +2562,117 @@ This code is publicly released and is restricted by its project license
             description: "Manage the Discord Filesystem",
             fullDescription: "Allows you to manage channel mappings, create and remove channels\n" +
                 "   **lsmap** - Lists all channel maps\n   **mkmap** - Create channel maps\n      [Channel, Folder]\n   **rmmap** - Removes a channel maps\n      [Folder]\n" +
-                "   **chmap** - Remap a channel\n      [Channel, Folder]\n   **mkdir** - Creates new channel\n      [Name, Type, (nsfw)]\n   **rmdir** - Removes a channel\n      [Channel]\n" +
-                "   **mvf** - Move Message or file\n      [ChFrom, MessageID, ChTo]\n   **rlch** - Move All Messages to Channel\n      [ChFrom, ChTo, (deep), (count)]\n   **rmf** - Delete Multi-Part File\n      [ChFrom, MessageID]\n" +
+                "   **chmap** - Remap a channel\n      [Channel, Folder]\n   **rlch** - Move All Messages to Channel\n      [ChFrom, ChTo, (deep), (count)]\n   **rmrf** - Delete All Files in a Channel\n      [Channel]\n   **chname** - Change the display name of a channel in Sequenzia (Spaces Ok)\n      [Channel, Name]\n" +
+                "   **rnf** - Rename Message or file\n      [ChFrom, FileID, Filename]\n   **mvf** - Move Message or file\n      [ChFrom, MessageID, ChTo]\n   **rmf** - Delete Multi-Part File\n      [ChFrom, MessageID]\n" +
                 "   **lsarc** - List Archive Channel Maps\n   **mkarc** - Create Archive Channel Map\n      [ChFrom, ChTo]\n   **rmarc** - Removes Archive Channel Map\n      [Channel]\n" +
                 "   **mvc** - Manage the Collector\n      **enable** - Enable\n      **disable** - Disable\n      **status** - Displays status\n" +
                 "      **done** - Moves all items to a channel\n         [Channel]\n      **search** - Search a channel for items to add\n         [Channel, Term]\n      **clear** - Clears all\n" +
-                "   **repair** - Repairs a JFS folder or parity\n      [[ChannelID, all, or parts], (num to search), (force), (before id)]",
+                "   **repair** - Repairs a JFS folder or parity\n      [[Channel, all, or parts], (num to search), (force), (before id)]",
             usage: "command [arguments]",
             guildOnly: true
         })
+
+        discordClient.registerCommand("seq", async function (msg,args) {
+            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                if (args.length > 0) {
+                    switch (args[0].toLowerCase()) {
+                        case 'channel_name':
+                            if (args.length > 2) {
+                                const channelid = args[1].replace("<#", "").replace(">", "");
+                                let newName = args.slice(1).join(" ").trim()
+                                const exsist = await db.query(`SELECT nice_name FROM kanmi_channels WHERE channelid = ?`, [channelid])
+                                if (exsist.rows.length > 0) {
+                                    if (newName.length > 0 && newName !== '' && newName !== ' ') {
+                                        await db.query(`UPDATE kanmi_channels SET nice_name = ? WHERE channelid = ?`, [newName, channelid])
+                                        SendMessage(`✅ Channel display name was been updated to  ${newName}`, "system", msg.guildID, "RenameChannel")
+                                    } else {
+                                        await db.query(`UPDATE kanmi_channels SET nice_name = null WHERE channelid = ?`, [channelid])
+                                        SendMessage(`✅ Channel display name was removed`, "system", msg.guildID, "RenameChannel")
+                                    }
+                                } else {
+                                    SendMessage(`❌ Channel was not found in the database`, "system", msg.guildID, "RenameChannel")
+                                }
+                            } else {
+                                SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
+                            }
+                            break;
+                        case 'layout':
+                            if (args.length > 3) {
+                                const inputs = args.splice(3)
+                                switch (args[1].toLowerCase()) {
+                                    case 'super':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                const list = await db.query(`SELECT * FROM sequenzia_superclass`)
+                                                let results = `SuperClasses:\nPosition,super,name,uri\n`
+                                                results += list.rows
+                                                    .sort((a, b) => (a.position > b.position) ? 1 : -1)
+                                                    .map(e => `${e.position} | ${e.super} | "${e.name}" | /${e.uri}`)
+                                                    .join("\n")
+                                                return results
+                                            case 'update':
+
+                                                break;
+                                            case 'create':
+
+                                                break;
+                                            case 'remove':
+
+                                                break;
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
+                                    case 'class':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                const list = await db.query(`SELECT * FROM sequenzia_class`)
+                                                let results = `Classes:\nPosition,super/class,icon,name,uri\n`
+                                                results += list.rows
+                                                    .sort((a, b) => (a.position > b.position) ? 1 : -1)
+                                                    .map(e => `${e.position} | ${e.super}/${e.class} | ${e.icon} | "${e.name}" | ${(e.uri) ? '/' + e.uri : 'Inherent'}`)
+                                                    .join("\n")
+                                                return results
+                                            case 'update':
+
+                                                break;
+                                            case 'create':
+
+                                                break;
+                                            case 'remove':
+
+                                                break;
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
+                                    case 'channel':
+
+                                        break;
+                                    default:
+                                        SendMessage("⁉ Unknown Command", "system", msg.guildID, "LayoutManager")
+                                        break;
+                                }
+                            } else {
+                                SendMessage("⁉ Missing required information", "system", msg.guildID, "LayoutManager")
+                            }
+                            break;
+                        default:
+                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "SequenziaManager")
+                            break;
+                    }
+                } else {
+                    SendMessage("⁉ Missing required information", "system", msg.guildID, "SequenziaManager")
+                }
+            }
+        }, {
+            argsRequired: true,
+            caseInsensitive: true,
+            description: "Manage Sequenzia",
+            usage: "command [arguments]",
+            guildOnly: true
+        })
+
         discordClient.registerCommand("clr", function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
