@@ -2634,17 +2634,34 @@ This code is publicly released and is restricted by its project license
                                                     }
                                                     if (Object.keys(object).length > 0 && superID.length > 0) {
                                                         const results = await db.query(`UPDATE sequenzia_superclass SET ? WHERE super = ?`, [object, superID])
-                                                        return `Updated ${results.affectedRows} Rows`
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
                                                     }
                                                 } else {
                                                     return "⁉ Missing required information"
                                                 }
                                                 break;
                                             case 'create':
+                                                if (args.length > 5) {
+                                                    const superID = args[3].trim();
+                                                    const superURI = args[4].trim();
+                                                    const superPosition = args[5].trim();
+                                                    const superName = args.splice(6).join(' ').trim();
 
+                                                    await db.query(`INSERT INTO sequenzia_superclass SET ?`, [{
+                                                        super: superID,
+                                                        name: superName,
+                                                        uri: superURI,
+                                                        position: superPosition
+                                                    }])
+                                                    return `Updated Database, Assign Classes to the new class`
+                                                } else {
+                                                    return "⁉ Missing required information\nFormat: SUPERID URI POSITION NAME"
+                                                }
                                                 break;
                                             case 'remove':
-
+                                                const superID = args[3].trim();
+                                                await db.query(`DELETE FROM sequenzia_superclass WHERE super = ?`, [superID])
+                                                return `Updated Database, Assign Classes to the new class`
                                                 break;
                                             default:
                                                 return "⁉ Unknown Command"
