@@ -2575,22 +2575,22 @@ This code is publicly released and is restricted by its project license
         discordClient.registerCommand("seq", async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
+                    console.log(args)
                     switch (args[0].toLowerCase()) {
-                        case 'channel_name':
+                        case 'roles':
                             if (args.length > 2) {
-                                const channelid = args[1].replace("<#", "").replace(">", "");
-                                let newName = args.slice(1).join(" ").trim()
-                                const exsist = await db.query(`SELECT nice_name FROM kanmi_channels WHERE channelid = ?`, [channelid])
-                                if (exsist.rows.length > 0) {
-                                    if (newName.length > 0 && newName !== '' && newName !== ' ') {
-                                        await db.query(`UPDATE kanmi_channels SET nice_name = ? WHERE channelid = ?`, [newName, channelid])
-                                        SendMessage(`✅ Channel display name was been updated to  ${newName}`, "system", msg.guildID, "RenameChannel")
-                                    } else {
-                                        await db.query(`UPDATE kanmi_channels SET nice_name = null WHERE channelid = ?`, [channelid])
-                                        SendMessage(`✅ Channel display name was removed`, "system", msg.guildID, "RenameChannel")
-                                    }
-                                } else {
-                                    SendMessage(`❌ Channel was not found in the database`, "system", msg.guildID, "RenameChannel")
+                                switch (args[1].toLowerCase()) {
+                                    case 'assign':
+                                        const assignRoles = args[2].replace("<@&", "").replace(">", "");
+                                        let assignedName = null
+                                        if (args.length > 3) {
+                                            assignedName = args[3]
+                                        }
+                                        const results = await db.query(`UPDATE discord_permissons SET name = ? WHERE role = ?`, [assignedName, assignRoles])
+                                        console.log(results)
+                                        return `Updated Role`
+                                    default:
+                                        return "⁉ Unknown Command"
                                 }
                             } else {
                                 SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
@@ -2613,7 +2613,6 @@ This code is publicly released and is restricted by its project license
                                                 if (args.length > 4) {
                                                     const superID = args[3].trim();
                                                     let object = {};
-                                                    console.log(args)
                                                     switch (args[4].toLowerCase()) {
                                                         case 'id':
                                                             object.super = args[5].trim();
@@ -2634,7 +2633,7 @@ This code is publicly released and is restricted by its project license
                                                     }
                                                     if (Object.keys(object).length > 0 && superID.length > 0) {
                                                         const results = await db.query(`UPDATE sequenzia_superclass SET ? WHERE super = ?`, [object, superID])
-                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
+                                                        return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
                                                     }
                                                 } else {
                                                     return "⁉ Missing required information"
@@ -2644,7 +2643,9 @@ This code is publicly released and is restricted by its project license
                                                 if (args.length > 5) {
                                                     const superID = args[3].trim();
                                                     const superURI = args[4].trim();
-                                                    const superPosition = args[5].trim();
+                                                    const superPosition = parseInt(args[5].trim());
+                                                    if (isNaN(superPosition))
+                                                        return `❌ Position must be a number!`
                                                     const superName = args.splice(6).join(' ').trim();
 
                                                     await db.query(`INSERT INTO sequenzia_superclass SET ?`, [{
@@ -2653,16 +2654,14 @@ This code is publicly released and is restricted by its project license
                                                         uri: superURI,
                                                         position: superPosition
                                                     }])
-                                                    return `Updated Database, Assign Classes to the new class`
+                                                    return `Updated Database, Assign Classes to the new super`
                                                 } else {
                                                     return "⁉ Missing required information\nFormat: SUPERID URI POSITION NAME"
                                                 }
-                                                break;
                                             case 'remove':
                                                 const superID = args[3].trim();
                                                 await db.query(`DELETE FROM sequenzia_superclass WHERE super = ?`, [superID])
-                                                return `Updated Database, Assign Classes to the new class`
-                                                break;
+                                                return `Updated Database, Super was removed`
                                             default:
                                                 return "⁉ Unknown Command"
                                         }
@@ -2678,20 +2677,202 @@ This code is publicly released and is restricted by its project license
                                                     .join("\n")
                                                 return results + '```'
                                             case 'update':
-
+                                                if (args.length > 4) {
+                                                    const classID = args[3].trim();
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'id':
+                                                            object.class = args[5].trim();
+                                                            break;
+                                                        case 'super':
+                                                            object.super = args[5].trim();
+                                                            break;
+                                                        case 'name':
+                                                            object.name = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'icon':
+                                                            object.icon = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'position':
+                                                            object.position = parseInt(args[5].trim())
+                                                            if (isNaN(object.position))
+                                                                return `❌ Position must be a number!`
+                                                            break;
+                                                        case 'uri':
+                                                            object.uri = args[5].trim();
+                                                            if (object.uri.length === 0)
+                                                                object.uri = null
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                        const results = await db.query(`UPDATE sequenzia_class SET ? WHERE class = ?`, [object, classID])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
                                                 break;
                                             case 'create':
+                                                if (args.length > 6) {
+                                                    const classSuper = args[3].trim();
+                                                    const classID = args[4].trim();
+                                                    const classIcon = args[5].trim();
+                                                    const classPosition = parseInt(args[6].trim());
+                                                    if (isNaN(classPosition))
+                                                        return `❌ Position must be a number!`
+                                                    const className = args.splice(7).join(' ').trim();
 
-                                                break;
+                                                    await db.query(`INSERT INTO sequenzia_class SET ?`, [{
+                                                        super: classSuper,
+                                                        class: classID,
+                                                        icon: classIcon,
+                                                        name: className,
+                                                        position: classPosition
+                                                    }])
+                                                    return `Updated Database, Assign Channels to the new class`
+                                                } else {
+                                                    return "⁉ Missing required information\nFormat: SUPERID CLASSID FA-ICON POSITION NAME"
+                                                }
                                             case 'remove':
-
-                                                break;
+                                                const classID = args[3].trim();
+                                                await db.query(`DELETE FROM sequenzia_class WHERE class = ?`, [classID])
+                                                return `Updated Database, Class removed`
                                             default:
                                                 return "⁉ Unknown Command"
                                         }
                                         break;
                                     case 'channel':
-
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                const list = await db.query(`SELECT * FROM sequenzia_class`)
+                                                let results = "Position,super/class,icon,name,uri\n```"
+                                                results += list.rows
+                                                    .sort((a, b) => (a.position > b.position) ? 1 : -1)
+                                                    .map(e => `${e.position} | ${e.super}/${e.class} | ${e.icon} | "${e.name}" | ${(e.uri) ? '/' + e.uri : 'Inherent'}`)
+                                                    .join("\n")
+                                                return results + '```'
+                                            case 'update':
+                                                if (args.length > 4) {
+                                                    const ChannelID = args[3].replace("<#", "").replace(">", "");
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'class':
+                                                            object.classification = args[5].trim();
+                                                            break;
+                                                        case 'notify':
+                                                            object.notify = args[5].replace("<#", "").replace(">", "");
+                                                            break;
+                                                        case 'name':
+                                                            object.nice_name = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'title':
+                                                            object.nice_title = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'folder':
+                                                            object.watch_folder = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'vcid':
+                                                            object.virtual_cid = parseInt(args[5].trim())
+                                                            if (isNaN(object.virtual_cid))
+                                                                return `❌ Virtual Channel ID must be a number!`
+                                                            break;
+                                                        case 'uri':
+                                                            object.uri = args[5].trim();
+                                                            if (object.uri.length === 0)
+                                                                object.uri = null
+                                                            break;
+                                                        case 'read':
+                                                            if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                object.role = args[5]
+                                                            } else {
+                                                                const role_name = await db.query(`SELECT name
+                                                                                            FROM discord_permissons
+                                                                                            WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                    object.role = role_name.rows[0].name
+                                                                } else {
+                                                                    return `❌ Roles does not exist or has not been assigned a name`
+                                                                }
+                                                            }
+                                                            break;
+                                                        case 'write':
+                                                            if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                object.role_write = args[5]
+                                                            } else {
+                                                                const role_name = await db.query(`SELECT name
+                                                                                            FROM discord_permissons
+                                                                                            WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                    object.role_write = role_name.rows[0].name
+                                                                } else {
+                                                                    return `❌ Roles does not exist or has not been assigned a name`
+                                                                }
+                                                            }
+                                                            break;
+                                                        case 'manage':
+                                                            if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                object.role_manage = args[5]
+                                                            } else {
+                                                                const role_name = await db.query(`SELECT name
+                                                                                            FROM discord_permissons
+                                                                                            WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                    object.role_manage = role_name.rows[0].name
+                                                                } else {
+                                                                    return `❌ Roles does not exist or has not been assigned a name`
+                                                                }
+                                                            }
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                        const results = await db.query(`UPDATE kanmi_channels SET ? WHERE channelid = ?`, [object, ChannelID])
+                                                        return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            case 'create-parent':
+                                                if (args.length > 3) {
+                                                    let parentName;
+                                                    let parentServer = parseInt(args[3].trim());
+                                                    if (isNaN(parentServer)) {
+                                                        parentServer = msg.guildID;
+                                                        parentName = args.splice(3).join(' ').trim();
+                                                    } else {
+                                                        parentServer = msg.guildID;
+                                                        parentName = args.splice(4).join(' ').trim();
+                                                    }
+                                                    try {
+                                                        const parentCreate = await discordClient.createChannel(parentServer, parentName, 4);
+                                                        const guildRoles = await discordClient.getRESTGuildRoles(parentCreate.guild.id);
+                                                        const roleSystem = guildRoles.filter(e => e.name === "⚡ System Engine").map(async e => {
+                                                            return await discordClient.editChannelPermission(parentCreate.id, e.id, 395408698448, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                        })
+                                                        const roleAdminMode = guildRoles.filter(e => e.name === "🔓 Admin Mode").map(async e => {
+                                                            return await discordClient.editChannelPermission(parentCreate.id, e.id, 17183089744, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                        })
+                                                        const roleReadOnly = guildRoles.filter(e => e.name === "📀 Data Reader").map(async e => {
+                                                            return await discordClient.editChannelPermission(parentCreate.id, e.id, 1115136, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                        })
+                                                        if (parentCreate, guildRoles, roleSystem, roleAdminMode, roleReadOnly) {
+                                                            return `Create Parent, Please move the channel to the position you want and use the layout commands to configure class and role access`
+                                                        } else {
+                                                            return `Create Failed - A Task Failed`
+                                                        }
+                                                    } catch (e) {
+                                                        return `Create Failed - ${e.message}`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information, Provide a name and or a serverID"
+                                                }
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
                                         break;
                                     default:
                                         SendMessage("⁉ Unknown Command", "system", msg.guildID, "LayoutManager")
