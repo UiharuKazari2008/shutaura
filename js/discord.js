@@ -2723,7 +2723,7 @@ This code is publicly released and is restricted by its project license
                                                         default:
                                                             return "⁉ Unknown Sub Command"
                                                     }
-                                                    if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                    if (Object.keys(object).length > 0 && classID.length > 0) {
                                                         const results = await db.query(`UPDATE sequenzia_class SET ? WHERE class = ?`, [object, classID])
                                                         return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
                                                     }
