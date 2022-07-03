@@ -2760,6 +2760,70 @@ This code is publicly released and is restricted by its project license
                                                 return "⁉ Unknown Command"
                                         }
                                         break;
+                                    case 'virtual_channel':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                try {
+                                                    const list = await db.query(`SELECT * FROM kanmi_virtual_channels`);
+                                                    await discordClient.createMessage(msg.channel.id, `Virtual Channels Metadata from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `virtual_channels.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
+                                            case 'update':
+                                                if (args.length > 4) {
+                                                    const classID = args[3].trim();
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'id':
+                                                            object.virtual_cid = args[5].trim();
+                                                            break;
+                                                        case 'name':
+                                                            object.name = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'description':
+                                                            object.description = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'uri':
+                                                            object.uri = args[5].trim();
+                                                            if (object.uri.length === 0)
+                                                                object.uri = null
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                        const results = await db.query(`UPDATE kanmi_virtual_channels SET ? WHERE virtual_cid = ?`, [object, classID])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            case 'create':
+                                                if (args.length > 6) {
+                                                    const classID = args[3].trim();
+                                                    const className = args.splice(4).join(' ').trim();
+
+                                                    await db.query(`INSERT INTO kanmi_virtual_channels SET ?`, [{
+                                                        virtual_cid: classID,
+                                                        name: className
+                                                    }])
+                                                    return `Updated Database, Assign Channels to the new class`
+                                                } else {
+                                                    return "⁉ Missing required information\nFormat: VCID NAME"
+                                                }
+                                            case 'remove':
+                                                const classID = args[3].trim();
+                                                await db.query(`DELETE FROM kanmi_virtual_channels WHERE virtual_cid = ?`, [classID])
+                                                return `Updated Database, Class removed`
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
                                     case 'channel':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
@@ -2920,6 +2984,7 @@ This code is publicly released and is restricted by its project license
             argsRequired: true,
             caseInsensitive: true,
             description: "Manage Sequenzia",
+            fullDescription: "Manage Features Related to the Sequenzia Interface\nUsage: https://github.com/UiharuKazari2008/sequenzia-compose/wiki/Administration#layout-commands",
             usage: "command [arguments]",
             guildOnly: true
         })
