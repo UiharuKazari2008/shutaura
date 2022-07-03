@@ -2849,7 +2849,7 @@ This code is publicly released and is restricted by its project license
                                                         default:
                                                             return "⁉ Unknown Sub Command"
                                                     }
-                                                    if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                    if (Object.keys(object).length > 0 && ChannelID.length > 0) {
                                                         const results = await db.query(`UPDATE kanmi_channels SET ? WHERE channelid = ?`, [object, ChannelID])
                                                         return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
                                                     }
