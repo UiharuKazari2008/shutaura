@@ -48,9 +48,9 @@ module.exports = function (facility, options) {
     }
     module.query = async function (sql_q, inputs) {
         try {
-            const [rows,fields] = await sqlPromise.query(sql_q, inputs);
+            const [rows,fields,affectedRows] = await sqlPromise.query(sql_q, inputs);
             return {
-                rows, fields, sql_q, inputs
+                rows, fields, sql_q, inputs, affectedRows
             }
         } catch (error) {
             Logger.printLine("SQL", error.message, "error", error);
@@ -59,6 +59,7 @@ module.exports = function (facility, options) {
             console.error(error);
             return {
                 rows: [],
+                affectedRows: 0,
                 fields: {},
                 sql_q,
                 inputs,

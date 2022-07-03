@@ -2611,7 +2611,30 @@ This code is publicly released and is restricted by its project license
                                                     .join("\n")
                                                 return results + '```'
                                             case 'update':
-
+                                                const superID = args[3].trim();
+                                                let object = {};
+                                                switch (args[4].toLowerCase()) {
+                                                    case 'id':
+                                                        object.super = args[5].trim();
+                                                        break;
+                                                    case 'name':
+                                                        object.name = args.splice(5).join(' ').trim();
+                                                        break;
+                                                    case 'position':
+                                                        object.position = parseInt(args[5].trim())
+                                                        if (isNaN(object.position))
+                                                            return `❌ Position must be a number!`
+                                                        break;
+                                                    case 'uri':
+                                                        object.uri = args[5].trim();
+                                                        break;
+                                                    default:
+                                                        return "⁉ Unknown Sub Command"
+                                                }
+                                                if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                    const results = await db.query(`UPDATE sequenzia_superclass SET ? WHERE super = ?`, [object, superID])
+                                                    return `Updated ${results.affectedRows} Rows`
+                                                }
                                                 break;
                                             case 'create':
 
