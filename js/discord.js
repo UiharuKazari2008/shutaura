@@ -2597,7 +2597,7 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'layout':
-                            if (args.length > 4) {
+                            if (args.length > 3) {
                                 switch (args[1].toLowerCase()) {
                                     case 'super':
                                         switch (args[2].toLowerCase()) {
@@ -2610,7 +2610,7 @@ This code is publicly released and is restricted by its project license
                                                     .join("\n")
                                                 return results + '```'
                                             case 'update':
-                                                if (args.length > 6) {
+                                                if (args.length > 4) {
                                                     const superID = args[3].trim();
                                                     let object = {};
                                                     console.log(args)
