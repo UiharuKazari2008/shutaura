@@ -2872,7 +2872,7 @@ This code is publicly released and is restricted by its project license
                                                         const parentCreate = await discordClient.createChannel(parentServer, parentName, 4);
                                                         const guildRoles = await discordClient.getRESTGuildRoles(parentCreate.guild.id);
                                                         const roleSystem = guildRoles.filter(e => e.name === "⚡ System Engine").map(async e => {
-                                                            return await discordClient.editChannelPermission(parentCreate.id, e.id, 395408698448, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                            return await discordClient.editChannelPermission(parentCreate.id, e.id, 395140262992, 0, 0, `Create new parent, permissions for ${e.name}`);
                                                         })
                                                         const roleAdminMode = guildRoles.filter(e => e.name === "🔓 Admin Mode").map(async e => {
                                                             return await discordClient.editChannelPermission(parentCreate.id, e.id, 17183089744, 0, 0, `Create new parent, permissions for ${e.name}`);
