@@ -2597,7 +2597,7 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'layout':
-                            if (args.length > 3) {
+                            if (args.length > 2) {
                                 switch (args[1].toLowerCase()) {
                                     case 'super':
                                         switch (args[2].toLowerCase()) {
