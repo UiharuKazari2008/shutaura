@@ -21,6 +21,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
 const systemglobal = require("../config.json");
+const fs = require("fs");
+const path = require("path");
 (async () => {
 	let systemglobal = require('../config.json');
 	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -170,6 +172,47 @@ const systemglobal = require("../config.json");
 				parts: (folder.discord_filedata) ? folder.discord_filedata : (folder.telegram_filedata) ? folder.telegram_filedata : null
 			})
 		}))
+
+		if (systemglobal.WatchFolder_1) {
+			// Create Folder Listing
+			const getDirectories = fs.readdirSync(systemglobal.WatchFolder_1, {withFileTypes: true})
+				.filter(dirent => dirent.isDirectory())
+				.map(dirent => dirent.name)
+			// Add new folder maps
+			FolderPairs.forEach((data, name) => {
+				if (!fs.existsSync(path.join(systemglobal.WatchFolder_1, name))) {
+					if (name !== "MultiPartFolder" && name !== "Data") {
+						fs.mkdirSync(path.join(systemglobal.WatchFolder_1, name));
+						Logger.printLine("FolderInit", `Created new folder ${name}`, "debug")
+					}
+				}
+				if (!init) {
+					console.log(`Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`)
+				}
+			});
+			// Remove old folder maps
+			getDirectories.forEach(function (foldername) {
+				if (FolderPairs.has(foldername) === false) {
+					fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
+						if (file.startsWith(".")) {
+							fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
+						}
+					})
+					if (foldername !== "MultiPartFolder" && foldername !== "Data") {
+						fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
+							if (file.startsWith(".")) {
+								fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
+							} else {
+								fs.renameSync(path.join(systemglobal.WatchFolder_1, foldername, file), systemglobal.WatchFolder_1)
+								Logger.printLine("FolderInit", `Found orphan file ${file} in ${foldername}`, "debug")
+							}
+						});
+						fs.rmdirSync(path.join(systemglobal.WatchFolder_1, foldername));
+						Logger.printLine("FolderInit", `Removed folder ${foldername}`, "debug")
+					}
+				}
+			})
+		}
 
 		await Promise.all(_discordservers.rows.map(server => {
 			discordServers.set(server.serverid, server);
@@ -418,44 +461,6 @@ const systemglobal = require("../config.json");
 		startWorker2();
 		if (systemglobal.WatchFolder_1) {
 			Logger.printLine('Init', 'File Watching is enabled on this FileWorker instance, now watching for uploads', 'debug')
-			// Create Folder Listing
-			const getDirectories = fs.readdirSync(systemglobal.WatchFolder_1, {withFileTypes: true})
-				.filter(dirent => dirent.isDirectory())
-				.map(dirent => dirent.name)
-			// Add new folder maps
-			FolderPairs.forEach((data, name) => {
-				if (!fs.existsSync(path.join(systemglobal.WatchFolder_1, name))) {
-					if (name !== "MultiPartFolder" && name !== "Data") {
-						fs.mkdirSync(path.join(systemglobal.WatchFolder_1, name));
-						Logger.printLine("FolderInit", `Created new folder ${name}`, "debug")
-					}
-				}
-				if (!init) {
-					console.log(`Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`)
-				}
-			});
-			// Remove old folder maps
-			getDirectories.forEach(function (foldername) {
-				if (FolderPairs.has(foldername) === false) {
-					fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
-						if (file.startsWith(".")) {
-							fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
-						}
-					})
-					if (foldername !== "MultiPartFolder" && foldername !== "Data") {
-						fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
-							if (file.startsWith(".")) {
-								fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
-							} else {
-								fs.renameSync(path.join(systemglobal.WatchFolder_1, foldername, file), systemglobal.WatchFolder_1)
-								Logger.printLine("FolderInit", `Found orphan file ${file} in ${foldername}`, "debug")
-							}
-						});
-						fs.rmdirSync(path.join(systemglobal.WatchFolder_1, foldername));
-						Logger.printLine("FolderInit", `Removed folder ${foldername}`, "debug")
-					}
-				}
-			})
 			// Setup Folder Watchers
 			sleep(1000).then(() => {
 				function onboardFileAdd(filePath, groupID) {
