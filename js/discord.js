@@ -2749,12 +2749,13 @@ This code is publicly released and is restricted by its project license
                                                 const list = await db.query(`SELECT channelid, serverid, parent, virtual_cid, name, nice_name, nice_title, classification, uri, watch_folder, notify, role, role_write, role_manage, description, nsfw FROM kanmi_channels`);
                                                 try {
                                                     await discordClient.createMessage(msg.channel.id, `Channel Metadata from Database`, [{
-                                                        file: Buffer.from(JSON.stringify(list.rows)),
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
                                                         name: `channels.json`
                                                     }])
                                                 } catch (e) {
                                                     return `Error sending metadata - ${e.message}`
                                                 }
+                                                break;
                                             case 'update':
                                                 if (args.length > 4) {
                                                     const ChannelID = args[3].replace("<#", "").replace(">", "");
