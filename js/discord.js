@@ -2580,6 +2580,17 @@ This code is publicly released and is restricted by its project license
                         case 'roles':
                             if (args.length > 2) {
                                 switch (args[1].toLowerCase()) {
+                                    case 'list':
+                                        try {
+                                            const list = await db.query(`SELECT * FROM discord_permissons`);
+                                            await discordClient.createMessage(msg.channel.id, `Named Permissions from Database`, [{
+                                                file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                name: `roles.json`
+                                            }])
+                                        } catch (e) {
+                                            return `Error sending metadata - ${e.message}`
+                                        }
+                                        break;
                                     case 'assign':
                                         const assignRoles = args[2].replace("<@&", "").replace(">", "");
                                         let assignedName = null
@@ -2602,13 +2613,16 @@ This code is publicly released and is restricted by its project license
                                     case 'super':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
-                                                const list = await db.query(`SELECT * FROM sequenzia_superclass`)
-                                                let results = "Position,super,name,uri\n```"
-                                                results += list.rows
-                                                    .sort((a, b) => (a.position > b.position) ? 1 : -1)
-                                                    .map(e => `${e.position} | ${e.super} | "${e.name}" | /${e.uri}`)
-                                                    .join("\n")
-                                                return results + '```'
+                                                try {
+                                                    const list = await db.query(`SELECT * FROM sequenzia_superclass`);
+                                                    await discordClient.createMessage(msg.channel.id, `Superclass Metadata from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `superclass.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
                                             case 'update':
                                                 if (args.length > 4) {
                                                     const superID = args[3].trim();
@@ -2669,13 +2683,16 @@ This code is publicly released and is restricted by its project license
                                     case 'class':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
-                                                const list = await db.query(`SELECT * FROM sequenzia_class`)
-                                                let results = "Position,super/class,icon,name,uri\n```"
-                                                results += list.rows
-                                                    .sort((a, b) => (a.position > b.position) ? 1 : -1)
-                                                    .map(e => `${e.position} | ${e.super}/${e.class} | ${e.icon} | "${e.name}" | ${(e.uri) ? '/' + e.uri : 'Inherent'}`)
-                                                    .join("\n")
-                                                return results + '```'
+                                                try {
+                                                    const list = await db.query(`SELECT * FROM sequenzia_class`);
+                                                    await discordClient.createMessage(msg.channel.id, `Class Metadata from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `class.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
                                             case 'update':
                                                 if (args.length > 4) {
                                                     const classID = args[3].trim();
@@ -2746,8 +2763,9 @@ This code is publicly released and is restricted by its project license
                                     case 'channel':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
-                                                const list = await db.query(`SELECT channelid, serverid, parent, virtual_cid, name, nice_name, nice_title, classification, uri, watch_folder, notify, role, role_write, role_manage, description, nsfw FROM kanmi_channels WHERE classification IS NOT NULL AND classification != 'system' AND classification != 'timeline'`);
                                                 try {
+                                                    const list = await db.query(`SELECT channelid, serverid, parent, virtual_cid, name, nice_name, nice_title, classification, uri, watch_folder, notify, role, role_write, role_manage, description, nsfw FROM kanmi_channels WHERE classification IS NOT NULL AND classification != 'system' AND classification != 'timeline'`);
+
                                                     await discordClient.createMessage(msg.channel.id, `Channel Metadata from Database`, [{
                                                         file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
                                                         name: `channels.json`
