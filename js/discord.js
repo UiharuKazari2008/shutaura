@@ -2778,6 +2778,7 @@ This code is publicly released and is restricted by its project license
                                                 if (args.length > 4) {
                                                     const ChannelID = args[3].replace("<#", "").replace(">", "");
                                                     let object = {};
+                                                    let updateFW = false;
                                                     switch (args[4].toLowerCase()) {
                                                         case 'class':
                                                             object.classification = args[5].trim();
@@ -2793,6 +2794,7 @@ This code is publicly released and is restricted by its project license
                                                             break;
                                                         case 'folder':
                                                             object.watch_folder = args.splice(5).join(' ').trim();
+                                                            updateFW = true
                                                             break;
                                                         case 'vcid':
                                                             object.virtual_cid = parseInt(args[5].trim())
@@ -2852,6 +2854,9 @@ This code is publicly released and is restricted by its project license
                                                     if (Object.keys(object).length > 0 && ChannelID.length > 0) {
                                                         const results = await db.query(`UPDATE kanmi_channels SET ? WHERE channelid = ?`, [object, ChannelID])
                                                         return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
+                                                        if (updateFW) {
+                                                            mqClient.sendCmd('fileworker', 'RESET');
+                                                        }
                                                     }
                                                 } else {
                                                     return "⁉ Missing required information"
