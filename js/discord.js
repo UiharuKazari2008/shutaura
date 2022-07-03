@@ -2597,19 +2597,19 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'layout':
-                            if (args.length > 3) {
+                            if (args.length > 2) {
                                 const inputs = args.splice(3)
                                 switch (args[1].toLowerCase()) {
                                     case 'super':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 const list = await db.query(`SELECT * FROM sequenzia_superclass`)
-                                                let results = `SuperClasses:\nPosition,super,name,uri\n`
+                                                let results = "Position,super,name,uri\n```"
                                                 results += list.rows
                                                     .sort((a, b) => (a.position > b.position) ? 1 : -1)
                                                     .map(e => `${e.position} | ${e.super} | "${e.name}" | /${e.uri}`)
                                                     .join("\n")
-                                                return results
+                                                return results + '```'
                                             case 'update':
 
                                                 break;
@@ -2627,12 +2627,12 @@ This code is publicly released and is restricted by its project license
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 const list = await db.query(`SELECT * FROM sequenzia_class`)
-                                                let results = `Classes:\nPosition,super/class,icon,name,uri\n`
+                                                let results = "Position,super/class,icon,name,uri\n```"
                                                 results += list.rows
                                                     .sort((a, b) => (a.position > b.position) ? 1 : -1)
                                                     .map(e => `${e.position} | ${e.super}/${e.class} | ${e.icon} | "${e.name}" | ${(e.uri) ? '/' + e.uri : 'Inherent'}`)
                                                     .join("\n")
-                                                return results
+                                                return results + '```'
                                             case 'update':
 
                                                 break;
