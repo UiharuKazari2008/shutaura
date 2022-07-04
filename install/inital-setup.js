@@ -364,6 +364,9 @@ let authwareOnly = false;
                         case 'root-fs':
                             values.watch_folder = `Data`;
                             break;
+                        case 'backups':
+                            values.watch_folder = `Backups`;
+                            break;
                         case '🧰console':
                             serverMap.chid_system = channel.id;
                             break;
