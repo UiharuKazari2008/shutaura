@@ -1305,7 +1305,7 @@ This code is publicly released and is restricted by its project license
                                                                     console.error(err)
                                                                 } else {
                                                                     const spawn = require('child_process').spawn;
-                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
+                                                                    let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
                                                                     console.log("[FFMPEG] Getting Preview Image...")
                                                                     const child = spawn(EncoderConf.Exec, ffmpegParam);
                                                                     child.stdout.setEncoding('utf8');

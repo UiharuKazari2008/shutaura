@@ -690,7 +690,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
 																let scriptOutput = "";
 																const spawn = require('child_process').spawn;
-																let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+																let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 																console.log("[FFMPEG] Starting to encode video...")
 																const child = spawn(EncoderConf.Exec, ffmpegParam);
 																// You can also use a variable to save the output
@@ -789,7 +789,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
 																let scriptOutput = "";
 																const spawn = require('child_process').spawn;
-																let ffmpegParam = ['-hide_banner', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
+																let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
 																console.log("[FFMPEG] Getting Animated Preview Image...")
 																const child = spawn(EncoderConf.Exec, ffmpegParam);
 																child.stdout.setEncoding('utf8');
@@ -832,7 +832,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
 																let scriptOutput = "";
 																const spawn = require('child_process').spawn;
-																let ffmpegParam = ['-hide_banner', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+																let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
 																console.log("[FFMPEG] Getting Preview Image...")
 																const child = spawn(EncoderConf.Exec, ffmpegParam);
 																child.stdout.setEncoding('utf8');
@@ -994,7 +994,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
 												let scriptOutput = "";
 												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 												console.log("[FFMPEG] Starting to encode video...")
 												const child = spawn(EncoderConf.Exec, ffmpegParam);
 												// You can also use a variable to save the output
@@ -1092,7 +1092,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
 												let scriptOutput = "";
 												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
+												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
 												console.log("[FFMPEG] Getting Animated Preview Image...")
 												const child = spawn(EncoderConf.Exec, ffmpegParam);
 												child.stdout.setEncoding('utf8');
@@ -1135,7 +1135,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
 												let scriptOutput = "";
 												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
 												console.log("[FFMPEG] Getting Preview Image...")
 												const child = spawn(EncoderConf.Exec, ffmpegParam);
 												child.stdout.setEncoding('utf8');
@@ -1677,9 +1677,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						const spawn = require('child_process').spawn;
 						let ffmpegParam = []
 						if (intent === true) {
-							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+							ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 						} else {
-							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
+							ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
 						}
 						console.log("[FFMPEG] Starting to encode video...")
 						const child = spawn(EncoderConf.Exec, ffmpegParam);
@@ -1729,7 +1729,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.gif');
 					let scriptOutput = "";
 					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
+					let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
 					console.log("[FFMPEG] Getting Animated Preview Image...")
 					const child = spawn(EncoderConf.Exec, ffmpegParam);
 					child.stdout.setEncoding('utf8');
@@ -1773,7 +1773,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.jpg');
 					let scriptOutput = "";
 					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+					let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
 					console.log("[FFMPEG] Getting Preview Image...")
 					const child = spawn(EncoderConf.Exec, ffmpegParam);
 					child.stdout.setEncoding('utf8');
