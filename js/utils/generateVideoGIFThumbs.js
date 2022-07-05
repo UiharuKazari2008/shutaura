@@ -4,6 +4,7 @@
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Cache-Correction';
 
+    const Logger = require('./logSystem')(facilityName);
     const db = require('./shutauraSQL')(facilityName);
 
     // Shutaura SQL Cache
