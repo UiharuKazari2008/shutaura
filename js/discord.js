@@ -5572,6 +5572,7 @@ This code is publicly released and is restricted by its project license
     async function jfsMove(message, moveTo, cb, delay) {
         await activeTasks.set(`JFSMOVE_${message.id}`, { started: Date.now().valueOf() });
         if (message.attachments.length === 0 || (message.attachments.length > 0 && message.attachments.filter(e => e.size > 7900000).length === 0)) {
+            Logger.printLine("Move", `Need to move ${message.id}`, "debug")
             let emotesToAdd = []
             Object.keys(message.reactions).forEach(function (key) {
                 emotesToAdd.push(key)
@@ -5710,8 +5711,10 @@ This code is publicly released and is restricted by its project license
                     }
                 })
             } else {
+
                 discordClient.createMessage(moveTo, {content: message.content})
                     .then(async (data) => {
+                        Logger.printLine("Move", `Message moved from ${message.channel.id} to ${data.channel.id}`, "debug", message.attachments[0])
                         // Send Response
                         await addEmojisToMessage(data, emotesToAdd);
                         await messageUpdate(data, {
