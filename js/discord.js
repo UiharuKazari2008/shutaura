@@ -1075,6 +1075,15 @@ This code is publicly released and is restricted by its project license
                             cb(true);
                         }
                         break;
+                    case 'EditTextPost':
+                        if (MessageContents.messageData !== undefined) {
+                            jfsReplaceContents(ChannelID, MessageContents.messageID, MessageContents.messageData, function (cb) {
+                            })
+                            cb(true);
+                        } else {
+                            cb(true);
+                        }
+                        break;
                     case 'ArchivePost':
                         discordClient.getMessage(ChannelID, MessageContents.messageID)
                             .then(function(fullmsg) {
@@ -5931,6 +5940,31 @@ This code is publicly released and is restricted by its project license
             cb(true)
         }
         activeTasks.delete(`JFSRENAME_${messageid}`)
+    }
+    async function jfsReplaceContents(channelid, messageid, textContents, cb) {
+        await activeTasks.set(`JFSMODIFYTEXT_${messageid}`, { started: Date.now().valueOf() });
+        const response = await db.query(`SELECT content_full FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
+        if (response.error) {
+            SendMessage("SQL Error occurred when retrieving message data to update", "err", 'main', "SQL", response.error)
+            cb(false)
+        } else if (response.rows.length > 0) {
+            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ? WHERE id = ? AND source = 0`, [textContents, messageid])
+            if (updatedFile.error) {
+                SendMessage("SQL Error occurred when saving message data to cacahe", "err", 'main', "SQL", updatedFile.error)
+                cb(false)
+            } else {
+                try {
+                    await discordClient.editMessage(channelid, messageid, textContents)
+                } catch (err) {
+                    SendMessage("❌ Contents could not be updated", "system", 'main', "EditContents", err.message)
+                }
+                cb(true)
+            }
+        } else {
+            SendMessage("❌ Contents could not be updated because it does not exist", "system", 'main', "EditContents")
+            cb(true)
+        }
+        activeTasks.delete(`JFSMODIFYTEXT_${messageid}`)
     }
     function jfsArchive(fullmsg, serverdata) {
         db.safe(`SELECT archivech FROM discord_archive_overide WHERE fromch = ?`, [fullmsg.channel.id], function (err, archiveoveride) {
