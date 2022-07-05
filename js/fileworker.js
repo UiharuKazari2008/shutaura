@@ -985,11 +985,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								cb(true)
 							} else if (cacheresponse.length > 0 && cacheresponse[0].filecached === 1) {
 								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
-								console.log(fs.existsSync(CompleteFilename))
-								console.log(systemglobal.FW_Accepted_Videos)
-								console.log(path.extname(CompleteFilename).split(".").pop().toLowerCase())
 								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
-								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1) {
+								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
 									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || MessageContents.forceRefresh) {
 										// Encode Video File
 										function encodeVideo(filename, intent, fulfill) {
