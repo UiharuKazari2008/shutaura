@@ -764,7 +764,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													}
 													if (cacheresponse[0].cache_proxy === null) {
 														// Get Video Duration
-														const startPosition = (async (filename) => {
+														const startPosition = await (async (filename) => {
 															const exec = require('child_process').exec;
 															let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
 															const duration = await new Promise((resolve) => {
@@ -1067,7 +1067,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 									if (cacheresponse[0].cache_proxy === null || MessageContents.forceRefresh) {
 										// Get Video Duration
-										const startPosition = (async (filename) => {
+										const startPosition = await (async (filename) => {
 											const exec = require('child_process').exec;
 											let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
 											const duration = await new Promise((resolve) => {
@@ -1523,7 +1523,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			cb(true);
 		}
 	}
-	function parseFile(object, cb) {
+	async function parseFile(object, cb) {
 		try {
 			// Get Snowflake
 			globalItemNumber++
@@ -1533,13 +1533,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				itemID: itemID,
 				sendTo: systemglobal.Discord_Out,
 				messageReturn: false,
-				fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+				fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
 				messageType: "sfile"
 			}
 			if (object.Backlog && object.Backlog === true) {
 				parameters.sendTo = systemglobal.Discord_Out + '.backlog'
 			}
-			if ( object.Type.toString() === "Remote" ) {
+			if (object.Type.toString() === "Remote") {
 				// Remote - File has been sent from a remote client and has been downloaded local
 				//          This should already have its requested message and Channel ID passed
 				parameters.messageChannelID = object.ChannelID.toString()
@@ -1550,7 +1550,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					console.log(`Got Remote Date and Time for File : ${parameters.itemDateTime}`)
 				}
 				Logger.printLine("FileProcessor", `Processing Remote File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
-			} else if ( object.Type.toString() === "Local" ) {
+			} else if (object.Type.toString() === "Local") {
 				// Local - File has been sent from the local file queue and is a local file on the system
 				//         No known channel is passed but comes with a GroupID and original file pat
 				parameters.messageText = ''
@@ -1567,7 +1567,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.messageChannelID = FolderPairs.get("Data").id;
 				}
 				Logger.printLine("FileProcessor", `Processing Local File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
-			} else if (object.Type.toString() === "Proxy"  ) {
+			} else if (object.Type.toString() === "Proxy") {
 				// Proxy - File has been sent from a remote FileWorker but requires this server to send
 				//         the file to its final destination, No processing is required for the file
 				//         Pretty much its just a message proxy to discord
@@ -1582,7 +1582,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("FileProcessor", `Processing Proxy File : ${object.FileName.toString()}`, "debug", parameters)
 			}
 			//  If not going to the Twitter Compose channel, Add the Buttons
-			parameters.addButtons = ["Pin" ]
+			parameters.addButtons = ["Pin"]
 			if (parameters.messageChannelID === discordServers.get('homeGuild').chid_download) {
 				parameters.addButtons.push("RemoveFile")
 			}
@@ -1613,9 +1613,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					.resize(resizeParam)
 					.toFormat('jpg')
 					.toBuffer({resolveWithObject: true})
-					.then(({data, info}) => { callback(data.toString('base64')) })
-					.catch((err) => { callback(false) });
+					.then(({data, info}) => {
+						callback(data.toString('base64'))
+					})
+					.catch((err) => {
+						callback(false)
+					});
 			}
+
 			// Get EXIF Data
 			function getImageData(filename, callback) {
 				try {
@@ -1647,6 +1652,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					console.error(e);
 				}
 			}
+
 			// Encode Video File
 			function encodeVideo(filename, intent, fulfill) {
 				return new Promise(function (fulfill) {
@@ -1713,6 +1719,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				})
 			}
+
 			// Generate Video GIF Preview
 			function animateVideo(filename, intent, time, fulfill) {
 				return new Promise(function (fulfill) {
@@ -1747,7 +1754,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
 							}
 						} else {
-							mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
+							mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "warn")
 							deleteFile(outputfile, function (ready) {
 								// Do Nothing
 							})
@@ -1756,13 +1763,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 				})
 			}
+
 			// Generate Video Preview Image
 			function previewVideo(filename, intent, time, fulfill) {
 				return new Promise(function (fulfill) {
 					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.jpg');
 					let scriptOutput = "";
 					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+					let ffmpegParam = ['-hide_banner', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
 					console.log("[FFMPEG] Getting Preview Image...")
 					const child = spawn(EncoderConf.Exec, ffmpegParam);
 					child.stdout.setEncoding('utf8');
@@ -1799,6 +1807,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 				})
 			}
+
 			// Generate a MultiPart File
 			function sendMultiPartFile(cb) {
 				const filepartsid = crypto.randomBytes(16).toString("hex");
@@ -1826,6 +1835,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
+
 				function sendPreview(b64Data, previewSuffix) {
 					parameters.messageType = "sfile";
 					parameters.messageText = `**🧩 File : ${filepartsid}**\n*🏷 Name: ${object.FileName.toString()} (${flesize.toFixed(2)} MB)*\n` + txtMessage;
@@ -1849,6 +1859,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
+
 				function sendMultiPreview(b64Data, b64Preview, videoSuffix, previewSuffix) {
 					parameters.messageType = "smultifile";
 					parameters.messageText = `**🧩 File : ${filepartsid}**\n*🏷 Name: ${object.FileName.toString()} (${flesize.toFixed(2)} MB)*\n` + txtMessage
@@ -1881,16 +1892,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
+
 				function postSplit(names) {
 					Logger.printLine("MPFGen", `Completed splitting file "${filepartsid}" into ${names.length} parts`, "info")
 					// Send Each Part
 					let MPFChannelID_Lookup = undefined
-					FolderPairs.forEach(e => { if (e.id === parameters.messageChannelID.toString()) { MPFChannelID_Lookup = e.parts } })
+					FolderPairs.forEach(e => {
+						if (e.id === parameters.messageChannelID.toString()) {
+							MPFChannelID_Lookup = e.parts
+						}
+					})
 					if (MPFChannelID_Lookup) {
 						postSplitParser(MPFChannelID_Lookup, names);
 					} else {
 						Logger.printLine("MPFGen", `No Parity Channel was mapped, Searching for Spanned File Storage Channel ID...`, "debug", parameters)
-						db.safe(`SELECT discord_servers.chid_filedata FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND kanmi_channels.serverid = discord_servers.serverid`, [parameters.messageChannelID], (err, serverdata) => {
+						db.safe(`SELECT discord_servers.chid_filedata
+								 FROM kanmi_channels,
+									  discord_servers
+								 WHERE kanmi_channels.channelid = ?
+								   AND kanmi_channels.serverid = discord_servers.serverid`, [parameters.messageChannelID], (err, serverdata) => {
 							if (err) {
 								if (FolderPairs.has("Data")) {
 									mqClient.sendMessage(`SQL Error occurred when finding the file parts channel for ${parameters.messageChannelID}, Using default channel`, "err", "SQL", err);
@@ -1914,6 +1934,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})
 					}
 				}
+
 				function postSplitParser(MPFChannelID, names) {
 					let sentParts = 0;
 					parameters.fileData = {
@@ -1957,7 +1978,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}))
 					}, Promise.resolve());
-					requests.then(() => {
+					requests.then(async () => {
 						if (sentParts !== names.length) {
 							mqClient.sendMessage(`Error occurred when getting split file "${object.FilePath.toString()}" for transport - Not all parts were uploaded (${sentParts} !== ${names.length})! Retry...`, "err", "MPFGen")
 							cb(false)
@@ -1980,7 +2001,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							})
 						} else if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 							// Get Video Duration
-							const startPosition = (async (filename) => {
+							const startPosition = await (async (filename) => {
 								const exec = require('child_process').exec;
 								let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
 								const duration = await new Promise((resolve) => {
@@ -2001,10 +2022,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 							animateVideo(object.FilePath.toString(), undefined, startPosition)
 								.then((animatedFulfill) => {
-									if (animatedFulfill != null ) {
+									if (animatedFulfill != null) {
 										encodeVideo(object.FilePath.toString(), true)
 											.then((fulfill) => {
-												if (fulfill != null ) {
+												if (fulfill != null) {
 													sendMultiPreview(fulfill, animatedFulfill, '.mp4', '-t9-preview-video.gif')
 												} else {
 													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
@@ -2015,10 +2036,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
 												previewVideo(object.FilePath.toString(), undefined, startPosition)
 													.then((imageFulfill) => {
-														if (imageFulfill != null ) {
+														if (imageFulfill != null) {
 															encodeVideo(object.FilePath.toString(), true)
 																.then((fulfill) => {
-																	if (fulfill != null ) {
+																	if (fulfill != null) {
 																		sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
 																	} else {
 																		mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
@@ -2032,7 +2053,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														} else {
 															encodeVideo(object.FilePath.toString(), true)
 																.then((fulfill) => {
-																	if (fulfill != null ) {
+																	if (fulfill != null) {
 																		sendPreview(fulfill, '.mp4')
 																	} else {
 																		mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
@@ -2048,7 +2069,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													.catch((er) => {
 														encodeVideo(object.FilePath.toString(), true)
 															.then((fulfill) => {
-																if (fulfill != null ) {
+																if (fulfill != null) {
 																	sendPreview(fulfill, '.mp4')
 																} else {
 																	mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
@@ -2064,10 +2085,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									} else {
 										previewVideo(object.FilePath.toString(), undefined, startPosition)
 											.then((imageFulfill) => {
-												if (imageFulfill != null ) {
+												if (imageFulfill != null) {
 													encodeVideo(object.FilePath.toString(), true)
 														.then((fulfill) => {
-															if (fulfill != null ) {
+															if (fulfill != null) {
 																sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
 															} else {
 																mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
@@ -2081,7 +2102,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												} else {
 													encodeVideo(object.FilePath.toString(), true)
 														.then((fulfill) => {
-															if (fulfill != null ) {
+															if (fulfill != null) {
 																sendPreview(fulfill, '.mp4')
 															} else {
 																mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
@@ -2097,7 +2118,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											.catch((er) => {
 												encodeVideo(object.FilePath.toString(), true)
 													.then((fulfill) => {
-														if (fulfill != null ) {
+														if (fulfill != null) {
 															sendPreview(fulfill, '.mp4')
 														} else {
 															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
@@ -2111,6 +2132,55 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 									}
 								})
+								.catch((er) => {
+									previewVideo(object.FilePath.toString(), undefined, startPosition)
+										.then((imageFulfill) => {
+											if (imageFulfill != null) {
+												encodeVideo(object.FilePath.toString(), true)
+													.then((fulfill) => {
+														if (fulfill != null) {
+															sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
+														} else {
+															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
+															sendPreview(imageFulfill, '.mp4')
+														}
+													})
+													.catch((er) => {
+														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
+														sendPreview(imageFulfill, '-t9-preview-video.jpg')
+													})
+											} else {
+												encodeVideo(object.FilePath.toString(), true)
+													.then((fulfill) => {
+														if (fulfill != null) {
+															sendPreview(fulfill, '.mp4')
+														} else {
+															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
+															sendTxt()
+														}
+													})
+													.catch((er) => {
+														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
+														sendTxt()
+													})
+											}
+										})
+										.catch((er) => {
+											encodeVideo(object.FilePath.toString(), true)
+												.then((fulfill) => {
+													if (fulfill != null) {
+														sendPreview(fulfill, '.mp4')
+													} else {
+														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
+														sendTxt()
+													}
+												})
+												.catch((er) => {
+													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
+													sendTxt()
+												})
+										})
+								})
 						} else {
 							sendTxt()
 						}
@@ -2120,7 +2190,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (systemglobal.UseJSSplit) {
 					Logger.printLine("MPFGen", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
 					splitFile.splitFileBySize(object.FilePath.toString(), 7500000)
-						.then((names) => { postSplit(names) })
+						.then((names) => {
+							postSplit(names)
+						})
 						.catch((err) => {
 							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport, Ticket will be dropped!`, "err", "MPFGen", err)
 							cb(true);
@@ -2131,7 +2203,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					try {
 						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
 						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
+						const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
 						nativeSplit.stderr.on("data", data => {
 							Logger.printLine("MPFGen-Native", `${data}`, "error")
@@ -2174,7 +2246,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
-			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy" ) {
+			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 12 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {
 						if (path.extname(object.FileName.toString()).split(".").pop().toLowerCase() !== "png") {
@@ -2228,14 +2300,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 					encodeVideo(object.FilePath.toString(), false)
 						.then((fulfill) => {
-							if (fulfill != null ) {
+							if (fulfill != null) {
 								parameters.itemFileData = fulfill
 								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 									if (callback) {
 										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-										if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-											// Do Nothing
-										}) }
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
+										}
 										cb(true)
 									} else {
 										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2260,6 +2334,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("ParseFile", `${object.FileName.toString()} : Direct Send`, "debug", {
 					fileSize: fileSize(object.FilePath.toString())
 				})
+
 				function sendFile(ready) {
 					fs.open(object.FilePath.toString(), 'r+', function (err, fd) {
 						if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
@@ -2276,6 +2351,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				}
+
 				function sendMultiFile(preview, ready) {
 					fs.open(object.FilePath.toString(), 'r+', function (err, fd) {
 						if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
@@ -2297,6 +2373,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				}
+
 				if (systemglobal.FW_Accepted_Images.indexOf(object.FileName.toString().split(".").pop().toLowerCase()) !== -1) {
 					getImageData(object.FilePath.toString(), function (_date) {
 						if (_date) {
@@ -2310,9 +2387,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 									if (callback) {
 										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-										if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-											// Do Nothing
-										}) }
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
+										}
 										cb(true)
 									} else {
 										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2324,7 +2403,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 				} else if (systemglobal.FW_Accepted_Videos.indexOf(object.FileName.toString().split(".").pop().toLowerCase()) !== -1) {
 					// Get Video Duration
-					const startPosition = (async (filename) => {
+					const startPosition = await (async (filename) => {
 						const exec = require('child_process').exec;
 						let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
 						const duration = await new Promise((resolve) => {
@@ -2344,15 +2423,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})(object.FilePath.toString());
 					animateVideo(object.FilePath.toString(), undefined, startPosition)
 						.then((aniamtedFulfill) => {
-							if (aniamtedFulfill != null ) {
+							if (aniamtedFulfill != null) {
 								sendMultiFile(aniamtedFulfill, function (ready) {
 									if (ready) {
 										mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 											if (callback) {
 												Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-												if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-													// Do Nothing
-												}) }
+												if (object.Type.toString() === "Remote") {
+													deleteFile(object.FilePath.toString(), function (ready) {
+														// Do Nothing
+													})
+												}
 												cb(true)
 											} else {
 												Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2364,15 +2445,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							} else {
 								previewVideo(object.FilePath.toString(), undefined, startPosition)
 									.then((imageFulfill) => {
-										if (imageFulfill != null ) {
+										if (imageFulfill != null) {
 											sendMultiFile(imageFulfill, function (ready) {
 												if (ready) {
 													mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 														if (callback) {
 															Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-															if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-																// Do Nothing
-															}) }
+															if (object.Type.toString() === "Remote") {
+																deleteFile(object.FilePath.toString(), function (ready) {
+																	// Do Nothing
+																})
+															}
 															cb(true)
 														} else {
 															Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2387,9 +2470,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 														if (callback) {
 															Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-															if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-																// Do Nothing
-															}) }
+															if (object.Type.toString() === "Remote") {
+																deleteFile(object.FilePath.toString(), function (ready) {
+																	// Do Nothing
+																})
+															}
 															cb(true)
 														} else {
 															Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2406,9 +2491,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 													if (callback) {
 														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-															// Do Nothing
-														}) }
+														if (object.Type.toString() === "Remote") {
+															deleteFile(object.FilePath.toString(), function (ready) {
+																// Do Nothing
+															})
+														}
 														cb(true)
 													} else {
 														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2423,15 +2510,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						.catch((er) => {
 							previewVideo(object.FilePath.toString(), undefined, startPosition)
 								.then((imageFulfill) => {
-									if (imageFulfill != null ) {
+									if (imageFulfill != null) {
 										sendMultiFile(imageFulfill, function (ready) {
 											if (ready) {
 												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 													if (callback) {
 														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-															// Do Nothing
-														}) }
+														if (object.Type.toString() === "Remote") {
+															deleteFile(object.FilePath.toString(), function (ready) {
+																// Do Nothing
+															})
+														}
 														cb(true)
 													} else {
 														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2446,9 +2535,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 													if (callback) {
 														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-															// Do Nothing
-														}) }
+														if (object.Type.toString() === "Remote") {
+															deleteFile(object.FilePath.toString(), function (ready) {
+																// Do Nothing
+															})
+														}
 														cb(true)
 													} else {
 														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2465,9 +2556,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 												if (callback) {
 													Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-													if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-														// Do Nothing
-													}) }
+													if (object.Type.toString() === "Remote") {
+														deleteFile(object.FilePath.toString(), function (ready) {
+															// Do Nothing
+														})
+													}
 													cb(true)
 												} else {
 													Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -2484,9 +2577,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 								if (callback) {
 									Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-									if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-										// Do Nothing
-									}) }
+									if (object.Type.toString() === "Remote") {
+										deleteFile(object.FilePath.toString(), function (ready) {
+											// Do Nothing
+										})
+									}
 									cb(true)
 								} else {
 									Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
