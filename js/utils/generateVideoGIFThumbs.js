@@ -315,12 +315,6 @@
 
         Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
     }
-    if (args.whost) {
-        systemglobal.Watchdog_Host = args.whost
-    }
-    if (args.wid) {
-        systemglobal.Watchdog_ID = args.wid
-    }
     await loadDatabaseCache();
 
     const mqClient = require('./mqClient')(facilityName, systemglobal);
