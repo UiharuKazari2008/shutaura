@@ -987,7 +987,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
 								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
 								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
-									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || MessageContents.forceRefresh) {
+									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'video')) {
 										// Encode Video File
 										function encodeVideo(filename, intent, fulfill) {
 											return new Promise(function (fulfill) {
@@ -1066,7 +1066,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 
 									}
-									if (cacheresponse[0].cache_proxy === null || MessageContents.forceRefresh) {
+									if (cacheresponse[0].cache_proxy === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview')) {
 										// Get Video Duration
 										const startPosition = await (async (filename) => {
 											const exec = require('child_process').exec;
