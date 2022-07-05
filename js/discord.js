@@ -6700,8 +6700,9 @@ This code is publicly released and is restricted by its project license
                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                 }
 
-                if (msg.attachments.length > 1 && msg.attachments.pop().filename.toLowerCase().includes('-t9-preview')) {
-                    sqlObject.cache_proxy = msg.attachments.pop().proxy_url.split('/attachments').pop();
+                console.log(msg.attachments[1])
+                if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
+                    sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop();
                 }
             } else if (msg.attachments && msg.attachments.length > 1) {
                 sqlObject.attachment_name = null
