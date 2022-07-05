@@ -113,7 +113,7 @@
                 messageReturn: false,
                 messageID: message.id,
                 messageAction: 'GenerateVideoPreview',
-                forceRefresh: 'preview',
+                forceRefresh: true,
                 messageType: 'command'
             }, function (ok) {
                 if (ok) {
