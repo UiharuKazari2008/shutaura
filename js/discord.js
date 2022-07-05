@@ -7365,17 +7365,17 @@ This code is publicly released and is restricted by its project license
     // Discord Events - Channel
     function channelCreate(channel) {
         if (channel && channel.type === 0) {
-            db.safe(`SELECT channelid, classification, role, role_write, role_manage, autofetch FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
+            db.safe(`SELECT channelid, classification, role, role_write, role_manage, virtual_cid, autofetch FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
                 if (!(err) && result && result.length === 1 && result[0].classification !== null) {
-                    sendChannel(channel, result[0].channelid, result[0].classification.split(' ')[0], result[0].role, result[0].role_write, result[0].role_manage, result[0].autofetch)
+                    sendChannel(channel, result[0].channelid, result[0].classification.split(' ')[0], result[0].role, result[0].role_write, result[0].role_manage, result[0].autofetch, result[0].virtual_cid)
                 } else {
-                    sendChannel(channel, channel.parentID, null, null, null, null, 1)
+                    sendChannel(channel, channel.parentID, null, null, null, null, 1, null)
                 }
             })
         } else if (channel.type === 4) {
-            sendChannel(channel, 'isparent', null, null, null, null, 1)
+            sendChannel(channel, 'isparent', null, null, null, null, 1, null)
         }
-        function sendChannel(channel, parent, classification, role, write, manage, fetch) {
+        function sendChannel(channel, parent, classification, role, write, manage, fetch, virtual_cid) {
             let nsfw = 0
             let lastmessage = ''
             if (parent === 'isparent' || (channel !== undefined && channel.nsfw === 0)) {
@@ -7394,7 +7394,7 @@ This code is publicly released and is restricted by its project license
             if (channel.topic) {
                 topic = channel.topic;
             }
-            db.safe(`INSERT IGNORE INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, nsfw, role, write, manage, topic, fetch], function (err, result) {
+            db.safe(`INSERT IGNORE INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, virtual_cid = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, virtual_cid, nsfw, role, write, manage, topic, fetch], function (err, result) {
                 if (err) {
                     SendMessage("SQL Error occurred when writing the channel to the database", "err", 'main', "SQL", err)
                 }
@@ -7425,27 +7425,27 @@ This code is publicly released and is restricted by its project license
     function channelUpdate(channel) {
         if (channel && channel.type === 0) {
             if (channel.parentID) {
-                db.safe(`SELECT role, role_write, role_manage FROM kanmi_channels WHERE ( channelid = ? AND role IS NULL ) AND source = 0 LIMIT 1`, [channel.id], function (err, result) {
+                db.safe(`SELECT role, role_write, role_manage, virtual_cid FROM kanmi_channels WHERE ( channelid = ? AND role IS NULL ) AND source = 0 LIMIT 1`, [channel.id], function (err, result) {
                     if (!(err) && result && result.length === 1) {
-                        db.safe(`SELECT channelid, role, role_write, role_manage FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
+                        db.safe(`SELECT channelid, role, role_write, role_manage, virtual_cid FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
                             if (!(err) && result && result.length === 1 && result[0].classification !== null) {
-                                sendChannel(channel, channel.parentID, channel.id, result[0].role, result[0].role_write, result[0].role_manage)
+                                sendChannel(channel, channel.parentID, channel.id, result[0].role, result[0].role_write, result[0].role_manage, result[0].virtual_cid)
                             } else {
-                                sendChannel(channel, channel.parentID, channel.id,  null, null, null)
+                                sendChannel(channel, channel.parentID, channel.id,  null, null, null, null)
                             }
                         })
                     } else {
-                        sendChannel(channel, channel.parentID, channel.id, null, null, null)
+                        sendChannel(channel, channel.parentID, channel.id, null, null, null, null)
                     }
                 })
             } else {
-                sendChannel(channel, channel.parentID, channel.id, null, null, null)
+                sendChannel(channel, channel.parentID, channel.id, null, null, null, null)
             }
 
         } else if (channel.type === 4) {
-            sendChannel(channel, 'isparent', channel.id, null, null, null)
+            sendChannel(channel, 'isparent', channel.id, null, null, null, null)
         }
-        function sendChannel(channel, parent, channelid, role, write, manage) {
+        function sendChannel(channel, parent, channelid, role, write, manage, virtual_cid) {
             let nsfw = 0
             let query = ''
             let values = []
@@ -7461,11 +7461,11 @@ This code is publicly released and is restricted by its project license
                 topic = channel.topic
             }
             if (role !== null && role.length > 0 && role[0] !== null) {
-                query = `UPDATE kanmi_channels SET position = ?, name = ?, short_name = ?, parent = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, description = ? WHERE channelid = ? AND source = 0`
-                values = [channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, nsfw, role, write, manage, topic, channelid]
+                query = `UPDATE kanmi_channels SET position = ?, name = ?, short_name = ?, parent = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, virtual_cid = ?, description = ? WHERE channelid = ? AND source = 0`
+                values = [channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, nsfw, role, write, manage, virtual_cid, topic, channelid]
             } else {
-                query = `UPDATE kanmi_channels SET position = ?, name = ?, short_name = ?, parent = ?, nsfw = ?, description = ? WHERE channelid = ? AND source = 0`
-                values = [channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, nsfw, topic, channelid]
+                query = `UPDATE kanmi_channels SET position = ?, name = ?, short_name = ?, parent = ?, nsfw = ?, virtual_cid = ?, description = ? WHERE channelid = ? AND source = 0`
+                values = [channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, nsfw, virtual_cid, topic, channelid]
             }
 
             db.safe(query, values, function (err, result) {
