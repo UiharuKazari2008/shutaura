@@ -455,7 +455,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 		if (systemglobal.PickupFolder) {
 			Logger.printLine('Init', 'Pickup is enabled on this FileWorker instance, now accepting requests', 'debug')
-			await createMissingLinks();
+			createMissingLinks();
 			startWorker();
 			startWorker3();
 		}
