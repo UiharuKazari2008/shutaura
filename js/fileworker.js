@@ -1742,7 +1742,7 @@ const path = require("path");
 					try {
 						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
 						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", (process.platform === "darwin") ? "7500000" : "7500K", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
+						const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
 
 						nativeSplit.stderr.on("data", data => {
 							Logger.printLine("MPFGen-Native", `${data}`, "error")
