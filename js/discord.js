@@ -2587,7 +2587,7 @@ This code is publicly released and is restricted by its project license
                     console.log(args)
                     switch (args[0].toLowerCase()) {
                         case 'roles':
-                            if (args.length > 2) {
+                            if (args.length > 1) {
                                 switch (args[1].toLowerCase()) {
                                     case 'list':
                                         try {
@@ -2813,7 +2813,7 @@ This code is publicly released and is restricted by its project license
                                                 }
                                                 break;
                                             case 'create':
-                                                if (args.length > 6) {
+                                                if (args.length > 4) {
                                                     const classID = args[3].trim();
                                                     const className = args.splice(4).join(' ').trim();
 
