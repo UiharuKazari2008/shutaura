@@ -1262,9 +1262,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 									}
 								} else {
+									mqClient.sendMessage("Files is cached but is not available here!", "warn", 'GenerateVideoPreview')
 									cb(true);
 								}
 							} else {
+								mqClient.sendMessage("Files is not cached!", "warn", 'GenerateVideoPreview')
 								cb(true);
 							}
 						})
