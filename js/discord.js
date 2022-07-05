@@ -5917,12 +5917,12 @@ This code is publicly released and is restricted by its project license
     }
     async function jfsRename(channelid, messageid, name, cb) {
         await activeTasks.set(`JFSRENAME_${messageid}`, { started: Date.now().valueOf() });
-        const response = await db.query(`SELECT content_full, real_filename, fileid FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
+        const response = await db.query(`SELECT content_full, real_filename, fileid, filesize FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
         if (response.error) {
             SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", response.error)
             cb(false)
         } else if (response.rows.length > 0 && response.rows[0].fileid) {
-            const completeText = response.rows[0].content_full.split("🏷 Name:")[0].trim() + '🏷 Name: ' + name.trim().replace(/[/\\?%*:|"<> ]/g, '_') + ' (' + response.rows[0].content_full.split("🏷 Name:").pop().split(' (').pop()
+            const completeText = `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${name.trim().replace(/[/\\?%*:|"<> ]/g, '_')} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + response.rows[0].content_full
             const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [completeText, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid])
             if (updatedFile.error) {
                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", updatedFile.error)
