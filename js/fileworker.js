@@ -1613,7 +1613,7 @@ const path = require("path");
 				function postSplitParser(MPFChannelID, names) {
 					let sentParts = 0;
 					parameters.fileData = {
-						name: object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_'),
+						name: object.FileName.toString().trim().replace(/[/\\?%*:|"<>]/g, '_'),
 						uuid: filepartsid,
 						size: flesize.toFixed(2),
 						total: names.length
@@ -1633,7 +1633,7 @@ const path = require("path");
 									filePartTotal: names.length,
 									messageType: "sfile",
 									messageChannelID: MPFChannelID,
-									messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_')}\n📦 Part: ${key}/${names.length}`,
+									messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<>]/g, '_')}\n📦 Part: ${key}/${names.length}`,
 									itemFileName: path.basename(partpath).split("?")[0],
 									itemFileData: '' + partBase64String
 								}, async (ok) => {

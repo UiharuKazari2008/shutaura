@@ -5922,19 +5922,13 @@ This code is publicly released and is restricted by its project license
             SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", response.error)
             cb(false)
         } else if (response.rows.length > 0 && response.rows[0].fileid) {
-            const completeText = `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${name.trim().replace(/[/\\?%*:|"<> ]/g, '_')} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + response.rows[0].content_full
-            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [completeText, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid])
-            if (updatedFile.error) {
-                SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", updatedFile.error)
-                cb(false)
-            } else {
-                try {
-                    await discordClient.editMessage(channelid, messageid, completeText)
-                } catch (err) {
-                    SendMessage("❌ File could not be renamed", "system", 'main', "Rename", err.message)
-                }
-                cb(true)
+            const completeText = `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${name.trim().replace(/[/\\?%*:|"<>]/g, '_')} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + response.rows[0].content_full.split('\n').slice(2).join('\n')
+            try {
+                await discordClient.editMessage(channelid, messageid, completeText)
+            } catch (err) {
+                SendMessage("❌ File could not be renamed", "system", 'main', "Rename", err.message)
             }
+            cb(true)
         } else {
             SendMessage("❌ File could not be renamed because it does not exist", "system", 'main', "Rename")
             cb(true)
@@ -6294,7 +6288,7 @@ This code is publicly released and is restricted by its project license
                             // Extract FileID, Name, and Size
                             if (options && options.fileData) {
                                 if (options.fileData.name)
-                                    sqlObject.real_filename = options.fileData.name.trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                                    sqlObject.real_filename = options.fileData.name.trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                                 if (options.fileData.uuid)
                                     sqlObject.fileid = options.fileData.uuid.trim();
                                 if (options.fileData.size)
@@ -6320,9 +6314,9 @@ This code is publicly released and is restricted by its project license
                                             real_filename = real_filename.trim()
                                         }
                                     })
-                                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_');;
+                                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<>]/g, '_');;
                                 } else {
-                                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                                 }
                             }
                             // Extract Embedded Data
@@ -6678,9 +6672,9 @@ This code is publicly released and is restricted by its project license
                             real_filename = real_filename.trim()
                         }
                     })
-                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_');;
+                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<>]/g, '_');;
                 } else {
-                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                 }
             }
             if (msg.attachments && (msg.attachments.length === 1 || (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0))) {
@@ -6700,7 +6694,6 @@ This code is publicly released and is restricted by its project license
                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                 }
 
-                console.log(msg.attachments[1])
                 if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
                     sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop();
                 }
