@@ -1554,7 +1554,7 @@ This code is publicly released and is restricted by its project license
                                                         let filehash
                                                         const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
                                                         if (urlParts.length === 2) {
-                                                            filehash = (urlParts[1].startsWith(`${data.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
+                                                            filehash = (urlParts[1].startsWith(`${MessageContents.messageChannelID}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
                                                             filename = urlParts[1].split('/')[2]
                                                         } else {
                                                             filehash = data.attachments[0].url
