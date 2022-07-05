@@ -5943,18 +5943,19 @@ This code is publicly released and is restricted by its project license
     }
     async function jfsReplaceContents(channelid, messageid, textContents, cb) {
         await activeTasks.set(`JFSMODIFYTEXT_${messageid}`, { started: Date.now().valueOf() });
-        const response = await db.query(`SELECT content_full FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
+        const response = await db.query(`SELECT content_full, real_filename, fileid, filesize FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
         if (response.error) {
             SendMessage("SQL Error occurred when retrieving message data to update", "err", 'main', "SQL", response.error)
             cb(false)
         } else if (response.rows.length > 0) {
-            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ? WHERE id = ? AND source = 0`, [textContents, messageid])
+            const completeText = (response.rows[0].fileid) ? `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${response.rows[0].real_filename} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + textContents : textContents
+            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ? WHERE id = ? AND source = 0`, [completeText, messageid])
             if (updatedFile.error) {
                 SendMessage("SQL Error occurred when saving message data to cacahe", "err", 'main', "SQL", updatedFile.error)
                 cb(false)
             } else {
                 try {
-                    await discordClient.editMessage(channelid, messageid, textContents)
+                    await discordClient.editMessage(channelid, messageid, completeText)
                 } catch (err) {
                     SendMessage("❌ Contents could not be updated", "system", 'main', "EditContents", err.message)
                 }
