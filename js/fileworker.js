@@ -985,6 +985,29 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							cb(true)
 						}
 						break;
+					case 'RemoveSpannedFile':
+						if (MessageContents.fileUUID) {
+							db.safe(`SELECT kanmi_records.*
+									 FROM kanmi_records
+									 WHERE kanmi_records.fileid = ?
+									   AND kanmi_records.source = 0`, [MessageContents.fileUUID], function (err, cacheresponse) {
+								if (err || cacheresponse.length === 0) {
+									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+									cb(true)
+								} else {
+									const fileNameUniq = '.' + cacheresponse[0].fileid
+									const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
+									const LinkFileName = path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`)
+									rimraf(CompleteFilename, function (err) { });
+									rimraf(LinkFileName, function (err) { });
+									db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
+									cb(true);
+								}
+							})
+						} else {
+							cb(true)
+						}
+						break;
 					case 'GenerateVideoPreview':
 						db.safe(`SELECT * FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
 							if (err) {
