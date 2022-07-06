@@ -990,7 +990,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							db.safe(`SELECT kanmi_records.*
 									 FROM kanmi_records
 									 WHERE kanmi_records.fileid = ?
-									   AND kanmi_records.source = 0`, [MessageContents.fileUUID], function (err, cacheresponse) {
+									   AND kanmi_records.source = 0`, [MessageContents.fileUUID], async function (err, cacheresponse) {
 								if (err || cacheresponse.length === 0) {
 									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 									cb(true)
@@ -1000,7 +1000,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									const LinkFileName = path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`)
 									rimraf(CompleteFilename, function (err) { });
 									rimraf(LinkFileName, function (err) { });
-									db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
+									await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
+									Logger.printLine('cleanCache', `Successfully removed cache for file ${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`, 'info');
 									cb(true);
 								}
 							})
