@@ -1064,7 +1064,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												}
 											})
 											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
+												mqClient.sendMessage(`Error occurred when encoding the video "${CompleteFilename}" for transport, Will not send preview video!`, "err", "", er)
 											})
 
 									}
