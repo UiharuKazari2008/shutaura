@@ -455,7 +455,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 		if (systemglobal.PickupFolder) {
 			Logger.printLine('Init', 'Pickup is enabled on this FileWorker instance, now accepting requests', 'debug')
-			createMissingLinks();
+			await createMissingLinks();
 			startWorker();
 			startWorker3();
 		}
@@ -879,7 +879,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 														await animateVideo(CompleteFilename)
 															.then(async (animateFulfill) => {
-																if (animateFulfill != null) {
+																if (animateFulfill) {
 																	mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																		fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																		messageReturn: false,
@@ -902,7 +902,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
 																	await previewVideo(CompleteFilename)
 																		.then((imageFulfill) => {
-																			if (imageFulfill != null) {
+																			if (imageFulfill) {
 																				mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																					fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																					messageReturn: false,
@@ -934,7 +934,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", err.message)
 																await previewVideo(CompleteFilename)
 																	.then((imageFulfill) => {
-																		if (imageFulfill != null) {
+																		if (imageFulfill) {
 																			mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																				fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																				messageReturn: false,
