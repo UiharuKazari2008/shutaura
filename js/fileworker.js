@@ -566,30 +566,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	}
 	async function createMissingLinks() {
-		const localFiles = fs.readdirSync(systemglobal.PickupFolder);
-		const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
-		await Promise.all(localFiles
-			.filter(e => e.startsWith('.')).map(async (e) => {
-				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
-				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
-					const linkname = `${cacheresponse.rows[0].eid}-${cacheresponse.rows[0].real_filename}`
+		const localFiles = fs.readdirSync(systemglobal.PickupFolder).filter(e => e.startsWith('.')).map(e => e.substring(1));
+		const databaseItems = await db.query(`SELECT eid, fileid, real_filename FROM kanmi_records WHERE fileid IS NOT NULL AND filecached = 1`, [])
+		if (!databaseItems.error && databaseItems.rows.length > 0) {
+			await Promise.all(databaseItems.rows.filter(e => localFiles.indexOf(e.fileid) === -1).map(async (e) => {
+				await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [e.eid]);
+				Logger.printLine('cleanCache', `Successfully removed invalid cache mark for file ${e.real_filename}`, 'warn');
+			}))
+			await Promise.all(localFiles.map(async (e) => {
+				const cacheresponse = databaseItems.rows.filter(f => f.fileid === e)
+				if (cacheresponse.length > 0) {
+					const linkname = `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`
 					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
 						fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
 						Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
 					}
 				}
 			}))
-		await Promise.all(localFiles
-			.filter(e => e.startsWith('.')).map(async (e) => {
-				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
-				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
-					const linkname = `${cacheresponse.rows[0].eid}-${cacheresponse.rows[0].real_filename}`
-					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
-						fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
-						Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
-					}
-				}
-			}))
+		}
 	}
 	function msToTime(s) {
 		// Pad to 2 or 3 digits, default is 2
