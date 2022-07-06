@@ -762,7 +762,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 															})
 
 													}
-													if (cacheresponse[0].cache_proxy === null) {
+													if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
 														// Get Video Duration
 														const startPosition = await (async (filename) => {
 															const exec = require('child_process').exec;
