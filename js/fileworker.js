@@ -1053,8 +1053,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													}, function (callback) {
 														if (callback) {
 															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+															cb(true);
 														} else {
 															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+															cb(true);
 														}
 													});
 												} else {
@@ -1190,8 +1192,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													}, function (callback) {
 														if (callback) {
 															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+															cb(true);
 														} else {
 															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+															cb(true);
 														}
 													});
 												} else {
@@ -1213,8 +1217,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}, function (callback) {
 																	if (callback) {
 																		Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																		cb(true);
 																	} else {
 																		Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																		cb(true);
 																	}
 																});
 															} else {
@@ -1247,8 +1253,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 															}, function (callback) {
 																if (callback) {
 																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																	cb(true);
 																} else {
 																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																	cb(true);
 																}
 															});
 														} else {
