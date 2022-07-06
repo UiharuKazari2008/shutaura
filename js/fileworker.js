@@ -1060,7 +1060,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														}
 													});
 												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
+													mqClient.sendMessage(`Error occurred when encoding the video "${CompleteFilename}" for transport, Will not send preview video!`, "err", "")
 												}
 											})
 											.catch((er) => {
@@ -1199,7 +1199,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														}
 													});
 												} else {
-													mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send image preview!`, "err", "")
+													mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "")
 													await previewVideo(CompleteFilename)
 														.then(async (imageFulfill) => {
 															if (imageFulfill != null) {
@@ -1224,18 +1224,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	}
 																});
 															} else {
-																mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
+																mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "")
 																cb(true);
 															}
 														})
 														.catch(async (er) => {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
+															mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "", er)
 															cb(true);
 														})
 												}
 											})
 											.catch(async (er) => {
-												mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will send image preview!`, "err", "", er)
+												mqClient.sendMessage(`Error occurred when generating animated preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "", er)
 												await previewVideo(CompleteFilename)
 													.then(async (imageFulfill) => {
 														if (imageFulfill != null) {
@@ -1260,12 +1260,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}
 															});
 														} else {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
+															mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "")
 															cb(true);
 														}
 													})
 													.catch(async (er) => {
-														mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
+														mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "", er)
 														cb(true);
 													})
 											})
