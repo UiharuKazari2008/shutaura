@@ -565,8 +565,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		})
 	}
-	function createMissingLinks() {
-		return Promise.all(fs.readdirSync(systemglobal.PickupFolder)
+	async function createMissingLinks() {
+		const localFiles = fs.readdirSync(systemglobal.PickupFolder);
+		const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
+		await Promise.all(localFiles
+			.filter(e => e.startsWith('.')).map(async (e) => {
+				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
+				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
+					const linkname = `${cacheresponse.rows[0].eid}-${cacheresponse.rows[0].real_filename}`
+					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
+						fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
+						Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
+					}
+				}
+			}))
+		await Promise.all(localFiles
 			.filter(e => e.startsWith('.')).map(async (e) => {
 				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
 				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
@@ -1038,7 +1051,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 										await encodeVideo(CompleteFilename, true)
 											.then((fulfill) => {
-												if (fulfill != null) {
+												if (fulfill) {
 													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 														messageReturn: false,
@@ -1177,7 +1190,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 										await animateVideo(CompleteFilename)
 											.then(async (aniamtedFulFill) => {
-												if (aniamtedFulFill != null) {
+												if (aniamtedFulFill) {
 													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 														messageReturn: false,
@@ -1202,7 +1215,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "")
 													await previewVideo(CompleteFilename)
 														.then(async (imageFulfill) => {
-															if (imageFulfill != null) {
+															if (imageFulfill) {
 																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																	messageReturn: false,
@@ -1238,7 +1251,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												mqClient.sendMessage(`Error occurred when generating animated preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "", er)
 												await previewVideo(CompleteFilename)
 													.then(async (imageFulfill) => {
-														if (imageFulfill != null) {
+														if (imageFulfill) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																messageReturn: false,
