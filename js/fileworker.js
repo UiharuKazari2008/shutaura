@@ -991,6 +991,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												}
 											} catch (err) {
 												mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild!`, "err", "MPFDownload", err)
+												console.error(err)
 												for (let part of itemsCompleted) {
 													fs.unlink(part, function (err) {
 														if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
