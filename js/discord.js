@@ -2879,6 +2879,9 @@ This code is publicly released and is restricted by its project license
                                                             if (object.uri.length === 0)
                                                                 object.uri = null
                                                             break;
+                                                        case 'autofetch':
+                                                            object.autofetch = (args[5].trim() === 'true') ? 1 : 0
+                                                            break;
                                                         case 'read':
                                                             if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
                                                                 object.role = args[5]
