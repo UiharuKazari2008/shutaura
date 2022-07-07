@@ -1668,22 +1668,20 @@ This code is publicly released and is restricted by its project license
                                             if (typeof value === "string" && value.startsWith('FILE-')) {
                                                 const fileIndex = parseInt(value.substring(5))
                                                 if (!isNaN(fileIndex) && fileIndex > -1 && MessageContents.extendedAttachments && MessageContents.extendedAttachments[fileIndex]) {
-                                                    const attachmentUrl = await new Promise(uploadedUrl => {
-                                                        discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
+                                                    try {
+                                                        const data = await discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
                                                             name: MessageContents.extendedAttachments[fileIndex].name,
                                                             file: Buffer.from(MessageContents.extendedAttachments[fileIndex].file, 'base64')
                                                         })
-                                                            .then((data) => {
-                                                                uploadedUrl('/attachments' + data.attachments[0].proxy_url.split('/attachments').pop())
-                                                            })
-                                                            .catch((err) => {
-                                                                Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
-                                                                console.log(err);
-                                                                uploadedUrl(false);
-                                                            })
-                                                    })
-                                                    if (attachmentUrl) {
-                                                        jsonData[ext_key] = attachmentUrl
+                                                        if (data && data.attachments.length > 0) {
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                            if (attachmentUrl) {
+                                                                jsonData[ext_key] = attachmentUrl
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
+                                                        console.log(err);
                                                     }
                                                 } else {
                                                     Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
@@ -1692,7 +1690,12 @@ This code is publicly released and is restricted by its project license
                                                 jsonData[ext_key] = value;
                                             }
                                         })
-                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, jsonData, jsonData])
+                                        console.log(jsonData);
+                                        if (Object.keys(jsonData).length > 0) {
+                                            db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, jsonData, jsonData])
+                                        } else {
+                                            Logger.printLine("ModifyExtendedContent", `Failed to process extended data because no data!`, "warn");
+                                        }
                                         cb(true);
                                     }
                                 });
