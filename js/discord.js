@@ -1501,11 +1501,11 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'ReplaceContent':
                         Logger.printLine("UpdateContent", `Replacing Content for ${MessageContents.messageID}...`, "debug")
-                        const messageRecord = await db.query(`SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
-                        if (messageRecord.error) {
-                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", messageRecord.error)
+                        const ReplaceContentmessageRecord = await db.query(`SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                        if (ReplaceContentmessageRecord.error) {
+                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", ReplaceContentmessageRecord.error)
                             cb(false);
-                        } else if (messageRecord.rows.length > 0) {
+                        } else if (ReplaceContentmessageRecord.rows.length > 0) {
                             if (MessageContents.itemCacheData && MessageContents.itemCacheName && (MessageContents.itemCacheType || MessageContents.itemCacheType === 0)) {
                                 db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
                                     if (err || serverdata.length === 0) {
@@ -1594,11 +1594,11 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'RemoveExtendedContent':
                         Logger.printLine("RemoveExtendedContent", `Remove Extended Content Value for ${MessageContents.messageID}...`, "debug")
-                        const messageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
-                        if (messageRecord.error) {
-                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", messageRecord.error)
+                        const RemoveContentmessageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                        if (RemoveContentmessageRecord.error) {
+                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", RemoveContentmessageRecord.error)
                             cb(false);
-                        } else if (messageRecord.rows.length > 0) {
+                        } else if (RemoveContentmessageRecord.rows.length > 0) {
                             if (MessageContents.extendedContent) {
                                 db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
                                     if (err || serverdata.length === 0) {
@@ -1606,9 +1606,9 @@ This code is publicly released and is restricted by its project license
                                         cb(true);
                                     } else {
                                         let jsonData = {}
-                                        if (messageRecord.rows[0].data) {
+                                        if (RemoveContentmessageRecord.rows[0].data) {
                                             jsonData = {
-                                                ...messageRecord.rows[0].data
+                                                ...RemoveContentmessageRecord.rows[0].data
                                             }
                                         }
                                         Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
@@ -1631,7 +1631,7 @@ This code is publicly released and is restricted by its project license
                                             }
                                             delete jsonData[ext_key]
                                         })
-                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [messageRecord.rows[0].eid, jsonData, jsonData])
+                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [RemoveContentmessageRecord.rows[0].eid, jsonData, jsonData])
                                         cb(true);
                                     }
                                 });
@@ -1646,11 +1646,11 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'ModifyExtendedContent':
                         Logger.printLine("ModifyExtendedContent", `Modify Extended Content for ${MessageContents.messageID}...`, "debug")
-                        const messageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
-                        if (messageRecord.error) {
-                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", messageRecord.error)
+                        const ModifyExtendedContentmessageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                        if (ModifyExtendedContentmessageRecord.error) {
+                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", ModifyExtendedContentmessageRecord.error)
                             cb(false);
-                        } else if (messageRecord.rows.length > 0) {
+                        } else if (ModifyExtendedContentmessageRecord.rows.length > 0) {
                             if (MessageContents.extendedContent) {
                                 db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
                                     if (err || serverdata.length === 0) {
@@ -1658,9 +1658,9 @@ This code is publicly released and is restricted by its project license
                                         cb(true);
                                     } else {
                                         let jsonData = {}
-                                        if (messageRecord.rows[0].data) {
+                                        if (ModifyExtendedContentmessageRecord.rows[0].data) {
                                             jsonData = {
-                                                ...messageRecord.rows[0].data
+                                                ...ModifyExtendedContentmessageRecord.rows[0].data
                                             }
                                         }
                                         Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
@@ -1692,7 +1692,7 @@ This code is publicly released and is restricted by its project license
                                                 jsonData[ext_key] = value;
                                             }
                                         })
-                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [messageRecord.rows[0].eid, jsonData, jsonData])
+                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, jsonData, jsonData])
                                         cb(true);
                                     }
                                 });
