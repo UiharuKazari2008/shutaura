@@ -1652,7 +1652,7 @@ This code is publicly released and is restricted by its project license
                             cb(false);
                         } else if (ModifyExtendedContentmessageRecord.rows.length > 0) {
                             if (MessageContents.extendedContent) {
-                                db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
+                                db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], async function (err, serverdata) {
                                     if (err || serverdata.length === 0) {
                                         SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
                                         cb(true);
@@ -1663,7 +1663,7 @@ This code is publicly released and is restricted by its project license
                                                 ...ModifyExtendedContentmessageRecord.rows[0].data
                                             }
                                         }
-                                        Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
+                                        await new Promise.all(Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
                                             const value = MessageContents.extendedContent[ext_key];
                                             if (typeof value === "string" && value.startsWith('FILE-')) {
                                                 const fileIndex = parseInt(value.substring(5))
@@ -1689,7 +1689,7 @@ This code is publicly released and is restricted by its project license
                                             } else {
                                                 jsonData[ext_key] = value;
                                             }
-                                        })
+                                        }))
                                         console.log(jsonData);
                                         if (Object.keys(jsonData).length > 0) {
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, jsonData, jsonData])
