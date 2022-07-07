@@ -896,7 +896,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
 															});
-															if (preview_image && !cacheresponse[0].data.preview_image) {
+															if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
 																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																	messageReturn: false,
