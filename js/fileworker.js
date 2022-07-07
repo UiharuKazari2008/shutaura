@@ -957,7 +957,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														} else {
 															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 														}
-													} else if (!cacheresponse[0].data.preview_image) {
+													} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
 														const preview_image = await previewVideo(CompleteFilename)
 														if (preview_image) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
