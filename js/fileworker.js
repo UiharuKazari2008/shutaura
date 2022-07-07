@@ -19,6 +19,9 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
+import {resolve} from "path";
+import rimraf from "rimraf";
+
 (async () => {
 	let systemglobal = require('../config.json');
 	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -667,7 +670,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}, Promise.resolve());
 									requests.then(async () => {
 										if (itemsCompleted.length === cacheresponse[0].paritycount) {
-											rimraf(CompleteFilename, function (err) { });
+											await new Promise((deleted) => {
+												rimraf(CompleteFilename, function (err) { deleted(!err) });
+											})
 											try {
 												await splitFile.mergeFiles(itemsCompleted.sort(function (a, b) {
 													return a - b
@@ -688,7 +693,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														Logger.printLine("MPFCache", `File ${fileName.replace(/[/\\?%*:|"<> ]/g, '_')} was cached successfully!`, 'info')
 													}
 												})
-												rimraf(PartsFilePath, function (err) { });
+												await new Promise((deleted) => {
+													rimraf(PartsFilePath, function (err) { deleted(!err) });
+												})
 												if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(fileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 													// Get Video Duration
 													const startPosition = await (async (filename) => {
@@ -985,7 +992,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}
 															});
 														} else {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
 														}
 													}
 												}
@@ -1025,8 +1032,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									const fileNameUniq = '.' + cacheresponse[0].fileid
 									const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
 									const LinkFileName = path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`)
-									rimraf(CompleteFilename, function (err) { });
-									rimraf(LinkFileName, function (err) { });
+									await new Promise((deleted) => {
+										rimraf(CompleteFilename, function (err) { deleted(!err) });
+									})
+									await new Promise((deleted) => {
+										rimraf(LinkFileName, function (err) { deleted(!err) });
+									})
 									await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
 									Logger.printLine('cleanCache', `Successfully removed cache for file ${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`, 'info');
 									cb(true);
