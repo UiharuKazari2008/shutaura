@@ -55,6 +55,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const moment = require('moment');
 	const minimist = require("minimist");
 	const { spawn } = require("child_process");
+	const exec = require('child_process').exec;
 	let args = minimist(process.argv.slice(2));
 	let init = false
 
@@ -601,6 +602,175 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		return pad(hrs) + ':' + pad(mins) + ':' + pad(secs)
 	}
+	// Get Video Duration
+	async function startPosition(filename) {
+		let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+		const duration = await new Promise((resolve) => {
+			exec(ffmpegParam, (err, stdout, stderr) => {
+				if (err) {
+					console.error(err);
+					resolve(false);
+				}
+				resolve(parseInt(stdout.split("\n").join("").trim()));
+			})
+		})
+		if (duration) {
+			return msToTime((duration * .25) * 1000)
+		} else {
+			return '00:00:00'
+		}
+	}
+	// Generate Video GIF Preview
+	async function animateVideo(filename, time) {
+		return await new Promise(function (fulfill) {
+			const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
+			let scriptOutput = "";
+			const spawn = require('child_process').spawn;
+			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
+			console.log("[FFMPEG] Getting Animated Preview Image...")
+			const child = spawn(EncoderConf.Exec, ffmpegParam);
+			child.stdout.setEncoding('utf8');
+			child.stdout.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.stderr.setEncoding('utf8');
+			child.stderr.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.on('close', function (code) {
+				if (code === 0 && fileSize(outputfile) > 0.00001) {
+					try {
+						const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
+					} catch (err) {
+						fulfill(null);
+						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+					}
+				} else {
+					mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
+					deleteFile(outputfile, function (ready) {
+						// Do Nothing
+					})
+					fulfill(null)
+				}
+			});
+		})
+	}
+	// Generate Video Preview Image
+	async function previewVideo(filename, time) {
+		return await new Promise(function (fulfill) {
+			const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
+			let scriptOutput = "";
+			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+			console.log("[FFMPEG] Getting Preview Image...")
+			const child = spawn(EncoderConf.Exec, ffmpegParam);
+			child.stdout.setEncoding('utf8');
+			child.stdout.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.stderr.setEncoding('utf8');
+			child.stderr.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.on('close', function (code) {
+				if (code === 0 && fileSize(outputfile) > 0.00001) {
+					try {
+						const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
+					} catch (err) {
+						fulfill(null);
+						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+					}
+				} else {
+					mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+					deleteFile(outputfile, function (ready) {
+						// Do Nothing
+					})
+					fulfill(null)
+				}
+			});
+		})
+	}
+	// Encode Video File
+	async function encodeVideo(filename, intent) {
+		return await new Promise(function (fulfill) {
+			const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
+			if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
+				try {
+					const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
+					deleteFile(possiblePreview, function (ready) {
+						// Do Nothing
+					})
+					fulfill(output);
+				} catch (err) {
+					fulfill(null);
+					Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+				}
+			} else {
+				const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
+				let scriptOutput = "";
+				const spawn = require('child_process').spawn;
+				let ffmpegParam = []
+				if (intent) {
+					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+				} else {
+					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
+				}
+				console.log("[FFMPEG] Starting to encode video...")
+				const child = spawn(EncoderConf.Exec, ffmpegParam);
+				// You can also use a variable to save the output
+				// for when the script closes later
+				child.stdout.setEncoding('utf8');
+				child.stdout.on('data', function (data) {
+					//Here is where the output goes
+					console.log(data);
+					data = data.toString();
+					scriptOutput += data;
+				});
+				child.stderr.setEncoding('utf8');
+				child.stderr.on('data', function (data) {
+					//Here is where the error output goes
+					console.log(data);
+					data = data.toString();
+					scriptOutput += data;
+				});
+				child.on('close', function (code) {
+					if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+						try {
+							const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+							deleteFile(outputfile, function (ready) {
+								// Do Nothing
+							})
+							fulfill(output);
+						} catch (err) {
+							fulfill(null);
+							Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+						}
+					} else {
+						mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(null)
+					}
+				});
+			}
+		})
+	}
 
 	function proccessJob(MessageContents, cb) {
 		try {
@@ -714,140 +884,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														}
 													})(CompleteFilename);
 
-													// Generate Video GIF Preview
-													async function animateVideo(filename, intent) {
-														return await new Promise(function (fulfill) {
-															const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
-															let scriptOutput = "";
-															const spawn = require('child_process').spawn;
-															let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
-															console.log("[FFMPEG] Getting Animated Preview Image...")
-															const child = spawn(EncoderConf.Exec, ffmpegParam);
-															child.stdout.setEncoding('utf8');
-															child.stdout.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.stderr.setEncoding('utf8');
-															child.stderr.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.on('close', function (code) {
-																if (code === 0 && fileSize(outputfile) > 0.00001) {
-																	try {
-																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(output);
-																	} catch (err) {
-																		fulfill(null);
-																		Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-																	}
-																} else {
-																	mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(null)
-																}
-															});
-														})
-													}
-													// Generate Video Preview Image
-													async function previewVideo(filename, intent) {
-														return await new Promise(function (fulfill) {
-															const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
-															let scriptOutput = "";
-															const spawn = require('child_process').spawn;
-															let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-															console.log("[FFMPEG] Getting Preview Image...")
-															const child = spawn(EncoderConf.Exec, ffmpegParam);
-															child.stdout.setEncoding('utf8');
-															child.stdout.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.stderr.setEncoding('utf8');
-															child.stderr.on('data', function (data) {
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.on('close', function (code) {
-																if (code === 0 && fileSize(outputfile) > 0.00001) {
-																	try {
-																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(output);
-																	} catch (err) {
-																		fulfill(null);
-																		Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-																	}
-																} else {
-																	mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(null)
-																}
-															});
-														})
-													}
-													// Encode Video File
-													async function encodeVideo(filename, intent) {
-														return await new Promise(function (fulfill) {
-															const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-															let scriptOutput = "";
-															const spawn = require('child_process').spawn;
-															let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-															console.log("[FFMPEG] Starting to encode video...")
-															const child = spawn(EncoderConf.Exec, ffmpegParam);
-															// You can also use a variable to save the output
-															// for when the script closes later
-															child.stdout.setEncoding('utf8');
-															child.stdout.on('data', function (data) {
-																//Here is where the output goes
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.stderr.setEncoding('utf8');
-															child.stderr.on('data', function (data) {
-																//Here is where the error output goes
-																console.log(data);
-																data = data.toString();
-																scriptOutput += data;
-															});
-															child.on('close', function (code) {
-																if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-																	try {
-																		const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(output);
-																	} catch (err) {
-																		fulfill(null);
-																		Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-																	}
-																} else {
-																	mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-																	deleteFile(outputfile, function (ready) {
-																		// Do Nothing
-																	})
-																	fulfill(null)
-																}
-															});
-														})
-													}
-
 													if (cacheresponse[0].attachment_hash === null) {
 														const preview_video = await encodeVideo(CompleteFilename, true)
 														if (preview_video) {
@@ -874,8 +910,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														}
 													}
 													if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
-														const preview_animated = await animateVideo(CompleteFilename)
-														const preview_image = await previewVideo(CompleteFilename)
+														const preview_animated = await animateVideo(CompleteFilename, startPosition)
+														const preview_image = await previewVideo(CompleteFilename, startPosition)
 
 														if (preview_animated) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
@@ -962,7 +998,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 														}
 													} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
-														const preview_image = await previewVideo(CompleteFilename)
+														const preview_image = await previewVideo(CompleteFilename, startPosition)
 														if (preview_image) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
@@ -1053,358 +1089,49 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
 								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
 								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
-									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'video')) {
-										// Encode Video File
-										function encodeVideo(filename, intent, fulfill) {
-											return new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-												console.log("[FFMPEG] Starting to encode video...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												// You can also use a variable to save the output
-												// for when the script closes later
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													//Here is where the output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													//Here is where the error output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-														}
-													} else {
-														mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
-													}
-												});
+									// Get Video Duration
+									const startPosition = await (async (filename) => {
+										const exec = require('child_process').exec;
+										let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+										const duration = await new Promise((resolve) => {
+											exec(ffmpegParam, (err, stdout, stderr) => {
+												if (err) {
+													console.error(err);
+													resolve(false);
+												}
+												resolve(parseInt(stdout.split("\n").join("").trim()));
 											})
+										})
+										if (duration) {
+											return msToTime((duration * .25) * 1000)
+										} else {
+											return '00:00:00'
 										}
+									})(CompleteFilename);
 
-										await encodeVideo(CompleteFilename, true)
-											.then((fulfill) => {
-												if (fulfill) {
-													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-														messageReturn: false,
-														messageID: cacheresponse[0].id,
-														messageChannelID: cacheresponse[0].channel,
-														messageServerID: cacheresponse[0].server,
-														messageType: 'command',
-														messageAction: 'ReplaceContent',
-														itemCacheName: `${cacheresponse[0].id}.mp4`,
-														itemCacheData: fulfill,
-														itemCacheType: 1
-													}, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-															cb(true);
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-															cb(true);
-														}
-													});
+									if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif')) || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview')) {
+										const preview_animated = await animateVideo(CompleteFilename, startPosition)
+										const preview_image = await previewVideo(CompleteFilename, startPosition)
+										if (preview_animated) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
+												itemCacheData: preview_animated,
+												itemCacheType: 0
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${CompleteFilename}" for transport, Will not send preview video!`, "err", "")
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 												}
-											})
-											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${CompleteFilename}" for transport, Will not send preview video!`, "err", "", er)
-											})
-
-									}
-									if (cacheresponse[0].cache_proxy === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview')) {
-										// Get Video Duration
-										const startPosition = await (async (filename) => {
-											const exec = require('child_process').exec;
-											let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
-											const duration = await new Promise((resolve) => {
-												exec(ffmpegParam, (err, stdout, stderr) => {
-													if (err) {
-														console.error(err);
-														resolve(false);
-													}
-													resolve(parseInt(stdout.split("\n").join("").trim()));
-												})
-											})
-											if (duration) {
-												return msToTime((duration * .25) * 1000)
-											} else {
-												return '00:00:00'
-											}
-										})(CompleteFilename);
-
-										// Generate Video GIF Preview
-										async function animateVideo(filename, intent) {
-											return await new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
-												console.log("[FFMPEG] Getting Animated Preview Image...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code === 0 && fileSize(outputfile) > 0.00001) {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-														}
-													} else {
-														mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
-													}
-												});
-											})
-										}
-										// Generate Video Preview Image
-										async function previewVideo(filename, intent) {
-											return await new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', startPosition, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-												console.log("[FFMPEG] Getting Preview Image...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code === 0 && fileSize(outputfile) > 0.00001) {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-														}
-													} else {
-														mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
-													}
-												});
-											})
-										}
-										// Encode Video File
-										async function encodeVideo(filename, intent) {
-											return await new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-												console.log("[FFMPEG] Starting to encode video...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												// You can also use a variable to save the output
-												// for when the script closes later
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													//Here is where the output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													//Here is where the error output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-														}
-													} else {
-														mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
-													}
-												});
-											})
-										}
-
-										if (cacheresponse[0].attachment_hash === null) {
-											const preview_video = await encodeVideo(CompleteFilename, true)
-											if (preview_video) {
-												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageID: cacheresponse[0].id,
-													messageChannelID: cacheresponse[0].channel,
-													messageServerID: cacheresponse[0].server,
-													messageType: 'command',
-													messageAction: 'ReplaceContent',
-													itemCacheName: `${cacheresponse[0].id}.mp4`,
-													itemCacheData: preview_video,
-													itemCacheType: 1
-												}, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-													}
-												});
-											} else {
-												mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
-											}
-										}
-										if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
-											const preview_animated = await animateVideo(CompleteFilename)
-											const preview_image = await previewVideo(CompleteFilename)
-
-											if (preview_animated) {
-												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageID: cacheresponse[0].id,
-													messageChannelID: cacheresponse[0].channel,
-													messageServerID: cacheresponse[0].server,
-													messageType: 'command',
-													messageAction: 'ReplaceContent',
-													itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
-													itemCacheData: preview_animated,
-													itemCacheType: 0
-												}, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-													}
-												});
-												if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
-													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-														messageReturn: false,
-														messageID: cacheresponse[0].id,
-														messageChannelID: cacheresponse[0].channel,
-														messageServerID: cacheresponse[0].server,
-														messageType: 'command',
-														messageAction: 'ModifyExtendedContent',
-														extendedContent: {
-															preview_image: 'FILE-0'
-														},
-														extendedAttachments: [
-															{
-																name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-																file: preview_image
-															}
-														]
-													}, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-														}
-													});
-												}
-											} else if (preview_image) {
-												mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
-												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageID: cacheresponse[0].id,
-													messageChannelID: cacheresponse[0].channel,
-													messageServerID: cacheresponse[0].server,
-													messageType: 'command',
-													messageAction: 'ReplaceContent',
-													itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-													itemCacheData: preview_image,
-													itemCacheType: 0
-												}, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-													}
-												});
-												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageID: cacheresponse[0].id,
-													messageChannelID: cacheresponse[0].channel,
-													messageServerID: cacheresponse[0].server,
-													messageType: 'command',
-													messageAction: 'RemoveExtendedContent',
-													extendedContent: ['preview_image']
-												}, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-													}
-												});
-											} else {
-												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
-											}
-										} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
-											const preview_image = await previewVideo(CompleteFilename)
-											if (preview_image) {
+											});
+											if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
 												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 													messageReturn: false,
@@ -1429,9 +1156,100 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 													}
 												});
-											} else {
-												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
 											}
+										} else if (preview_image) {
+											mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+												itemCacheData: preview_image,
+												itemCacheType: 0
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'RemoveExtendedContent',
+												extendedContent: ['preview_image']
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+										}
+									} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
+										const preview_image = await previewVideo(CompleteFilename, startPosition)
+										if (preview_image) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ModifyExtendedContent',
+												extendedContent: {
+													preview_image: 'FILE-0'
+												},
+												extendedAttachments: [
+													{
+														name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+														file: preview_image
+													}
+												]
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
+										}
+									}
+									if (cacheresponse[0].cache_proxy === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'video')) {
+										const preview_video = await encodeVideo(CompleteFilename, true)
+										if (preview_video) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}.mp4`,
+												itemCacheData: preview_video,
+												itemCacheType: 1
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
 										}
 									}
 								} else {
@@ -1828,161 +1646,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
-			// Encode Video File
-			function encodeVideo(filename, intent, fulfill) {
-				return new Promise(function (fulfill) {
-					const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
-					if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
-						try {
-							const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
-							deleteFile(possiblePreview, function (ready) {
-								// Do Nothing
-							})
-							fulfill(output);
-						} catch (err) {
-							fulfill(null);
-							Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-						}
-					} else {
-						const outputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO');
-						let scriptOutput = "";
-						const spawn = require('child_process').spawn;
-						let ffmpegParam = []
-						if (intent === true) {
-							ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-						} else {
-							ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
-						}
-						console.log("[FFMPEG] Starting to encode video...")
-						const child = spawn(EncoderConf.Exec, ffmpegParam);
-						// You can also use a variable to save the output
-						// for when the script closes later
-						child.stdout.setEncoding('utf8');
-						child.stdout.on('data', function (data) {
-							//Here is where the output goes
-							console.log(data);
-							data = data.toString();
-							scriptOutput += data;
-						});
-						child.stderr.setEncoding('utf8');
-						child.stderr.on('data', function (data) {
-							//Here is where the error output goes
-							console.log(data);
-							data = data.toString();
-							scriptOutput += data;
-						});
-						child.on('close', function (code) {
-							if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-								try {
-									const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-									deleteFile(outputfile, function (ready) {
-										// Do Nothing
-									})
-									fulfill(output);
-								} catch (err) {
-									fulfill(null);
-									Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-								}
-							} else {
-								mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(null)
-							}
-						});
-					}
-				})
-			}
-
-			// Generate Video GIF Preview
-			function animateVideo(filename, intent, time, fulfill) {
-				return new Promise(function (fulfill) {
-					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.gif');
-					let scriptOutput = "";
-					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
-					console.log("[FFMPEG] Getting Animated Preview Image...")
-					const child = spawn(EncoderConf.Exec, ffmpegParam);
-					child.stdout.setEncoding('utf8');
-					child.stdout.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.stderr.setEncoding('utf8');
-					child.stderr.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.on('close', function (code) {
-						if (code === 0 && fileSize(outputfile) > 0.00001) {
-							try {
-								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(output);
-							} catch (err) {
-								fulfill(null);
-								Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-							}
-						} else {
-							mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "warn")
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(null)
-						}
-					});
-				})
-			}
-
-			// Generate Video Preview Image
-			function previewVideo(filename, intent, time, fulfill) {
-				return new Promise(function (fulfill) {
-					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.jpg');
-					let scriptOutput = "";
-					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-					console.log("[FFMPEG] Getting Preview Image...")
-					const child = spawn(EncoderConf.Exec, ffmpegParam);
-					child.stdout.setEncoding('utf8');
-					child.stdout.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.stderr.setEncoding('utf8');
-					child.stderr.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.on('close', function (code) {
-						if (code === 0 && fileSize(outputfile) > 0.00001) {
-							try {
-								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(output);
-							} catch (err) {
-								fulfill(null);
-								Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-							}
-						} else {
-							mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(null)
-						}
-					});
-				})
-			}
-
 			// Generate a MultiPart File
 			function sendMultiPartFile(cb) {
 				const filepartsid = crypto.randomBytes(16).toString("hex");
@@ -2035,21 +1698,52 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 				}
 
-				function sendMultiPreview(b64Data, b64Preview, videoSuffix, previewSuffix) {
+				function sendMultiPreview(b64Data, b64AnimatedPreview, b64Preview) {
 					parameters.messageType = "smultifile";
 					parameters.messageText = `**🧩 File : ${filepartsid}**\n*🏷 Name: ${object.FileName.toString()} (${flesize.toFixed(2)} MB)*\n` + txtMessage
 					parameters.addButtons = ["ReqFile", "Pin", "RemoveFile", "Archive", "MoveMessage"]
-					parameters.itemFileArray = [
-						{
-							fileName: '' + filepartsid + videoSuffix,
+					let attachments = [];
+					if (b64Data) {
+						attachments.push({
+							fileName: '' + filepartsid + '.mp4',
 							fileData: '' + b64Data
-						},
-						{
-							fileName: '' + filepartsid + previewSuffix,
+						})
+					}
+					if (b64AnimatedPreview) {
+						attachments.push({
+							fileName: '' + filepartsid + '-t9-preview-video.gif',
+							fileData: '' + b64AnimatedPreview
+						})
+					}
+					if (b64Preview) {
+						attachments.push({
+							fileName: '' + filepartsid + '-t9-preview-video.jpg',
 							fileData: '' + b64Preview
+						})
+					}
+
+					if (attachments.length === 1) {
+						parameters.itemFileData = attachments[0].fileData;
+						parameters.itemFileName = attachments[0].fileName;
+					} else if (attachments.length === 2) {
+						parameters.itemFileArray = attachments;
+						delete parameters.itemFileName
+					} else if (attachments.length === 3) {
+						parameters.itemFileArray = attachments.slice(0,2)
+						parameters.extendedContent = {
+							preview_image: 'FILE-0'
 						}
-					];
-					delete parameters.itemFileName
+						parameters.extendedAttachments = [
+							{
+								name: attachments[2].fileName,
+								file: attachments[2].fileData
+							}
+						]
+						delete parameters.itemFileName
+					} else {
+						sendTxt();
+					}
+
 					mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 						if (callback) {
 							Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
@@ -2195,167 +1889,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								}
 							})(object.FilePath.toString());
 
-							animateVideo(object.FilePath.toString(), undefined, startPosition)
-								.then((animatedFulfill) => {
-									if (animatedFulfill != null) {
-										encodeVideo(object.FilePath.toString(), true)
-											.then((fulfill) => {
-												if (fulfill != null) {
-													sendMultiPreview(fulfill, animatedFulfill, '.mp4', '-t9-preview-video.gif')
-												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
-													sendPreview(animatedFulfill, '.mp4')
-												}
-											})
-											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
-												previewVideo(object.FilePath.toString(), undefined, startPosition)
-													.then((imageFulfill) => {
-														if (imageFulfill != null) {
-															encodeVideo(object.FilePath.toString(), true)
-																.then((fulfill) => {
-																	if (fulfill != null) {
-																		sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
-																	} else {
-																		mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
-																		sendPreview(imageFulfill, '.mp4')
-																	}
-																})
-																.catch((er) => {
-																	mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
-																	sendPreview(imageFulfill, '-t9-preview-video.jpg')
-																})
-														} else {
-															encodeVideo(object.FilePath.toString(), true)
-																.then((fulfill) => {
-																	if (fulfill != null) {
-																		sendPreview(fulfill, '.mp4')
-																	} else {
-																		mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
-																		sendTxt()
-																	}
-																})
-																.catch((er) => {
-																	mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-																	sendTxt()
-																})
-														}
-													})
-													.catch((er) => {
-														encodeVideo(object.FilePath.toString(), true)
-															.then((fulfill) => {
-																if (fulfill != null) {
-																	sendPreview(fulfill, '.mp4')
-																} else {
-																	mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-																	sendTxt()
-																}
-															})
-															.catch((er) => {
-																mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-																sendTxt()
-															})
-													})
-											})
-									} else {
-										previewVideo(object.FilePath.toString(), undefined, startPosition)
-											.then((imageFulfill) => {
-												if (imageFulfill != null) {
-													encodeVideo(object.FilePath.toString(), true)
-														.then((fulfill) => {
-															if (fulfill != null) {
-																sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
-															} else {
-																mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
-																sendPreview(imageFulfill, '.mp4')
-															}
-														})
-														.catch((er) => {
-															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
-															sendPreview(imageFulfill, '-t9-preview-video.jpg')
-														})
-												} else {
-													encodeVideo(object.FilePath.toString(), true)
-														.then((fulfill) => {
-															if (fulfill != null) {
-																sendPreview(fulfill, '.mp4')
-															} else {
-																mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
-																sendTxt()
-															}
-														})
-														.catch((er) => {
-															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-															sendTxt()
-														})
-												}
-											})
-											.catch((er) => {
-												encodeVideo(object.FilePath.toString(), true)
-													.then((fulfill) => {
-														if (fulfill != null) {
-															sendPreview(fulfill, '.mp4')
-														} else {
-															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-															sendTxt()
-														}
-													})
-													.catch((er) => {
-														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-														sendTxt()
-													})
-											})
-									}
-								})
-								.catch((er) => {
-									previewVideo(object.FilePath.toString(), undefined, startPosition)
-										.then((imageFulfill) => {
-											if (imageFulfill != null) {
-												encodeVideo(object.FilePath.toString(), true)
-													.then((fulfill) => {
-														if (fulfill != null) {
-															sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
-														} else {
-															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
-															sendPreview(imageFulfill, '.mp4')
-														}
-													})
-													.catch((er) => {
-														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
-														sendPreview(imageFulfill, '-t9-preview-video.jpg')
-													})
-											} else {
-												encodeVideo(object.FilePath.toString(), true)
-													.then((fulfill) => {
-														if (fulfill != null) {
-															sendPreview(fulfill, '.mp4')
-														} else {
-															mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
-															sendTxt()
-														}
-													})
-													.catch((er) => {
-														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-														sendTxt()
-													})
-											}
-										})
-										.catch((er) => {
-											encodeVideo(object.FilePath.toString(), true)
-												.then((fulfill) => {
-													if (fulfill != null) {
-														sendPreview(fulfill, '.mp4')
-													} else {
-														mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-														sendTxt()
-													}
-												})
-												.catch((er) => {
-													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-													sendTxt()
-												})
-										})
-								})
+							const preview_animated = await animateVideo(object.FilePath.toString(), startPosition)
+							const preview_image = await previewVideo(object.FilePath.toString(), startPosition)
+							const preview_video = await encodeVideo(object.FilePath.toString(), true)
+
+
+							sendMultiPreview(preview_video, preview_animated, preview_image)
 						} else {
 							sendTxt()
 						}
@@ -2473,32 +2012,26 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					Logger.printLine("ParseFile", `${object.FileName.toString()} : Encode Video`, "debug", {
 						fileSize: fileSize(object.FilePath.toString())
 					})
-					encodeVideo(object.FilePath.toString(), false)
-						.then((fulfill) => {
-							if (fulfill != null) {
-								parameters.itemFileData = fulfill
-								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-									if (callback) {
-										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-										if (object.Type.toString() === "Remote") {
-											deleteFile(object.FilePath.toString(), function (ready) {
-												// Do Nothing
-											})
-										}
-										cb(true)
-									} else {
-										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-										cb(false)
-									}
-								});
+					const fulfill = await encodeVideo(object.FilePath.toString(), false)
+					if (fulfill) {
+						parameters.itemFileData = fulfill
+						mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+							if (callback) {
+								Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+								if (object.Type.toString() === "Remote") {
+									deleteFile(object.FilePath.toString(), function (ready) {
+										// Do Nothing
+									})
+								}
+								cb(true)
 							} else {
-								sendMultiPartFile(cb)
+								Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+								cb(false)
 							}
-						})
-						.catch((er) => {
-							mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send as MPF!`, "err", "", err)
-							sendMultiPartFile(cb)
-						})
+						});
+					} else {
+						sendMultiPartFile(cb)
+					}
 				} else {
 					Logger.printLine("ParseFile", `${object.FileName.toString()} : File to Large`, "debug", {
 						fileSize: fileSize(object.FilePath.toString())
@@ -2533,14 +2066,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							ready(false)
 						} else {
 							fs.close(fd, function () {
+								if (preview.length > 1) {
+									parameters.extendedContent = {
+										preview_image: 'FILE-0'
+									}
+									parameters.extendedAttachments = [
+										{
+											name: parameters.itemFileName.split('.')[0] + "-t9-preview-video" + (preview[1].type === 1) ? '.gif' : '.jpg',
+											file: preview[1].data
+										}
+									]
+								}
 								parameters.itemFileArray = [
 									{
 										fileName: '' + parameters.itemFileName,
 										fileData: '' + fs.readFileSync(object.FilePath.toString(), {encoding: 'base64'}).toString()
 									},
 									{
-										fileName: '' + parameters.itemFileName.split('.')[0] + "-t9-preview-video.jpg",
-										fileData: '' + preview
+										fileName: '' + parameters.itemFileName.split('.')[0] + "-t9-preview-video" + (preview[0].type === 1) ? '.gif' : '.jpg',
+										fileData: '' + preview[0].data
 									}
 								];
 								ready(true)
@@ -2596,156 +2140,54 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							return '00:00:00'
 						}
 					})(object.FilePath.toString());
-					animateVideo(object.FilePath.toString(), undefined, startPosition)
-						.then((aniamtedFulfill) => {
-							if (aniamtedFulfill != null) {
-								sendMultiFile(aniamtedFulfill, function (ready) {
-									if (ready) {
-										mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-											if (callback) {
-												Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-												if (object.Type.toString() === "Remote") {
-													deleteFile(object.FilePath.toString(), function (ready) {
-														// Do Nothing
-													})
-												}
-												cb(true)
-											} else {
-												Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-												cb(false)
-											}
-										});
-									}
-								})
-							} else {
-								previewVideo(object.FilePath.toString(), undefined, startPosition)
-									.then((imageFulfill) => {
-										if (imageFulfill != null) {
-											sendMultiFile(imageFulfill, function (ready) {
-												if (ready) {
-													mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-															if (object.Type.toString() === "Remote") {
-																deleteFile(object.FilePath.toString(), function (ready) {
-																	// Do Nothing
-																})
-															}
-															cb(true)
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-															cb(false)
-														}
-													});
-												}
-											})
-										} else {
-											sendFile(function (ready) {
-												if (ready) {
-													mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-															if (object.Type.toString() === "Remote") {
-																deleteFile(object.FilePath.toString(), function (ready) {
-																	// Do Nothing
-																})
-															}
-															cb(true)
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-															cb(false)
-														}
-													});
-												}
+
+					const preview_animated = await animateVideo(object.FilePath.toString(), startPosition)
+					const preview_image = await previewVideo(object.FilePath.toString(), startPosition)
+
+					let previews = [];
+					if (preview_animated)
+						previews.push({ data: preview_animated, type: 1 });
+					if (preview_image)
+						previews.push({ data: preview_image, type: 0 });
+					if (previews.length > 0) {
+						sendMultiFile(previews, function (ready) {
+							if (ready) {
+								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+									if (callback) {
+										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
 											})
 										}
-									})
-									.catch((er) => {
-										sendFile(function (ready) {
-											if (ready) {
-												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") {
-															deleteFile(object.FilePath.toString(), function (ready) {
-																// Do Nothing
-															})
-														}
-														cb(true)
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-														cb(false)
-													}
-												});
-											}
-										})
-									})
+										cb(true)
+									} else {
+										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										cb(false)
+									}
+								});
 							}
 						})
-						.catch((er) => {
-							previewVideo(object.FilePath.toString(), undefined, startPosition)
-								.then((imageFulfill) => {
-									if (imageFulfill != null) {
-										sendMultiFile(imageFulfill, function (ready) {
-											if (ready) {
-												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") {
-															deleteFile(object.FilePath.toString(), function (ready) {
-																// Do Nothing
-															})
-														}
-														cb(true)
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-														cb(false)
-													}
-												});
-											}
-										})
-									} else {
-										sendFile(function (ready) {
-											if (ready) {
-												mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-													if (callback) {
-														Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-														if (object.Type.toString() === "Remote") {
-															deleteFile(object.FilePath.toString(), function (ready) {
-																// Do Nothing
-															})
-														}
-														cb(true)
-													} else {
-														Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-														cb(false)
-													}
-												});
-											}
-										})
-									}
-								})
-								.catch((er) => {
-									sendFile(function (ready) {
-										if (ready) {
-											mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-												if (callback) {
-													Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-													if (object.Type.toString() === "Remote") {
-														deleteFile(object.FilePath.toString(), function (ready) {
-															// Do Nothing
-														})
-													}
-													cb(true)
-												} else {
-													Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-													cb(false)
-												}
-											});
+					} else {
+						sendFile(function (ready) {
+							if (ready) {
+								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+									if (callback) {
+										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
 										}
-									})
-								})
+										cb(true)
+									} else {
+										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										cb(false)
+									}
+								});
+							}
 						})
+					}
 				} else {
 					sendFile(function (ready) {
 						if (ready) {

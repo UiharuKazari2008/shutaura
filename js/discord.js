@@ -1690,7 +1690,6 @@ This code is publicly released and is restricted by its project license
                                                 jsonData[ext_key] = value;
                                             }
                                         }))
-                                        console.log(jsonData);
                                         if (Object.keys(jsonData).length > 0) {
                                             const stringJson = JSON.stringify(jsonData);
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, stringJson, stringJson])
@@ -1940,6 +1939,8 @@ This code is publicly released and is restricted by its project license
                         size: (MessageContents.itemSize) ? MessageContents.itemSize : undefined,
                         logLine: `Send Message: (${level}) Type: [${typeText}], From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
                         fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
+                        extendedData: (MessageContents.extendedContent) ? MessageContents.extendedContent : undefined,
+                        extendedAttachments: (MessageContents.extendedAttachments) ? MessageContents.extendedAttachments : undefined
                     })
                     success = true;
                 }
@@ -6660,6 +6661,47 @@ This code is publicly released and is restricted by its project license
                                     } catch (err) {
                                         Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
                                         console.error(err)
+                                    }
+                                }
+                                if (options.extendedData) {
+                                    const newItem = await db.query(`SELECT eid FROM kanmi_record WHERE id = ?`, [msg.id])
+                                    if (newItem.rows.length > 0) {
+                                        let jsonData = {}
+                                        await Promise.all(Object.keys(options.extendedData).map(async (ext_key) => {
+                                            const value = options.extendedData[ext_key];
+                                            if (typeof value === "string" && value.startsWith('FILE-')) {
+                                                const fileIndex = parseInt(value.substring(5))
+                                                if (!isNaN(fileIndex) && fileIndex > -1 && options.extendedAttachments && options.extendedAttachments[fileIndex] && discordServers.has(data.guildID) && discordServers.get(data.guildID).chid_filecache) {
+                                                    try {
+                                                        const data = await discordClient.createMessage(discordServers.get(data.guildID).chid_filecache.toString(), '', {
+                                                            name: options.extendedAttachments[fileIndex].name,
+                                                            file: Buffer.from(options.extendedAttachments[fileIndex].file, 'base64')
+                                                        })
+                                                        if (data && data.attachments.length > 0) {
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                            if (attachmentUrl) {
+                                                                jsonData[ext_key] = attachmentUrl
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
+                                                        console.log(err);
+                                                    }
+                                                } else {
+                                                    Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
+                                                }
+                                            } else {
+                                                jsonData[ext_key] = value;
+                                            }
+                                        }))
+                                        if (Object.keys(jsonData).length > 0) {
+                                            const stringJson = JSON.stringify(jsonData);
+                                            db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [newItem.rows[0].eid, stringJson, stringJson])
+                                        } else {
+                                            Logger.printLine("ExtendedContent", `Failed to process extended data because no data!`, "warn");
+                                        }
+                                    } else {
+                                        Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
                                 }
                             }
