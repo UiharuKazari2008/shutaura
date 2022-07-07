@@ -1663,7 +1663,7 @@ This code is publicly released and is restricted by its project license
                                                 ...ModifyExtendedContentmessageRecord.rows[0].data
                                             }
                                         }
-                                        await new Promise.all(Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
+                                        await Promise.all(Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
                                             const value = MessageContents.extendedContent[ext_key];
                                             if (typeof value === "string" && value.startsWith('FILE-')) {
                                                 const fileIndex = parseInt(value.substring(5))
