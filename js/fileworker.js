@@ -711,8 +711,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													})(CompleteFilename);
 
 													// Generate Video GIF Preview
-													function animateVideo(filename, intent, fulfill) {
-														return new Promise(function (fulfill) {
+													async function animateVideo(filename, intent) {
+														return await new Promise(function (fulfill) {
 															const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
 															let scriptOutput = "";
 															const spawn = require('child_process').spawn;
@@ -754,8 +754,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														})
 													}
 													// Generate Video Preview Image
-													function previewVideo(filename, intent, fulfill) {
-														return new Promise(function (fulfill) {
+													async function previewVideo(filename, intent) {
+														return await new Promise(function (fulfill) {
 															const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
 															let scriptOutput = "";
 															const spawn = require('child_process').spawn;
@@ -797,8 +797,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														})
 													}
 													// Encode Video File
-													function encodeVideo(filename, intent, fulfill) {
-														return new Promise(function (fulfill) {
+													async function encodeVideo(filename, intent) {
+														return await new Promise(function (fulfill) {
 															const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
 															let scriptOutput = "";
 															const spawn = require('child_process').spawn;
@@ -845,21 +845,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													}
 
 													if (cacheresponse[0].attachment_hash === null) {
-														const preview_video = await new Promise((resolve) => {
-															encodeVideo(CompleteFilename, true)
-																.then((fulfill) => {
-																	if (fulfill != null) {
-																		resolve(fulfill)
-																	} else {
-																		mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
-																		resolve(false)
-																	}
-																})
-																.catch((er) => {
-																	mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
-																	resolve(false)
-																})
-														})
+														const preview_video = await encodeVideo(CompleteFilename, true)
 														if (preview_video) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
@@ -879,39 +865,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
 															});
+														} else {
+															mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
 														}
 													}
 													if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
-														const preview_animated = await new Promise((resolve) => {
-															animateVideo(CompleteFilename)
-																.then(async (animateFulfill) => {
-																	if (animateFulfill) {
-																		resolve(animateFulfill);
-																	} else {
-																		mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
-																		resolve(false)
-																	}
-																})
-																.catch(async err => {
-																	mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", err.message)
-																	resolve(false)
-																})
-														})
-														const preview_image = await new Promise((resolve) => {
-															previewVideo(CompleteFilename)
-																.then((imageFulfill) => {
-																	if (imageFulfill) {
-																		resolve(imageFulfill);
-																	} else {
-																		mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "");
-																		resolve(false);
-																	}
-																})
-																.catch((er) => {
-																	mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er);
-																	resolve(false);
-																})
-														})
+														const preview_animated = await animateVideo(CompleteFilename)
+														const preview_image = await previewVideo(CompleteFilename)
+
 														if (preview_animated) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
@@ -958,6 +919,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																});
 															}
 														} else if (preview_image) {
+															mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 																messageReturn: false,
@@ -992,23 +954,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
 															});
+														} else {
+															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 														}
 													} else if (!cacheresponse[0].data.preview_image) {
-														const preview_image = await new Promise((resolve) => {
-															previewVideo(CompleteFilename)
-																.then((imageFulfill) => {
-																	if (imageFulfill) {
-																		resolve(imageFulfill);
-																	} else {
-																		mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "");
-																		resolve(false);
-																	}
-																})
-																.catch((er) => {
-																	mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er);
-																	resolve(false);
-																})
-														})
+														const preview_image = await previewVideo(CompleteFilename)
 														if (preview_image) {
 															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
@@ -1034,6 +984,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
 															});
+														} else {
+															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 														}
 													}
 												}
