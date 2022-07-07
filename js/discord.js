@@ -1692,7 +1692,8 @@ This code is publicly released and is restricted by its project license
                                         }))
                                         console.log(jsonData);
                                         if (Object.keys(jsonData).length > 0) {
-                                            db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, jsonData, jsonData])
+                                            const stringJson = JSON.stringify(jsonData);
+                                            db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, stringJson, stringJson])
                                         } else {
                                             Logger.printLine("ModifyExtendedContent", `Failed to process extended data because no data!`, "warn");
                                         }
