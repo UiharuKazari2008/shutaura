@@ -1154,9 +1154,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												return '00:00:00'
 											}
 										})(CompleteFilename);
+
 										// Generate Video GIF Preview
-										function animateVideo(filename, intent, fulfill) {
-											return new Promise(function (fulfill) {
+										async function animateVideo(filename, intent) {
+											return await new Promise(function (fulfill) {
 												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
 												let scriptOutput = "";
 												const spawn = require('child_process').spawn;
@@ -1198,8 +1199,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 										}
 										// Generate Video Preview Image
-										function previewVideo(filename, intent, fulfill) {
-											return new Promise(function (fulfill) {
+										async function previewVideo(filename, intent) {
+											return await new Promise(function (fulfill) {
 												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
 												let scriptOutput = "";
 												const spawn = require('child_process').spawn;
@@ -1240,10 +1241,103 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												});
 											})
 										}
+										// Encode Video File
+										async function encodeVideo(filename, intent) {
+											return await new Promise(function (fulfill) {
+												const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
+												let scriptOutput = "";
+												const spawn = require('child_process').spawn;
+												let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+												console.log("[FFMPEG] Starting to encode video...")
+												const child = spawn(EncoderConf.Exec, ffmpegParam);
+												// You can also use a variable to save the output
+												// for when the script closes later
+												child.stdout.setEncoding('utf8');
+												child.stdout.on('data', function (data) {
+													//Here is where the output goes
+													console.log(data);
+													data = data.toString();
+													scriptOutput += data;
+												});
+												child.stderr.setEncoding('utf8');
+												child.stderr.on('data', function (data) {
+													//Here is where the error output goes
+													console.log(data);
+													data = data.toString();
+													scriptOutput += data;
+												});
+												child.on('close', function (code) {
+													if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+														try {
+															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+															deleteFile(outputfile, function (ready) {
+																// Do Nothing
+															})
+															fulfill(output);
+														} catch (err) {
+															fulfill(null);
+															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+														}
+													} else {
+														mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+														deleteFile(outputfile, function (ready) {
+															// Do Nothing
+														})
+														fulfill(null)
+													}
+												});
+											})
+										}
 
-										await animateVideo(CompleteFilename)
-											.then(async (aniamtedFulFill) => {
-												if (aniamtedFulFill) {
+										if (cacheresponse[0].attachment_hash === null) {
+											const preview_video = await encodeVideo(CompleteFilename, true)
+											if (preview_video) {
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'ReplaceContent',
+													itemCacheName: `${cacheresponse[0].id}.mp4`,
+													itemCacheData: preview_video,
+													itemCacheType: 1
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+													} else {
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+													}
+												});
+											} else {
+												mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
+											}
+										}
+										if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
+											const preview_animated = await animateVideo(CompleteFilename)
+											const preview_image = await previewVideo(CompleteFilename)
+
+											if (preview_animated) {
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'ReplaceContent',
+													itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
+													itemCacheData: preview_animated,
+													itemCacheType: 0
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+													} else {
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+													}
+												});
+												if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
 													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 														messageReturn: false,
@@ -1251,90 +1345,94 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														messageChannelID: cacheresponse[0].channel,
 														messageServerID: cacheresponse[0].server,
 														messageType: 'command',
-														messageAction: 'ReplaceContent',
-														itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
-														itemCacheData: aniamtedFulFill,
-														itemCacheType: 0
+														messageAction: 'ModifyExtendedContent',
+														extendedContent: {
+															preview_image: 'FILE-0'
+														},
+														extendedAttachments: [
+															{
+																name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+																file: preview_image
+															}
+														]
 													}, function (callback) {
 														if (callback) {
 															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-															cb(true);
 														} else {
 															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-															cb(true);
 														}
 													});
-												} else {
-													mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "")
-													await previewVideo(CompleteFilename)
-														.then(async (imageFulfill) => {
-															if (imageFulfill) {
-																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																	messageReturn: false,
-																	messageID: cacheresponse[0].id,
-																	messageChannelID: cacheresponse[0].channel,
-																	messageServerID: cacheresponse[0].server,
-																	messageType: 'command',
-																	messageAction: 'ReplaceContent',
-																	itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-																	itemCacheData: imageFulfill,
-																	itemCacheType: 0
-																}, function (callback) {
-																	if (callback) {
-																		Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																		cb(true);
-																	} else {
-																		Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																		cb(true);
-																	}
-																});
-															} else {
-																mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "")
-																cb(true);
-															}
-														})
-														.catch(async (er) => {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "", er)
-															cb(true);
-														})
 												}
-											})
-											.catch(async (er) => {
-												mqClient.sendMessage(`Error occurred when generating animated preview the video "${CompleteFilename}" for transport, Will send image preview!`, "err", "", er)
-												await previewVideo(CompleteFilename)
-													.then(async (imageFulfill) => {
-														if (imageFulfill) {
-															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																messageReturn: false,
-																messageID: cacheresponse[0].id,
-																messageChannelID: cacheresponse[0].channel,
-																messageServerID: cacheresponse[0].server,
-																messageType: 'command',
-																messageAction: 'ReplaceContent',
-																itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-																itemCacheData: imageFulfill,
-																itemCacheType: 0
-															}, function (callback) {
-																if (callback) {
-																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																	cb(true);
-																} else {
-																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																	cb(true);
-																}
-															});
-														} else {
-															mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "")
-															cb(true);
+											} else if (preview_image) {
+												mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'ReplaceContent',
+													itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+													itemCacheData: preview_image,
+													itemCacheType: 0
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+													} else {
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+													}
+												});
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'RemoveExtendedContent',
+													extendedContent: ['preview_image']
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+													} else {
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+													}
+												});
+											} else {
+												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+											}
+										} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
+											const preview_image = await previewVideo(CompleteFilename)
+											if (preview_image) {
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'ModifyExtendedContent',
+													extendedContent: {
+														preview_image: 'FILE-0'
+													},
+													extendedAttachments: [
+														{
+															name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+															file: preview_image
 														}
-													})
-													.catch(async (er) => {
-														mqClient.sendMessage(`Error occurred when generating preview the video "${CompleteFilename}" for transport, Will send without preview!`, "err", "", er)
-														cb(true);
-													})
-											})
+													]
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+													} else {
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+													}
+												});
+											} else {
+												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
+											}
+										}
 									}
 								} else {
 									mqClient.sendMessage(`"File "${CompleteFilename}" is cached but is not available here!"`, "warn", 'GenerateVideoPreview')
