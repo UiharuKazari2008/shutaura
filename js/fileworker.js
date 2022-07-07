@@ -608,13 +608,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				switch (MessageContents.messageAction) {
 					case 'CacheSpannedFile':
 						if (MessageContents.fileUUID) {
-							db.safe(`SELECT kanmi_records.*, kanmi_records_extended.data, discord_multipart_files.url, discord_multipart_files.valid
+							db.safe(`SELECT x.*, y.data FROM (SELECT kanmi_records.*, discord_multipart_files.url, discord_multipart_files.valid
 									 FROM kanmi_records,
-									      kanmi_records_extended,
 										  discord_multipart_files
 									 WHERE kanmi_records.fileid = ?
 									   AND kanmi_records.source = 0
-									   AND kanmi_records.fileid = discord_multipart_files.fileid`, [MessageContents.fileUUID], function (err, cacheresponse) {
+									   AND kanmi_records.fileid = discord_multipart_files.fileid) x LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.fileUUID], function (err, cacheresponse) {
 								if (err || cacheresponse.length === 0) {
 									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 									cb(true)

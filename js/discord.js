@@ -1594,7 +1594,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'RemoveExtendedContent':
                         Logger.printLine("RemoveExtendedContent", `Remove Extended Content Value for ${MessageContents.messageID}...`, "debug")
-                        const RemoveContentmessageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                        const RemoveContentmessageRecord = await db.query(`SELECT x.*, y.data FROM (SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?) x LEFT JOIN (SELECT eid, data FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
                         if (RemoveContentmessageRecord.error) {
                             SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", RemoveContentmessageRecord.error)
                             cb(false);
@@ -1646,7 +1646,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'ModifyExtendedContent':
                         Logger.printLine("ModifyExtendedContent", `Modify Extended Content for ${MessageContents.messageID}...`, "debug")
-                        const ModifyExtendedContentmessageRecord = await db.query(`SELECT * FROM kanmi_records, kanmi_records_extended WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                        const ModifyExtendedContentmessageRecord = await db.query(`SELECT x.*, y.data FROM (SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?) x LEFT JOIN (SELECT eid, data FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
                         if (ModifyExtendedContentmessageRecord.error) {
                             SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", ModifyExtendedContentmessageRecord.error)
                             cb(false);
