@@ -6673,7 +6673,7 @@ This code is publicly released and is restricted by its project license
                                                 const fileIndex = parseInt(value.substring(5))
                                                 if (!isNaN(fileIndex) && fileIndex > -1 && options.extendedAttachments && options.extendedAttachments[fileIndex] && discordServers.has(data.guildID) && discordServers.get(data.guildID).chid_filecache) {
                                                     try {
-                                                        const data = await discordClient.createMessage(discordServers.get(data.guildID).chid_filecache.toString(), '', {
+                                                        const data = await discordClient.createMessage(discordServers.get(msg.guildID).chid_filecache.toString(), '', {
                                                             name: options.extendedAttachments[fileIndex].name,
                                                             file: Buffer.from(options.extendedAttachments[fileIndex].file, 'base64')
                                                         })
