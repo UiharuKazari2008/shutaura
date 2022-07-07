@@ -7372,11 +7372,11 @@ This code is publicly released and is restricted by its project license
                 if (!(err) && result && result.length === 1 && result[0].classification !== null) {
                     sendChannel(channel, result[0].channelid, result[0].classification.split(' ')[0], result[0].role, result[0].role_write, result[0].role_manage, result[0].autofetch, result[0].virtual_cid)
                 } else {
-                    sendChannel(channel, channel.parentID, null, null, null, null, 1, null)
+                    sendChannel(channel, channel.parentID, null, null, null, null, 0, null)
                 }
             })
         } else if (channel.type === 4) {
-            sendChannel(channel, 'isparent', null, null, null, null, 1, null)
+            sendChannel(channel, 'isparent', null, null, null, null, 0, null)
         }
         function sendChannel(channel, parent, classification, role, write, manage, fetch, virtual_cid) {
             let nsfw = 0
