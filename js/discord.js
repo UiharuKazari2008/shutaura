@@ -6141,7 +6141,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 100`)).rows
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 1000`)).rows
         if (files && files.length) {
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
             await Promise.all(files.map(async file => {
@@ -6182,6 +6182,7 @@ This code is publicly released and is restricted by its project license
                     mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
                 }
             }))
+            Logger.printLine("MPFValidator", `Validated ${files.length} files`, "debug")
         }
     }
     // Discord Framework - Thread Management
