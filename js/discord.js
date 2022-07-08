@@ -6145,42 +6145,44 @@ This code is publicly released and is restricted by its project license
         if (files && files.length) {
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
             await Promise.all(files.map(async file => {
-                Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
-                const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
-                if (spannedFiles.length === 0) {
-                    mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
-                } else if (spannedFiles.length >= file.paritycount) {
-                    const probeFile = (await Promise.all(spannedFiles.map(async part => {
-                        return await new Promise((resolve) => {
-                            remoteSize(part.url, async (err, size) => {
-                                if (!err || (size !== undefined && size > 5)) {
-                                    resolve({
-                                        url: part.url,
-                                        ok: (size)
-                                    })
-                                } else {
-                                    console.error(err)
-                                    resolve({
-                                        url: part.url,
-                                        ok: false
-                                    })
-                                }
+                await new Promise(async completed => {
+                    Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
+                    const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
+                    if (spannedFiles.length === 0) {
+                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
+                    } else if (spannedFiles.length >= file.paritycount) {
+                        const probeFile = (await Promise.all(spannedFiles.map(async part => {
+                            return await new Promise((resolve) => {
+                                remoteSize(part.url, async (err, size) => {
+                                    if (!err || (size !== undefined && size > 5)) {
+                                        resolve({
+                                            url: part.url,
+                                            ok: (size)
+                                        })
+                                    } else {
+                                        console.error(err)
+                                        resolve({
+                                            url: part.url,
+                                            ok: false
+                                        })
+                                    }
+                                })
                             })
-                        })
-                    }))).filter(e => e.ok)
-                    if (probeFile.length > file.paritycount) {
-                        mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue!`, "error", "MPFDownload");
-                        return false;
-                    } else if (probeFile.length < file.paritycount) {
-                        mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
-                        return false;
-                    } else if (probeFile.length === file.paritycount) {
-                        Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${probeFile.length} = ${file.paritycount}`, "debug")
-                        return true;
+                        }))).filter(e => e.ok)
+                        if (probeFile.length > file.paritycount) {
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue!`, "error", "MPFDownload");
+                            completed(false);
+                        } else if (probeFile.length < file.paritycount) {
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                            completed(false);
+                        } else if (probeFile.length === file.paritycount) {
+                            Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${probeFile.length} = ${file.paritycount}`, "debug")
+                            completed(true);
+                        }
+                    } else {
+                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
                     }
-                } else {
-                    mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
-                }
+                })
             }))
             Logger.printLine("MPFValidator", `Validated ${files.length} files`, "debug")
         }
