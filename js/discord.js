@@ -6162,22 +6162,37 @@ This code is publicly released and is restricted by its project license
                     } else if (spannedFiles.length >= file.paritycount) {
                         let probeFile = []
                         for (let part of spannedFiles) {
-                            probeFile.push(await new Promise((resolve) => {
-                                remoteSize(part.url, async (err, size) => {
-                                    if (!err || (size !== undefined && size > 5)) {
-                                        resolve({
-                                            url: part.url,
-                                            ok: (size)
+                            probeFile.push(await (async () => {
+                                let j = 0;
+                                let lastResult = {
+                                    url: part.url,
+                                    ok: false
+                                }
+                                while (j < 3) {
+                                    j++
+                                    lastResult = await new Promise((resolve) => {
+                                        remoteSize(part.url, async (err, size) => {
+                                            if (!err || (size !== undefined && size > 5)) {
+                                                resolve({
+                                                    url: part.url,
+                                                    ok: (size)
+                                                })
+                                                j = 100;
+                                            } else {
+                                                console.error(err)
+                                                resolve({
+                                                    url: part.url,
+                                                    ok: false
+                                                })
+                                            }
                                         })
-                                    } else {
-                                        console.error(err)
-                                        resolve({
-                                            url: part.url,
-                                            ok: false
-                                        })
-                                    }
-                                })
-                            }))
+                                    })
+                                }
+                                return lastResult
+                            })())
+                        }
+                        for (let part of probeFile.filter(e => e.ok === 'retry')) {
+
                         }
                         const acceptedFiles = probeFile.filter(e => e.ok)
                         const deadFiles = probeFile.filter(e => !e.ok)
