@@ -985,8 +985,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																messageChannelID: cacheresponse[0].channel,
 																messageServerID: cacheresponse[0].server,
 																messageType: 'command',
-																messageAction: 'RemoveExtendedContent',
-																extendedContent: ['preview_image']
+																messageAction: 'ModifyExtendedContent',
+																extendedContent: {
+																	preview_image: null
+																},
 															}, function (callback) {
 																if (callback) {
 																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")

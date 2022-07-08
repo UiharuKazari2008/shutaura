@@ -1592,58 +1592,6 @@ This code is publicly released and is restricted by its project license
                             cb(true);
                         }
                         break;
-                    case 'RemoveExtendedContent':
-                        Logger.printLine("RemoveExtendedContent", `Remove Extended Content Value for ${MessageContents.messageID}...`, "debug")
-                        const RemoveContentmessageRecord = await db.query(`SELECT x.*, y.data FROM (SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?) x LEFT JOIN (SELECT eid, data FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
-                        if (RemoveContentmessageRecord.error) {
-                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", RemoveContentmessageRecord.error)
-                            cb(false);
-                        } else if (RemoveContentmessageRecord.rows.length > 0) {
-                            if (MessageContents.extendedContent) {
-                                db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
-                                    if (err || serverdata.length === 0) {
-                                        SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
-                                        cb(true);
-                                    } else {
-                                        let jsonData = {}
-                                        if (RemoveContentmessageRecord.rows[0].data) {
-                                            jsonData = {
-                                                ...RemoveContentmessageRecord.rows[0].data
-                                            }
-                                        }
-                                        Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
-                                            const value = jsonData[ext_key];
-                                            if (value && typeof value === "string" && value.startsWith('/attachments')) {
-                                                await new Promise(uploadedUrl => {
-                                                    const attachemntsParts = jsonData[ext_key].split('/attachments/')
-                                                    const cacheChannel = attachemntsParts[0]
-                                                    const cacheMessageId = attachemntsParts[1]
-                                                    discordClient.deleteMessage(cacheChannel, cacheMessageId, 'Cache Removal')
-                                                        .then((data) => {
-                                                            uploadedUrl(true)
-                                                        })
-                                                        .catch((err) => {
-                                                            Logger.printLine("ModifyExtendedContent", `Failed to clean up attachments at key "${ext_key}"`, "warn", err)
-                                                            console.log(err);
-                                                            uploadedUrl(false);
-                                                        })
-                                                })
-                                            }
-                                            delete jsonData[ext_key]
-                                        })
-                                        db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [RemoveContentmessageRecord.rows[0].eid, jsonData, jsonData])
-                                        cb(true);
-                                    }
-                                });
-                            } else {
-                                Logger.printLine("Discord", "Message was dropped, No data was defined!", "error")
-                                cb(true);
-                            }
-                        } else {
-                            Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
-                            cb(true);
-                        }
-                        break;
                     case 'ModifyExtendedContent':
                         Logger.printLine("ModifyExtendedContent", `Modify Extended Content for ${MessageContents.messageID}...`, "debug")
                         const ModifyExtendedContentmessageRecord = await db.query(`SELECT x.*, y.data FROM (SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?) x LEFT JOIN (SELECT eid, data FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
@@ -1686,6 +1634,8 @@ This code is publicly released and is restricted by its project license
                                                 } else {
                                                     Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
                                                 }
+                                            } else if (value === null) {
+                                                delete jsonData[ext_key];
                                             } else {
                                                 jsonData[ext_key] = value;
                                             }
