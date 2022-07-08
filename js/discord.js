@@ -6145,7 +6145,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC ${(!deep) ? 'LIMIT 1000' : ''}`)).rows
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC ${(!deep) ? 'LIMIT 50' : ''}`)).rows
         if (files && files.length) {
             const _startTime = Date.now().valueOf()
             await activeTasks.set('VERIFY_SFPARTS', { started: _startTime });
