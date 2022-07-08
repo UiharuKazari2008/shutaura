@@ -788,10 +788,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 									cb(true)
 								} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
-									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
 									cb(true)
 								} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
-									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
 									cb(true)
 								} else {
 									let itemsCompleted = [];
@@ -1044,7 +1044,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											}
 											cb(true)
 										} else {
-											mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
+											mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
 											cb(true)
 										}
 									})
