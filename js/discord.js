@@ -1717,25 +1717,25 @@ This code is publicly released and is restricted by its project license
                 }
             }
 
-            if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
-                cb(true)
-            } else {
-                if (systemglobal.Discord_Recycling_Bin) {
-                    await sendToBin(`Not Writable`);
-                } else {
-                    SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
-                    mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
-                }
-            }
-            /*const ChannelData = discordClient.channelGuildMap[DestinationChannelID];
-            if (ChannelData && ChannelData.name) {
 
+            const ChannelData = discordClient.channelGuildMap[DestinationChannelID];
+            if (ChannelData && ChannelData.name) {
+                if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
+                    cb(true)
+                } else {
+                    if (systemglobal.Discord_Recycling_Bin) {
+                        await sendToBin(`Not Writable`);
+                    } else {
+                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
+                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                    }
+                }
             } else if (systemglobal.Discord_Recycling_Bin) {
                 await sendToBin("Not Readable");
             } else {
                 SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable), Message will be dropped!`, "err", 'main', "SendData");
                 mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
-            }*/
+            }
         }
     }
     async function addEmojisToMessage(msg, reactions) {
@@ -6144,7 +6144,7 @@ This code is publicly released and is restricted by its project license
         const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 100`)).rows
         if (files && files.length) {
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
-            await new Promise.all(files.map(async file => {
+            await Promise.all(files.map(async file => {
                 Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
                 const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
                 if (spannedFiles.length === 0) {
