@@ -6663,7 +6663,7 @@ This code is publicly released and is restricted by its project license
                                         console.error(err)
                                     }
                                 }
-                                if (options.extendedData) {
+                                if (options && options.extendedData) {
                                     const newItem = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])
                                     if (newItem.rows.length > 0) {
                                         let jsonData = {}
