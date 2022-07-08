@@ -6141,7 +6141,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 600`)).rows
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 100`)).rows
         if (files && files.length) {
             await new Promise.all(files.map(async file => {
                 const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
