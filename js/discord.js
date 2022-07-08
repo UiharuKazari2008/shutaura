@@ -6148,7 +6148,7 @@ This code is publicly released and is restricted by its project license
                 if (spannedFiles.length === 0) {
                     mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
                 } else if (spannedFiles.length >= file.paritycount) {
-                    const probeFile = (await new Promise.all(spannedFiles.map(async part => {
+                    const probeFile = (await Promise.all(spannedFiles.map(async part => {
                         return await new Promise((resolve) => {
                             remoteSize(part.url, async (err, size) => {
                                 if (!err || (size !== undefined && size > 5)) {
