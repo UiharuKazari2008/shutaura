@@ -1718,7 +1718,7 @@ This code is publicly released and is restricted by its project license
             }
 
 
-            const ChannelData = discordClient.channelGuildMap[DestinationChannelID];
+            const ChannelData = discordClient.getChannel(DestinationChannelID);
             if (ChannelData && ChannelData.name) {
                 if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
                     cb(true)
