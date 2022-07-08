@@ -6173,6 +6173,7 @@ This code is publicly released and is restricted by its project license
                         mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
                         return false;
                     } else if (probeFile.length === file.paritycount) {
+                        console.log(`${file.real_filename} (${file.fileid}) is valid with ${probeFile.length} = ${file.paritycount}`)
                         return true;
                     }
                 } else {
