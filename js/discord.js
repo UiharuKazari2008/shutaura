@@ -6193,6 +6193,7 @@ This code is publicly released and is restricted by its project license
                         }
                     } else {
                         mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                        completed(false);
                     }
                 })
             }
