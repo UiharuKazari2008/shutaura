@@ -1920,7 +1920,7 @@ This code is publicly released and is restricted by its project license
             }
         } catch (er) {
             SendMessage(`Failed to send message to discord - ${er.message}`, "err", "main", "Send", er.message)
-            if (!(er.message.includes("empty message") || er.message.includes(" entity too large") || er.message.includes("Invalid") || er.message.includes("No content") || er.message.includes("not supported")))
+            if (er.message.includes("empty message") || er.message.includes(" entity too large") || er.message.includes("Invalid") || er.message.includes("No content") || er.message.includes("not supported")))
                 success = true;
 
         }
