@@ -2616,6 +2616,10 @@ This code is publicly released and is restricted by its project license
                                 SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveRm")
                             }
                             break;
+                        case 'verify':
+                            SendMessage(`✅ Started Filesystem Verify...`, "system", msg.guildID, "RepairFileSystem");
+                            verifySpannedFiles(args[1].trim() === 'true');
+                            break;
                         case 'update':
                             SendMessage(`✅ Started Filesystem Update...`, "system", msg.guildID, "RepairFileSystem");
                             messageCheckCache();
