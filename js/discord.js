@@ -892,7 +892,8 @@ This code is publicly released and is restricted by its project license
         amqpConn.close();
         return true;
     }
-    function whenConnected() {
+    async function whenConnected() {
+        await verifySpannedFiles();
         startEmergencyWorker();
         startWorker();
         startWorker2();
@@ -1716,24 +1717,25 @@ This code is publicly released and is restricted by its project license
                 }
             }
 
-            const ChannelData = discordClient.getChannel(DestinationChannelID);
-            if (ChannelData && ChannelData.name) {
-                if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
-                    cb(true)
+            if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
+                cb(true)
+            } else {
+                if (systemglobal.Discord_Recycling_Bin) {
+                    await sendToBin(`Not Writable`);
                 } else {
-                    if (systemglobal.Discord_Recycling_Bin) {
-                        await sendToBin(`Not Writable`);
-                    } else {
-                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
-                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
-                    }
+                    SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
+                    mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
                 }
+            }
+            /*const ChannelData = discordClient.channelGuildMap[DestinationChannelID];
+            if (ChannelData && ChannelData.name) {
+
             } else if (systemglobal.Discord_Recycling_Bin) {
                 await sendToBin("Not Readable");
             } else {
                 SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable), Message will be dropped!`, "err", 'main', "SendData");
                 mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
-            }
+            }*/
         }
     }
     async function addEmojisToMessage(msg, reactions) {
@@ -6137,6 +6139,47 @@ This code is publicly released and is restricted by its project license
                 SendMessage("No Spanned File was found in the database, with ID " + fileUUID, "err", filedata[0].server, "SFDownload")
             }
         })
+    }
+    async function verifySpannedFiles(deep) {
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 600`)).rows
+        if (files && files.length) {
+            await new Promise.all(files.map(async file => {
+                const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
+                if (spannedFiles.length === 0) {
+                    mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
+                } else if (spannedFiles.length >= file.paritycount) {
+                    const probeFile = (await new Promise.all(spannedFiles.map(async part => {
+                        return await new Promise((resolve) => {
+                            remoteSize(part.url, async (err, size) => {
+                                if (!err || (size !== undefined && size > 5)) {
+                                    resolve({
+                                        url: part.url,
+                                        ok: (size)
+                                    })
+                                } else {
+                                    console.error(err)
+                                    resolve({
+                                        url: part.url,
+                                        ok: false
+                                    })
+                                }
+                            })
+                        })
+                    }))).filter(e => e.ok)
+                    if (probeFile.length > file.paritycount) {
+                        mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue!`, "error", "MPFDownload");
+                        return false;
+                    } else if (probeFile.length < file.paritycount) {
+                        mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                        return false;
+                    } else if (probeFile.length === file.paritycount) {
+                        return true;
+                    }
+                } else {
+                    mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                }
+            }))
+        }
     }
     // Discord Framework - Thread Management
     function cycleThreads(type) {
