@@ -893,7 +893,7 @@ This code is publicly released and is restricted by its project license
         return true;
     }
     async function whenConnected() {
-        await verifySpannedFiles();
+        verifySpannedFiles();
         startEmergencyWorker();
         startWorker();
         startWorker2();
@@ -6143,7 +6143,9 @@ This code is publicly released and is restricted by its project license
     async function verifySpannedFiles(deep) {
         const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC LIMIT 100`)).rows
         if (files && files.length) {
+            Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
             await new Promise.all(files.map(async file => {
+                Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
                 const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
                 if (spannedFiles.length === 0) {
                     mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
@@ -6173,7 +6175,7 @@ This code is publicly released and is restricted by its project license
                         mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
                         return false;
                     } else if (probeFile.length === file.paritycount) {
-                        console.log(`${file.real_filename} (${file.fileid}) is valid with ${probeFile.length} = ${file.paritycount}`)
+                        Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${probeFile.length} = ${file.paritycount}`, "debug")
                         return true;
                     }
                 } else {
