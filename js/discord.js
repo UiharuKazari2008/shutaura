@@ -1052,7 +1052,8 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'MigrateSpannedParts':
                         if (MessageContents.messageData !== undefined && MessageContents.messageData.id && MessageContents.messageData.content && MessageContents.messageData.guildID) {
-                            cb(await jfsMigrateFileParts(MessageContents.messageData));
+                            await jfsMigrateFileParts(MessageContents.messageData)
+                            cb(true);
                         } else {
                             cb(true);
                         }
@@ -5977,7 +5978,7 @@ This code is publicly released and is restricted by its project license
                                             try {
                                                 await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
                                             } catch (e) {
-                                                
+
                                             }
                                             Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug');
                                             uploadTry = 100;
