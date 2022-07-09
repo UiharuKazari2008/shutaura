@@ -900,6 +900,7 @@ This code is publicly released and is restricted by its project license
         startWorker3();
         cleanOldMessages();
         setInterval(cleanOldMessages, 3600000);
+        setInterval(verifySpannedFiles, 14400000);
         if (process.send && typeof process.send === 'function') {
             process.send('ready');
         }
@@ -5901,7 +5902,8 @@ This code is publicly released and is restricted by its project license
         // data.id
         // data.content
         // data.guildID
-        await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: Date.now().valueOf() })
+        const startTime = Date.now().valueOf();
+        await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: startTime })
         const input = data.content.split("**\n*")[0].replace("**🧩 File : ", '').replace(/\n|\r/g, '').trim();
         const fileParts = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ? AND serverid != ?`, [input, data.guildID])
         const newServerData = await db.query(`SELECT * FROM discord_servers WHERE serverid = ?`, [data.guildID])
@@ -5913,8 +5915,9 @@ This code is publicly released and is restricted by its project license
         }
         if (fileParts.rows.length > 0 && newServerData.rows.length > 0) {
             // noinspection ES6MissingAwait
-            const masterResults = await Promise.all(fileParts.rows.map(async filepart => {
+            const masterResults = await Promise.all(fileParts.rows.map(async (filepart, i) => {
                 try {
+                    await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: startTime, details: `${i + 1}/${fileParts.rows.length}` });
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
                     let downloadTry = 0;
                     let fileData = undefined;
