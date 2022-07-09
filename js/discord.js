@@ -5949,6 +5949,8 @@ This code is publicly released and is restricted by its project license
                                 }
                             })
                         })
+                        if (fileData)
+                            break;
                     }
                     if (fileData) {
                         let uploadTry = 0;
@@ -5961,14 +5963,14 @@ This code is publicly released and is restricted by its project license
                                     name: orgPartMsg.attachments[0].filename
                                 })
                                     .then(async newPartMsg => {
-                                        const movedMessage = await db.query(`REPLACE INTO discord_multipart_files SET ?`, [{
+                                        const movedMessage = await db.query(`REPLACE INTO discord_multipart_files SET ? WHERE messageid = ?`, [{
                                             channelid: newPartMsg.channel.id,
                                             messageid: newPartMsg.id,
                                             serverid: data.guildID,
                                             fileid: input,
                                             url: newPartMsg.attachments[0].url,
                                             hash: md5(fileData),
-                                        }])
+                                        }, filepart.messageid])
                                         if (movedMessage.error) {
                                             Logger.printLine('MoveMessage-Parts', `Failed to update File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'error', movedMessage.error)
                                             resolve(false);
@@ -5985,6 +5987,8 @@ This code is publicly released and is restricted by its project license
                                         resolve(false);
                                     })
                             })
+                            if (uploadResult)
+                                break;
                         }
                         if (!uploadResult) {
                             SendMessage("Failed to move message part to new discord server after multiple attempts", "critical", data.guildID, "Move", err)
