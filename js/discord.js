@@ -6230,15 +6230,14 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY eid DESC ${(!deep) ? 'LIMIT 50' : ''}`)).rows
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC ${(!deep) ? 'LIMIT 50' : ''}`)).rows
         if (files && files.length) {
-            const _startTime = Date.now().valueOf()
-            await activeTasks.set('VERIFY_SFPARTS', { started: _startTime });
+            await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
             let i = 0
             for (let file of files) {
                 ++i;
-                await activeTasks.set('VERIFY_SFPARTS', { started: _startTime, details: `${i}/${files.length}` });
+                await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf(), details: `${i}/${files.length}` });
                 await new Promise(async completed => {
                     Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
                     const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
@@ -6289,7 +6288,7 @@ This code is publicly released and is restricted by its project license
                             completed(false);
                         } else if (acceptedFiles.length === file.paritycount) {
                             Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${acceptedFiles.length} = ${file.paritycount}`, "debug")
-                            completed(true);
+                            setTimeout(() => { completed(true); }, 5000)
                         }
                     } else {
                         mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
