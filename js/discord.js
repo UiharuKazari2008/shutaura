@@ -13,6 +13,9 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
+import {resolve} from "path";
+import md5 from "md5";
+
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -5753,7 +5756,7 @@ This code is publicly released and is restricted by its project license
                                 color: _color,
                             })
                             if (data.content && data.content.includes('🏷 Name:')) {
-                                jfsMigrateFileParts(data);
+                                await jfsMigrateFileParts(data);
                             }
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
@@ -5860,32 +5863,48 @@ This code is publicly released and is restricted by its project license
             await Promise.all(fileParts.rows.map(async filepart => {
                 try {
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
-                    await new Promise(resolve => {
-                        request.get({
-                            url: orgPartMsg.attachments[0].url,
-                            headers: {
-                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                'accept-language': 'en-US,en;q=0.9',
-                                'cache-control': 'max-age=0',
-                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                'sec-ch-ua-mobile': '?0',
-                                'sec-fetch-dest': 'document',
-                                'sec-fetch-mode': 'navigate',
-                                'sec-fetch-site': 'none',
-                                'sec-fetch-user': '?1',
-                                'upgrade-insecure-requests': '1',
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                            },
-                        }, async function (err, res, partbody) {
-                            if (err) {
-                                SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move", err)
-                                resolve(false);
-                            } else if (!partbody || (partbody && partbody.length < 100)) {
-                                SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move")
-                                resolve(false);
-                            } else {
+                    let downloadTry = 0;
+                    let fileData = undefined;
+                    while (downloadTry < 4) {
+                        downloadTry++;
+                        fileData = await new Promise(ok => {
+                            request.get({
+                                url: orgPartMsg.attachments[0].url,
+                                headers: {
+                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                    'accept-language': 'en-US,en;q=0.9',
+                                    'cache-control': 'max-age=0',
+                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                    'sec-ch-ua-mobile': '?0',
+                                    'sec-fetch-dest': 'document',
+                                    'sec-fetch-mode': 'navigate',
+                                    'sec-fetch-site': 'none',
+                                    'sec-fetch-user': '?1',
+                                    'upgrade-insecure-requests': '1',
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                },
+                            }, async function (err, res, partbody) {
+                                if (err) {
+                                    SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move", err)
+                                    ok(false);
+                                } else if (!partbody || (partbody && partbody.length < 100)) {
+                                    SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move")
+                                    ok(false);
+                                } else {
+                                    ok(partbody);
+                                    downloadTry = 100;
+                                }
+                            })
+                        })
+                    }
+                    if (fileData) {
+                        let uploadTry = 0;
+                        let uploadResult = undefined;
+                        while (uploadTry < 4) {
+                            uploadTry++;
+                            uploadResult = await new Promise(async resolve => {
                                 await discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
-                                    file: Buffer.from(partbody),
+                                    file: Buffer.from(fileData),
                                     name: orgPartMsg.attachments[0].filename
                                 })
                                     .then(async newPartMsg => {
@@ -5895,7 +5914,7 @@ This code is publicly released and is restricted by its project license
                                             serverid: data.guildID,
                                             fileid: input,
                                             url: newPartMsg.attachments[0].url,
-                                            hash: md5(partbody),
+                                            hash: md5(fileData),
                                         }])
                                         if (movedMessage.error) {
                                             Logger.printLine('MoveMessage-Parts', `Failed to update File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'error', movedMessage.error)
@@ -5903,16 +5922,22 @@ This code is publicly released and is restricted by its project license
                                         } else {
                                             resolve(true);
                                             await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
-                                            Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug')
+                                            Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug');
+                                            uploadTry = 100;
                                         }
                                     })
                                     .catch(err => {
                                         SendMessage("Failed to move message part to new discord server", "err", data.guildID, "Move", err)
                                         resolve(false);
                                     })
-                            }
-                        })
-                    })
+                            })
+                        }
+                        if (!uploadResult) {
+                            SendMessage("Failed to move message part to new discord server after multiple attempts", "critical", data.guildID, "Move", err)
+                        }
+                    } else {
+                        SendMessage("Failed to download file part attachments from discord after multiple attempts", "critical", data.guildID, "Move")
+                    }
                 } catch (err) {
                     SendMessage("Failed to get message part to move to the new discord server", "err", data.guildID, "Move", err)
                     if (err.message && err.message.toLowerCase().includes('unknown message')) {
