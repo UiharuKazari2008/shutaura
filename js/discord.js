@@ -5919,7 +5919,7 @@ This code is publicly released and is restricted by its project license
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
                     let downloadTry = 0;
                     let fileData = undefined;
-                    while (downloadTry < 4) {
+                    while (!fileData || downloadTry < 4) {
                         downloadTry++;
                         fileData = await new Promise(ok => {
                             request.get({
@@ -5946,7 +5946,6 @@ This code is publicly released and is restricted by its project license
                                     ok(false);
                                 } else {
                                     ok(partbody);
-                                    downloadTry = 100;
                                 }
                             })
                         })
@@ -5954,7 +5953,7 @@ This code is publicly released and is restricted by its project license
                     if (fileData) {
                         let uploadTry = 0;
                         let uploadResult = undefined;
-                        while (uploadTry < 4) {
+                        while (!uploadResult || uploadTry < 4) {
                             uploadTry++;
                             uploadResult = await new Promise(resolve => {
                                 discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
@@ -5974,7 +5973,6 @@ This code is publicly released and is restricted by its project license
                                             Logger.printLine('MoveMessage-Parts', `Failed to update File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'error', movedMessage.error)
                                             resolve(false);
                                         } else {
-                                            uploadTry = 100;
                                             try {
                                                 await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
                                             } catch (e) { }
