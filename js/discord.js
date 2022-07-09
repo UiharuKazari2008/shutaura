@@ -6003,8 +6003,8 @@ This code is publicly released and is restricted by its project license
                     return false;
                 }
             }))
-            return masterResults.filter(e => !e).length > 0;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
+            return masterResults.filter(e => !e).length > 0;
         } else {
             return true;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
