@@ -5956,8 +5956,8 @@ This code is publicly released and is restricted by its project license
                         let uploadResult = undefined;
                         while (uploadTry < 4) {
                             uploadTry++;
-                            uploadResult = await new Promise(async resolve => {
-                                await discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
+                            uploadResult = await new Promise(resolve => {
+                                discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
                                     file: Buffer.from(fileData),
                                     name: orgPartMsg.attachments[0].filename
                                 })
