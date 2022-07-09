@@ -6006,8 +6006,8 @@ This code is publicly released and is restricted by its project license
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
             return masterResults.filter(e => !e).length > 0;
         } else {
-            return true;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
+            return true;
         }
     }
     async function jfsRotate(message, rotate, cb) {
