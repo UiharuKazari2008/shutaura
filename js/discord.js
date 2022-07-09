@@ -5914,7 +5914,7 @@ This code is publicly released and is restricted by its project license
         }
         if (fileParts.rows.length > 0 && newServerData.rows.length > 0) {
             // noinspection ES6MissingAwait
-            await Promise.all(fileParts.rows.map(async filepart => {
+            return (await Promise.all(fileParts.rows.map(async filepart => {
                 try {
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
                     let downloadTry = 0;
@@ -5963,7 +5963,7 @@ This code is publicly released and is restricted by its project license
                                     name: orgPartMsg.attachments[0].filename
                                 })
                                     .then(async newPartMsg => {
-                                        const movedMessage = await db.query(`REPLACE INTO discord_multipart_files SET ? WHERE messageid = ?`, [{
+                                        const movedMessage = await db.query(`UPDATE discord_multipart_files SET ? WHERE messageid = ?`, [{
                                             channelid: newPartMsg.channel.id,
                                             messageid: newPartMsg.id,
                                             serverid: data.guildID,
@@ -6001,10 +6001,12 @@ This code is publicly released and is restricted by its project license
                     if (err.message && err.message.toLowerCase().includes('unknown message')) {
                         await db.query(`DELETE FROM discord_multipart_files WHERE channelid = ? AND messageid = ?`, [filepart.channelid, filepart.messageid])
                     }
+                    return false;
                 }
-            }))
+            }))).filter(e => !e).length > 0;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
         } else {
+            return true;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
         }
     }
