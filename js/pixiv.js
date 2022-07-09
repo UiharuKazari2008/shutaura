@@ -1,5 +1,4 @@
 // noinspection ES6MissingAwait
-
 /*    ___                  __                        _______ __
      /   | _________ _____/ /__  ____ ___  __  __   / ____(_) /___  __
     / /| |/ ___/ __ `/ __  / _ \/ __ `__ \/ / / /  / /   / / __/ / / /
@@ -22,8 +21,7 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
-const systemglobal = require("../config.json");
-(async () => {
+(async () =>
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
@@ -560,7 +558,7 @@ const systemglobal = require("../config.json");
                                         if (autoDownload.rows.length > 0) {
                                             _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
                                         } else {
-                                            _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                            _mqMessage = await sendEmbed(post, level, followUser, false, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
                                         }
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
