@@ -5974,14 +5974,12 @@ This code is publicly released and is restricted by its project license
                                             Logger.printLine('MoveMessage-Parts', `Failed to update File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'error', movedMessage.error)
                                             resolve(false);
                                         } else {
-                                            resolve(true);
+                                            uploadTry = 100;
                                             try {
                                                 await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
-                                            } catch (e) {
-
-                                            }
+                                            } catch (e) { }
                                             Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug');
-                                            uploadTry = 100;
+                                            resolve(true);
                                         }
                                     })
                                     .catch(err => {
