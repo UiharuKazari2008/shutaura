@@ -1052,8 +1052,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'MigrateSpannedParts':
                         if (MessageContents.messageData !== undefined && MessageContents.messageData.id && MessageContents.messageData.content && MessageContents.messageData.guildID) {
-                            await jfsMigrateFileParts(MessageContents.messageData)
-                            cb(true);
+                            cb(await jfsMigrateFileParts(MessageContents.messageData));
                         } else {
                             cb(true);
                         }
@@ -5914,7 +5913,7 @@ This code is publicly released and is restricted by its project license
         }
         if (fileParts.rows.length > 0 && newServerData.rows.length > 0) {
             // noinspection ES6MissingAwait
-            return (await Promise.all(fileParts.rows.map(async filepart => {
+            const masterResults = await Promise.all(fileParts.rows.map(async filepart => {
                 try {
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
                     let downloadTry = 0;
@@ -6003,7 +6002,8 @@ This code is publicly released and is restricted by its project license
                     }
                     return false;
                 }
-            }))).filter(e => !e).length > 0;
+            }))
+            return masterResults.filter(e => !e).length > 0;
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
         } else {
             return true;
