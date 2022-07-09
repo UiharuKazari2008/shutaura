@@ -15,6 +15,7 @@ This code is publicly released and is restricted by its project license
 
 import {resolve} from "path";
 import md5 from "md5";
+import systemglobal from "../config.json";
 
 (async () => {
     let systemglobal = require('../config.json');
@@ -1049,6 +1050,13 @@ import md5 from "md5";
                                     Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
                                     cb(true);
                                 })
+                        } else {
+                            cb(true);
+                        }
+                        break;
+                    case 'MigrateSpannedParts':
+                        if (MessageContents.messageData !== undefined && MessageContents.messageData.id && MessageContents.messageData.content && MessageContents.messageData.guildID) {
+                            cb(await jfsMigrateFileParts(MessageContents.messageData));
                         } else {
                             cb(true);
                         }
@@ -5652,7 +5660,25 @@ import md5 from "md5";
     // Discord Framework - File Systems Tasks
     async function jfsMove(message, moveTo, cb, delay) {
         await activeTasks.set(`JFSMOVE_${message.id}`, { started: Date.now().valueOf() });
-        if (message.attachments.length === 0 || (message.attachments.length > 0 && message.attachments.filter(e => e.size > 7900000).length === 0)) {
+        const database_vales = (await db.query(`SELECT * FROM kanmi_records WHERE id = ? LIMIT 1`, [message.id])).rows
+        let attachments = message.attachments;
+        if (database_vales.length > 0 && database_vales[0].attachement_hash && database_vales[0].attachement_name) {
+            Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
+            attachments = [
+                {
+                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name}`),
+                    filename: database_vales[0].attachment_name
+                }
+            ]
+            if (database_vales[0].cache_proxy) {
+                const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}`
+                attachments.push({
+                    url: cache_url,
+                    filename: cache_url.split('/').pop()
+                })
+            }
+        }
+        if (attachments.length === 0 || (attachments.length > 0 && attachments.filter(e => e.size > 7900000).length === 0)) {
             Logger.printLine("Move", `Need to move ${message.id}`, "debug")
             let emotesToAdd = []
             Object.keys(message.reactions).forEach(function (key) {
@@ -5666,10 +5692,10 @@ import md5 from "md5";
             } else {
                 messagecontent = "" + message.content
             }
-            if (message.attachments && message.attachments.length > 0) {
-                Logger.printLine("Move", `Need to download ${message.attachments[0].url}`, "debug", message.attachments[0])
+            if (attachments && attachments.length > 0) {
+                Logger.printLine("Move", `Need to download ${attachments[0].url}`, "debug", attachments[0])
                 request.get({
-                    url: message.attachments[0].url,
+                    url: attachments[0].url,
                     headers: {
                         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                         'accept-language': 'en-US,en;q=0.9',
@@ -5699,18 +5725,18 @@ import md5 from "md5";
                         let messagefiles = [
                             {
                                 file: Buffer.from(body),
-                                name: message.attachments[0].filename
+                                name: attachments[0].filename
                             }
                         ];
-                        if (colorSearchFormats.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
+                        if (colorSearchFormats.indexOf(attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
                             try {
                                 _color = await getAverageColor(body, {mode: 'precision'})
                             } catch (e) {
                                 console.error(e);
                             }
                         }
-                        if (message.attachments.length > 1 && message.attachments.filter(e => e.filename.includes('-t9-preview-video')).length > 0) {
-                            const previewAttachment = message.attachments.filter(e => e.filename.includes('-t9-preview-video')).pop()
+                        if (attachments.length > 1 && attachments.filter(e => e.filename.includes('-t9-preview-video')).length > 0) {
+                            const previewAttachment = attachments.filter(e => e.filename.includes('-t9-preview-video')).pop()
                             Logger.printLine("Move", `Need to download preview ${previewAttachment.url}`, "debug", previewAttachment)
                             const previewItem = await new Promise(resolve => {
                                 request.get({
@@ -5756,7 +5782,21 @@ import md5 from "md5";
                                 color: _color,
                             })
                             if (data.content && data.content.includes('🏷 Name:')) {
-                                await jfsMigrateFileParts(data);
+                                mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                    fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+                                    messageReturn: false,
+                                    messageChannelID: data.channel.id,
+                                    messageType: 'command',
+                                    messageAction: 'MigrateSpannedParts',
+                                    messageData: {
+                                        id: data.id,
+                                        channel: data.channel.id,
+                                        content: data.content,
+                                        guildID: data.guildID
+                                    }
+                                }, (ok) => {
+                                    if (!ok) { console.error('Failed to send update to MQ') }
+                                })
                             }
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
@@ -5771,7 +5811,7 @@ import md5 from "md5";
                                         SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
                                     } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && message.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
                                         await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [message.id])
-                                        sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : message.attachments[0]], moveTo, message.guildID, []);
+                                        sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : attachments[0]], moveTo, message.guildID, []);
                                     }
                                     sendPixivAction(message.embeds[0], 'Like', "add");
                                 }
@@ -5795,7 +5835,7 @@ import md5 from "md5";
 
                 discordClient.createMessage(moveTo, {content: message.content})
                     .then(async (data) => {
-                        Logger.printLine("Move", `Message moved from ${message.channel.id} to ${data.channel.id}`, "debug", message.attachments[0])
+                        Logger.printLine("Move", `Message moved from ${message.channel.id} to ${data.channel.id}`, "debug", attachments[0])
                         // Send Response
                         await addEmojisToMessage(data, emotesToAdd);
                         await messageUpdate(data, {
@@ -5806,7 +5846,21 @@ import md5 from "md5";
                             delay: (delay)
                         })
                         if (data.content && data.content.includes('🏷 Name:')) {
-                            await jfsMigrateFileParts(data);
+                            mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+                                messageReturn: false,
+                                messageChannelID: data.channel.id,
+                                messageType: 'command',
+                                messageAction: 'MigrateSpannedParts',
+                                messageData: {
+                                    id: data.id,
+                                    channel: data.channel.id,
+                                    content: data.content,
+                                    guildID: data.guildID
+                                }
+                            }, (ok) => {
+                                if (!ok) { console.error('Failed to send update to MQ') }
+                            })
                         }
                         activeTasks.delete(`JFSMOVE_${message.id}`)
                         cb(true);
@@ -5822,7 +5876,7 @@ import md5 from "md5";
                     });
             }
         } else {
-            message.attachments.filter(e => !e.filename.includes('-t9-preview')).forEach(e => {
+            attachments.filter(e => !e.filename.includes('-t9-preview')).forEach(e => {
                 mqClient.sendData(systemglobal.FileWorker_In, {
                     fromClient: MQWorker1,
                     messageReturn: false,
@@ -5848,6 +5902,9 @@ import md5 from "md5";
         }
     }
     async function jfsMigrateFileParts(data) {
+        // data.id
+        // data.content
+        // data.guildID
         await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: Date.now().valueOf() })
         const input = data.content.split("**\n*")[0].replace("**🧩 File : ", '').replace(/\n|\r/g, '').trim();
         const fileParts = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ? AND serverid != ?`, [input, data.guildID])
