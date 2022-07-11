@@ -1544,7 +1544,7 @@ This code is publicly released and is restricted by its project license
                                             } else {
                                                 try {
                                                     const image = Buffer.from(body);
-                                                    discordClient.createMessage(discordServers.get(show.server).chid_filecache, '', {
+                                                    discordClient.createMessage(discordServers.get((show.server) ? show.server : 'homeGuild').chid_filecache, '', {
                                                         file: image,
                                                         name: `${show.data.background.pop().split('/').pop()}`
                                                     })
@@ -1593,7 +1593,7 @@ This code is publicly released and is restricted by its project license
                                             } else {
                                                 try {
                                                     const image = Buffer.from(body);
-                                                    discordClient.createMessage(discordServers.get(show.server).chid_filecache, '', {
+                                                    discordClient.createMessage(discordServers.get((show.server) ? show.server : 'homeGuild').chid_filecache, '', {
                                                         file: image,
                                                         name: `${show.data.poster.pop().split('/').pop()}`
                                                     })
