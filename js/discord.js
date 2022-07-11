@@ -1598,7 +1598,7 @@ This code is publicly released and is restricted by its project license
                                                         name: `${show.data.poster.pop().split('/').pop()}`
                                                     })
                                                         .then((data) => {
-                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                            db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
                                                             setTimeout(() => {
                                                                 resolve(true);
                                                             }, 1000)
