@@ -1508,6 +1508,119 @@ This code is publicly released and is restricted by its project license
                                 cb(true);
                             })
                         break;
+                    case 'CacheIDEXMeta':
+                        Logger.printLine("CacheIDEXMeta", `Updating Image Cache Metadata...`, "debug")
+                        const showMetadata = await db.query(`SELECT s.*, f.server FROM (SELECT * FROM kongou_shows) s LEFT JOIN (SELECT show_id, server FROM (SELECT server, eid FROM kanmi_records) r INNER JOIN (SELECT eid, show_id FROM kongou_episodes) e ON (r.eid = e.show_id)) f ON (s.show_id = f.show_id)
+                        `)
+                        if (showMetadata.error) {
+                            SendMessage("SQL Error occurred when adding polyfills to the metadata cache", "err", 'main', "SQL", showMetadata.error)
+                            cb(false);
+                        } else if (showMetadata.rows.length > 0) {
+                            for (let show of showMetadata.rows) {
+                                if (show.data && show.data.background && show.data.background.length > 0 && (!show.background || (show.background && show.background.split('/').pop() === show.data.background.pop().split('/').pop()))) {
+                                    await new Promise(resolve => {
+                                        request.get({
+                                            url: show.data.background.pop(),
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err) {
+                                                Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item!", "error", err)
+                                                resolve(false);
+                                            } else if (!body || (body && body.length < 100)) {
+                                                Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item, no data was received!", "error", err)
+                                                resolve(false);
+                                            } else {
+                                                try {
+                                                    const image = Buffer.from(body);
+                                                    discordClient.createMessage(discordServers.get(show.server).chid_filecache, '', {
+                                                        file: image,
+                                                        name: `${show.data.background.pop().split('/').pop()}`
+                                                    })
+                                                        .then((data) => {
+                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                            setTimeout(() => {
+                                                                resolve(true);
+                                                            }, 1000)
+                                                        })
+                                                        .catch((er) => {
+                                                            Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                            resolve(true);
+                                                        })
+                                                } catch (err) {
+                                                    Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                    resolve(true);
+                                                }
+                                            }
+                                        })
+                                    })
+                                }
+                                if (show.data && show.data.poster && show.data.poster.length > 0 && (!show.poster || (show.poster && show.poster.split('/').pop() === show.data.poster.pop().split('/').pop()))) {
+                                    await new Promise(resolve => {
+                                        request.get({
+                                            url: show.data.poster.pop(),
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err) {
+                                                Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item!", "error", err)
+                                                resolve(false);
+                                            } else if (!body || (body && body.length < 100)) {
+                                                Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item, no data was received!", "error", err)
+                                                resolve(false);
+                                            } else {
+                                                try {
+                                                    const image = Buffer.from(body);
+                                                    discordClient.createMessage(discordServers.get(show.server).chid_filecache, '', {
+                                                        file: image,
+                                                        name: `${show.data.poster.pop().split('/').pop()}`
+                                                    })
+                                                        .then((data) => {
+                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                            setTimeout(() => {
+                                                                resolve(true);
+                                                            }, 1000)
+                                                        })
+                                                        .catch((er) => {
+                                                            Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                            resolve(true);
+                                                        })
+                                                } catch (err) {
+                                                    Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                    resolve(true);
+                                                }
+                                            }
+                                        })
+                                    })
+                                }
+                            }
+                        } else {
+                            Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
+                            cb(true);
+                        }
+                        break;
                     case 'ReplaceContent':
                         Logger.printLine("UpdateContent", `Replacing Content for ${MessageContents.messageID}...`, "debug")
                         const ReplaceContentmessageRecord = await db.query(`SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
