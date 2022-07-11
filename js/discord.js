@@ -1615,8 +1615,9 @@ This code is publicly released and is restricted by its project license
                                         })
                                     })
                                 }
-                                cb(true)
+
                             }
+                            cb(true)
                         } else {
                             Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
                             cb(true);
