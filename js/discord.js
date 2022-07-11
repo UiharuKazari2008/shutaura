@@ -1517,7 +1517,7 @@ This code is publicly released and is restricted by its project license
                             cb(false);
                         } else if (showMetadata.rows.length > 0) {
                             for (let show of showMetadata.rows) {
-                                if (show.data && show.data.background && show.data.background.length > 0 && (!show.background || (show.background && show.background.split('/').pop() === show.data.background.pop().split('/').pop()))) {
+                                if (show.data && show.data.background && show.data.background.length > 0 && !show.background) {
                                     await new Promise(resolve => {
                                         request.get({
                                             url: show.data.background.pop(),
@@ -1556,17 +1556,19 @@ This code is publicly released and is restricted by its project license
                                                         })
                                                         .catch((er) => {
                                                             Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                            console.error(er)
                                                             resolve(true);
                                                         })
                                                 } catch (err) {
                                                     Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                    console.error(err)
                                                     resolve(true);
                                                 }
                                             }
                                         })
                                     })
                                 }
-                                if (show.data && show.data.poster && show.data.poster.length > 0 && (!show.poster || (show.poster && show.poster.split('/').pop() === show.data.poster.pop().split('/').pop()))) {
+                                if (show.data && show.data.poster && show.data.poster.length > 0 && !show.poster) {
                                     await new Promise(resolve => {
                                         request.get({
                                             url: show.data.poster.pop(),
@@ -1605,10 +1607,12 @@ This code is publicly released and is restricted by its project license
                                                         })
                                                         .catch((er) => {
                                                             Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                            console.error(er)
                                                             resolve(true);
                                                         })
                                                 } catch (err) {
                                                     Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                    console.error(err)
                                                     resolve(true);
                                                 }
                                             }
