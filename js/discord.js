@@ -1510,7 +1510,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'CacheIDEXMeta':
                         Logger.printLine("CacheIDEXMeta", `Updating Image Cache Metadata...`, "debug")
-                        const showMetadata = await db.query(`SELECT s.*, f.server FROM (SELECT * FROM kongou_shows) s LEFT JOIN (SELECT show_id, server FROM (SELECT server, eid FROM kanmi_records) r INNER JOIN (SELECT eid, show_id FROM kongou_episodes) e ON (r.eid = e.show_id)) f ON (s.show_id = f.show_id)
+                        const showMetadata = await db.query(`SELECT s.*, f.server FROM (SELECT * FROM kongou_shows) s LEFT JOIN (SELECT show_id, server FROM (SELECT server, eid FROM kanmi_records) r INNER JOIN (SELECT eid, show_id FROM kongou_episodes) e ON (r.eid = e.show_id)) f ON (s.show_id = f.show_id) GROUP BY s.show_id
                         `)
                         if (showMetadata.error) {
                             SendMessage("SQL Error occurred when adding polyfills to the metadata cache", "err", 'main', "SQL", showMetadata.error)
@@ -1615,6 +1615,7 @@ This code is publicly released and is restricted by its project license
                                         })
                                     })
                                 }
+                                cb(true)
                             }
                         } else {
                             Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
