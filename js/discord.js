@@ -2842,7 +2842,7 @@ This code is publicly released and is restricted by its project license
                                                         object.name = args.splice(5).join(' ').trim();
                                                         break;
                                                     case 'icon':
-                                                        object.icon = (args[5] && args[5].startsWith('fa-')) ? '' : 'fa-' + args.splice(5).join(' ').trim();
+                                                        object.icon = (args[5] && args[5].startsWith('fa-')) ? '' : 'fa-' + args[5];
                                                         break;
                                                     case 'type':
                                                         switch (args[5].toLowerCase()) {
@@ -3046,7 +3046,7 @@ This code is publicly released and is restricted by its project license
                                                             object.name = args.splice(5).join(' ').trim();
                                                             break;
                                                         case 'icon':
-                                                            object.icon = (args[5] && args[5].startsWith('fa-')) ? '' : 'fa-' + args.splice(5).join(' ').trim();
+                                                            object.icon = (args[5] && args[5].startsWith('fa-')) ? '' : 'fa-' + args[5];
                                                             break;
                                                         case 'position':
                                                             object.position = parseInt(args[5].trim())
