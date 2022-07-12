@@ -3166,7 +3166,7 @@ This code is publicly released and is restricted by its project license
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 try {
-                                                    const list = await db.query(`SELECT channelid, serverid, parent, virtual_cid, name, nice_name, nice_title, classification, uri, watch_folder, notify, role, role_write, role_manage, description, nsfw FROM kanmi_channels WHERE classification IS NOT NULL AND classification != 'system' AND classification != 'timeline'`);
+                                                    const list = await db.query(`SELECT channelid, serverid, parent, virtual_cid, name, nice_name, nice_title, classification, media_group, uri, watch_folder, notify, role, role_write, role_manage, description, nsfw FROM kanmi_channels WHERE classification IS NOT NULL AND classification != 'system' AND classification != 'timeline'`);
 
                                                     await discordClient.createMessage(msg.channel.id, `Channel Metadata from Database`, [{
                                                         file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
