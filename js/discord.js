@@ -2051,11 +2051,11 @@ This code is publicly released and is restricted by its project license
             let retryCount = MessageContents.retryCount
             retryCount++
             if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
-                mqClient.sendData(MQWorker10, {...MessageContents, retryCount}), (ok) => {
+                mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => {
                     SendMessage(`Failed to send message to discord - ${er.message}\nRetry to send by moving it from the failed MQ to a standard MQ`, "err", "main", "Send", er.message)
                 });
             } else {
-                mqClient.sendData(MQWorker3, {...MessageContents, retryCount}), (ok) => {
+                mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => {
                     SendMessage(`Failed to send message to discord - ${er.message}\nRetring as a backlog task...`, "err", "main", "Send", er.message)
                 });
             }
