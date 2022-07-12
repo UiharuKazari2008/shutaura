@@ -2889,7 +2889,7 @@ This code is publicly released and is restricted by its project license
                                                 }
                                                 const groupName = args.splice(6).join(' ').trim();
 
-                                                await db.query(`INSERT INTO sequenzia_class SET ?`, [{
+                                                await db.query(`INSERT INTO kongou_media_groups SET ?`, [{
                                                     media_group: mediaGroup,
                                                     icon: groupIcon,
                                                     name: groupName,
