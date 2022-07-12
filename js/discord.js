@@ -2818,6 +2818,133 @@ This code is publicly released and is restricted by its project license
                                 SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
                             }
                             break;
+                        case 'library':
+                            switch (args[1].toLowerCase()) {
+                                case 'media_group':
+                                    switch (args[2].toLowerCase()) {
+                                        case 'list':
+                                            try {
+                                                const list = await db.query(`SELECT * FROM kongou_media_groups`);
+                                                await discordClient.createMessage(msg.channel.id, `Media Groups from Database`, [{
+                                                    file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                    name: `media_groups.json`
+                                                }])
+                                            } catch (e) {
+                                                return `Error sending metadata - ${e.message}`
+                                            }
+                                            break;
+                                        case 'update':
+                                            if (args.length > 4) {
+                                                const classID = args[3].trim();
+                                                let object = {};
+                                                switch (args[4].toLowerCase()) {
+                                                    case 'name':
+                                                        object.name = args.splice(5).join(' ').trim();
+                                                        break;
+                                                    case 'icon':
+                                                        object.icon = (args[5] && args[5].startsWith('fa-')) ? '' : 'fa-' + args.splice(5).join(' ').trim();
+                                                        break;
+                                                    case 'type':
+                                                        switch (args[5].toLowerCase()) {
+                                                            case 'series':
+                                                                object.type = 2
+                                                                break
+                                                            case 'movies':
+                                                                object.type = 1
+                                                                break
+                                                            default:
+                                                                return `Only accepts series or movies as a type!`
+                                                                break;
+                                                        }
+                                                        break;
+                                                    case 'description':
+                                                        object.description = args.splice(5).join(' ').trim();
+                                                        break;
+                                                    default:
+                                                        return "⁉ Unknown Sub Command"
+                                                }
+                                                if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                    const results = await db.query(`UPDATE kongou_media_groups SET ? WHERE media_group = ?`, [object, classID])
+                                                    return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                }
+                                            } else {
+                                                return "⁉ Missing required information"
+                                            }
+                                            break;
+                                        case 'create':
+                                            if (args.length > 5) {
+                                                const mediaGroup = args[3].trim();
+                                                const groupIcon = args[4].trim();
+                                                let groupType = 1;
+                                                switch (args[5].toLowerCase()) {
+                                                    case 'series':
+                                                        groupType = 2
+                                                        break
+                                                    case 'movies':
+                                                        groupType = 1
+                                                        break
+                                                    default:
+                                                        return `Only accepts series or movies as a type!`
+                                                        break;
+                                                }
+                                                const groupName = args.splice(6).join(' ').trim();
+
+                                                await db.query(`INSERT INTO sequenzia_class SET ?`, [{
+                                                    media_group: mediaGroup,
+                                                    icon: groupIcon,
+                                                    name: groupName,
+                                                    type: groupType
+                                                }])
+                                                return `Updated Database, Assign Channels to the new media_group`
+                                            } else {
+                                                return "⁉ Missing required information\nFormat: GROUP FA-ICON TYPE NAME"
+                                            }
+                                        case 'remove':
+                                            const classID = args[3].trim();
+                                            await db.query(`DELETE FROM kongou_media_groups WHERE media_group = ?`, [classID])
+                                            return `Updated Database, Media Group removed`
+                                        default:
+                                            return "⁉ Unknown Command"
+                                    }
+                                    break;
+                                case 'show_map':
+                                    switch (args[2].toLowerCase()) {
+                                        case 'list':
+                                            try {
+                                                const list = await db.query(`SELECT * FROM kongou_shows_maps`);
+                                                await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
+                                                    file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                    name: `show_maps.json`
+                                                }])
+                                            } catch (e) {
+                                                return `Error sending metadata - ${e.message}`
+                                            }
+                                            break;
+                                        case 'create':
+                                            if (args.length > 3) {
+                                                const showID = args[3].trim();
+                                                const showSearch = args.splice(4).join(' ').trim().toLowerCase();
+                                                if (showID.length > 0 && showSearch.length > 0) {
+                                                    await db.query(`DELETE FROM kongou_shows_maps WHERE search = ?`, [showID, showSearch])
+                                                    await db.query(`INSERT INTO kongou_shows_maps SET show_id = ?, search = ?`, [showID, showSearch])
+                                                    return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                }
+                                            } else {
+                                                return "⁉ Missing required information"
+                                            }
+                                            break;
+                                        case 'remove':
+                                            const classID = args.splice(3).join(' ').trim().toLowerCase();
+                                            await db.query(`DELETE FROM kongou_shows_maps WHERE search = ?`, [classID])
+                                            return `Updated Database, Show map removed`
+                                        default:
+                                            return "⁉ Unknown Command"
+                                    }
+                                    break;
+                                default:
+                                    return "⁉ Unknown Command"
+                            }
+                            break;
                         case 'layout':
                             if (args.length > 2) {
                                 switch (args[1].toLowerCase()) {
@@ -3070,6 +3197,9 @@ This code is publicly released and is restricted by its project license
                                                         case 'folder':
                                                             object.watch_folder = args.splice(5).join(' ').trim();
                                                             updateFW = true
+                                                            break;
+                                                        case 'media_group':
+                                                            object.media_group = args.splice(5).join('_').trim();
                                                             break;
                                                         case 'vcid':
                                                             object.virtual_cid = parseInt(args[5].trim())
