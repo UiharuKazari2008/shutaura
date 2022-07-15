@@ -6490,7 +6490,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC ${(!deep) ? 'LIMIT 50' : ''}`)).rows
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!deep) ? '50' : deep}`)).rows
         if (files && files.length) {
             await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
@@ -6541,7 +6541,17 @@ This code is publicly released and is restricted by its project license
                         const acceptedFiles = probeFile.filter(e => e.ok)
                         const deadFiles = probeFile.filter(e => !e.ok)
                         if (acceptedFiles.length > file.paritycount) {
-                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue!`, "error", "MPFDownload");
+                            const names = acceptedFiles.map(e => e.url.split('/').pop())
+                            let removed = []
+                            const duplicates = acceptedFiles.map(async e => {
+                                if ((names.filter(f => e.url.split('/').pop() === f).length > 1) && removed.indexOf(e.url) === -1) {
+                                    const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())].url
+                                    removed.push(itemToRemove);
+                                    return await sqlPromise(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove])
+                                }
+                                return false
+                            })
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue if this appears again, it has automatically been resovled!`, "error", "MPFDownload");
                             completed(false);
                         } else if (acceptedFiles.length < file.paritycount) {
                             mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
