@@ -4729,7 +4729,7 @@ This code is publicly released and is restricted by its project license
         }
         // Backup and Sync System
         _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
-            const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name`, [row.system_name])
+            const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
             let partsDisabled = false;
             let cdsAccess = false;
             let backupInterval = 3600000;
