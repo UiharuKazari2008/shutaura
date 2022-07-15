@@ -893,14 +893,14 @@ This code is publicly released and is restricted by its project license
         return true;
     }
     async function whenConnected() {
-        verifySpannedFiles();
+        verifySpannedFiles(5);
         startEmergencyWorker();
         startWorker();
         startWorker2();
         startWorker3();
         cleanOldMessages();
         setInterval(cleanOldMessages, 3600000);
-        setInterval(verifySpannedFiles, 14400000);
+        setInterval(() => { verifySpannedFiles(25); }, 14400000);
         if (process.send && typeof process.send === 'function') {
             process.send('ready');
         }
@@ -2752,8 +2752,8 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'verify':
-                            SendMessage(`✅ Started Filesystem Verify...`, "system", msg.guildID, "RepairFileSystem");
-                            verifySpannedFiles(args[1].trim() === 'true');
+                            SendMessage(`✅ Started Filesystem Verify${(args.length > 1) ? ' for ' + args[1] + ' Files' : ''}...`, "system", msg.guildID, "RepairFileSystem");
+                            verifySpannedFiles((args.length > 1) ? args[1] : undefined);
                             break;
                         case 'update':
                             SendMessage(`✅ Started Filesystem Update...`, "system", msg.guildID, "RepairFileSystem");
@@ -6489,8 +6489,8 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    async function verifySpannedFiles(deep) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!deep) ? '50' : deep}`)).rows
+    async function verifySpannedFiles(searchLimit) {
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
         if (files && files.length) {
             await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
@@ -6547,7 +6547,7 @@ This code is publicly released and is restricted by its project license
                                 if ((names.filter(f => e.url.split('/').pop() === f).length > 1) && removed.indexOf(e.url) === -1) {
                                     const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())].url
                                     removed.push(itemToRemove);
-                                    return await sqlPromise(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove])
+                                    return await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove])
                                 }
                                 return false
                             })
