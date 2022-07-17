@@ -6628,7 +6628,8 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
                     const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
                     if (spannedFiles.length === 0) {
-                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload")
+                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload");
+                        completed(false);
                     } else if (spannedFiles.length >= file.paritycount) {
                         let probeFile = []
                         for (let part of spannedFiles) {
