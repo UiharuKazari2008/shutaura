@@ -101,6 +101,7 @@ This code is publicly released and is restricted by its project license
     let activeAlerts = new Map();
     let statusValues = new Map();
     let tempThread = new Map();
+    let tempChannelCaches = new Map();
 
     let accepted_cache_types = ['jpeg','jpg','jiff', 'png', 'webp', 'tiff'];
     let accepted_video_types = [ "mov","mp4","avi","ts","mkv" ];
@@ -949,7 +950,18 @@ This code is publicly released and is restricted by its project license
                     const channelTitle = MessageContents.messageText + ''
                     cb(true);
                     if (channelTitle !== '' && channelTitle !== 'undefined') {
-                        const channel = discordClient.getChannel(MessageContents.messageChannelID);
+                        const channel = ((_id) => {
+                            if (tempChannelCaches.has(_id)) {
+                                return tempChannelCaches.get(_id);
+                            } else {
+                                const _ch = discordClient.getChannel(_id);
+                                if (_ch && _ch.id) {
+                                    tempChannelCaches.set(_id, _ch);
+                                    setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                                }
+                                return _ch
+                            }
+                        })(MessageContents.messageChannelID)
                         if (channel && channel.name !== channelTitle) {
                             discordClient.editChannel(MessageContents.messageChannelID, {name: channelTitle}, "Status Update")
                                 .catch((err) => {
@@ -971,7 +983,18 @@ This code is publicly released and is restricted by its project license
                     }
                     if (channelTitle !== '' && channelTitle !== 'undefined' && !channels.error && channels.rows.length > 0 && (!MessageContents.messageData || (MessageContents.messageData && MessageContents.updateIndicators && MessageContents.updateIndicators === true))) {
                         channels.rows.forEach((ch) => {
-                            const channel = discordClient.getChannel(ch.channel);
+                            const channel = ((_id) => {
+                                if (tempChannelCaches.has(_id)) {
+                                    return tempChannelCaches.get(_id);
+                                } else {
+                                    const _ch = discordClient.getChannel(_id);
+                                    if (_ch && _ch.id) {
+                                        tempChannelCaches.set(_id, _ch);
+                                        setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                                    }
+                                    return _ch
+                                }
+                            })(ch.channel)
                             if (channel && channel.name !== channelTitle) {
                                 discordClient.editChannel(ch.channel, {name: channelTitle}, "Status Update")
                                     .catch((err) => {
@@ -995,7 +1018,18 @@ This code is publicly released and is restricted by its project license
         } else if (MessageContents.messageType === 'command') {
             if (!systemglobal.Discord_Upload_Only) {
                 let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
-                const ChannelData = discordClient.getChannel(ChannelID)
+                const ChannelData = ((_id) => {
+                    if (tempChannelCaches.has(_id)) {
+                        return tempChannelCaches.get(_id);
+                    } else {
+                        const _ch = discordClient.getChannel(_id);
+                        if (_ch && _ch.id) {
+                            tempChannelCaches.set(_id, _ch);
+                            setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                        }
+                        return _ch
+                    }
+                })(ChannelID)
                 if ((typeof ChannelData).toString() === 'undefined' && MessageContents.messageChannelID !== '0') {
                     SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)} from ${MessageContents.fromClient}`, "err", 'main', "SendData")
                     cb(true);
@@ -1845,7 +1879,18 @@ This code is publicly released and is restricted by its project license
         } else {
             let DestinationChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
             async function sendToBin(error) {
-                const BinChannelData = discordClient.getChannel(systemglobal.Discord_Recycling_Bin);
+                const BinChannelData = ((_id) => {
+                    if (tempChannelCaches.has(_id)) {
+                        return tempChannelCaches.get(_id);
+                    } else {
+                        const _ch = discordClient.getChannel(_id);
+                        if (_ch && _ch.id) {
+                            tempChannelCaches.set(_id, _ch);
+                            setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                        }
+                        return _ch
+                    }
+                })(systemglobal.Discord_Recycling_Bin)
                 if (BinChannelData && BinChannelData.name) {
                     SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (${error}), Redirecting to Recycling Bin`, "err", 'main', "SendData");
                     if (await createMessage(MessageContents, systemglobal.Discord_Recycling_Bin, BinChannelData, level)) {
@@ -1860,7 +1905,18 @@ This code is publicly released and is restricted by its project license
                 }
             }
 
-            const ChannelData = discordClient.getChannel(DestinationChannelID);
+            const ChannelData = ((_id) => {
+                if (tempChannelCaches.has(_id)) {
+                    return tempChannelCaches.get(_id);
+                } else {
+                    const _ch = discordClient.getChannel(_id);
+                    if (_ch && _ch.id) {
+                        tempChannelCaches.set(_id, _ch);
+                        setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                    }
+                    return _ch
+                }
+            })(DestinationChannelID)
             if (ChannelData && ChannelData.name) {
                 if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
                     cb(true)
