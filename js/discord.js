@@ -4655,14 +4655,25 @@ This code is publicly released and is restricted by its project license
                 },
             ]
         }
+        if (!systemglobal.Discord_Upload_Only) {
+            embed.fields.push({
+                "name": "📚 Servers",
+                "value": `${discordClient.guilds.size}`.substring(0,1024),
+                "inline": true
+            })
+        }
         let discordMQ = {
-            "title": "Discord I/O Queue Status",
-            "color": 1502061,
+            "footer" : {
+                "title": "Discord I/O Queue Status"
+            },
+            "color": 1473771,
             "fields": []
         }
         let fileworkerMQ = {
-            "title": "FileWorker Queue Status",
-            "color": 1502061,
+            "footer": {
+                "title": "FileWorker Queue Status"
+            },
+            "color": 1473771,
             "fields": []
         }
         // Get MQ Statics
