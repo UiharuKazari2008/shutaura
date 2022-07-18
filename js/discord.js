@@ -966,18 +966,7 @@ This code is publicly released and is restricted by its project license
                     const channelTitle = MessageContents.messageText + ''
                     cb(true);
                     if (channelTitle !== '' && channelTitle !== 'undefined') {
-                        const channel = ((_id) => {
-                            if (tempChannelCaches.has(_id)) {
-                                return tempChannelCaches.get(_id);
-                            } else {
-                                const _ch = discordClient.getChannel(_id);
-                                if (_ch && _ch.id) {
-                                    tempChannelCaches.set(_id, _ch);
-                                    setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
-                                }
-                                return _ch
-                            }
-                        })(MessageContents.messageChannelID)
+                        const channel = discordClient.getChannel(MessageContents.messageChannelID)
                         if (channel && channel.name !== channelTitle) {
                             discordClient.editChannel(MessageContents.messageChannelID, {name: channelTitle}, "Status Update")
                                 .catch((err) => {
@@ -999,18 +988,7 @@ This code is publicly released and is restricted by its project license
                     }
                     if (channelTitle !== '' && channelTitle !== 'undefined' && !channels.error && channels.rows.length > 0 && (!MessageContents.messageData || (MessageContents.messageData && MessageContents.updateIndicators && MessageContents.updateIndicators === true))) {
                         channels.rows.forEach((ch) => {
-                            const channel = ((_id) => {
-                                if (tempChannelCaches.has(_id)) {
-                                    return tempChannelCaches.get(_id);
-                                } else {
-                                    const _ch = discordClient.getChannel(_id);
-                                    if (_ch && _ch.id) {
-                                        tempChannelCaches.set(_id, _ch);
-                                        setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
-                                    }
-                                    return _ch
-                                }
-                            })(ch.channel)
+                            const channel = discordClient.getChannel(ch.channel))
                             if (channel && channel.name !== channelTitle) {
                                 discordClient.editChannel(ch.channel, {name: channelTitle}, "Status Update")
                                     .catch((err) => {
@@ -1041,6 +1019,7 @@ This code is publicly released and is restricted by its project license
                         const _ch = discordClient.getChannel(_id);
                         if (_ch && _ch.id) {
                             tempChannelCaches.set(_id, _ch);
+                            console.log("Channel Data Cached for " + _ch.id);
                             setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                         }
                         return _ch
@@ -1902,6 +1881,7 @@ This code is publicly released and is restricted by its project license
                         const _ch = discordClient.getChannel(_id);
                         if (_ch && _ch.id) {
                             tempChannelCaches.set(_id, _ch);
+                            console.log("Channel Data Cached for " + _ch.id);
                             setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                         }
                         return _ch
@@ -1927,6 +1907,7 @@ This code is publicly released and is restricted by its project license
                 } else {
                     const _ch = discordClient.getChannel(_id);
                     if (_ch && _ch.id) {
+                        console.log("Channel Data Cached for " + _ch.id);
                         tempChannelCaches.set(_id, _ch);
                         setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                     }
@@ -1940,15 +1921,27 @@ This code is publicly released and is restricted by its project license
                     if (systemglobal.Discord_Recycling_Bin) {
                         await sendToBin(`Not Writable`);
                     } else {
-                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
-                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Retrying in the backlog!`, "err", 'main', "SendData");
+                        let retryCount = MessageContents.retryCount
+                        retryCount++
+                        if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                            mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(ok));
+                        } else {
+                            mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(ok));
+                        }
                     }
                 }
             } else if (systemglobal.Discord_Recycling_Bin) {
                 await sendToBin("Not Readable");
             } else {
-                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable), Message will be dropped!`, "err", 'main', "SendData");
-                mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0, 128)} (Not Readable), Retrying in the backlog!`, "err", 'main', "SendData");
+                let retryCount = MessageContents.retryCount
+                retryCount++
+                if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(ok));
+                } else {
+                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(ok));
+                }
             }
         }
     }
