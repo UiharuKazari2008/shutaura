@@ -4874,7 +4874,7 @@ This code is publicly released and is restricted by its project license
                 "value": `${discordClient.guilds.size}`.substring(0,1024),
                 "inline": true
             })
-        } else if (discordMQMessages > 0) {
+        } else {
             embed.fields.push({
                 "name": "📤 Outbox Queue",
                 "value": `${discordMQMessages}`.substring(0,1024),
