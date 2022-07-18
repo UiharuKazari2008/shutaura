@@ -8504,6 +8504,7 @@ This code is publicly released and is restricted by its project license
                 resetInitStates();
                 setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
                 setTimeout(start, 5000);
+                init = 1
                 Logger.printLine("Discord", "Discord Client is running is upload only mode and will not accept any remote chnages!", "warning")
             }
         }
