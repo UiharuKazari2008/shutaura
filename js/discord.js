@@ -988,7 +988,7 @@ This code is publicly released and is restricted by its project license
                     }
                     if (channelTitle !== '' && channelTitle !== 'undefined' && !channels.error && channels.rows.length > 0 && (!MessageContents.messageData || (MessageContents.messageData && MessageContents.updateIndicators && MessageContents.updateIndicators === true))) {
                         channels.rows.forEach((ch) => {
-                            const channel = discordClient.getChannel(ch.channel))
+                            const channel = discordClient.getChannel(ch.channel)
                             if (channel && channel.name !== channelTitle) {
                                 discordClient.editChannel(ch.channel, {name: channelTitle}, "Status Update")
                                     .catch((err) => {
