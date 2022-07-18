@@ -4895,7 +4895,7 @@ This code is publicly released and is restricted by its project license
             })
         } else {
             embed.fields.push({
-                "name": "📤 Outbox Queue",
+                "name": "📤 Outbox",
                 "value": `${discordMQMessages}`.substring(0,1024),
                 "inline": true
             })
@@ -5341,7 +5341,7 @@ This code is publicly released and is restricted by its project license
                     }
 
                     return {
-                        "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🔌' : ''}`,
+                        "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🔌' : ''}`,
                         "value": `${_sL.join('\n')}`.substring(0, 1024),
                         "inline": true
                     };
@@ -5426,7 +5426,7 @@ This code is publicly released and is restricted by its project license
                     }
 
                     return {
-                        "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account`,
+                        "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} (FCQ)`,
                         "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0, 1024),
                         "inline": true
                     };
