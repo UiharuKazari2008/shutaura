@@ -4697,6 +4697,20 @@ This code is publicly released and is restricted by its project license
 
         // Get MQ Statics
         let discordMQMessages = 0;
+        let discordMQ = {
+            "footer" : {
+                "title": "Discord I/O Queue Status"
+            },
+            "color": 1473771,
+            "fields": []
+        }
+        let fileworkerMQ = {
+            "footer": {
+                "title": "FileWorker Queue Status"
+            },
+            "color": 1473771,
+            "fields": []
+        }
         try {
             const promisifiedRequest = function(options) {
                 return new Promise((resolve,reject) => {
@@ -4870,20 +4884,6 @@ This code is publicly released and is restricted by its project license
         if (discordClient.unavailableGuilds.size > 0) {
             systemFault = true;
             bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
-        }
-        let discordMQ = {
-            "footer" : {
-                "title": "Discord I/O Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
-        }
-        let fileworkerMQ = {
-            "footer": {
-                "title": "FileWorker Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
         }
         let _ud = [];
         // Get Insight Footer Image
