@@ -456,12 +456,28 @@ This code is publicly released and is restricted by its project license
             const _discord_insights = systemparams_sql.filter(e => e.param_key === 'discord.insights');
             if (_discord_insights.length > 0) {
                 systemglobal.Discord_Insights_Custom_Image_URL = {};
+                systemglobal.Discord_Insights_Custom_Icon_URL = {};
+                systemglobal.Discord_Insights_Use_Server_Icon = {};
                 await Promise.all(_discord_insights.filter(e => e.param_data !== null).map(e => {
                     if (e.param_data.custom_image_url !== undefined) {
                         if (e.serverid) {
                             systemglobal.Discord_Insights_Custom_Image_URL[e.serverid] = e.param_data.custom_image_url
                         } else {
                             systemglobal.Discord_Insights_Custom_Image_URL.default = e.param_data.custom_image_url
+                        }
+                    }
+                    if (e.param_data.custom_icon_url !== undefined) {
+                        if (e.serverid) {
+                            systemglobal.Discord_Insights_Custom_Icon_URL[e.serverid] = e.param_data.custom_icon_url
+                        } else {
+                            systemglobal.Discord_Insights_Custom_Icon_URL.default = e.param_data.custom_icon_url
+                        }
+                    }
+                    if (e.param_data.use_server_icon !== undefined) {
+                        if (e.serverid) {
+                            systemglobal.Discord_Insights_Use_Server_Icon[e.serverid] = (e.param_data.use_server_icon)
+                        } else {
+                            systemglobal.Discord_Insights_Use_Server_Icon.default = (e.param_data.use_server_icon)
                         }
                     }
                 }))
@@ -4683,6 +4699,9 @@ This code is publicly released and is restricted by its project license
             },
             "timestamp": (new Date().toISOString()) + "",
             "color": 65366,
+            "thumbnail" : {
+                "url": null
+            },
             "image" : {
                 "url": null
             },
@@ -4899,6 +4918,30 @@ This code is publicly released and is restricted by its project license
         }
         else {
             embed.image = undefined;
+        }
+        // Get Insight Icon Image
+        if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon[guildID] === true) {
+            embed.thumbnail = {
+                "url": discordClient.guilds.get(guildID).iconURL
+            }
+        }
+        else if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon.default === true) {
+            embed.thumbnail = {
+                "url": discordClient.guilds.get(guildID).iconURL
+            }
+        }
+        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL[guildID] !== undefined) {
+            embed.thumbnail = {
+                "url": systemglobal.Discord_Insights_Custom_Icon_URL[guildID]
+            }
+        }
+        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL.default !== undefined) {
+            embed.thumbnail = {
+                "url": systemglobal.Discord_Insights_Custom_Icon_URL.default
+            }
+        }
+        else {
+            embed.thumbnail = undefined;
         }
         // Undelivered Messages Counts
         if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && !systemglobal.Discord_Upload_Only) {
