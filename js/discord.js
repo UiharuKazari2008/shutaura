@@ -3024,6 +3024,45 @@ This code is publicly released and is restricted by its project license
                                                 return "⁉ Unknown Command"
                                         }
                                         break;
+                                    case 'show':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                try {
+                                                    const list = await db.query(`SELECT *
+                                                                                 FROM kongou_shows`);
+                                                    await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `show.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
+                                            case 'update':
+                                                if (args.length > 4) {
+                                                    const classID = args[3].trim();
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'nsfw':
+                                                            object.nsfw = (args[4].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                        const results = await db.query(`UPDATE kongou_shows
+                                                                                        SET ?
+                                                                                        WHERE show_id = ?`, [object, classID])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
                                     case 'show_map':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
@@ -4655,27 +4694,7 @@ This code is publicly released and is restricted by its project license
                 },
             ]
         }
-        if (!systemglobal.Discord_Upload_Only) {
-            embed.fields.push({
-                "name": "📚 Servers",
-                "value": `${discordClient.guilds.size}`.substring(0,1024),
-                "inline": true
-            })
-        }
-        let discordMQ = {
-            "footer" : {
-                "title": "Discord I/O Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
-        }
-        let fileworkerMQ = {
-            "footer": {
-                "title": "FileWorker Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
-        }
+
         // Get MQ Statics
         let discordMQMessages = 0;
         try {
@@ -4835,6 +4854,37 @@ This code is publicly released and is restricted by its project license
         } catch (e) {
             console.error(e);
         }
+        if (!systemglobal.Discord_Upload_Only) {
+            embed.fields.push({
+                "name": "🏘 Servers",
+                "value": `${discordClient.guilds.size}`.substring(0,1024),
+                "inline": true
+            })
+        } else if (discordMQMessages > 0) {
+            embed.fields.push({
+                "name": "📤 Outbox Queue",
+                "value": `${discordMQMessages}`.substring(0,1024),
+                "inline": true
+            })
+        }
+        if (discordClient.unavailableGuilds.size > 0) {
+            systemFault = true;
+            bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
+        }
+        let discordMQ = {
+            "footer" : {
+                "title": "Discord I/O Queue Status"
+            },
+            "color": 1473771,
+            "fields": []
+        }
+        let fileworkerMQ = {
+            "footer": {
+                "title": "FileWorker Queue Status"
+            },
+            "color": 1473771,
+            "fields": []
+        }
         let _ud = [];
         // Get Insight Footer Image
         if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL[guildID] !== undefined) {
@@ -4874,13 +4924,89 @@ This code is publicly released and is restricted by its project license
         let _bc = null;
 
 
-        let totalCounts = [];
-        let backupValues = [];
         if (!systemglobal.Discord_Upload_Only) {
             // File Count and Usage
-            totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count
+            const imageWhereQuery = `(${[
+                "attachment_name LIKE '%.jp%_'",
+                "attachment_name LIKE '%.jfif'",
+                "attachment_name LIKE '%.png'",
+                "attachment_name LIKE '%.gif'",
+                "attachment_name LIKE '%.web%_'",
+            ].join(' OR ')})`
+            const musicWhereQuery = `(${[
+                '(' + [
+                    '(' + [
+                        "real_filename LIKE '%.mp3'",
+                        "real_filename LIKE '%.m4a'",
+                        "real_filename LIKE '%.wav'",
+                        "real_filename LIKE '%.flac'",
+                        "real_filename LIKE '%.ogg'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+                '(' + [
+                    '(' + [
+                        "attachment_name LIKE '%.mp3'",
+                        "attachment_name LIKE '%.m4a'",
+                        "attachment_name LIKE '%.wav'",
+                        "attachment_name LIKE '%.flac'",
+                        "attachment_name LIKE '%.ogg'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+            ].join(' OR ')})`
+            const videoWhereQuery = `(${[
+                '(' + [
+                    '(' + [
+                        "real_filename LIKE '%.mp4'",
+                        "real_filename LIKE '%.mov'",
+                        "real_filename LIKE '%.m4v'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+                '(' + [
+                    '(' + [
+                        "attachment_name LIKE '%.mp4'",
+                        "attachment_name LIKE '%.mov'",
+                        "attachment_name LIKE '%.m4v'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+            ].join(' OR ')})`
+
+            const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${imageWhereQuery}`);
+            const musicCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${musicWhereQuery}`);
+            const videoCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${videoWhereQuery}`);
+            const totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(eid) AS total_count
                                           FROM kanmi_records
                                           WHERE (attachment_hash IS NOT NULL OR fileid IS NOT NULL)`);
+            if (!imageCount.error && imageCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "🖼 Images",
+                    "value": `${imageCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
+            if (!videoCount.error && videoCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "🎞 Videos",
+                    "value": `${videoCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
+            if (!musicCount.error && musicCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "💿 Audio",
+                    "value": `${musicCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
             if (!totalCounts.error && totalCounts.rows.length > 0) {
                 // File Count
                 embed.fields.push({
@@ -4989,7 +5115,7 @@ This code is publicly released and is restricted by its project license
                 }
                 return _bcP
             }
-            backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
+            const backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
                 .map((e,i,a) => {
                     const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
                     if (_bcF.length > 0) {
@@ -5056,7 +5182,7 @@ This code is publicly released and is restricted by its project license
                 }).filter(e => !(!e))
             if (backupValues.length > 0) {
                 embed.fields.push({
-                    "name": "🗄 Sync",
+                    "name": "🗃 Backup",
                     "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0,1024),
                     "inline": true
                 })
@@ -5087,7 +5213,7 @@ This code is publicly released and is restricted by its project license
                     _bt = '✅ Complete'
                 }
                 embed.fields.push({
-                    "name": "🗄 Sync",
+                    "name": "🗃 Backup",
                     "value": _bt.substring(0,1024),
                     "inline": true
                 })
@@ -5125,11 +5251,13 @@ This code is publicly released and is restricted by its project license
             _ioT.push(`💤 No Active Jobs`)
         }
         if (discordMQMessages > 0) {
-            _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-            if (discordMQMessages > 150) {
+            if (!systemglobal.Discord_Upload_Only) {
+                _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
+            }
+            if ((systemglobal.Discord_Upload_Only && discordMQMessages > 300) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 150)) {
                 systemFault = true;
                 bannerFault.unshift('📬 Message Queue is actively backlogged!')
-            } else if (discordMQMessages > 50) {
+            } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 100) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 50)) {
                 systemWarning = true;
                 bannerWarnings.unshift('📬 Message Queue is getting congested')
             }
@@ -5170,7 +5298,7 @@ This code is publicly released and is restricted by its project license
                     }
 
                     return {
-                        "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🕗' : ''}`,
+                        "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🔌' : ''}`,
                         "value": `${_sL.join('\n')}`.substring(0, 1024),
                         "inline": true
                     };
@@ -5181,14 +5309,14 @@ This code is publicly released and is restricted by its project license
             watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
                 .map(statusRecord => {
                     const _si = statusRecord.data;
-                    bannerWarnings.push(..._si.wdWarnings.map(e => '👁 ' + e));
-                    bannerFault.push(..._si.wdFaults.map(e => '👁 ' + e));
+                    bannerWarnings.push(..._si.wdWarnings.map(e => '🚦 ' + e));
+                    bannerFault.push(..._si.wdFaults.map(e => '🚦 ' + e));
 
                     return `${_si.header}${_si.name}: ${_si.statusIcons}`;
                 })
             if (watchdogValues.length > 0) {
                 embed.fields.push({
-                    "name": `👁 Service Watchdog`,
+                    "name": `🚥 Service Watchdog`,
                     "value": `${watchdogValues.join('\n')}`.substring(0, 1024)
                 })
             }
