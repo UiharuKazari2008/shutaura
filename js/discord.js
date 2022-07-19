@@ -4794,7 +4794,9 @@ This code is publicly released and is restricted by its project license
                 if (e.messages > 0) {
                     _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
                 }
-                if (e.message_bytes >= 1000000) {
+                if (e.message_bytes >= 1000000000) {
+                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                } else if (e.message_bytes >= 1000000) {
                     _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
                 } else if (e.message_bytes >= 1000) {
                     _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
@@ -4849,7 +4851,9 @@ This code is publicly released and is restricted by its project license
                 if (e.messages > 0) {
                     _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
                 }
-                if (e.message_bytes >= 1000000) {
+                if (e.message_bytes >= 1000000000) {
+                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                } else if (e.message_bytes >= 1000000) {
                     _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
                 } else if (e.message_bytes >= 1000) {
                     _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
@@ -5293,12 +5297,12 @@ This code is publicly released and is restricted by its project license
             if (!systemglobal.Discord_Upload_Only) {
                 _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
             }
-            if ((systemglobal.Discord_Upload_Only && discordMQMessages > 300) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 150)) {
+            if ((systemglobal.Discord_Upload_Only && discordMQMessages > 1000) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 250)) {
                 systemFault = true;
-                bannerFault.unshift('📬 Message Queue is actively backlogged!')
-            } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 100) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 50)) {
+                bannerFault.unshift('📨 Message Queue is actively backlogged!')
+            } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 500) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 100)) {
                 systemWarning = true;
-                bannerWarnings.unshift('📬 Message Queue is getting congested')
+                bannerWarnings.unshift('📨 Message Queue is getting congested')
             }
         }
         embed.fields.push({
@@ -5324,32 +5328,36 @@ This code is publicly released and is restricted by its project license
             diskValues = statusData.filter(e => e.name.endsWith('_disk'))
                 .map(statusRecord => {
                     const _si = statusRecord.data;
-                    let _sL = [];
+                    let _sL = [
+                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
+                    ];
                     if (_si.diskFault) {
-                        bannerFault.push(`📀 Disk "${_si.diskMount}" free space is low!`);
+                        bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
                     }
                     if (_si.preferUsed) {
-                        _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskUsed)} (${_si.diskPercent}%)`)
-                        _sL.push(`${convertMBtoText(_si.diskFree, true)} / ${convertMBtoText(_si.diskTotal)}`)
+                        _sL.push(`${_si.diskPercent}% Free (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
                     } else {
-                        _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskFree)} (${_si.diskPercent}%)`)
-                        _sL.push(`${convertMBtoText(_si.diskUsed, true)} / ${convertMBtoText(_si.diskTotal)}`)
+                        _sL.push(`${_si.diskPercent}% Free (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
                     }
+                    // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
 
-                    return {
-                        "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🔌' : ''}`,
-                        "value": `${_sL.join('\n')}`.substring(0, 1024),
-                        "inline": true
-                    };
-                })
+                    if (_si.diskShow || _si.diskFault) {
+                        return `${_sL.join(' - ')}`.substring(0, 1024)
+                    } else {
+                        return false
+                    }
+                }).filter(e => !!e)
             if (diskValues.length > 0) {
-                embed.fields.push(...diskValues)
+                embed.fields.push({
+                    "name": "💽 Local Storage",
+                    "value": `${diskValues.join('\n')}`.substring(0, 1024)
+                })
             }
             watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
                 .map(statusRecord => {
                     const _si = statusRecord.data;
-                    bannerWarnings.push(..._si.wdWarnings.map(e => '🚦 ' + e));
-                    bannerFault.push(..._si.wdFaults.map(e => '🚦 ' + e));
+                    bannerWarnings.push(..._si.wdWarnings.map(e => '️♻️ ' + e));
+                    bannerFault.push(..._si.wdFaults.map(e => '🔌 ' + e));
 
                     return `${_si.header}${_si.name}: ${_si.statusIcons}`;
                 })
