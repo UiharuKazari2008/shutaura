@@ -2130,17 +2130,20 @@ This code is publicly released and is restricted by its project license
         } catch (er) {
             let retryCount = MessageContents.retryCount
             retryCount++
-            if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
-                mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (sentOk) => {
-                    SendMessage(`Failed to send message to discord - ${er.message}\nRetry to send by moving it from the failed MQ to a standard MQ`, "err", "main", "Send", er.message)
-                    success = (!!sentOk)
-                });
-            } else {
-                mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (sentOk) => {
-                    SendMessage(`Failed to send message to discord - ${er.message}\nRetring as a backlog task...`, "err", "main", "Send", er.message)
-                    success = (!!sentOk)
-                });
-            }
+            success = await new Promise((retrySent) => {
+                if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (sentOk) => {
+                        SendMessage(`Failed to send message to discord - ${er.message}\nRetry to send by moving it from the failed MQ to a standard MQ`, "err", "main", "Send", er.message)
+                        retrySent(!!sentOk);
+                    });
+                } else {
+                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (sentOk) => {
+                        SendMessage(`Failed to send message to discord - ${er.message}\nRetring as a backlog task...`, "warn", "main", "Send", er.message)
+                        retrySent(!!sentOk);
+                    });
+                }
+            })
+
         }
         Timers.set('taskSend', setTimeout(() => { activeTasks.delete('SEND_MESSAGE'); }))
         return (success)
