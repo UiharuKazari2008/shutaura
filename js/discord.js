@@ -5329,7 +5329,7 @@ This code is publicly released and is restricted by its project license
                 .map(statusRecord => {
                     const _si = statusRecord.data;
                     let _sL = [
-                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
+                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 1) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
                     ];
                     if (_si.diskFault) {
                         bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
@@ -5555,7 +5555,7 @@ This code is publicly released and is restricted by its project license
                         message: msg.id,
                     })
                     const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                    if (reactionNeeded.rows.length > 0) {
+                    if (reactionNeeded.rows.length > 0 && !systemglobal.Discord_Upload_Only) {
                         let emoji = reactionNeeded.rows[0].reaction_emoji
                         if (reactionNeeded.rows[0].reaction_custom !== null) {
                             emoji = reactionNeeded.rows[0].reaction_custom
