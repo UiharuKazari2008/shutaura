@@ -5329,15 +5329,15 @@ This code is publicly released and is restricted by its project license
                 .map(statusRecord => {
                     const _si = statusRecord.data;
                     let _sL = [
-                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 1) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
+                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 0) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
                     ];
                     if (_si.diskFault) {
                         bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
                     }
                     if (_si.preferUsed) {
-                        _sL.push(`${_si.diskPercent}% Free (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
+                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
                     } else {
-                        _sL.push(`${_si.diskPercent}% Free (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
+                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
                     }
                     // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
 
