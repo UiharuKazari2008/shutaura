@@ -5341,7 +5341,7 @@ This code is publicly released and is restricted by its project license
                     }
                     // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
 
-                    if (_si.diskShow || _si.diskFault) {
+                    if (_si.diskShow || _si.diskFault || (!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true))) {
                         return `${_sL.join(' - ')}`.substring(0, 1024)
                     } else {
                         return false
