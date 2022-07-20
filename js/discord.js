@@ -900,7 +900,7 @@ This code is publicly released and is restricted by its project license
             });
             conn.on("close", function() {
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                setTimeout(start, 5000);
+                return setTimeout(start, 5000);
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
@@ -918,12 +918,6 @@ This code is publicly released and is restricted by its project license
         return true;
     }
     async function whenConnected() {
-        if (!systemglobal.Discord_Upload_Only && init === 0) {
-            verifySpannedFiles(5);
-            cleanOldMessages();
-            setInterval(async () => { cleanOldMessages(); }, 3600000);
-            setInterval(async () => { verifySpannedFiles(25); }, 14400000);
-        }
         startEmergencyWorker();
         startWorker();
         startWorker2();
@@ -8588,6 +8582,10 @@ This code is publicly released and is restricted by its project license
                 });
                 cycleThreads(true);
                 init = 1
+                verifySpannedFiles(5);
+                cleanOldMessages();
+                setInterval(async () => { cleanOldMessages(); }, 3600000);
+                setInterval(async () => { verifySpannedFiles(25); }, 14400000);
                 setTimeout(start, 5000);
                 /*setInterval(() => {
                     const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
