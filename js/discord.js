@@ -6930,6 +6930,8 @@ This code is publicly released and is restricted by its project license
                                                 console.error(err)
                                                 resolve({
                                                     url: part.url,
+                                                    id: part.messageid,
+                                                    ch: part.channelid,
                                                     ok: false
                                                 })
                                             }
@@ -6965,10 +6967,16 @@ This code is publicly released and is restricted by its project license
                                 }
                                 return false
                             })
+                            deadFiles.map(e => {
+                                mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) Dead File: ${e.id}`, "error", "MPFDownload");
+                            })
                             mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nIt has automatically been resovled!`, "warn", "MPFDownload");
                             completed(false);
                         } else if (acceptedFiles.length < file.paritycount) {
                             mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                            deadFiles.map(e => {
+                                mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) Dead File: ${e.id}`, "error", "MPFDownload");
+                            })
                             completed(false);
                         } else if (acceptedFiles.length === file.paritycount) {
                             Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${acceptedFiles.length} = ${file.paritycount}`, "debug")
