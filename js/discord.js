@@ -6912,8 +6912,6 @@ This code is publicly released and is restricted by its project license
                                 let j = 0;
                                 let lastResult = {
                                     url: part.url,
-                                    id: part.messageid,
-                                    ch: part.channelid,
                                     ok: false
                                 }
                                 while (j < 3) {
@@ -6923,6 +6921,8 @@ This code is publicly released and is restricted by its project license
                                             if (!err || (size !== undefined && size > 5)) {
                                                 resolve({
                                                     url: part.url,
+                                                    id: part.messageid,
+                                                    ch: part.channelid,
                                                     ok: (size)
                                                 })
                                                 j = 100;
@@ -6950,7 +6950,7 @@ This code is publicly released and is restricted by its project license
                             const duplicates = acceptedFiles.map(async e => {
                                 if ((names.filter(f => e.url.split('/').pop() === f).length > 1) && removed.indexOf(e.url) === -1) {
                                     const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())]
-                                    removed.push(itemToRemove);
+                                    removed.push(itemToRemove.url);
                                     try {
                                         const okDis = await discordClient.deleteMessage(itemToRemove.ch, itemToRemove.id, "Duplicate Item");
                                         const okSql = await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove.url])
