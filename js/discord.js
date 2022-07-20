@@ -6905,6 +6905,8 @@ This code is publicly released and is restricted by its project license
                                 let j = 0;
                                 let lastResult = {
                                     url: part.url,
+                                    id: part.messageid,
+                                    ch: part.channelid,
                                     ok: false
                                 }
                                 while (j < 3) {
@@ -6940,13 +6942,22 @@ This code is publicly released and is restricted by its project license
                             let removed = []
                             const duplicates = acceptedFiles.map(async e => {
                                 if ((names.filter(f => e.url.split('/').pop() === f).length > 1) && removed.indexOf(e.url) === -1) {
-                                    const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())].url
+                                    const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())]
                                     removed.push(itemToRemove);
-                                    return await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove])
+                                    try {
+                                        const okDis = await discordClient.deleteMessage(itemToRemove.ch, itemToRemove.id, "Duplicate Item");
+                                        const okSql = await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove.url])
+                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid})is a duplicate and was deleted!`, "warn", "MPFDownload");
+                                        return (!!okDis && !! okSql)
+                                    } catch (e) {
+                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid}) Failed to delete!`, "error", "MPFDownload");
+                                        return false;
+                                    }
+
                                 }
                                 return false
                             })
-                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nYou may need to go to the database to rectify this issue if this appears again, it has automatically been resovled!`, "error", "MPFDownload");
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nIt has automatically been resovled!`, "warn", "MPFDownload");
                             completed(false);
                         } else if (acceptedFiles.length < file.paritycount) {
                             mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
