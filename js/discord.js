@@ -671,7 +671,7 @@ This code is publicly released and is restricted by its project license
     }
     await loadDatabaseCache();
 
-    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=120`;
+    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
     const MQWorker1 = systemglobal.Discord_Out + '.priority';
     const MQWorker2 = systemglobal.Discord_Out;
     const MQWorker3 = systemglobal.Discord_Out + '.backlog';
