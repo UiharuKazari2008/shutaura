@@ -7354,6 +7354,28 @@ This code is publicly released and is restricted by its project license
                                     return 81
                                 return 0;
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
+                            if (sqlObject.filename || sqlObject.real_filename) {
+                                const fileIcon = ((x,y) => {
+                                    const z = (x) ? x : y
+                                    const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
+                                    const ii = accepted_cache_types.indexOf(t) !== -1
+                                    if (ii)
+                                        return '🖼'
+                                    const iv = accepted_video_types.indexOf(t) !== -1
+                                    if (iv)
+                                        return '🎞'
+                                    const ia = accepted_audio_types.indexOf(t) !== -1
+                                    if (ia)
+                                        return '💿'
+                                    if (x)
+                                        return '📦'
+                                    return '📄'
+                                })(sqlObject.real_filename, sqlObject.filename)
+                                fileTicker.unshift({
+                                    name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.filename}${(sqlObject.filesize) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                    date: Date.now(),
+                                });
+                            }
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
@@ -7469,28 +7491,6 @@ This code is publicly released and is restricted by its project license
                                     } else {
                                         Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
-                                }
-                                if (sqlObject.filename || sqlObject.real_filename) {
-                                    const fileIcon = ((x,y) => {
-                                        const z = (x) ? x : y
-                                        const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
-                                        const ii = accepted_cache_types.indexOf(t) !== -1
-                                        if (ii)
-                                            return '🖼'
-                                        const iv = accepted_video_types.indexOf(t) !== -1
-                                        if (iv)
-                                            return '🎞'
-                                        const ia = accepted_audio_types.indexOf(t) !== -1
-                                        if (ia)
-                                            return '💿'
-                                        if (x)
-                                            return '📦'
-                                        return '📄'
-                                    })(sqlObject.real_filename, sqlObject.filename)
-                                    fileTicker.unshift({
-                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.filename}${(sqlObject.filesize) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
-                                        date: Date.now(),
-                                    });
                                 }
                             }
                         }
@@ -8629,6 +8629,7 @@ This code is publicly released and is restricted by its project license
     })
 
     process.on('SIGINT', function() {
+        Logger.printLine("Shutdown", 'Shutdown was requested at console!', "critical")
         shutdownSystem((ok) => {
             process.exit(0)
         })
