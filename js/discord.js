@@ -1944,9 +1944,9 @@ This code is publicly released and is restricted by its project license
                 let retryCount = MessageContents.retryCount
                 retryCount++
                 if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
-                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(ok));
+                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
                 } else {
-                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(ok));
+                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
                 }
             }
         }
