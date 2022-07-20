@@ -1904,11 +1904,11 @@ This code is publicly released and is restricted by its project license
                         cb(true)
                     } else {
                         SendMessage(`Failed to write to Recycling Bin - Message was dropped!`, "error", 'main', "SendData");
-                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                        cb(false);
                     }
                 } else {
                     SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable) & Recycling Bin is not Accessible!, Message Retrying!`, "err", 'main', "SendData");
-                    mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                    cb(false);
                 }
             }
 
@@ -1932,7 +1932,7 @@ This code is publicly released and is restricted by its project license
                     if (systemglobal.Discord_Recycling_Bin) {
                         await sendToBin(`Not Writable`);
                     } else {
-                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Retrying in the backlog!`, "err", 'main', "SendData");
+                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Retrying...`, "err", 'main', "SendData");
                         let retryCount = MessageContents.retryCount
                         retryCount++
                         if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
@@ -1945,14 +1945,8 @@ This code is publicly released and is restricted by its project license
             } else if (systemglobal.Discord_Recycling_Bin) {
                 await sendToBin("Not Readable");
             } else {
-                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0, 128)} (Not Readable), Retrying in the backlog!`, "err", 'main', "SendData");
-                let retryCount = MessageContents.retryCount
-                retryCount++
-                if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
-                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
-                } else {
-                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
-                }
+                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0, 128)} (Not Readable), Retrying...`, "err", 'main', "SendData");
+                cb(false);
             }
         }
     }
