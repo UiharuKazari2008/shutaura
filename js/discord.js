@@ -3058,16 +3058,16 @@ This code is publicly released and is restricted by its project license
                                                     let object = {};
                                                     switch (args[4].toLowerCase()) {
                                                         case 'nsfw':
-                                                            object.nsfw = (args[4].trim() === 'true') ? 1 : 0;
+                                                            object.nsfw = (args[5].trim() === 'true') ? 1 : 0;
                                                             break;
                                                         case 'subtitled':
-                                                            object.subtitled = (args[4].trim() === 'true') ? 1 : 0;
+                                                            object.subtitled = (args[5].trim() === 'true') ? 1 : 0;
                                                             break;
                                                         case 'poster':
-                                                            object.poster = args[4].trim();
+                                                            object.poster = args[5].trim();
                                                             break;
                                                         case 'background':
-                                                            object.background = args[4].trim();
+                                                            object.background = args[5].trim();
                                                             break;
                                                         default:
                                                             return "⁉ Unknown Sub Command"
