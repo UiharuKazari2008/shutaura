@@ -70,6 +70,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		ACodec: "aac",
 		ABitrate: "128K"
 	}
+	let WebFormats = [
+		'mp4', 'mov'
+	]
 
 	const { fileSize } = require('./utils/tools');
 	const Logger = require('./utils/logSystem')(facilityName);
@@ -154,6 +157,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					systemglobal.UseJSSplit = (_fileworker_config[0].param_data.classic_split);
 				if (_fileworker_config[0].param_data.keep_original_images)
 					systemglobal.FW_Always_Keep_Original_Images = (_fileworker_config[0].param_data.keep_original_images);
+				if (_fileworker_config[0].param_data.keep_original_videos)
+					systemglobal.FW_Always_Keep_Original_Videos = (_fileworker_config[0].param_data.keep_original_videos);
+				if (_fileworker_config[0].param_data.encode_videos)
+					systemglobal.FW_Encode_Videos = (_fileworker_config[0].param_data.encode_videos);
 			}
 			// { "watch_dir" : "./upload", "pickup_dir" : "./download" }
 		}
@@ -488,22 +495,51 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												clearInterval(attemptToLoadFile);
 											} else {
 												const dateOfFile = moment(stats.mtime).format('YYYY-MM-DD HH:mm:ss');
+												let fileName = path.basename(filePath)
+												let extraSettings = {};
+												if (fileName.startsWith('ENCODE')) {
+													if (systemglobal.FW_Encode_Videos) {
+														extraSettings.EncoderEnable = true;
+														let encoderPreferences = fileName.split('ENCODE').pop().split('-')[0];
+														if (encoderPreferences.startsWith('(') && encoderPreferences.endsWith(')')) {
+															encoderPreferences = encoderPreferences.substring(1, encoderPreferences.length -1);
+															if (encoderPreferences.includes(':')) {
+																const selections = encoderPreferences.split(':')
+																if (selections.length === 3) {
+																	extraSettings.EncoderVideoSelection = encoderPreferences.split(':')[0];
+																	extraSettings.EncoderAudioSelection = encoderPreferences.split(':')[1];
+																	extraSettings.EncoderSubtitlesSelection = encoderPreferences.split(':')[2];
+																} else {
+																	extraSettings.EncoderAudioSelection = encoderPreferences.split(':')[0];
+																	extraSettings.EncoderSubtitlesSelection = encoderPreferences.split(':')[1];
+																}
+															} else if (!isNaN(parseInt(encoderPreferences))) {
+																extraSettings.EncoderAudioSelection = parseInt(encoderPreferences);
+															}
+														}
+													} else {
+														Logger.printLine("LocalFile", `Can't encode video because this FileWorker does not allow it - ${filePath}`, "warn")
+													}
+													fileName = fileName.split('-').splice(1).join('-')
+												}
 												mqClient.sendData(MQWorker2, {
 													Type: "Local",
-													FileName: path.basename(filePath),
+													FileName: fileName,
 													FilePath: path.join(systemglobal.TempFolder, fileNameID),
 													OriginPath: filePath,
 													OriginGroup: groupID,
 													DateTime: dateOfFile,
+													...extraSettings
 												}, function (callback) {
 													if (callback) {
 														Logger.printLine("LocalFile", `Onboard ${fileNameID} - ${dateOfFile}`, "debug", {
 															Type: "Local",
-															FileName: path.basename(filePath),
+															FileName: fileName,
 															FilePath: path.join(systemglobal.TempFolder, fileNameID),
 															OriginPath: filePath,
 															OriginGroup: groupID,
 															DateTime: dateOfFile,
+															...extraSettings
 														})
 														clearInterval(attemptToLoadFile);
 													}
@@ -533,7 +569,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						ignoreInitial: false
 					});
 					datawatcher1.on('add', function (filePath) {
-						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-'))) {
+						if (!(filePath.startsWith('HOLD-') || filePath.startsWith('LOCKED-') || filePath.startsWith('TEMP-') || filePath.startsWith('PREVIEW-') || filePath.startsWith('FILEATT-'))) {
 							onboardFileAdd(slash(filePath), "1")
 						}
 					})
@@ -769,6 +805,77 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				});
 			}
+		})
+	}
+	// Encode Video File With Settings
+	async function encodeFullVideo(filename, options) {
+		return await new Promise(function (fulfill) {
+			const outputfile = path.join(systemglobal.TempFolder, `TRANSCODED-${crypto.randomBytes(8).toString("hex")}`);
+			let scriptOutput = "";
+			const spawn = require('child_process').spawn;
+			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4']
+			if (options) {
+				if (options.selectVideo) {
+					ffmpegParam.push('-map', `0:v:${options.selectVideo}`)
+				}
+				if (options.encodeVideo) {
+					ffmpegParam.push('-vcodec', EncoderConf.VCodec, '-crf', '24')
+				} else {
+					ffmpegParam.push('-vcodec', 'copy');
+				}
+				if (options.selectAudio) {
+					ffmpegParam.push('-map', `0:a:${options.selectAudio}`)
+				}
+				if (options.encodeAudio) {
+					ffmpegParam.push('-acodec', EncoderConf.ACodec, '-b:a', '160K')
+				} else {
+					ffmpegParam.push('-acodec', 'copy');
+				}
+				if (options.selectSubtitle) {
+
+				}
+			}
+
+
+			ffmpegParam.push(outputfile)
+			console.log("[FFMPEG] Starting to encode video...")
+			const child = spawn(EncoderConf.Exec, ffmpegParam);
+			// You can also use a variable to save the output
+			// for when the script closes later
+			child.stdout.setEncoding('utf8');
+			child.stdout.on('data', function (data) {
+				//Here is where the output goes
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.stderr.setEncoding('utf8');
+			child.stderr.on('data', function (data) {
+				//Here is where the error output goes
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.on('close', function (code) {
+				if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+					try {
+						const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
+					} catch (err) {
+						fulfill(null);
+						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+					}
+				} else {
+					mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+					deleteFile(outputfile, function (ready) {
+						// Do Nothing
+					})
+					fulfill(null)
+				}
+			});
 		})
 	}
 
@@ -1588,6 +1695,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (object.messageRefrance) {
 				parameters.messageRefrance = object.messageRefrance;
 			}
+			if (object.EncoderEnable || (systemglobal.FW_Encode_Videos && WebFormats.indexOf(object.FileName.toString().split(".").pop().toLowerCase()) === -1)) {
+				parameters.EncoderEnable = true;
+				parameters.EncoderVideoSelection = object.EncoderVideoSelection;
+				parameters.EncoderAudioSelection = object.EncoderAudioSelection;
+				parameters.EncoderSubtitlesSelection = object.EncoderSubtitlesSelection;
+			}
 
 			// Resize Image Files
 			function resizeImageFile(filename, callback) {
@@ -2010,11 +2123,98 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})
 						sendMultiPartFile(cb)
 					}
-				} else if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1 && fileSize(object.FilePath.toString()) < 50 && (object.Type === 'Local' && object.OriginPath.includes("VRChat"))) {
+				} else if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1 && object.EncoderEnable && systemglobal.FW_Encode_Videos) {
 					Logger.printLine("ParseFile", `${object.FileName.toString()} : Encode Video`, "debug", {
 						fileSize: fileSize(object.FilePath.toString())
 					})
-					const fulfill = await encodeVideo(object.FilePath.toString(), false)
+
+					let encoderOptions = {
+						selectVideo: 0,
+						encodeVideo: false,
+						selectAudio: 0,
+						encodeAudio: false,
+						selectSubtitle: false
+					};
+					const videoTracks = await (async (filename) => {
+						const exec = require('child_process').exec;
+						let ffmpegParam = `ffprobe -v error -select_streams v: -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${filename}" 2>&1`
+						const response = await new Promise((resolve) => {
+							exec(ffmpegParam, (err, stdout, stderr) => {
+								if (err) {
+									console.error(err);
+									resolve(false);
+								}
+								resolve(stdout.split("\n"));
+							})
+						})
+						if (response) {
+							return response
+						} else {
+							return []
+						}
+					})(object.FilePath.toString());
+					const audioTracks = await (async (filename) => {
+						const exec = require('child_process').exec;
+						let ffmpegParam = `ffprobe -v error -select_streams a: -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${filename}" 2>&1`
+						const response = await new Promise((resolve) => {
+							exec(ffmpegParam, (err, stdout, stderr) => {
+								if (err) {
+									console.error(err);
+									resolve(false);
+								}
+								resolve(stdout.split("\n"));
+							})
+						})
+						if (response) {
+							return response
+						} else {
+							return []
+						}
+					})(object.FilePath.toString());
+					const subtitleTracks = await (async (filename) => {
+						const exec = require('child_process').exec;
+						let ffmpegParam = `ffprobe -v error -select_streams s: -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "${filename}" 2>&1`
+						const response = await new Promise((resolve) => {
+							exec(ffmpegParam, (err, stdout, stderr) => {
+								if (err) {
+									console.error(err);
+									resolve(false);
+								}
+								resolve(stdout.split("\n"));
+							})
+						})
+						if (response) {
+							return response
+						} else {
+							return []
+						}
+					})(object.FilePath.toString());
+
+					if (object.EncoderAudioSelection) {
+						if (audioTracks[object.EncoderAudioSelection]) {
+							encoderOptions.selectAudio = object.EncoderAudioSelection;
+							if ([ 'aac', 'opus', 'mp3' ].indexOf(audioTracks[object.EncoderAudioSelection]) === -1) {
+								encoderOptions.encodeAudio = true;
+							}
+						}
+					}
+					if (object.EncoderVideoSelection) {
+						if (audioTracks[object.EncoderVideoSelection]) {
+							encoderOptions.selectVideo = object.EncoderVideoSelection;
+							if ([ 'h264', 'vp9', 'vp8' ].indexOf(videoTracks[object.EncoderVideoSelection]) === -1) {
+								encoderOptions.encodeVideo = true;
+							}
+						}
+					}
+					if (object.EncoderSubtitlesSelection) {
+						if (subtitleTracks[object.EncoderSubtitlesSelection]) {
+							encoderOptions.selectSubtitle = object.EncoderSubtitlesSelection;
+							encoderOptions.encodeVideo = true;
+						}
+					}
+
+
+					const fulfill = await encodeFullVideo(object.FilePath.toString(), encoderOptions)
 					if (fulfill) {
 						parameters.itemFileData = fulfill
 						mqClient.sendData(parameters.sendTo, parameters, function (callback) {
@@ -2219,7 +2419,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			console.error(err);
 			cb(true);
 		}
-
 	}
 	start()
 
