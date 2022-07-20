@@ -894,14 +894,13 @@ This code is publicly released and is restricted by its project license
             }
             conn.on("error", function(err) {
                 if (err.message !== "Connection closing") {
+                    console.error(err)
                     Logger.printLine("KanmiMQ", "Initialization Connection Error", "emergency", err)
                 }
             });
             conn.on("close", function() {
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                if (!gracefulShutdown) {
-                    setTimeout(start, 5000);
-                }
+                setTimeout(start, 5000);
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
