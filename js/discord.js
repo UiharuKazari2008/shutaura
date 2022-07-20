@@ -905,6 +905,10 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
             whenConnected();
+            discordClient.editStatus( "online", {
+                name: null,
+                type: 0
+            });
         });
     }
     function closeOnErr(err) {
