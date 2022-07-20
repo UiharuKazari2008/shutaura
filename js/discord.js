@@ -5316,6 +5316,13 @@ This code is publicly released and is restricted by its project license
             "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
+        fileTicker = fileTicker.filter(e => (Date.now() - e.date) <= 1800000).slice(5)
+        if (fileTicker.length > 0) {
+            embed.fields.push({
+                "name": "📂 Recent Uploads",
+                "value": `${fileTicker.map(e => e.name).join('\n')}`.substring(0, 1024)
+            })
+        }
         let diskValues = [];
         let watchdogValues = [];
         if (!systemglobal.Discord_Upload_Only) {
@@ -5441,13 +5448,6 @@ This code is publicly released and is restricted by its project license
                         "inline": true
                     };
                 }))
-        }
-        fileTicker = fileTicker.filter(e => (Date.now() - e.date) <= 1800000).slice(5)
-        if (fileTicker.length > 0) {
-            embed.fields.push({
-                "name": "📂 Recent Uploads",
-                "value": `${fileTicker.map(e => e.name).join('\n')}`.substring(0, 1024)
-            })
         }
         let embdedArray = [];
         if (discordMQ.fields.length > 0){
@@ -7488,7 +7488,7 @@ This code is publicly released and is restricted by its project license
                                     })(sqlObject.real_filename, sqlObject.filename)
                                     fileTicker.unshift({
                                         name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.filename}${(sqlObject.filesize) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
-                                        date: Date.now().valueOf(),
+                                        date: Date.now(),
                                     });
                                 }
                             }
