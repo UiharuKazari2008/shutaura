@@ -7469,7 +7469,7 @@ This code is publicly released and is restricted by its project license
                                         Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
                                 }
-                                if ((sqlObject.filename || sqlObject.real_filename) && fileTicker.filter(e => e.name === sqlObject.real_filename).length === 0) {
+                                if (sqlObject.filename || sqlObject.real_filename) {
                                     const fileIcon = ((x,y) => {
                                         const z = (x) ? x : y
                                         const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
