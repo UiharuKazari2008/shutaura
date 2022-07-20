@@ -5329,11 +5329,11 @@ This code is publicly released and is restricted by its project license
             "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
-        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000)).slice(0,5)
+        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000))
         if (fileTicker.length > 0) {
             embed.fields.push({
-                "name": "📂 Recent Uploads",
-                "value": `${fileTicker.map(e => e.name).join('\n')}`.substring(0, 1024)
+                "name": `📂 Recent Uploads (${fileTicker.length})`,
+                "value": `${fileTicker.slice(0,5).map(e => e.name).join('\n')}`.substring(0, 1024)
             })
         }
         let diskValues = [];
@@ -7366,28 +7366,6 @@ This code is publicly released and is restricted by its project license
                                     return 81
                                 return 0;
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
-                            if (sqlObject.attachment_name || sqlObject.real_filename) {
-                                const fileIcon = ((x,y) => {
-                                    const z = (x) ? x : y
-                                    const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
-                                    const ii = accepted_cache_types.indexOf(t) !== -1
-                                    if (ii)
-                                        return '🖼'
-                                    const iv = accepted_video_types.indexOf(t) !== -1
-                                    if (iv)
-                                        return '🎞'
-                                    const ia = accepted_audio_types.indexOf(t) !== -1
-                                    if (ia)
-                                        return '💿'
-                                    if (x)
-                                        return '📦'
-                                    return '📄'
-                                })(sqlObject.real_filename, sqlObject.attachment_name)
-                                fileTicker.unshift({
-                                    name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
-                                    date: Date.now(),
-                                });
-                            }
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
@@ -7503,6 +7481,28 @@ This code is publicly released and is restricted by its project license
                                     } else {
                                         Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
+                                }
+                                if (sqlObject.attachment_name || sqlObject.real_filename) {
+                                    const fileIcon = ((x,y) => {
+                                        const z = (x) ? x : y
+                                        const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
+                                        const ii = accepted_cache_types.indexOf(t) !== -1
+                                        if (ii)
+                                            return '🖼'
+                                        const iv = accepted_video_types.indexOf(t) !== -1
+                                        if (iv)
+                                            return '🎞'
+                                        const ia = accepted_audio_types.indexOf(t) !== -1
+                                        if (ia)
+                                            return '💿'
+                                        if (x)
+                                            return '📦'
+                                        return '📄'
+                                    })(sqlObject.real_filename, sqlObject.attachment_name)
+                                    fileTicker.unshift({
+                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                        date: Date.now(),
+                                    });
                                 }
                             }
                         }
