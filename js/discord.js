@@ -899,8 +899,9 @@ This code is publicly released and is restricted by its project license
             });
             conn.on("close", function() {
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                if (!gracefulShutdown)
+                if (!gracefulShutdown) {
                     setTimeout(start, 5000);
+                }
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
@@ -921,15 +922,21 @@ This code is publicly released and is restricted by its project license
         if (!systemglobal.Discord_Upload_Only) {
             verifySpannedFiles(5);
             cleanOldMessages();
-            setInterval(cleanOldMessages, 3600000);
-            setInterval(() => { verifySpannedFiles(25); }, 14400000);
+            if (init === 0) {
+                setInterval(cleanOldMessages, 3600000);
+                setInterval(() => {
+                    verifySpannedFiles(25);
+                }, 14400000);
+            }
         }
         startEmergencyWorker();
         startWorker();
         startWorker2();
         startWorker3();
-        if (process.send && typeof process.send === 'function') {
-            process.send('ready');
+        if (init === 0) {
+            if (process.send && typeof process.send === 'function') {
+                process.send('ready');
+            }
         }
     }
     function sendWatchdogPing() {
