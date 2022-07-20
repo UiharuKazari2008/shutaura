@@ -5316,7 +5316,7 @@ This code is publicly released and is restricted by its project license
             "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
-        fileTicker = fileTicker.filter(e => (Date.now() - e.date) <= 1800000).slice(5)
+        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000)).slice(5)
         if (fileTicker.length > 0) {
             embed.fields.push({
                 "name": "📂 Recent Uploads",
