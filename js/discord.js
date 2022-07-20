@@ -671,7 +671,7 @@ This code is publicly released and is restricted by its project license
     }
     await loadDatabaseCache();
 
-    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
+    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=120`;
     const MQWorker1 = systemglobal.Discord_Out + '.priority';
     const MQWorker2 = systemglobal.Discord_Out;
     const MQWorker3 = systemglobal.Discord_Out + '.backlog';
@@ -919,24 +919,18 @@ This code is publicly released and is restricted by its project license
         return true;
     }
     async function whenConnected() {
-        if (!systemglobal.Discord_Upload_Only) {
+        if (!systemglobal.Discord_Upload_Only && init === 0) {
             verifySpannedFiles(5);
             cleanOldMessages();
-            if (init === 0) {
-                setInterval(cleanOldMessages, 3600000);
-                setInterval(() => {
-                    verifySpannedFiles(25);
-                }, 14400000);
-            }
+            setInterval(async () => { cleanOldMessages(); }, 3600000);
+            setInterval(async () => { verifySpannedFiles(25); }, 14400000);
         }
         startEmergencyWorker();
         startWorker();
         startWorker2();
         startWorker3();
-        if (init === 0) {
-            if (process.send && typeof process.send === 'function') {
-                process.send('ready');
-            }
+        if (process.send && typeof process.send === 'function' && init === 0) {
+            process.send('ready');
         }
     }
     function sendWatchdogPing() {
