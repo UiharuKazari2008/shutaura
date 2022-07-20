@@ -2945,7 +2945,7 @@ This code is publicly released and is restricted by its project license
                                 break;
                             case 'library':
                                 switch (args[1].toLowerCase()) {
-                                    case 'media_group':
+                                    case 'group':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 try {
@@ -3042,7 +3042,7 @@ This code is publicly released and is restricted by its project license
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 try {
-                                                    const list = await db.query(`SELECT *
+                                                    const list = await db.query(`SELECT show_id, media_group, name, original_name, nsfw, subtitled, background, poster
                                                                                  FROM kongou_shows`);
                                                     await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
                                                         file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
@@ -3059,6 +3059,15 @@ This code is publicly released and is restricted by its project license
                                                     switch (args[4].toLowerCase()) {
                                                         case 'nsfw':
                                                             object.nsfw = (args[4].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        case 'subtitled':
+                                                            object.subtitled = (args[4].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        case 'poster':
+                                                            object.poster = args[4].trim();
+                                                            break;
+                                                        case 'background':
+                                                            object.background = args[4].trim();
                                                             break;
                                                         default:
                                                             return "⁉ Unknown Sub Command"
@@ -3077,7 +3086,7 @@ This code is publicly released and is restricted by its project license
                                                 return "⁉ Unknown Command"
                                         }
                                         break;
-                                    case 'show_map':
+                                    case 'map':
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 try {
@@ -5316,7 +5325,7 @@ This code is publicly released and is restricted by its project license
             "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
-        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 900000)).slice(0,5)
+        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000)).slice(0,5)
         if (fileTicker.length > 0) {
             embed.fields.push({
                 "name": "📂 Recent Uploads",
@@ -7353,7 +7362,7 @@ This code is publicly released and is restricted by its project license
                                     return 81
                                 return 0;
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
-                            if (sqlObject.filename || sqlObject.real_filename) {
+                            if (sqlObject.attachment_name || sqlObject.real_filename) {
                                 const fileIcon = ((x,y) => {
                                     const z = (x) ? x : y
                                     const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
@@ -7369,9 +7378,9 @@ This code is publicly released and is restricted by its project license
                                     if (x)
                                         return '📦'
                                     return '📄'
-                                })(sqlObject.real_filename, sqlObject.filename)
+                                })(sqlObject.real_filename, sqlObject.attachment_name)
                                 fileTicker.unshift({
-                                    name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.filename}${(sqlObject.filesize) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                    name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
                                     date: Date.now(),
                                 });
                             }
