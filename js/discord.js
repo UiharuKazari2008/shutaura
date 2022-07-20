@@ -6954,13 +6954,13 @@ This code is publicly released and is restricted by its project license
                                     const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())]
                                     removed.push(itemToRemove.url);
                                     try {
-                                        const okDis = await discordClient.deleteMessage(itemToRemove.ch, itemToRemove.id, "Duplicate Item");
                                         const okSql = await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove.url])
+                                        const okDis = await discordClient.deleteMessage(itemToRemove.ch, itemToRemove.id, "Duplicate Item");
                                         mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid})is a duplicate and was deleted!`, "warn", "MPFDownload");
                                         return (!!(okDis) && !! (okSql))
                                     } catch (e) {
                                         console.error(e);
-                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid}) Failed to delete!`, "error", "MPFDownload");
+                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid}) Failed to delete!`, "error", "MPFDownload", e);
                                         return false;
                                     }
 
