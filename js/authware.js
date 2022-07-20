@@ -724,6 +724,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
+        discordClient.editStatus( "dnd", {
+            name: 'System Failure',
+            type: 0
+        })
         setTimeout(function() {
             process.exit(1)
         }, 3000)

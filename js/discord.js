@@ -73,6 +73,7 @@ This code is publicly released and is restricted by its project license
     let discordautoreact = [];
     let musicFolders = [];
     let addClearButton = [];
+    let fileTicker = [];
     let staticChID = {};
     let discordServers = new Map();
     let discordChannels = new Map();
@@ -105,6 +106,7 @@ This code is publicly released and is restricted by its project license
 
     let accepted_cache_types = ['jpeg','jpg','jiff', 'png', 'webp', 'tiff'];
     let accepted_video_types = [ "mov","mp4","avi","ts","mkv" ];
+    let accepted_audio_types = [ "mp3","m4a","wav","flac","aac","wav"]
 
     const localParameters = storageHandler.create({
         dir: 'data/state',
@@ -935,6 +937,10 @@ This code is publicly released and is restricted by its project license
         setTimeout(() => {sendWatchdogPing()}, 60000)
     }
     function shutdownSystem(cb) {
+        discordClient.editStatus( "dnd", {
+            name: 'System Shutdown',
+            type: 0
+        })
         gracefulShutdown = true;
         syncStatusValues();
         function checkForShutdownCleance() {
@@ -2030,10 +2036,6 @@ This code is publicly released and is restricted by its project license
             return _typeText.join('');
         })()
 
-        discordClient.editStatus( "online", {
-            name: 'Sending Data...',
-            type: 0
-        });
         let success = false;
         try {
             const data = await discordClient.createMessage(ChannelID, contents, files);
@@ -4904,6 +4906,10 @@ This code is publicly released and is restricted by its project license
             systemFault = true;
             bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
         }
+        if (gracefulShutdown) {
+            systemFault = true;
+            bannerFault.unshift('🛑 System is shutting down!')
+        }
         let _ud = [];
         // Get Insight Footer Image
         if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL[guildID] !== undefined) {
@@ -5435,6 +5441,13 @@ This code is publicly released and is restricted by its project license
                         "inline": true
                     };
                 }))
+        }
+        fileTicker = fileTicker.filter(e => (Date.now() - e.date) <= 1800000).slice(5)
+        if (fileTicker.length > 0) {
+            embed.fields.push({
+                "name": "📂 Recent Uploads",
+                "value": `${fileTicker.map(e => e.name).join('\n')}`.substring(0, 1024)
+            })
         }
         let embdedArray = [];
         if (discordMQ.fields.length > 0){
@@ -7456,6 +7469,28 @@ This code is publicly released and is restricted by its project license
                                         Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
                                 }
+                                if ((sqlObject.filename || sqlObject.real_filename) && fileTicker.filter(e => e.name === sqlObject.real_filename).length === 0) {
+                                    const fileIcon = ((x,y) => {
+                                        const z = (x) ? x : y
+                                        const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
+                                        const ii = accepted_cache_types.indexOf(t) !== -1
+                                        if (ii)
+                                            return '🖼'
+                                        const iv = accepted_video_types.indexOf(t) !== -1
+                                        if (iv)
+                                            return '🎞'
+                                        const ia = accepted_audio_types.indexOf(t) !== -1
+                                        if (ia)
+                                            return '💿'
+                                        if (x)
+                                            return '📦'
+                                        return '📄'
+                                    })(sqlObject.real_filename, sqlObject.filename)
+                                    fileTicker.unshift({
+                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.filename}${(sqlObject.filesize) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                        date: Date.now().valueOf(),
+                                    });
+                                }
                             }
                         }
                         // Add Reactions for Channels that have Auto Emotes enabled
@@ -8529,7 +8564,7 @@ This code is publicly released and is restricted by its project license
                 cycleThreads(true);
                 init = 1
                 setTimeout(start, 5000);
-                setInterval(() => {
+                /*setInterval(() => {
                     const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
                     if (ap && ap.length === 0 && activeProccess === true) {
                         discordClient.editStatus( "idle",{
@@ -8543,7 +8578,7 @@ This code is publicly released and is restricted by its project license
                             type: 0
                         });
                     }
-                }, 30000);
+                }, 30000);*/
             } else {
                 Logger.printLine("Discord", "Registering Commands", "debug")
                 registerCommands();
@@ -8601,12 +8636,9 @@ This code is publicly released and is restricted by its project license
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
         setInterval(() => {
-            const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
-            if (activeProccessing && activeProccessing > 0) {
-                Logger.printLine("uncaughtException", `Reboot blocked, Processing ${activeProccessing} Actions`, "critical", err)
-            } else {
+            shutdownSystem((ok) => {
                 process.exit(1)
-            }
+            })
         }, 5000);
     });
 })();
