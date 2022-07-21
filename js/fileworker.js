@@ -150,6 +150,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					systemglobal.WatchFolder_1 = _fileworker_config[0].param_data.watch_dir;
 				if (_fileworker_config[0].param_data.pickup_dir)
 					systemglobal.PickupFolder = _fileworker_config[0].param_data.pickup_dir;
+				if (_fileworker_config[0].param_data.priority_channels)
+					systemglobal.FW_Priority_Channels = _fileworker_config[0].param_data.priority_channels;
 				if (_fileworker_config[0].param_data.classic_split)
 					systemglobal.UseJSSplit = (_fileworker_config[0].param_data.classic_split);
 				if (_fileworker_config[0].param_data.keep_original_images)
@@ -490,8 +492,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												const dateOfFile = moment(stats.mtime).format('YYYY-MM-DD HH:mm:ss');
 												mqClient.sendData(MQWorker2, {
 													Type: "Local",
-													FileName: path.basename(filePath),
+													FileName: path.basename(filePath).replace('PRIORITY-',''),
 													FilePath: path.join(systemglobal.TempFolder, fileNameID),
+													Priority: (path.basename(filePath).startsWith('PRIORITY-')),
 													OriginPath: filePath,
 													OriginGroup: groupID,
 													DateTime: dateOfFile,
@@ -1551,6 +1554,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parameters.messageText = ''
 				parameters.itemFileName = object.FileName.split("?")[0].toString()
 				parameters.clientPath = object.OriginPath.toString()
+				parameters.prioritySend = (!!object.Priority)
 				parameters.clientGroupID = object.OriginGroup.toString()
 				parameters.itemDateTime = object.DateTime.toString()
 				// Determine the Channel to send file to from its folder Path
@@ -1580,6 +1584,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			parameters.addButtons = ["Pin"]
 			if (parameters.messageChannelID === discordServers.get('homeGuild').chid_download) {
 				parameters.addButtons.push("RemoveFile")
+			}
+
+			if (parameters.prioritySend || (systemglobal.FW_Priority_Channels && systemglobal.FW_Priority_Channels.length > 0 && systemglobal.FW_Priority_Channels.indexOf(parameters.messageChannelID) !== -1)) {
+				parameters.sendTo = systemglobal.Discord_Out + '.priority';
 			}
 			parameters.addButtons.push("Archive", "MoveMessage")
 			if (object.UserID) {
