@@ -1894,12 +1894,24 @@ This code is publicly released and is restricted by its project license
                     if (await createMessage(MessageContents, systemglobal.Discord_Recycling_Bin, BinChannelData, level)) {
                         cb(true)
                     } else {
-                        SendMessage(`Failed to write to Recycling Bin - Message was dropped!`, "error", 'main', "SendData");
-                        cb(false);
+                        SendMessage(`Failed to write to Recycling Bin - Message will be retryed...`, "error", 'main', "SendData");
+                        let retryCount = MessageContents.retryCount
+                        retryCount++
+                        if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                            mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        } else {
+                            mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        }
                     }
                 } else {
                     SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable) & Recycling Bin is not Accessible!, Message Retrying!`, "err", 'main', "SendData");
-                    cb(false);
+                    let retryCount = MessageContents.retryCount
+                    retryCount++
+                    if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                        mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                    } else {
+                        mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                    }
                 }
             }
 
