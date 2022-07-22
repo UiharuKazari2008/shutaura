@@ -2973,6 +2973,9 @@ This code is publicly released and is restricted by its project license
                                                                     break;
                                                             }
                                                             break;
+                                                        case 'nsfw':
+                                                            object.adult = (args[5].trim() === 'true') ? 1 : 0;
+                                                            break;
                                                         case 'description':
                                                             object.description = args.splice(5).join(' ').trim();
                                                             break;
@@ -3032,7 +3035,7 @@ This code is publicly released and is restricted by its project license
                                         switch (args[2].toLowerCase()) {
                                             case 'list':
                                                 try {
-                                                    const list = await db.query(`SELECT show_id, media_group, name, original_name, nsfw, subtitled, background, poster
+                                                    const list = await db.query(`SELECT show_id, media_group, name, original_name, nsfw, subtitled, background, poster, search
                                                                                  FROM kongou_shows`);
                                                     await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
                                                         file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
@@ -3042,6 +3045,9 @@ This code is publicly released and is restricted by its project license
                                                     return `Error sending metadata - ${e.message}`
                                                 }
                                                 break;
+                                            case 'retry':
+                                                const results = await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [args.splice(4).join(' ').trim()])
+                                                return `Updated Database, Wait or restart IntelliDex to research the show.`
                                             case 'update':
                                                 if (args.length > 4) {
                                                     const classID = args[3].trim();
@@ -3101,6 +3107,7 @@ This code is publicly released and is restricted by its project license
                                                         await db.query(`INSERT INTO kongou_shows_maps
                                                                         SET show_id = ?,
                                                                             search  = ?`, [showID, showSearch])
+                                                        await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [showSearch])
                                                         return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
                                                     }
                                                 } else {
@@ -3112,6 +3119,7 @@ This code is publicly released and is restricted by its project license
                                                 await db.query(`DELETE
                                                                 FROM kongou_shows_maps
                                                                 WHERE search = ?`, [classID])
+                                                await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [classID])
                                                 return `Updated Database, Show map removed`
                                             default:
                                                 return "⁉ Unknown Command"
