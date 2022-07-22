@@ -122,6 +122,7 @@ module.exports = function (facility, sgoveride) {
             });
         });
     }
+    connect();
 
 
     module.sendMessage = function (message, channel, proccess, inbody) {
