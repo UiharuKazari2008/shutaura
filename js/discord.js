@@ -1894,7 +1894,7 @@ This code is publicly released and is restricted by its project license
                     if (await createMessage(MessageContents, systemglobal.Discord_Recycling_Bin, BinChannelData, level)) {
                         cb(true)
                     } else {
-                        SendMessage(`Failed to write to Recycling Bin - Message will be retryed...`, "error", 'main', "SendData");
+                        SendMessage(`Failed to write to Recycling Bin - Message will be retried...`, "error", 'main', "SendData");
                         let retryCount = MessageContents.retryCount
                         retryCount++
                         if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
