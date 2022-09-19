@@ -1922,46 +1922,122 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							cb(true);
 						});
 				} else {
-					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
+					expectedParityParts = (fileSize(object.FilePath.toString()) / 7.5)
 
+					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" in to ${expectedParityParts} parts as "${filepartsid}"...`, "info")
 					try {
-						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
-						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
+						if (expectedParityParts > 670) {
+							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
+							const FileName = path.basename(object.FilePath.toString())
+							const nativeSplit = spawn("split", ["-b", "5000000000", `${FileName}`, `MULTI_JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
-						nativeSplit.stderr.on("data", data => {
-							Logger.printLine("MPFGen-Native", `${data}`, "error")
-						});
+							nativeSplit.stderr.on("data", data => {
+								Logger.printLine("MPFGen-Native-MultiSplit", `${data}`, "info")
+							});
 
-						nativeSplit.on('error', (err) => {
-							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
-							cb(true);
-						});
-
-						nativeSplit.on("close", code => {
-							if (code === 0) {
-								fs.readdir(FileBase, function (err, files) {
-									//handling error
-									if (err) {
-										mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
-										cb(true);
-									} else if (files.length > 0) {
-										const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
-										if (nativeParts.length > 0) {
-											setTimeout(() => {
-												postSplit(nativeParts.map(e => path.join(FileBase, e)))
-											}, 2000);
-										} else {
-											mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
-											cb(true);
-										}
-									}
-								});
-							} else {
-								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+							nativeSplit.on('error', (err) => {
+								mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
 								cb(true);
-							}
-						});
+							});
+
+							nativeSplit.on("close", code => {
+								if (code === 0) {
+									fs.readdir(FileBase, async function (err, files) {
+										//handling error
+										if (err) {
+											mqClient.sendMessage(`Error occurred when getting the multi-split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+											cb(true);
+										} else if (files.length > 0) {
+											const nativeParts = files.filter(e => e.startsWith(`MULTI_JFS_${filepartsid}.PSF-`));
+											if (nativeParts.length > 0) {
+												let parityList = [];
+												await Promise.all(nativeParts.map(async msf => {
+													const nativeSplitParts = spawn("split", ["-b", "7500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
+
+													nativeSplitParts.stderr.on("data", data => {
+														Logger.printLine("MPFGen-Native", `${data}`, "info")
+													});
+
+													nativeSplitParts.on('error', (err) => {
+														mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+														cb(true);
+													});
+
+													nativeSplitParts.on("close", code => {
+														if (code === 0) {
+															fs.readdir(FileBase, function (err, files) {
+																//handling error
+																if (err) {
+																	mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+																	cb(true);
+																} else if (files.length > 0) {
+																	const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
+																	if (nativeParts.length > 0) {
+																		rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
+																		parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
+																	} else {
+																		mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+																		cb(true);
+																	}
+																}
+															});
+														} else {
+															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+															cb(true);
+														}
+													});
+												}))
+												postSplit(parityList)
+											} else {
+												mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+												cb(true);
+											}
+										}
+									});
+								} else {
+									mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+									cb(true);
+								}
+							});
+						} else {
+							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
+							const FileName = path.basename(object.FilePath.toString())
+							const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
+
+							nativeSplit.stderr.on("data", data => {
+								Logger.printLine("MPFGen-Native", `${data}`, "info")
+							});
+
+							nativeSplit.on('error', (err) => {
+								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+								cb(true);
+							});
+
+							nativeSplit.on("close", code => {
+								if (code === 0) {
+									fs.readdir(FileBase, function (err, files) {
+										//handling error
+										if (err) {
+											mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+											cb(true);
+										} else if (files.length > 0) {
+											const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
+											if (nativeParts.length > 0) {
+												setTimeout(() => {
+													postSplit(nativeParts.map(e => path.join(FileBase, e)))
+												}, 2000);
+											} else {
+												mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+												cb(true);
+											}
+										}
+									});
+								} else {
+									mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+									cb(true);
+								}
+							});
+						}
 					} catch (err) {
 						Logger.printLine("JobParser", "Error Parsing Local Job - " + err.message, "critical")
 						console.error(err);
