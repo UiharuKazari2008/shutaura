@@ -1970,7 +1970,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																		mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
 																		cb(true);
 																	} else if (files.length > 0) {
-																		const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
+																		const nativeParts = files.filter(e => e.startsWith(`${msf.replace('MULTI_JFS_', 'JFS_')}-`));
 																		if (nativeParts.length > 0) {
 																			rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
 																			parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
