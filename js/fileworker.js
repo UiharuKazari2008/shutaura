@@ -1959,6 +1959,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 														nativeSplitParts.on('error', (err) => {
 															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+															cb(true);
 															resolve(false);
 														});
 
@@ -1969,6 +1970,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	if (err) {
 																		mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
 																		cb(true);
+																		resolve(false);
 																	} else if (files.length > 0) {
 																		const nativeParts = files.filter(e => e.startsWith(`${msf.replace('MULTI_JFS_', 'JFS_')}-`));
 																		if (nativeParts.length > 0) {
@@ -1979,24 +1981,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																			}, 2000);
 																		} else {
 																			mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+																			cb(true);
 																			resolve(false);
 																		}
 																	}
 																});
 															} else {
 																mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+																cb(true);
 																resolve(false);
 															}
 														});
 													}));
 												}, Promise.resolve());
 												requests.then(function (results) {
-													if (results.filter(e => !e).length > 0) {
-														mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Some parts were not split correctly, Ticket will be dropped!`, "err", "MPFGen")
-														cb(true);
-													} else {
-														postSplit(parityList)
-													}
+													postSplit(parityList)
 												})
 											} else {
 												mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
