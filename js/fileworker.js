@@ -1974,7 +1974,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																		if (nativeParts.length > 0) {
 																			rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
 																			parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
-																			resolve(true);
+																			setTimeout(() => {
+																				resolve(true);
+																			}, 2000);
 																		} else {
 																			mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
 																			resolve(false);
