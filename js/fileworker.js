@@ -1951,43 +1951,51 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											const nativeParts = files.filter(e => e.startsWith(`MULTI_JFS_${filepartsid}.PSF-`));
 											if (nativeParts.length > 0) {
 												let parityList = [];
-												await Promise.all(nativeParts.map(async msf => {
-													const nativeSplitParts = spawn("split", ["-b", "7500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
+												let requests = nativeParts.reduce((promiseChain, msf) => {
+													return promiseChain.then(() => new Promise((resolve) => {
+														const nativeSplitParts = spawn("split", ["-b", "7500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
 
-													nativeSplitParts.stderr.on("data", data => {
-														Logger.printLine("MPFGen-Native", `${data}`, "info")
-													});
+														nativeSplitParts.stderr.on("data", data => { Logger.printLine("MPFGen-Native", `${data}`, "info") });
 
-													nativeSplitParts.on('error', (err) => {
-														mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
-														cb(true);
-													});
+														nativeSplitParts.on('error', (err) => {
+															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+															resolve(false);
+														});
 
-													nativeSplitParts.on("close", code => {
-														if (code === 0) {
-															fs.readdir(FileBase, function (err, files) {
-																//handling error
-																if (err) {
-																	mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
-																	cb(true);
-																} else if (files.length > 0) {
-																	const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
-																	if (nativeParts.length > 0) {
-																		rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
-																		parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
-																	} else {
-																		mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+														nativeSplitParts.on("close", code => {
+															if (code === 0) {
+																fs.readdir(FileBase, function (err, files) {
+																	//handling error
+																	if (err) {
+																		mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
 																		cb(true);
+																	} else if (files.length > 0) {
+																		const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
+																		if (nativeParts.length > 0) {
+																			rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
+																			parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
+																			resolve(true);
+																		} else {
+																			mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+																			resolve(false);
+																		}
 																	}
-																}
-															});
-														} else {
-															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
-															cb(true);
-														}
-													});
-												}))
-												postSplit(parityList)
+																});
+															} else {
+																mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+																resolve(false);
+															}
+														});
+													}));
+												}, Promise.resolve());
+												requests.then(function (results) {
+													if (results.filter(e => !e).length > 0) {
+														mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Some parts were not split correctly, Ticket will be dropped!`, "err", "MPFGen")
+														cb(true);
+													} else {
+														postSplit(parityList)
+													}
+												})
 											} else {
 												mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
 												cb(true);
