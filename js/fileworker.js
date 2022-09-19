@@ -1974,7 +1974,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	} else if (files.length > 0) {
 																		const nativeParts = files.filter(e => e.startsWith(`${msf.replace('MULTI_JFS_', 'JFS_')}-`));
 																		if (nativeParts.length > 0) {
-																			rimraf(msf, () => {console.log('Removed Temp Multi-Split File')})
+																			rimraf(path.join(path.resolve(path.dirname(object.FilePath.toString())), msf), () => {console.log('Removed Temp Multi-Split File')})
 																			parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
 																			setTimeout(() => {
 																				resolve(true);
