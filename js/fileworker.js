@@ -585,7 +585,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						try {
 							fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
 							Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
-						} catch (e) {
+						} catch (err) {
 							Logger.printLine('cleanCache', `Failed to create missing symlink for file ${e.substring(1)} => ${linkname}`, 'error');
 						}
 					}
