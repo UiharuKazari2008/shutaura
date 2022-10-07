@@ -1721,7 +1721,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 					if (b64AnimatedPreview) {
 						attachments.push({
-							fileName: '' + filepartsid + '-t9-preview-video.gif',
+							fileName: `${filepartsid}-t9-preview-video.gif`,
 							fileData: '' + b64AnimatedPreview
 						})
 					}
@@ -2167,7 +2167,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 									parameters.extendedAttachments = [
 										{
-											name: parameters.itemFileName.split('.')[0] + "-t9-preview-video" + (preview[1].type === 1) ? '.gif' : '.jpg',
+											name: `${parameters.itemFileName.split('.')[0]}-t9-preview-video.${(preview[1].type === 1) ? 'gif' : 'jpg'}`,
 											file: preview[1].data
 										}
 									]
@@ -2178,7 +2178,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										fileData: '' + fs.readFileSync(object.FilePath.toString(), {encoding: 'base64'}).toString()
 									},
 									{
-										fileName: '' + parameters.itemFileName.split('.')[0] + "-t9-preview-video" + (preview[0].type === 1) ? '.gif' : '.jpg',
+										fileName: `${parameters.itemFileName.split('.')[0]}-t9-preview-video.${(preview[0].type === 1) ? 'gif' : 'jpg'}`,
 										fileData: '' + preview[0].data
 									}
 								];
