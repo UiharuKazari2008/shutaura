@@ -1,3 +1,7 @@
+<img src="https://user-images.githubusercontent.com/15165770/176505424-2e88c783-7294-48d9-bb0d-ce8da8ae0302.png" width="512" /><br/>
+
+---
+
 # Kanmi Sequenzia Framework
 
 The base framework for Sequenzia
@@ -7,6 +11,8 @@ Includes the following systems:
 * FileWorker Upload and Download Client
 * Sync and Backup System
 * Kanmi CMS
+
+## [Click here for simple Docker compose Installation](https://github.com/UiharuKazari2008/sequenzia-compose/)
 
 ## What is Kanmi / Sequenzia
 A modular framework and ecosystem for image management and file storage using Discord as a Filesystem and CDN<br>

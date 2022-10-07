@@ -1,3 +1,4 @@
+const systemglobal = require("../config.json");
 (async () => {
     const facilityName = 'Updater';
     const path = require('path');
@@ -7,6 +8,8 @@
     const pm2 = require("pm2");
     const tx2 = require('tx2')
     let systemglobal = require('./../config.json');
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const minimist = require("minimist");
     const request = require('request').defaults({ encoding: null });
     let args = minimist(process.argv.slice(2));

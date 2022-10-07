@@ -13,8 +13,11 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
+const systemglobal = require("../config.json");
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'WebCrawer';
 
     const fs = require('fs');
@@ -596,7 +599,11 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    setInterval(() => { process.send('ready'); }, 60000);
+    setInterval(() => {
+        if (process.send && typeof process.send === 'function') {
+            process.send('ready');
+        }
+    }, 60000);
 
     // Mixcloud
     if (systemglobal.Mixcloud_Interval) {

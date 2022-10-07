@@ -22,8 +22,11 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
+const systemglobal = require("../config.json");
 (async () => {
 	let systemglobal = require('../config.json');
+	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+		systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
 	const facilityName = 'Twitter-Worker';
 
 	const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -58,6 +61,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
+
+	if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+		systemglobal.MQServer = process.env.MQ_HOST.trim()
+	if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+		systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+	if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+		systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -149,7 +159,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const MQWorker1 = `${systemglobal.Twitter_In}`
 	// Twitter Timeline Checkins
 	const limiter1 = new RateLimiter(1, (systemglobal.Twitter_Timeline_Pull) ? parseInt(systemglobal.Twitter_Timeline_Pull.toString()) * 1000 : 1000);
-	const limiter5 = new RateLimiter(300, 15 * 60 * 1000);
+	const limiter5 = new RateLimiter(75, 15 * 60 * 1000);
 	// RabbitMQ
 	const limiter3 = new RateLimiter(10, 1000);
 	// Twitter Media Upload
@@ -180,8 +190,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 	}))
 
-	if (!fs.existsSync(systemglobal.TempFolder))
-		fs.mkdirSync(systemglobal.TempFolder);
+	try {
+		if (!fs.existsSync(systemglobal.TempFolder)) {
+			fs.mkdirSync(systemglobal.TempFolder);
+		}
+	} catch (e) {
+		console.error('Failed to create the temp folder, not a issue if your using docker');
+		console.error(e);
+	}
 
 	// Kanmi MQ Backend
 	function startWorker() {
@@ -438,14 +454,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			})
 			verifyQueue(); updateStats();
+			cron.schedule('* * * * *', () => {
+
+			});
 			cron.schedule('*/5 * * * *', () => {
 				updateStats();
 				getTweets();
 				getMentions();
+				getLikes();
 			});
 			cron.schedule('4,34 * * * *', verifyQueue);
 		})
-		process.send('ready');
+		if (process.send && typeof process.send === 'function') {
+			process.send('ready');
+		}
 	}
 
 	// Twitter Functions
@@ -607,25 +629,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											Logger.printLine("SQL", `Error looking up autodownload for ${(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()}!`, "error", err);
 										}
 										if ((!err && autodownload && autodownload.length > 0) || (obj.bypasscds && obj.bypasscds === 1)) {
-											let channelID = obj.saveid;
 											db.safe(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted_status) ? obj.tweet.retweeted_status.user.screen_name.toLowerCase() : obj.tweet.user.screen_name.toLowerCase()], function (err, channelreplacement) {
 												if (err) {
 													Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
-												} else if (channelreplacement.length > 0) {
-													channelID = channelreplacement[0].channelid
 												}
 												messageArray.push({
 													fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 													messageType : 'sfile',
 													messageReturn: false,
-													messageChannelID : channelID,
+													messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
 													itemFileData: image,
 													itemFileName: filename,
-													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`
+													messageText: `**🌁 Twitter Image** - ***${messageObject.author.name}***${(messageObject.description && messageObject.description.length > 0) ? '\n**' + messageObject.description + '**' : ''}`,
+													tweetMetadata: {
+														account: obj.accountid,
+														list: obj.list_id,
+														id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+														userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+													}
 												})
 												resolve();
 											})
-										} else if (obj.channelid !== null) {
+										} else if (obj.channelid !== null || obj.channelid !== 0) {
 											messageArray.push({
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfileext',
@@ -635,7 +660,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												itemFileName: filename,
 												messageText: messageText,
 												messageObject: {...messageObject, title: _title},
-												addButtons : _react
+												addButtons : _react,
+												tweetMetadata: {
+													account: obj.accountid,
+													list: obj.list_id,
+													id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+													userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+												}
 											});
 											resolve();
 										} else {
@@ -651,7 +682,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										messageChannelID : obj.channelid,
 										messageText: messageText,
 										messageObject: {...messageObject, title: _title},
-										addButtons : _react
+										addButtons : _react,
+										tweetMetadata: {
+											account: obj.accountid,
+											list: obj.list_id,
+											id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+											userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+										}
 									})
 									resolve();
 								}
@@ -682,7 +719,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 					cb(messageArray);
 				})
-			} else if ((obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) {
+			} else if (((obj.tweet.extended_entities && obj.tweet.extended_entities.media) || obj.tweet.entities.media) && (!obj.bypasscds || (obj.bypasscds && obj.bypasscds === 1 && obj.channelid !== null))) {
 				let messageContents = `📨 __***${obj.tweet.user.name} (@${obj.tweet.user.screen_name})***__\n`  + "```" + obj.tweet.text + "```\n" +
 					"https://twitter.com/" + obj.tweet.user.screen_name + "/status/" + obj.tweet.id_str;
 				cb([{
@@ -691,9 +728,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					messageReturn: false,
 					messageChannelID : obj.channelid,
 					messageText: messageContents + ' ' + messageText,
-					addButtons : reactions
+					addButtons : reactions,
+					tweetMetadata: {
+						account: obj.accountid,
+						list: obj.list_id,
+						id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+						userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+					}
 				}]);
-			} else {
+			} else if (!obj.bypasscds || (obj.bypasscds && obj.bypasscds === 1 && obj.channelid !== null)) {
 				if (obj.txtallowed === 1) {
 					Logger.printLine("Twitter", `Account ${obj.accountid}: New Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "info", {
 						tweetList: obj.fromname,
@@ -713,7 +756,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						messageChannelID : obj.channelid,
 						messageText: messageText,
 						messageObject: messageObject,
-						addButtons : reactions
+						addButtons : reactions,
+						tweetMetadata: {
+							account: obj.accountid,
+							list: obj.list_id,
+							id: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.id_str)) ? obj.tweet.retweeted_status.id_str : obj.tweet.id_str,
+							userId: ((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name,
+						}
 					}]);
 				} else {
 					/*Logger.printLine("Twitter", `Blocked Text Tweet in ${obj.fromname} from ${obj.tweet.user.screen_name} - RT: ${rt_stat}`, "warn", {
@@ -727,6 +776,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     })*/
 					cb([]);
 				}
+			} else {
+				cb([]);
 			}
 		})
 	}
@@ -1497,6 +1548,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							listusers: false,
 							disablelike: 0,
 							list_num: 0,
+							list_id: 0,
 							accountid: twitterUser,
 						})
 						if (competedTweet && competedTweet.length > 0) {
@@ -1994,6 +2046,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									mergelike: 0,
 									autolike: 0,
 									list_num: -1,
+									list_id: -1,
 									accountid: id
 								})
 								if (competedTweet && competedTweet.length > 0) {
@@ -2088,6 +2141,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										listusers: listUsers.users,
 										disablelike: list.disablelike,
 										list_num: list.id,
+										list_id: list.listid,
 										accountid: id,
 									})
 									if (competedTweet && competedTweet.length > 0) {
@@ -2136,6 +2190,41 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				console.log(`Account ${id}: Completed Pass`);
 			})
 		})
+	}
+	async function getLikes() {
+		const twitterlist = (await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])).rows.map(e => e.listid);
+		limiter5.removeTokens(1, function () {
+			let params = {
+				count: 200
+			}
+			const twit = twitterAccounts.get(1)
+			twit.client.get('favorites/list', params, async function (err, tweets) {
+				if (err) {
+					mqClient.sendMessage(`Error retrieving twitter favorites!`, "err", "TwitterFavorites", err)
+				} else {
+					const tweetIDs = Array.from(tweets).map(e => (e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
+					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid) !== -1)
+					tweetsDB.forEach(tweet => {
+						mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+							fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+							messageAction: 'ActionPost',
+							messageType: 'command',
+							messageIntent: 'DefaultDownload',
+							messageReturn: false,
+							messageChannelID: tweet.channelid,
+							messageID: tweet.messageid
+						}, async function (ok) {
+							if (ok) {
+								Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to downloaded`, "info", {
+									fromClient : `return.${facilityName}.${systemglobal.SystemName}`
+								})
+								await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [tweet.messageid])
+							}
+						})
+					})
+				}
+			})
+		});
 	}
 
 	process.on('uncaughtException', function(err) {

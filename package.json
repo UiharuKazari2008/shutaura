@@ -14,18 +14,17 @@
   ],
   "private": true,
   "dependencies": {
-    "@ffprobe-installer/ffprobe": "^1.2.0",
     "2fa": "^0.1.2",
     "amqplib": "*",
     "cheerio": "^1.0.0-rc.5",
     "chokidar": "*",
     "colors": "^1.4.0",
     "dateformat": "^3.0.3",
-    "eris": "github:bsian03/eris#v9",
+    "emoji-strip": "^1.0.1",
+    "eris": "github:bsian03/eris#dev",
     "exif": "^0.6.0",
     "fast-average-color-node": "^1.0.3",
     "feed-read": "0.0.1",
-    "fetch": "^1.1.0",
     "file-type": "^14.6.0",
     "flickr-sdk": "^3.10.0",
     "fs-extra": "^9.1.0",
@@ -57,11 +56,10 @@
     "split-file": "^2.2.1",
     "text-to-picture-kazari": "github:UiharuKazari2008/text-to-picture",
     "twit": "^2.2.11",
-    "tx2": "^1.0.4",
-    "youtube-dl": "^3.5.0"
+    "tx2": "^1.0.4"
   },
   "engines": {
-    "node": ">= 6.0.0",
+    "node": ">= 14.0.0",
     "npm": ">= 3.0.0"
   }
 }

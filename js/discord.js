@@ -15,6 +15,8 @@ This code is publicly released and is restricted by its project license
 
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Discord-IO';
 
     const eris = require('eris');
@@ -71,6 +73,7 @@ This code is publicly released and is restricted by its project license
     let discordautoreact = [];
     let musicFolders = [];
     let addClearButton = [];
+    let fileTicker = [];
     let staticChID = {};
     let discordServers = new Map();
     let discordChannels = new Map();
@@ -88,18 +91,22 @@ This code is publicly released and is restricted by its project license
     let TwitterListsEncoded = new Map();
     let TwitterListAccounts = new Map();
     let TwitterRedirects = new Map();
+    let TwitterCDSBypass = new Map();
     let TwitterAutoLike = new Map();
     let TwitterLikeList = new Map();
     let TwitterPixivLike = new Map();
+    let PixivChannels = new Map();
     let PixivSaveChannel = new Map();
     let Timers = new Map();
     let activeTasks = new Map();
     let activeAlerts = new Map();
     let statusValues = new Map();
     let tempThread = new Map();
+    let tempChannelCaches = new Map();
 
     let accepted_cache_types = ['jpeg','jpg','jiff', 'png', 'webp', 'tiff'];
     let accepted_video_types = [ "mov","mp4","avi","ts","mkv" ];
+    let accepted_audio_types = [ "mp3","m4a","wav","flac","aac","wav"]
 
     const localParameters = storageHandler.create({
         dir: 'data/state',
@@ -156,6 +163,8 @@ This code is publicly released and is restricted by its project license
     });
 
     Logger.printLine("Init", "Discord I/O", "info");
+
+
 
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
@@ -266,7 +275,7 @@ This code is publicly released and is restricted by its project license
             const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
             if (_seq_config.length > 0 && _seq_config[0].param_data) {
                if (_seq_config[0].param_data.base_url)
-                    systemglobal.Base_URL = _seq_config[0].param_data.base_url;
+                    systemglobal.base_url = _seq_config[0].param_data.base_url;
             }
             // Sequenzia Common Configuration
             // seq.common = { base_url: "https://seq.moe/" }
@@ -432,6 +441,9 @@ This code is publicly released and is restricted by its project license
             // discord.overides = { "users" : [], "websocket_is_user": true, "allow_bot_reactions" : [] }
             const _cms_options = systemparams_sql.filter(e => e.param_key === 'cms');
             if (_cms_options.length > 0 && _cms_options[0].param_data) {
+                if (_cms_options[0].param_data.disable_threads) {
+                    systemglobal.CMS_Disable_Threads = _cms_options[0].param_data.disable_threads;
+                }
                 if (_cms_options[0].param_data.timeline_chid) {
                     systemglobal.CMS_Timeline_Parent = _cms_options[0].param_data.timeline_chid;
                 }
@@ -446,12 +458,28 @@ This code is publicly released and is restricted by its project license
             const _discord_insights = systemparams_sql.filter(e => e.param_key === 'discord.insights');
             if (_discord_insights.length > 0) {
                 systemglobal.Discord_Insights_Custom_Image_URL = {};
+                systemglobal.Discord_Insights_Custom_Icon_URL = {};
+                systemglobal.Discord_Insights_Use_Server_Icon = {};
                 await Promise.all(_discord_insights.filter(e => e.param_data !== null).map(e => {
                     if (e.param_data.custom_image_url !== undefined) {
                         if (e.serverid) {
                             systemglobal.Discord_Insights_Custom_Image_URL[e.serverid] = e.param_data.custom_image_url
                         } else {
                             systemglobal.Discord_Insights_Custom_Image_URL.default = e.param_data.custom_image_url
+                        }
+                    }
+                    if (e.param_data.custom_icon_url !== undefined) {
+                        if (e.serverid) {
+                            systemglobal.Discord_Insights_Custom_Icon_URL[e.serverid] = e.param_data.custom_icon_url
+                        } else {
+                            systemglobal.Discord_Insights_Custom_Icon_URL.default = e.param_data.custom_icon_url
+                        }
+                    }
+                    if (e.param_data.use_server_icon !== undefined) {
+                        if (e.serverid) {
+                            systemglobal.Discord_Insights_Use_Server_Icon[e.serverid] = (e.param_data.use_server_icon)
+                        } else {
+                            systemglobal.Discord_Insights_Use_Server_Icon.default = (e.param_data.use_server_icon)
                         }
                     }
                 }))
@@ -517,45 +545,47 @@ This code is publicly released and is restricted by its project license
         const _alarmclock = await db.query(`SELECT * FROM discord_alarms`)
         if (_alarmclock.error) { Logger.printLine("SQL", "Error getting master discord static channels records!", "emergency", _alarmclock.error); return false }
 
-        await Promise.all(_alarmclock.rows.map(alm => {
-            if (!cron.validate(alm.schedule)) {
-                Logger.printLine("AlarmClock", `Alarm Clock #${alm.id} Schedule value is invalid: "${alm.schedule}"`, 'error');
-            } else {
-                const _curAlm = (Timers.has(`alarmClock-${alm.id}`)) ? Timers.get(`alarmClock-${alm.id}`) : false;
-                const _snoozedAlm = (Timers.has(`alarmSnoozed-${alm.id}`)) ? Timers.get(`alarmSnoozed-${alm.id}`) : false;
-                if (!_curAlm || (_curAlm && (
-                    _curAlm.schedule !== alm.schedule ||
-                    _curAlm.channel !== alm.channel ||
-                    _curAlm.text !== alm.text ||
-                    _curAlm.mention !== alm.mention ||
-                    _curAlm.snooze !== alm.snooze ||
-                    _curAlm.expires !== alm.expires))) {
-                    Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'info');
-                    if (_curAlm) {
-                        _curAlm.cronjob.stop();
-                        Timers.delete(`alarmClock-${alm.id}`);
-                    }
-                    if (_snoozedAlm) {
-                        clearTimeout(_snoozedAlm.snoozeTimer);
-                        Timers.delete(`alarmSnoozed-${alm.id}`);
-                    }
-                    Timers.set(`alarmClock-${alm.id}`, {
-                        ...alm,
-                        cronjob: cron.schedule(alm.schedule, () => {
-                            triggerAlarm(alm.id)
+        if (!systemglobal.Discord_Upload_Only) {
+            await Promise.all(_alarmclock.rows.map(alm => {
+                if (!cron.validate(alm.schedule)) {
+                    Logger.printLine("AlarmClock", `Alarm Clock #${alm.id} Schedule value is invalid: "${alm.schedule}"`, 'error');
+                } else {
+                    const _curAlm = (Timers.has(`alarmClock-${alm.id}`)) ? Timers.get(`alarmClock-${alm.id}`) : false;
+                    const _snoozedAlm = (Timers.has(`alarmSnoozed-${alm.id}`)) ? Timers.get(`alarmSnoozed-${alm.id}`) : false;
+                    if (!_curAlm || (_curAlm && (
+                        _curAlm.schedule !== alm.schedule ||
+                        _curAlm.channel !== alm.channel ||
+                        _curAlm.text !== alm.text ||
+                        _curAlm.mention !== alm.mention ||
+                        _curAlm.snooze !== alm.snooze ||
+                        _curAlm.expires !== alm.expires))) {
+                        Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'info');
+                        if (_curAlm) {
+                            _curAlm.cronjob.stop();
+                            Timers.delete(`alarmClock-${alm.id}`);
+                        }
+                        if (_snoozedAlm) {
+                            clearTimeout(_snoozedAlm.snoozeTimer);
+                            Timers.delete(`alarmSnoozed-${alm.id}`);
+                        }
+                        Timers.set(`alarmClock-${alm.id}`, {
+                            ...alm,
+                            cronjob: cron.schedule(alm.schedule, () => {
+                                triggerAlarm(alm.id)
+                            })
                         })
-                    })
+                    }
                 }
-            }
-        }))
-        await Promise.all(Array.from(Timers.keys()).filter(e => e.startsWith('alarmClock-') && _alarmclock.rows.filter(f => f.id.toString() === e.split('-').pop()).length === 0).map(alm => {
-            const _curAlm = (Timers.has(`alarmClock-${alm}`)) ? Timers.get(`alarmClock-${alm}`) : false;
-            if (_curAlm) {
-                _curAlm.cronjob.stop();
-                Timers.delete(`alarmClock-${alm}`);
-                Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'info');
-            }
-        }))
+            }))
+            await Promise.all(Array.from(Timers.keys()).filter(e => e.startsWith('alarmClock-') && _alarmclock.rows.filter(f => f.id.toString() === e.split('-').pop()).length === 0).map(alm => {
+                const _curAlm = (Timers.has(`alarmClock-${alm}`)) ? Timers.get(`alarmClock-${alm}`) : false;
+                if (_curAlm) {
+                    _curAlm.cronjob.stop();
+                    Timers.delete(`alarmClock-${alm}`);
+                    Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'info');
+                }
+            }))
+        }
 
         await Promise.all(twitterlist.map(item =>{
             TwitterLists.set(item.channelid, item.listid);
@@ -572,6 +602,9 @@ This code is publicly released and is restricted by its project license
             if (item.redirect_taccount !== null) {
                 TwitterRedirects.set(item.listid, item.redirect_taccount);
             }
+            if (item.bypasscds === 1) {
+                TwitterCDSBypass.set(item.listid, item.saveid);
+            }
             if (item.autolike !== null && item.autolike !== 0) {
                 TwitterAutoLike.set(item.listid, (item.redirect_taccount !== null) ? item.redirect_taccount : item.taccount);
             }
@@ -580,6 +613,9 @@ This code is publicly released and is restricted by its project license
             TwitterActivityChannels.set(item.activitychannelid, item.taccount);
         }))
         await Promise.all(pixivaccount.map(item => {
+            PixivChannels.set(item.save_channelid, 1);
+            if (item.save_channelid_nsfw)
+                PixivChannels.set(item.save_channelid_nsfw, 2);
             if (item.like_taccount) {
                 TwitterPixivLike.set(6010879, item.like_taccount);
                 TwitterPixivLike.set(7264269, item.like_taccount);
@@ -589,7 +625,8 @@ This code is publicly released and is restricted by its project license
             if (item.like_taccount_nsfw) {
                 TwitterPixivLike.set(16711724, item.like_taccount_nsfw);
                 TwitterPixivLike.set(16711787, item.like_taccount_nsfw);
-                TwitterPixivLike.set(item.save_channelid_nsfw, item.like_taccount_nsfw);
+                if (item.save_channelid_nsfw)
+                    TwitterPixivLike.set(item.save_channelid_nsfw, item.like_taccount_nsfw);
             }
             pixivreactionsaccount.forEach(acc => {
                 if (item.like_taccount === acc.download_taccount) {
@@ -648,8 +685,13 @@ This code is publicly released and is restricted by its project license
 
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
-    if (!fs.existsSync(systemglobal.TempFolder)){
-        fs.mkdirSync(systemglobal.TempFolder);
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder)) {
+            fs.mkdirSync(systemglobal.TempFolder);
+        }
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
     }
 
     console.log(`System Configuration:`)
@@ -852,17 +894,21 @@ This code is publicly released and is restricted by its project license
             }
             conn.on("error", function(err) {
                 if (err.message !== "Connection closing") {
-                    Logger.printLine("KanmiMQ", "Initialization Connection Error", "emergency", err)
+                    console.error(err)
+                    Logger.printLine("KanmiMQ", "Initialization Connection Error", "critical", err)
                 }
             });
             conn.on("close", function() {
-                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                if (!gracefulShutdown)
-                    setTimeout(start, 5000);
+                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "error")
+                return setTimeout(start, 15000);
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
             whenConnected();
+            discordClient.editStatus( "online", {
+                name: null,
+                type: 0
+            });
         });
     }
     function closeOnErr(err) {
@@ -871,14 +917,12 @@ This code is publicly released and is restricted by its project license
         amqpConn.close();
         return true;
     }
-    function whenConnected() {
+    async function whenConnected() {
         startEmergencyWorker();
         startWorker();
         startWorker2();
         startWorker3();
-        cleanOldMessages();
-        setInterval(cleanOldMessages, 3600000);
-        if (process.send && typeof process.send === 'function') {
+        if (process.send && typeof process.send === 'function' && init === 0) {
             process.send('ready');
         }
     }
@@ -891,20 +935,22 @@ This code is publicly released and is restricted by its project license
         setTimeout(() => {sendWatchdogPing()}, 60000)
     }
     function shutdownSystem(cb) {
+        discordClient.editStatus( "dnd", {
+            name: 'System Shutdown',
+            type: 0
+        })
         gracefulShutdown = true;
         syncStatusValues();
         function checkForShutdownCleance() {
             const activeJobs = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
             const activeSysJobs = activeTasks.size
             if (forceShutdown) {
-                amqpConn.close();
                 console.log(`Shutdown Clearance Overided`)
                 cb(true)
             } else if (activeSysJobs > 0 || activeJobs > 0) {
                 console.log(`Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeSysJobs})`)
                 setTimeout(checkForShutdownCleance, 15000)
             } else {
-                amqpConn.close();
                 console.log(`Shutdown Clearance Granted`)
                 cb(true)
             }
@@ -915,270 +961,267 @@ This code is publicly released and is restricted by its project license
     // Discord Framework - Core
     async function parseRemoteAction(MessageContents, level, cb) {
         if (MessageContents.messageType && MessageContents.messageType === 'status') {
-            let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
-            const channelName = MessageContents.messageChannelName + ''
-            if (MessageContents.messageChannelID !== '0') {
-                const channelTitle = MessageContents.messageText + ''
-                cb(true);
-                if (channelTitle !== '' && channelTitle !== 'undefined') {
-                    const channel = discordClient.getChannel(MessageContents.messageChannelID);
-                    if (channel && channel.name !== channelTitle) {
-                        discordClient.editChannel(MessageContents.messageChannelID, {name: channelTitle}, "Status Update")
-                            .catch((err) => {
-                                console.error(err.message)
-                                Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}"`, "error", err)
-                            })
-                    }
-                }
-            } else if (MessageContents.messageChannelID === '0' && channelName !== '' && channelName !== 'undefined') {
-                const channels = await db.query(`SELECT channel FROM discord_status WHERE name = ?`, [channelName]);
-                if (channels.error) {
-                    SendMessage("SQL Error occurred when retrieving the status channels", "err", 'main', "SQL", channels.error)
-                }
-                const channelTitle = `${(MessageContents.messageData && MessageContents.messageData.statusText) ? MessageContents.messageData.statusText : (MessageContents.messageText) ? MessageContents.messageText : 'undefined'}`
-                if (MessageContents.messageData) {
-                    await statusValues.set(channelName, MessageContents.messageData);
-                }
-                if (channelTitle !== '' && channelTitle !== 'undefined' && !channels.error && channels.rows.length > 0 && (!MessageContents.messageData || (MessageContents.messageData && MessageContents.updateIndicators && MessageContents.updateIndicators === true))) {
-                    channels.rows.forEach((ch) => {
-                        const channel = discordClient.getChannel(ch.channel);
+            if (!systemglobal.Discord_Upload_Only) {
+                let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
+                const channelName = MessageContents.messageChannelName + ''
+                if (MessageContents.messageChannelID !== '0') {
+                    const channelTitle = MessageContents.messageText + ''
+                    cb(true);
+                    if (channelTitle !== '' && channelTitle !== 'undefined') {
+                        const channel = discordClient.getChannel(MessageContents.messageChannelID)
                         if (channel && channel.name !== channelTitle) {
-                            discordClient.editChannel(ch.channel, { name: channelTitle}, "Status Update")
+                            discordClient.editChannel(MessageContents.messageChannelID, {name: channelTitle}, "Status Update")
                                 .catch((err) => {
                                     console.error(err.message)
                                     Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}"`, "error", err)
                                 })
                         }
-                    })
-                } else if (!MessageContents.messageData) {
-                    SendMessage("Failed to set status update, Channel was not registered or no message text was sent!", "warn", 'main', "Discord")
+                    }
+                } else if (MessageContents.messageChannelID === '0' && channelName !== '' && channelName !== 'undefined') {
+                    const channels = await db.query(`SELECT channel
+                                                     FROM discord_status
+                                                     WHERE name = ?`, [channelName]);
+                    if (channels.error) {
+                        SendMessage("SQL Error occurred when retrieving the status channels", "err", 'main', "SQL", channels.error)
+                    }
+                    const channelTitle = `${(MessageContents.messageData && MessageContents.messageData.statusText) ? MessageContents.messageData.statusText : (MessageContents.messageText) ? MessageContents.messageText : 'undefined'}`
+                    if (MessageContents.messageData) {
+                        await statusValues.set(channelName, MessageContents.messageData);
+                    }
+                    if (channelTitle !== '' && channelTitle !== 'undefined' && !channels.error && channels.rows.length > 0 && (!MessageContents.messageData || (MessageContents.messageData && MessageContents.updateIndicators && MessageContents.updateIndicators === true))) {
+                        channels.rows.forEach((ch) => {
+                            const channel = discordClient.getChannel(ch.channel)
+                            if (channel && channel.name !== channelTitle) {
+                                discordClient.editChannel(ch.channel, {name: channelTitle}, "Status Update")
+                                    .catch((err) => {
+                                        console.error(err.message)
+                                        Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}"`, "error", err)
+                                    })
+                            }
+                        })
+                    } else if (!MessageContents.messageData) {
+                        SendMessage("Failed to set status update, Channel was not registered or no message text was sent!", "warn", 'main', "Discord")
+                    }
+                    cb(true);
+                } else {
+                    SendMessage("Failed to retrieve a proper channel name or text for status update", "err", 'main', "Discord", JSON.stringify(MessageContents))
+                    cb(true);
                 }
-                cb(true);
             } else {
-                SendMessage("Failed to retrieve a proper channel name or text for status update", "err", 'main', "Discord", JSON.stringify(MessageContents))
+                Logger.printLine("Discord", "Discord Client is in upload-only operation, request has been rejected! Please configure your clients to use the correct MQ", "critical");
                 cb(true);
             }
         } else if (MessageContents.messageType === 'command') {
-            let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
-            const ChannelData = discordClient.getChannel(ChannelID)
-            if ((typeof ChannelData).toString() === 'undefined') {
-                SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)}`, "err", 'main', "SendData")
-            } else {
-                switch (MessageContents.messageAction) {
-                    case 'RequestDownload':
-                        console.log(MessageContents)
-                        cb(true);
-                        db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0 LIMIT 1`, [MessageContents.itemFileUUID], function (err, filestatus) {
-                            if (err) {
-                                SendMessage("SQL Error occurred when retrieving the file status", "err", 'main', "SQL", err)
-                            } else {
-                                if (filestatus !== undefined && filestatus.length > 0 && filestatus[0].filecached !== 1) {
-                                    jfsGetSF(MessageContents.itemFileUUID, {
-                                        userID: 'none'
-                                    })
+            if (!systemglobal.Discord_Upload_Only) {
+                let ChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
+                const ChannelData = ((_id) => {
+                    if (tempChannelCaches.has(_id)) {
+                        return tempChannelCaches.get(_id);
+                    } else {
+                        const _ch = discordClient.getChannel(_id);
+                        if (_ch && _ch.id) {
+                            tempChannelCaches.set(_id, _ch);
+                            console.log("Channel Data Cached for " + _ch.id);
+                            setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                        }
+                        return _ch
+                    }
+                })(ChannelID)
+                if ((typeof ChannelData).toString() === 'undefined' && MessageContents.messageChannelID !== '0') {
+                    SendMessage(`Failed to send message, Invalid Channel ID : ${ChannelID.toString().substring(0,128)} from ${MessageContents.fromClient}`, "err", 'main', "SendData")
+                    cb(true);
+                } else {
+                    switch (MessageContents.messageAction) {
+                        case 'RequestDownload':
+                            console.log(MessageContents)
+                            cb(true);
+                            db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0 LIMIT 1`, [MessageContents.itemFileUUID], function (err, filestatus) {
+                                if (err) {
+                                    SendMessage("SQL Error occurred when retrieving the file status", "err", 'main', "SQL", err)
                                 } else {
-                                    SendMessage(`Failed to get data required to request download : ${MessageContents.itemFileUUID}`, "err", 'main', "RequestDownload-Remote")
+                                    if (filestatus !== undefined && filestatus.length > 0 && filestatus[0].filecached !== 1) {
+                                        jfsGetSF(MessageContents.itemFileUUID, {
+                                            userID: 'none'
+                                        })
+                                    } else {
+                                        SendMessage(`Failed to get data required to request download : ${MessageContents.itemFileUUID}`, "err", 'main', "RequestDownload-Remote")
+                                    }
                                 }
-                            }
-                        });
-                        break;
-                    case 'PinMessage':
-                        cb(true);
-                        addFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
-                        break;
-                    case 'UnPinMessage':
-                        cb(true);
-                        removeFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
-                        break;
-                    case 'MovePost':
-                        if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
-                            discordClient.getMessage(ChannelID, MessageContents.messageID)
-                                .then(function(fullmsg) {
-                                    jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
-                                })
-                                .catch((er) => {
-                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                    cb(true);
-                                })
-                        } else {
+                            });
+                            break;
+                        case 'PinMessage':
                             cb(true);
-                        }
-                        break;
-                    case 'RotatePost':
-                        if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
-                            discordClient.getMessage(ChannelID, MessageContents.messageID)
-                                .then(function(fullmsg) {
-                                    jfsRotate(fullmsg, MessageContents.messageData, function (results) {
+                            addFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
+                            break;
+                        case 'UnPinMessage':
+                            cb(true);
+                            removeFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
+                            break;
+                        case 'MovePost':
+                            if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
+                                discordClient.getMessage(ChannelID, MessageContents.messageID)
+                                    .then(function(fullmsg) {
+                                        (async () => {
+                                            if ((PixivChannels.has(fullmsg.channel.id) || discordServers.get(fullmsg.guildID).chid_download === fullmsg.channel.id) && fullmsg.content.includes("**🎆 ") && fullmsg.content.includes("** : ***") && fullmsg.attachments.length > 0) {
+                                                if (TwitterPixivLike.has(fullmsg.channel.id) || TwitterPixivLike.has(MessageContents.messageData)) {
+                                                    // **🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***
+                                                    const foundMessage = await db.query(`SELECT * FROM pixiv_tweets WHERE id = ?`, [fullmsg.id])
+                                                    const artistName = fullmsg.content.split('** : ***')[0].split('**🎆').pop().trim();
+                                                    const sourceID = fullmsg.content.split('** : ***')[1].split('[').pop().split(']')[0].trim();
+                                                    if (foundMessage.error) {
+                                                        SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
+                                                    } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && fullmsg.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
+                                                        await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [fullmsg.id])
+                                                        sendTwitterAction(`Artist: ${artistName}${(sourceID.length > 2) ? '\nSource: https://pixiv.net/en/artworks/' + sourceID : 'Source: Pixiv'}`, 'SendTweet', "send", [fullmsg.attachments[0]], MessageContents.messageData, fullmsg.guildID, []);
+                                                    }
+                                                    if (sourceID)
+                                                        sendPixivAction(sourceID, 'Like', "add");
+                                                }
+                                            } else {
+                                                const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
+                                                if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
+                                                    sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                                }
+                                            }
+                                        })().then(r => {})
+                                        jfsMove(fullmsg, MessageContents.messageData, results => cb(results))
+                                    })
+                                    .catch((er) => {
+                                        Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
                                         cb(true);
                                     })
-                                })
-                                .catch((er) => {
-                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                    console.error(er)
-                                    cb(true);
-                                })
-                        } else {
-                            cb(true);
-                        }
-                        break;
-                    case 'RenamePost':
-                        if (MessageContents.messageData !== undefined) {
-                            jfsRename(ChannelID, MessageContents.messageID, MessageContents.messageData, function (cb) {
-                            })
-                            cb(true);
-                        } else {
-                            cb(true);
-                        }
-                        break;
-                    case 'ArchivePost':
-                        discordClient.getMessage(ChannelID, MessageContents.messageID)
-                            .then(function(fullmsg) {
-                                db.safe(`SELECT * FROM discord_servers WHERE serverid = ?`, [ChannelData.guild.id], function (err, serverdata) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
-                                        cb(true);
-                                    } else {
-                                        jfsArchive(fullmsg, serverdata[0])
-                                        cb(true);
-                                    }
-                                })
-                            })
-                            .catch((er) => {
-                                Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
+                            } else {
                                 cb(true);
-                            })
-                        break;
-                    case 'RemovePost':
-                        discordClient.getMessage(ChannelID, MessageContents.messageID)
-                            .then(function(fullmsg) {
-                                jfsRemove(fullmsg)
+                            }
+                            break;
+                        case 'MigrateSpannedParts':
+                            if (MessageContents.messageData !== undefined && MessageContents.messageData.id && MessageContents.messageData.content && MessageContents.messageData.guildID) {
+                                cb(await jfsMigrateFileParts(MessageContents.messageData));
+                            } else {
                                 cb(true);
-                            })
-                            .catch((er) => {
-                                Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                db.safe(`DELETE FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], function (err) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", err)
-                                    }
-                                })
-                                cb(true);
-                            })
-                        break;
-                    case 'CacheColor':
-                        const messageData = await db.query(`SELECT id, channel, attachment_name, attachment_hash, cache_proxy FROM kanmi_records WHERE id = ? AND channel = ?`, [MessageContents.messageID, MessageContents.messageChannelID])
-                        if (messageData.error) {
-                            printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
-                            cb(false);
-                        } else if (messageData.rows.length > 0 && messageData.rows[0].cache_proxy) {
-                            await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${messageData.rows[0].cache_proxy}`)
-                            cb(true);
-                        } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
-                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments/` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
-                            cb(true);
-                        } else {
-                            Logger.printLine("Discord", `Unable to cache item ${MessageContents.messageID}!`, "warn")
-                            cb(true);
-                        }
-                        break;
-                    case 'CacheImage':
-                    case 'CacheVideo':
-                        discordClient.getMessage(ChannelID, MessageContents.messageID)
-                            .then(async function(message) {
-                                if (message.attachments.length > 0 && message.attachments[0].filename.split('.').length > 1 && accepted_cache_types.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
-                                    Logger.printLine("Polyfill", `Need to download ${message.attachments[0].url}`, "debug", message.attachments[0])
-                                    request.get({
-                                        url: message.attachments[0].url,
-                                        headers: {
-                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                            'accept-language': 'en-US,en;q=0.9',
-                                            'cache-control': 'max-age=0',
-                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                            'sec-ch-ua-mobile': '?0',
-                                            'sec-fetch-dest': 'document',
-                                            'sec-fetch-mode': 'navigate',
-                                            'sec-fetch-site': 'none',
-                                            'sec-fetch-user': '?1',
-                                            'upgrade-insecure-requests': '1',
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                        },
-                                    }, function (err, res, body) {
-                                        if (err) {
-                                            SendMessage("Failed to download message attachments from discord", "err", message.guildID, "Polyfill", err)
+                            }
+                            break;
+                        case 'RotatePost':
+                            if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
+                                discordClient.getMessage(ChannelID, MessageContents.messageID)
+                                    .then(function(fullmsg) {
+                                        jfsRotate(fullmsg, MessageContents.messageData, function (results) {
                                             cb(true);
-                                        } else if (!body || (body && body.length < 100) ) {
-                                            SendMessage("Failed to download message attachments from discord", "err", message.guildID, "Polyfill")
+                                        })
+                                    })
+                                    .catch((er) => {
+                                        Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
+                                        console.error(er)
+                                        cb(true);
+                                    })
+                            } else {
+                                cb(true);
+                            }
+                            break;
+                        case 'RenamePost':
+                            if (MessageContents.messageData !== undefined) {
+                                jfsRename(ChannelID, MessageContents.messageID, MessageContents.messageData, function (cb) {
+                                })
+                                cb(true);
+                            } else {
+                                cb(true);
+                            }
+                            break;
+                        case 'EditTextPost':
+                            if (MessageContents.messageData !== undefined) {
+                                jfsReplaceContents(ChannelID, MessageContents.messageID, MessageContents.messageData, function (cb) {
+                                })
+                                cb(true);
+                            } else {
+                                cb(true);
+                            }
+                            break;
+                        case 'ArchivePost':
+                            discordClient.getMessage(ChannelID, MessageContents.messageID)
+                                .then(function(fullmsg) {
+                                    db.safe(`SELECT * FROM discord_servers WHERE serverid = ?`, [ChannelData.guild.id], function (err, serverdata) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
                                             cb(true);
                                         } else {
-                                            try {
-                                                const image = Buffer.from(body);
-                                                const dimensions = sizeOf(image);
-                                                const scaleSize = 512;
-                                                let resizeParam = {
-                                                    fit: sharp.fit.inside,
-                                                    withoutEnlargement: true
-                                                }
-                                                if (dimensions.width > dimensions.height) { // Landscape Resize
-                                                    resizeParam.width = scaleSize
-                                                } else { // Portrait or Square Image
-                                                    resizeParam.height = scaleSize
-                                                }
-                                                sharp(image)
-                                                    .resize(resizeParam)
-                                                    .toFormat('jpeg', {
-                                                        quality: 50
-                                                    })
-                                                    .withMetadata()
-                                                    .toBuffer((err, previewBuffer) => {
-                                                        if (err || !previewBuffer) {
-                                                            SendMessage(`Failed to render cache image for ${message.id}`, "err", message.guildID, "Polyfill", err)
-                                                            cb(true);
-                                                        } else {
-                                                            db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [ChannelID], function (err, serverdata) {
-                                                                if (err || serverdata.length === 0) {
-                                                                    SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
-                                                                    cb(true);
-                                                                } else {
-                                                                    discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
-                                                                        file: previewBuffer,
-                                                                        name: `${message.attachments[0].filename.trim().replace(/[/\\?%*:|"<> ]/g, '_').split('.')[0]}-t9-preview.jpg`
-                                                                    })
-                                                                        .then((data) => {
-                                                                            cacheColor(message.id, data.attachments[0].proxy_url)
-                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop(), message.id], (err, result) => {
-                                                                                if (err) {
-                                                                                    SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
-                                                                                } else {
-                                                                                    db.safe(`INSERT INTO discord_cache VALUES (?,?) ON DUPLICATE KEY UPDATE cache = ?`, [message.id, data.id, data.id], (err, cacheResults) => {
-                                                                                        if (err) {
-                                                                                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
-                                                                                        } else {
-                                                                                            Logger.printLine("Discord", `Cached Image for ${message.id} to ${data.id}`, "info")
-                                                                                        }
-                                                                                    })
-                                                                                }
-                                                                            })
-                                                                            cb(true);
-                                                                        })
-                                                                        .catch((er) => {
-                                                                            Logger.printLine("Discord", "Unable to send cache item!", "warn", er)
-                                                                            cb(true);
-                                                                        })
-                                                                }
-                                                            });
-                                                        }
-                                                    })
-                                            } catch (err) {
-                                                Logger.printLine("Discord", "Unable to send cache item!", "warn", err)
-                                                cb(true);
-                                            }
+                                            jfsArchive(fullmsg, serverdata[0])
+                                            cb(true);
                                         }
                                     })
-                                } else if (MessageContents.messageAction === 'CacheVideo') {
-                                    let url
-                                    function generatePreview() {
-                                        console.log(url)
+                                })
+                                .catch((er) => {
+                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
+                                    cb(true);
+                                })
+                            break;
+                        case 'ActionPost':
+                            if (MessageContents.messageIntent) {
+                                switch (MessageContents.messageIntent) {
+                                    case "DefaultDownload":
+                                        discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
+                                            .then(function(fullmsg) {
+                                                downloadMessageFile(fullmsg, undefined, true)
+                                                cb(true);
+                                            })
+                                            .catch(async (er) => {
+                                                Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
+                                                console.error(er)
+                                                if (er && er.message && er.message.includes('Unknown Message')) {
+                                                    await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
+                                                }
+                                                cb(true);
+                                            })
+                                        break;
+                                    default:
+                                        Logger.printLine("Discord", "Command was dropped, unable to take action on post because invalid intent was signaled", "warn", er)
+                                        cb(true);
+                                        break;
+                                }
+                            } else {
+                                Logger.printLine("Discord", "Command was dropped, unable to take action on post because no intent was signaled", "warn", er)
+                                cb(true);
+                            }
+                            break;
+                        case 'RemovePost':
+                            discordClient.getMessage(ChannelID, MessageContents.messageID)
+                                .then(function(fullmsg) {
+                                    jfsRemove(fullmsg)
+                                    cb(true);
+                                })
+                                .catch((er) => {
+                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
+                                    db.safe(`DELETE FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], function (err) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", err)
+                                        }
+                                    })
+                                    cb(true);
+                                })
+                            break;
+                        case 'CacheColor':
+                            const messageData = await db.query(`SELECT id, channel, attachment_name, attachment_hash, cache_proxy FROM kanmi_records WHERE id = ? AND channel = ?`, [MessageContents.messageID, MessageContents.messageChannelID])
+                            if (messageData.error) {
+                                printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
+                                cb(false);
+                            } else if (messageData.rows.length > 0 && messageData.rows[0].cache_proxy) {
+                                await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${messageData.rows[0].cache_proxy}`)
+                                cb(true);
+                            } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
+                                await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `/${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
+                                cb(true);
+                            } else {
+                                Logger.printLine("Discord", `Unable to cache item ${MessageContents.messageID}!`, "warn")
+                                cb(true);
+                            }
+                            break;
+                        case 'CacheImage':
+                        case 'CacheVideo':
+                            discordClient.getMessage(ChannelID, MessageContents.messageID)
+                                .then(async function(message) {
+                                    if (message.attachments.length > 0 && message.attachments[0].filename.split('.').length > 1 && accepted_cache_types.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
+                                        Logger.printLine("Polyfill", `Need to download ${message.attachments[0].url}`, "debug", message.attachments[0])
                                         request.get({
-                                            url: url,
+                                            url: message.attachments[0].url,
                                             headers: {
                                                 'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                                                 'accept-language': 'en-US,en;q=0.9',
@@ -1201,98 +1244,45 @@ This code is publicly released and is restricted by its project license
                                                 cb(true);
                                             } else {
                                                 try {
-                                                    function deleteFile(file, ready){
-                                                        fs.open(file, 'r+', function (err, fd) {
-                                                            if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')){
-                                                                ready(false)
+                                                    const image = Buffer.from(body);
+                                                    const dimensions = sizeOf(image);
+                                                    const scaleSize = 512;
+                                                    let resizeParam = {
+                                                        fit: sharp.fit.inside,
+                                                        withoutEnlargement: true
+                                                    }
+                                                    if (dimensions.width > dimensions.height) { // Landscape Resize
+                                                        resizeParam.width = scaleSize
+                                                    } else { // Portrait or Square Image
+                                                        resizeParam.height = scaleSize
+                                                    }
+                                                    sharp(image)
+                                                        .resize(resizeParam)
+                                                        .toFormat('jpeg', {
+                                                            quality: 50
+                                                        })
+                                                        .withMetadata()
+                                                        .toBuffer((err, previewBuffer) => {
+                                                            if (err || !previewBuffer) {
+                                                                SendMessage(`Failed to render cache image for ${message.id}`, "err", message.guildID, "Polyfill", err)
+                                                                cb(true);
                                                             } else {
-                                                                fs.close(fd, function() {
-                                                                    fs.unlink(file, function (err) {})
-                                                                    ready(true)
-                                                                })
-                                                            }
-                                                        })
-                                                    }
-                                                    function previewVideo(fulfill) {
-                                                        return new Promise(function (fulfill) {
-                                                            const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW-' +  + MessageContents.messageID + '.jpg');
-                                                            const inputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO-' + MessageContents.messageID)
-                                                            fs.writeFile(inputfile, Buffer.from(body), "base64", err => {
-                                                                if (err) {
-                                                                    fulfill(null)
-                                                                    console.error(err)
-                                                                } else {
-                                                                    const spawn = require('child_process').spawn;
-                                                                    let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
-                                                                    console.log("[FFMPEG] Getting Preview Image...")
-                                                                    const child = spawn(EncoderConf.Exec, ffmpegParam);
-                                                                    child.stdout.setEncoding('utf8');
-                                                                    child.stdout.on('data', function (data) {
-                                                                        console.log(data);
-                                                                    });
-                                                                    child.stderr.setEncoding('utf8');
-                                                                    child.stderr.on('data', function (data) {
-                                                                        console.log(data);
-                                                                    });
-                                                                    child.on('close', function (code) {
-                                                                        if (code === 0 && fileSize(outputfile) > 0.00001) {
-                                                                            try {
-                                                                                const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-                                                                                deleteFile(outputfile, function (ready) {
-                                                                                    // Do Nothing
-                                                                                })
-                                                                                deleteFile(inputfile, function (ready) {
-                                                                                    // Do Nothing
-                                                                                })
-                                                                                fulfill(output);
-                                                                            } catch (err) {
-                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-                                                                                fulfill(null);
-                                                                            }
-                                                                        } else {
-                                                                            mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-                                                                            deleteFile(outputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            deleteFile(inputfile, function (ready) {
-                                                                                // Do Nothing
-                                                                            })
-                                                                            fulfill(null)
-                                                                        }
-                                                                    });
-                                                                }
-                                                            })
-                                                        })
-                                                    }
-                                                    previewVideo()
-                                                        .then((imageFulfill) => {
-                                                            if (imageFulfill !== null) {
-                                                                db.safe(`SELECT discord_servers.chid_filecache
-                                                                     FROM kanmi_channels,
-                                                                          discord_servers
-                                                                     WHERE kanmi_channels.channelid = ?
-                                                                       AND discord_servers.serverid = kanmi_channels.serverid
-                                                                       AND kanmi_channels.source = 0`, [ChannelID], function (err, serverdata) {
+                                                                db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [ChannelID], function (err, serverdata) {
                                                                     if (err || serverdata.length === 0) {
                                                                         SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
                                                                         cb(true);
                                                                     } else {
                                                                         discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
-                                                                            file: Buffer.from(imageFulfill, 'base64'),
-                                                                            name: `${message.id}-t9-preview-video.jpg`
+                                                                            file: previewBuffer,
+                                                                            name: `${message.attachments[0].filename.trim().replace(/[/\\?%*:|"<> ]/g, '_').split('.')[0]}-t9-preview.jpg`
                                                                         })
                                                                             .then((data) => {
                                                                                 cacheColor(message.id, data.attachments[0].proxy_url)
-                                                                                db.safe(`UPDATE kanmi_records
-                                                                                     SET cache_proxy = ?
-                                                                                     WHERE id = ?
-                                                                                       AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), message.id], (err, result) => {
+                                                                                db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop(), message.id], (err, result) => {
                                                                                     if (err) {
                                                                                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                     } else {
-                                                                                        db.safe(`INSERT INTO discord_cache
-                                                                                             VALUES (?, ?) ON DUPLICATE KEY
-                                                                                             UPDATE cache = ?`, [message.id, data.id, data.id], (err, cacheResults) => {
+                                                                                        db.safe(`INSERT INTO discord_cache VALUES (?,?) ON DUPLICATE KEY UPDATE cache = ?`, [message.id, data.id, data.id], (err, cacheResults) => {
                                                                                             if (err) {
                                                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                             } else {
@@ -1304,59 +1294,12 @@ This code is publicly released and is restricted by its project license
                                                                                 cb(true);
                                                                             })
                                                                             .catch((er) => {
-                                                                                mqClient.sendData(systemglobal.FileWorker_In, {
-                                                                                    messageReturn: false,
-                                                                                    messageID: message.id,
-                                                                                    messageAction: 'GenerateVideoPreview',
-                                                                                    messageType: 'command'
-                                                                                }, function (ok) {
-                                                                                    if (ok) {
-                                                                                        Logger.printLine("Discord", "Unable to send cache item! Passing job to FileWorker...", "warn", er)
-                                                                                        cb(true);
-                                                                                    } else {
-                                                                                        Logger.printLine("Discord", "Unable to send cache item!", "warn", er)
-                                                                                        cb(true);
-                                                                                    }
-                                                                                })
-
-                                                                                console.log(er);
+                                                                                Logger.printLine("Discord", "Unable to send cache item!", "warn", er)
                                                                                 cb(true);
                                                                             })
                                                                     }
                                                                 });
-                                                            } else {
-                                                                mqClient.sendData(systemglobal.FileWorker_In, {
-                                                                    messageReturn: false,
-                                                                    messageID: message.id,
-                                                                    messageAction: 'GenerateVideoPreview',
-                                                                    messageType: 'command'
-                                                                }, function (ok) {
-                                                                    if (ok) {
-                                                                        Logger.printLine("Polyfill", "No preview was generated to send for this video! Passing job to FileWorker...", "warn")
-                                                                        cb(true);
-                                                                    } else {
-                                                                        Logger.printLine("Polyfill", "No preview was generated to send for this video!", "warn")
-                                                                        cb(true);
-                                                                    }
-                                                                })
                                                             }
-                                                        })
-                                                        .catch((err) => {
-                                                            mqClient.sendData(systemglobal.FileWorker_In, {
-                                                                messageReturn: false,
-                                                                messageID: message.id,
-                                                                messageAction: 'GenerateVideoPreview',
-                                                                messageType: 'command'
-                                                            }, function (ok) {
-                                                                if (ok) {
-                                                                    Logger.printLine("Polyfill", "Failed to generate a valid thumbnail for video! Passing job to FileWorker...", "warn", err)
-                                                                    cb(true);
-                                                                } else {
-                                                                    Logger.printLine("Polyfill", "Failed to generate a valid thumbnail for video!", "warn", err)
-                                                                    cb(true);
-                                                                }
-                                                            })
-                                                            console.log(err);
                                                         })
                                                 } catch (err) {
                                                     Logger.printLine("Discord", "Unable to send cache item!", "warn", err)
@@ -1364,211 +1307,627 @@ This code is publicly released and is restricted by its project license
                                                 }
                                             }
                                         })
-                                    }
-                                    if (message.attachments.length > 0 && message.attachments[0].filename.split('.').length > 1 && accepted_video_types.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
-                                        url = message.attachments[0].url;
-                                        Logger.printLine("Polyfill", `File preview available, Need to download ${url}...`, "debug")
-                                        generatePreview();
-                                    } else {
-                                        const filedata = await db.query(`SELECT fileid, filecached FROM kanmi_records WHERE kanmi_records.id = ?`, [message.id])
-                                        if (filedata.error) {
-                                            SendMessage("SQL Error occurred when retrieving the message for message data", "err", 'main', "SQL", filedata.error)
-                                            cb(true)
-                                        } else if (filedata.rows.length > 0 && filedata.rows[0].filecached === 1) {
-                                            mqClient.sendData(systemglobal.FileWorker_In, {
-                                                messageReturn: false,
-                                                messageID: message.id,
-                                                messageAction: 'GenerateVideoPreview',
-                                                messageType: 'command'
-                                            }, function (ok) {
-                                                if (ok) {
-                                                    Logger.printLine("Polyfill", "File is cached elsewhere, Passing job to FileWorker...", "warn")
+                                    } else if (MessageContents.messageAction === 'CacheVideo') {
+                                        let url
+                                        function generatePreview() {
+                                            console.log(url)
+                                            request.get({
+                                                url: url,
+                                                headers: {
+                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                    'accept-language': 'en-US,en;q=0.9',
+                                                    'cache-control': 'max-age=0',
+                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                    'sec-ch-ua-mobile': '?0',
+                                                    'sec-fetch-dest': 'document',
+                                                    'sec-fetch-mode': 'navigate',
+                                                    'sec-fetch-site': 'none',
+                                                    'sec-fetch-user': '?1',
+                                                    'upgrade-insecure-requests': '1',
+                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                },
+                                            }, function (err, res, body) {
+                                                if (err) {
+                                                    SendMessage("Failed to download message attachments from discord", "err", message.guildID, "Polyfill", err)
+                                                    cb(true);
+                                                } else if (!body || (body && body.length < 100) ) {
+                                                    SendMessage("Failed to download message attachments from discord", "err", message.guildID, "Polyfill")
                                                     cb(true);
                                                 } else {
-                                                    Logger.printLine("Polyfill", "Failed to send request to FileWorker!", "warn")
-                                                    cb(true);
-                                                }
-                                            })
-                                        } else if (filedata.rows.length > 0 && filedata.rows[0].fileid !== null) {
-                                            const fileparts = await db.query(`SELECT url, fileid FROM discord_multipart_files WHERE fileid = ? ORDER BY url`, [filedata.rows[0].fileid])
-                                            if (fileparts.error) {
-                                                SendMessage("SQL Error occurred when retrieving the message for message data", "err", 'main', "SQL", fileparts.error)
-                                            } else if (fileparts.rows.length > 0) {
-                                                Logger.printLine("Polyfill", `File has not preview, attempting to raw read a part of the file...`, "debug")
-                                                url = fileparts.rows[0].url;
-                                                Logger.printLine("Polyfill", `Need to download ${url}...`, "debug")
-                                                generatePreview();
-                                            } else {
-                                                Logger.printLine("Polyfill", "Can't find the parts for this file!", "error");
-                                                cb(true)
-                                            }
-                                        } else {
-                                            Logger.printLine("Polyfill", "No video contents were found for that message!", "error");
-                                            cb(true)
-                                        }
-                                    }
-                                } else {
-                                    cb(true);
-                                }
-                            })
-                            .catch((er) => {
-                                Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                console.error(er)
-                                cb(true);
-                            })
-                        break;
-                    case 'ReplaceContent':
-                        Logger.printLine("UpdateContent", `Replacing Content for ${MessageContents.messageID}...`, "debug")
-                        const messageRecord = await db.query(`SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
-                        if (messageRecord.error) {
-                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", messageRecord.error)
-                            cb(false);
-                        } else if (messageRecord.rows.length > 0) {
-                            if (MessageContents.itemCacheData && MessageContents.itemCacheName && (MessageContents.itemCacheType || MessageContents.itemCacheType === 0)) {
-                                db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
-                                    if (err || serverdata.length === 0) {
-                                        SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
-                                        cb(true);
-                                    } else {
-                                        switch (MessageContents.itemCacheType) {
-                                            case 0:
-                                                discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
-                                                    name: MessageContents.itemCacheName,
-                                                    file: Buffer.from(MessageContents.itemCacheData, 'base64')
-                                                })
-                                                    .then((data) => {
-                                                        cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
-                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageID], (err, result) => {
-                                                            if (err) {
-                                                                SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
-                                                                cb(false);
-                                                            } else {
-                                                                db.safe(`INSERT INTO discord_cache VALUES (?, ?) ON DUPLICATE KEY UPDATE cache = ?`, [MessageContents.messageID, data.id, data.id], (err, cacheResults) => {
+                                                    try {
+                                                        function deleteFile(file, ready){
+                                                            fs.open(file, 'r+', function (err, fd) {
+                                                                if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')){
+                                                                    ready(false)
+                                                                } else {
+                                                                    fs.close(fd, function() {
+                                                                        fs.unlink(file, function (err) {})
+                                                                        ready(true)
+                                                                    })
+                                                                }
+                                                            })
+                                                        }
+                                                        function previewVideo(fulfill) {
+                                                            return new Promise(function (fulfill) {
+                                                                const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW-' +  + MessageContents.messageID + '.jpg');
+                                                                const inputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO-' + MessageContents.messageID)
+                                                                fs.writeFile(inputfile, Buffer.from(body), "base64", err => {
                                                                     if (err) {
-                                                                        SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
-                                                                        cb(false);
+                                                                        fulfill(null)
+                                                                        console.error(err)
                                                                     } else {
-                                                                        Logger.printLine("Discord", `Cached Files for ${MessageContents.messageID} to ${data.id}`, "info")
+                                                                        const spawn = require('child_process').spawn;
+                                                                        let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
+                                                                        console.log("[FFMPEG] Getting Preview Image...")
+                                                                        const child = spawn(EncoderConf.Exec, ffmpegParam);
+                                                                        child.stdout.setEncoding('utf8');
+                                                                        child.stdout.on('data', function (data) {
+                                                                            console.log(data);
+                                                                        });
+                                                                        child.stderr.setEncoding('utf8');
+                                                                        child.stderr.on('data', function (data) {
+                                                                            console.log(data);
+                                                                        });
+                                                                        child.on('close', function (code) {
+                                                                            if (code === 0 && fileSize(outputfile) > 0.00001) {
+                                                                                try {
+                                                                                    const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+                                                                                    deleteFile(outputfile, function (ready) {
+                                                                                        // Do Nothing
+                                                                                    })
+                                                                                    deleteFile(inputfile, function (ready) {
+                                                                                        // Do Nothing
+                                                                                    })
+                                                                                    fulfill(output);
+                                                                                } catch (err) {
+                                                                                    mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                    fulfill(null);
+                                                                                }
+                                                                            } else {
+                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                deleteFile(outputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                deleteFile(inputfile, function (ready) {
+                                                                                    // Do Nothing
+                                                                                })
+                                                                                fulfill(null)
+                                                                            }
+                                                                        });
+                                                                    }
+                                                                })
+                                                            })
+                                                        }
+                                                        previewVideo()
+                                                            .then((imageFulfill) => {
+                                                                if (imageFulfill !== null) {
+                                                                    db.safe(`SELECT discord_servers.chid_filecache
+                                                                         FROM kanmi_channels,
+                                                                              discord_servers
+                                                                         WHERE kanmi_channels.channelid = ?
+                                                                           AND discord_servers.serverid = kanmi_channels.serverid
+                                                                           AND kanmi_channels.source = 0`, [ChannelID], function (err, serverdata) {
+                                                                        if (err || serverdata.length === 0) {
+                                                                            SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
+                                                                            cb(true);
+                                                                        } else {
+                                                                            discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
+                                                                                file: Buffer.from(imageFulfill, 'base64'),
+                                                                                name: `${message.id}-t9-preview-video.jpg`
+                                                                            })
+                                                                                .then((data) => {
+                                                                                    cacheColor(message.id, data.attachments[0].proxy_url)
+                                                                                    db.safe(`UPDATE kanmi_records
+                                                                                         SET cache_proxy = ?
+                                                                                         WHERE id = ?
+                                                                                           AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), message.id], (err, result) => {
+                                                                                        if (err) {
+                                                                                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
+                                                                                        } else {
+                                                                                            db.safe(`INSERT INTO discord_cache
+                                                                                                 VALUES (?, ?) ON DUPLICATE KEY
+                                                                                                 UPDATE cache = ?`, [message.id, data.id, data.id], (err, cacheResults) => {
+                                                                                                if (err) {
+                                                                                                    SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
+                                                                                                } else {
+                                                                                                    Logger.printLine("Discord", `Cached Image for ${message.id} to ${data.id}`, "info")
+                                                                                                }
+                                                                                            })
+                                                                                        }
+                                                                                    })
+                                                                                    cb(true);
+                                                                                })
+                                                                                .catch((er) => {
+                                                                                    mqClient.sendData(systemglobal.FileWorker_In, {
+                                                                                        messageReturn: false,
+                                                                                        messageID: message.id,
+                                                                                        messageAction: 'GenerateVideoPreview',
+                                                                                        messageType: 'command'
+                                                                                    }, function (ok) {
+                                                                                        if (ok) {
+                                                                                            Logger.printLine("Discord", "Unable to send cache item! Passing job to FileWorker...", "warn", er)
+                                                                                            cb(true);
+                                                                                        } else {
+                                                                                            Logger.printLine("Discord", "Unable to send cache item!", "warn", er)
+                                                                                            cb(true);
+                                                                                        }
+                                                                                    })
+
+                                                                                    console.log(er);
+                                                                                    cb(true);
+                                                                                })
+                                                                        }
+                                                                    });
+                                                                } else {
+                                                                    mqClient.sendData(systemglobal.FileWorker_In, {
+                                                                        messageReturn: false,
+                                                                        messageID: message.id,
+                                                                        messageAction: 'GenerateVideoPreview',
+                                                                        messageType: 'command'
+                                                                    }, function (ok) {
+                                                                        if (ok) {
+                                                                            Logger.printLine("Polyfill", "No preview was generated to send for this video! Passing job to FileWorker...", "warn")
+                                                                            cb(true);
+                                                                        } else {
+                                                                            Logger.printLine("Polyfill", "No preview was generated to send for this video!", "warn")
+                                                                            cb(true);
+                                                                        }
+                                                                    })
+                                                                }
+                                                            })
+                                                            .catch((err) => {
+                                                                mqClient.sendData(systemglobal.FileWorker_In, {
+                                                                    messageReturn: false,
+                                                                    messageID: message.id,
+                                                                    messageAction: 'GenerateVideoPreview',
+                                                                    messageType: 'command'
+                                                                }, function (ok) {
+                                                                    if (ok) {
+                                                                        Logger.printLine("Polyfill", "Failed to generate a valid thumbnail for video! Passing job to FileWorker...", "warn", err)
+                                                                        cb(true);
+                                                                    } else {
+                                                                        Logger.printLine("Polyfill", "Failed to generate a valid thumbnail for video!", "warn", err)
                                                                         cb(true);
                                                                     }
                                                                 })
-                                                            }
-                                                        });
-                                                    })
-                                                    .catch((err) => {
-                                                        Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
-                                                        console.log(err);
+                                                                console.log(err);
+                                                            })
+                                                    } catch (err) {
+                                                        Logger.printLine("Discord", "Unable to send cache item!", "warn", err)
                                                         cb(true);
-                                                    })
-                                                break;
-                                            case 1:
-                                                discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
-                                                    name: MessageContents.itemCacheName,
-                                                    file: Buffer.from(MessageContents.itemCacheData, 'base64')
-                                                })
-                                                    .then((data) => {
-                                                        cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
-                                                        let filename
-                                                        let filehash
-                                                        const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
-                                                        if (urlParts.length === 2) {
-                                                            filehash = (urlParts[1].startsWith(`${data.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
-                                                            filename = urlParts[1].split('/')[2]
-                                                        } else {
-                                                            filehash = data.attachments[0].url
-                                                            filename = data.attachments[0].filename
-                                                        }
-                                                        db.safe(`UPDATE kanmi_records SET attachment_hash = ?, attachment_name = ? WHERE id = ? AND source = 0`, [filehash, filename, MessageContents.messageID], (err, result) => {
-                                                            if (err) {
-                                                                SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
-                                                                cb(false);
-                                                            } else {
-                                                                Logger.printLine("Discord", `Updated Attachments for ${MessageContents.messageID} to ${data.id}`, "info")
-                                                                cb(true);
-                                                            }
-                                                        });
-                                                    })
-                                                    .catch((err) => {
-                                                        Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
-                                                        console.log(err);
-                                                        cb(true);
-                                                    })
-                                                break;
-                                            default:
-                                                Logger.printLine("Discord", "Message was dropped, No data type!", "warn")
-                                                cb(true);
-                                                break;
+                                                    }
+                                                }
+                                            })
                                         }
+                                        if (message.attachments.length > 0 && message.attachments[0].filename.split('.').length > 1 && accepted_video_types.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
+                                            url = message.attachments[0].url;
+                                            Logger.printLine("Polyfill", `File preview available, Need to download ${url}...`, "debug")
+                                            generatePreview();
+                                        } else {
+                                            const filedata = await db.query(`SELECT fileid, filecached FROM kanmi_records WHERE kanmi_records.id = ?`, [message.id])
+                                            if (filedata.error) {
+                                                SendMessage("SQL Error occurred when retrieving the message for message data", "err", 'main', "SQL", filedata.error)
+                                                cb(true)
+                                            } else if (filedata.rows.length > 0 && filedata.rows[0].filecached === 1) {
+                                                mqClient.sendData(systemglobal.FileWorker_In, {
+                                                    messageReturn: false,
+                                                    messageID: message.id,
+                                                    messageAction: 'GenerateVideoPreview',
+                                                    messageType: 'command'
+                                                }, function (ok) {
+                                                    if (ok) {
+                                                        Logger.printLine("Polyfill", "File is cached elsewhere, Passing job to FileWorker...", "warn")
+                                                        cb(true);
+                                                    } else {
+                                                        Logger.printLine("Polyfill", "Failed to send request to FileWorker!", "warn")
+                                                        cb(true);
+                                                    }
+                                                })
+                                            } else if (filedata.rows.length > 0 && filedata.rows[0].fileid !== null) {
+                                                const fileparts = await db.query(`SELECT url, fileid FROM discord_multipart_files WHERE fileid = ? ORDER BY url`, [filedata.rows[0].fileid])
+                                                if (fileparts.error) {
+                                                    SendMessage("SQL Error occurred when retrieving the message for message data", "err", 'main', "SQL", fileparts.error)
+                                                } else if (fileparts.rows.length > 0) {
+                                                    Logger.printLine("Polyfill", `File has not preview, attempting to raw read a part of the file...`, "debug")
+                                                    url = fileparts.rows[0].url;
+                                                    Logger.printLine("Polyfill", `Need to download ${url}...`, "debug")
+                                                    generatePreview();
+                                                } else {
+                                                    Logger.printLine("Polyfill", "Can't find the parts for this file!", "error");
+                                                    cb(true)
+                                                }
+                                            } else {
+                                                Logger.printLine("Polyfill", "No video contents were found for that message!", "error");
+                                                cb(true)
+                                            }
+                                        }
+                                    } else {
+                                        cb(true);
                                     }
-                                });
+                                })
+                                .catch((er) => {
+                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
+                                    console.error(er)
+                                    cb(true);
+                                })
+                            break;
+                        case 'CacheIDEXMeta':
+                            Logger.printLine("CacheIDEXMeta", `Updating Image Cache Metadata...`, "debug")
+                            const showMetadata = await db.query(`SELECT s.*, f.server FROM (SELECT * FROM kongou_shows) s LEFT JOIN (SELECT show_id, server FROM (SELECT server, eid FROM kanmi_records) r INNER JOIN (SELECT eid, show_id FROM kongou_episodes) e ON (r.eid = e.show_id)) f ON (s.show_id = f.show_id) GROUP BY s.show_id
+                            `)
+                            if (showMetadata.error) {
+                                SendMessage("SQL Error occurred when adding polyfills to the metadata cache", "err", 'main', "SQL", showMetadata.error)
+                                cb(false);
+                            } else if (showMetadata.rows.length > 0) {
+                                for (let show of showMetadata.rows) {
+                                    if (show.data && show.data.background && show.data.background.length > 0 && !show.background) {
+                                        await new Promise(resolve => {
+                                            request.get({
+                                                url: show.data.background.pop(),
+                                                headers: {
+                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                    'accept-language': 'en-US,en;q=0.9',
+                                                    'cache-control': 'max-age=0',
+                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                    'sec-ch-ua-mobile': '?0',
+                                                    'sec-fetch-dest': 'document',
+                                                    'sec-fetch-mode': 'navigate',
+                                                    'sec-fetch-site': 'none',
+                                                    'sec-fetch-user': '?1',
+                                                    'upgrade-insecure-requests': '1',
+                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                },
+                                            }, async (err, res, body) => {
+                                                if (err) {
+                                                    Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item!", "error", err)
+                                                    resolve(false);
+                                                } else if (!body || (body && body.length < 100)) {
+                                                    Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item, no data was received!", "error", err)
+                                                    resolve(false);
+                                                } else {
+                                                    try {
+                                                        const image = Buffer.from(body);
+                                                        discordClient.createMessage(discordServers.get((show.server) ? show.server : 'homeGuild').chid_filecache, '', {
+                                                            file: image,
+                                                            name: `${show.data.background.pop().split('/').pop()}`
+                                                        })
+                                                            .then((data) => {
+                                                                db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                                setTimeout(() => {
+                                                                    resolve(true);
+                                                                }, 1000)
+                                                            })
+                                                            .catch((er) => {
+                                                                Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                                console.error(er)
+                                                                resolve(true);
+                                                            })
+                                                    } catch (err) {
+                                                        Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                        console.error(err)
+                                                        resolve(true);
+                                                    }
+                                                }
+                                            })
+                                        })
+                                    }
+                                    if (show.data && show.data.poster && show.data.poster.length > 0 && !show.poster) {
+                                        await new Promise(resolve => {
+                                            request.get({
+                                                url: show.data.poster.pop(),
+                                                headers: {
+                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                    'accept-language': 'en-US,en;q=0.9',
+                                                    'cache-control': 'max-age=0',
+                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                    'sec-ch-ua-mobile': '?0',
+                                                    'sec-fetch-dest': 'document',
+                                                    'sec-fetch-mode': 'navigate',
+                                                    'sec-fetch-site': 'none',
+                                                    'sec-fetch-user': '?1',
+                                                    'upgrade-insecure-requests': '1',
+                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                },
+                                            }, async (err, res, body) => {
+                                                if (err) {
+                                                    Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item!", "error", err)
+                                                    resolve(false);
+                                                } else if (!body || (body && body.length < 100)) {
+                                                    Logger.printLine("CacheIDEXBackdrops", "Unable to download image for IDEX cache item, no data was received!", "error", err)
+                                                    resolve(false);
+                                                } else {
+                                                    try {
+                                                        const image = Buffer.from(body);
+                                                        discordClient.createMessage(discordServers.get((show.server) ? show.server : 'homeGuild').chid_filecache, '', {
+                                                            file: image,
+                                                            name: `${show.data.poster.pop().split('/').pop()}`
+                                                        })
+                                                            .then((data) => {
+                                                                db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                                setTimeout(() => {
+                                                                    resolve(true);
+                                                                }, 1000)
+                                                            })
+                                                            .catch((er) => {
+                                                                Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
+                                                                console.error(er)
+                                                                resolve(true);
+                                                            })
+                                                    } catch (err) {
+                                                        Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
+                                                        console.error(err)
+                                                        resolve(true);
+                                                    }
+                                                }
+                                            })
+                                        })
+                                    }
+
+                                }
+                                cb(true)
                             } else {
-                                Logger.printLine("Discord", "Message was dropped, No data was defined!", "error")
+                                Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
                                 cb(true);
                             }
-                        } else {
-                            Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
-                            cb(true);
-                        }
-                        break;
-                    case 'ValidateMessage':
-                        if (MessageContents.messageID) {
-                            try {
-                                const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
-                                if (message) {
-                                    Logger.printLine("validateMessage", `Successfully found message ${MessageContents.messageID}, Updating database`,"info")
-                                    messageUpdate(message)
+                            break;
+                        case 'ReplaceContent':
+                            Logger.printLine("UpdateContent", `Replacing Content for ${MessageContents.messageID}...`, "debug")
+                            const ReplaceContentmessageRecord = await db.query(`SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                            if (ReplaceContentmessageRecord.error) {
+                                SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", ReplaceContentmessageRecord.error)
+                                cb(false);
+                            } else if (ReplaceContentmessageRecord.rows.length > 0) {
+                                if (MessageContents.itemCacheData && MessageContents.itemCacheName && (MessageContents.itemCacheType || MessageContents.itemCacheType === 0)) {
+                                    db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], function (err, serverdata) {
+                                        if (err || serverdata.length === 0) {
+                                            SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
+                                            cb(true);
+                                        } else {
+                                            switch (MessageContents.itemCacheType) {
+                                                case 0:
+                                                    discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
+                                                        name: MessageContents.itemCacheName,
+                                                        file: Buffer.from(MessageContents.itemCacheData, 'base64')
+                                                    })
+                                                        .then((data) => {
+                                                            cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
+                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageID], (err, result) => {
+                                                                if (err) {
+                                                                    SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
+                                                                    cb(false);
+                                                                } else {
+                                                                    db.safe(`INSERT INTO discord_cache VALUES (?, ?) ON DUPLICATE KEY UPDATE cache = ?`, [MessageContents.messageID, data.id, data.id], (err, cacheResults) => {
+                                                                        if (err) {
+                                                                            SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
+                                                                            cb(false);
+                                                                        } else {
+                                                                            Logger.printLine("Discord", `Cached Files for ${MessageContents.messageID} to ${data.id}`, "info")
+                                                                            cb(true);
+                                                                        }
+                                                                    })
+                                                                }
+                                                            });
+                                                        })
+                                                        .catch((err) => {
+                                                            Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
+                                                            console.log(err);
+                                                            cb(true);
+                                                        })
+                                                    break;
+                                                case 1:
+                                                    discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
+                                                        name: MessageContents.itemCacheName,
+                                                        file: Buffer.from(MessageContents.itemCacheData, 'base64')
+                                                    })
+                                                        .then((data) => {
+                                                            cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
+                                                            let filename
+                                                            let filehash
+                                                            const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
+                                                            if (urlParts.length === 2) {
+                                                                filehash = (urlParts[1].startsWith(`${MessageContents.messageChannelID}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
+                                                                filename = urlParts[1].split('/')[2]
+                                                            } else {
+                                                                filehash = data.attachments[0].url
+                                                                filename = data.attachments[0].filename
+                                                            }
+                                                            db.safe(`UPDATE kanmi_records SET attachment_hash = ?, attachment_name = ? WHERE id = ? AND source = 0`, [filehash, filename, MessageContents.messageID], (err, result) => {
+                                                                if (err) {
+                                                                    SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
+                                                                    cb(false);
+                                                                } else {
+                                                                    Logger.printLine("Discord", `Updated Attachments for ${MessageContents.messageID} to ${data.id}`, "info")
+                                                                    cb(true);
+                                                                }
+                                                            });
+                                                        })
+                                                        .catch((err) => {
+                                                            Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
+                                                            console.log(err);
+                                                            cb(true);
+                                                        })
+                                                    break;
+                                                default:
+                                                    Logger.printLine("Discord", "Message was dropped, No data type!", "warn")
+                                                    cb(true);
+                                                    break;
+                                            }
+                                        }
+                                    });
                                 } else {
-                                    SendMessage(`Failed to validate message ${MessageContents.messageID}, It no longer exists`, "validateMessage", 'main', "error")
-                                    messageDelete({
-                                        id: MessageContents.messageID,
-                                        channel: {
-                                            id: MessageContents.messageChannelID
-                                        },
-                                        guild: {
-                                            id: MessageContents.messageServerID
-                                        },
-                                        guildID: MessageContents.messageServerID
-                                    })
+                                    Logger.printLine("Discord", "Message was dropped, No data was defined!", "error")
+                                    cb(true);
                                 }
-                            } catch (e) {
-                                SendMessage(`Failed to validate message ${MessageContents.messageID}`, "validateMessage", 'main', "error")
-                                console.log(e)
+                            } else {
+                                Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
+                                cb(true);
                             }
-                        } else {
-                            SendMessage("No Message ID was provided to validate", "validateMessage", 'main', "warn")
-                        }
-                        cb(true)
-                        break;
-                    default:
-                        SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", ChannelData.guild.id, "warn")
-                        if (MessageContents.messageReturn === true) {
-                            mqClient.sendData(MessageContents.fromClient, failcase, function (ok) {
+                            break;
+                        case 'ModifyExtendedContent':
+                            Logger.printLine("ModifyExtendedContent", `Modify Extended Content for ${MessageContents.messageID}...`, "debug")
+                            const ModifyExtendedContentmessageRecord = await db.query(`SELECT x.*, y.data FROM (SELECT * FROM kanmi_records WHERE id = ? AND channel = ? AND server = ?) x LEFT JOIN (SELECT eid, data FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID, MessageContents.messageChannelID, MessageContents.messageServerID])
+                            if (ModifyExtendedContentmessageRecord.error) {
+                                SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", ModifyExtendedContentmessageRecord.error)
+                                cb(false);
+                            } else if (ModifyExtendedContentmessageRecord.rows.length > 0) {
+                                if (MessageContents.extendedContent) {
+                                    db.safe(`SELECT discord_servers.chid_filecache FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND discord_servers.serverid = kanmi_channels.serverid AND kanmi_channels.source = 0`, [MessageContents.messageChannelID], async function (err, serverdata) {
+                                        if (err || serverdata.length === 0) {
+                                            SendMessage("SQL Error occurred when retrieving the guild data", "err", 'main', "SQL", err)
+                                            cb(true);
+                                        } else {
+                                            let jsonData = {}
+                                            if (ModifyExtendedContentmessageRecord.rows[0].data) {
+                                                jsonData = {
+                                                    ...ModifyExtendedContentmessageRecord.rows[0].data
+                                                }
+                                            }
+                                            await Promise.all(Object.keys(MessageContents.extendedContent).map(async (ext_key) => {
+                                                const value = MessageContents.extendedContent[ext_key];
+                                                if (typeof value === "string" && value.startsWith('FILE-')) {
+                                                    const fileIndex = parseInt(value.substring(5))
+                                                    if (!isNaN(fileIndex) && fileIndex > -1 && MessageContents.extendedAttachments && MessageContents.extendedAttachments[fileIndex]) {
+                                                        try {
+                                                            const data = await discordClient.createMessage(serverdata[0].chid_filecache.toString(), '', {
+                                                                name: MessageContents.extendedAttachments[fileIndex].name,
+                                                                file: Buffer.from(MessageContents.extendedAttachments[fileIndex].file, 'base64')
+                                                            })
+                                                            if (data && data.attachments.length > 0) {
+                                                                const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                                if (attachmentUrl) {
+                                                                    jsonData[ext_key] = attachmentUrl
+                                                                }
+                                                            }
+                                                        } catch (err) {
+                                                            Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
+                                                            console.log(err);
+                                                        }
+                                                    } else {
+                                                        Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
+                                                    }
+                                                } else if (value === null) {
+                                                    delete jsonData[ext_key];
+                                                } else {
+                                                    jsonData[ext_key] = value;
+                                                }
+                                            }))
+                                            if (Object.keys(jsonData).length > 0) {
+                                                const stringJson = JSON.stringify(jsonData);
+                                                db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, stringJson, stringJson])
+                                            } else {
+                                                Logger.printLine("ModifyExtendedContent", `Failed to process extended data because no data!`, "warn");
+                                            }
+                                            cb(true);
+                                        }
+                                    });
+                                } else {
+                                    Logger.printLine("Discord", "Message was dropped, No data was defined!", "error")
+                                    cb(true);
+                                }
+                            } else {
+                                Logger.printLine("Discord", "Message was dropped, No records were found!", "error")
+                                cb(true);
+                            }
+                            break;
+                        case 'ValidateMessage':
+                            if (MessageContents.messageID) {
+                                try {
+                                    const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
+                                    if (message) {
+                                        Logger.printLine("validateMessage", `Successfully found message ${MessageContents.messageID}, Updating database`,"info")
+                                        messageUpdate(message)
+                                    } else {
+                                        SendMessage(`Failed to validate message ${MessageContents.messageID}, It no longer exists`, "validateMessage", 'main', "error")
+                                        messageDelete({
+                                            id: MessageContents.messageID,
+                                            channel: {
+                                                id: MessageContents.messageChannelID
+                                            },
+                                            guild: {
+                                                id: MessageContents.messageServerID
+                                            },
+                                            guildID: MessageContents.messageServerID
+                                        })
+                                    }
+                                } catch (e) {
+                                    SendMessage(`Failed to validate message ${MessageContents.messageID}`, "validateMessage", 'main', "error")
+                                    console.log(e)
+                                }
+                            } else {
+                                SendMessage("No Message ID was provided to validate", "validateMessage", 'main', "warn")
+                            }
+                            cb(true)
+                            break;
+                        default:
+                            SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", ChannelData.guild.id, "warn")
+                            if (MessageContents.messageReturn === true) {
+                                mqClient.sendData(MessageContents.fromClient, failcase, function (ok) {
 
-                            });
-                        }
-                        cb(true);
-                        break;
+                                });
+                            }
+                            cb(true);
+                            break;
+                    }
                 }
+            } else {
+                Logger.printLine("Discord", "Discord Client is in upload-only operation, request has been rejected! Please configure your clients to use the correct MQ", "critical");
+                cb(true);
             }
         } else {
             let DestinationChannelID = "" + MessageContents.messageChannelID.trim().split("\n").join('')
             async function sendToBin(error) {
-                const BinChannelData = discordClient.getChannel(systemglobal.Discord_Recycling_Bin);
+                const BinChannelData = ((_id) => {
+                    if (tempChannelCaches.has(_id)) {
+                        return tempChannelCaches.get(_id);
+                    } else {
+                        const _ch = discordClient.getChannel(_id);
+                        if (_ch && _ch.id) {
+                            tempChannelCaches.set(_id, _ch);
+                            console.log("Channel Data Cached for " + _ch.id);
+                            setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                        }
+                        return _ch
+                    }
+                })(systemglobal.Discord_Recycling_Bin)
                 if (BinChannelData && BinChannelData.name) {
                     SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (${error}), Redirecting to Recycling Bin`, "err", 'main', "SendData");
                     if (await createMessage(MessageContents, systemglobal.Discord_Recycling_Bin, BinChannelData, level)) {
                         cb(true)
                     } else {
-                        SendMessage(`Failed to write to Recycling Bin - Message was dropped!`, "error", 'main', "SendData");
-                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                        SendMessage(`Failed to write to Recycling Bin - Message will be retried...`, "error", 'main', "SendData");
+                        let retryCount = MessageContents.retryCount
+                        retryCount++
+                        if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                            mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        } else {
+                            mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        }
                     }
                 } else {
                     SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable) & Recycling Bin is not Accessible!, Message Retrying!`, "err", 'main', "SendData");
-                    mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                    let retryCount = MessageContents.retryCount
+                    retryCount++
+                    if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                        mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                    } else {
+                        mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                    }
                 }
             }
 
-            const ChannelData = discordClient.getChannel(DestinationChannelID);
+            const ChannelData = ((_id) => {
+                if (tempChannelCaches.has(_id)) {
+                    return tempChannelCaches.get(_id);
+                } else {
+                    const _ch = discordClient.getChannel(_id);
+                    if (_ch && _ch.id) {
+                        console.log("Channel Data Cached for " + _ch.id);
+                        tempChannelCaches.set(_id, _ch);
+                        setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
+                    }
+                    return _ch
+                }
+            })(DestinationChannelID)
             if (ChannelData && ChannelData.name) {
                 if (await createMessage(MessageContents, DestinationChannelID, ChannelData, level)) {
                     cb(true)
@@ -1576,15 +1935,21 @@ This code is publicly released and is restricted by its project license
                     if (systemglobal.Discord_Recycling_Bin) {
                         await sendToBin(`Not Writable`);
                     } else {
-                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Message will be dropped!`, "err", 'main', "SendData");
-                        mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                        SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Writable), Retrying...`, "err", 'main', "SendData");
+                        let retryCount = MessageContents.retryCount
+                        retryCount++
+                        if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                            mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        } else {
+                            mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (ok) => cb(!!ok));
+                        }
                     }
                 }
             } else if (systemglobal.Discord_Recycling_Bin) {
                 await sendToBin("Not Readable");
             } else {
-                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0,128)} (Not Readable), Message will be dropped!`, "err", 'main', "SendData");
-                mqClient.sendData(MQWorker10, MessageContents, (ok) => cb(ok));
+                SendMessage(`Undeliverable Channel : ${DestinationChannelID.toString().substring(0, 128)} (Not Readable), Retrying...`, "err", 'main', "SendData");
+                cb(false);
             }
         }
     }
@@ -1673,10 +2038,6 @@ This code is publicly released and is restricted by its project license
             return _typeText.join('');
         })()
 
-        discordClient.editStatus( "online", {
-            name: 'Sending Data...',
-            type: 0
-        });
         let success = false;
         try {
             const data = await discordClient.createMessage(ChannelID, contents, files);
@@ -1741,6 +2102,8 @@ This code is publicly released and is restricted by its project license
                         size: (MessageContents.itemSize) ? MessageContents.itemSize : undefined,
                         logLine: `Send Message: (${level}) Type: [${typeText}], From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
                         fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
+                        extendedData: (MessageContents.extendedContent) ? MessageContents.extendedContent : undefined,
+                        extendedAttachments: (MessageContents.extendedAttachments) ? MessageContents.extendedAttachments : undefined
                     })
                     success = true;
                 }
@@ -1754,11 +2117,36 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("Discord", "Error checking channel message count for first pinning", "warning", e);
                     }
                 }
+                if (MessageContents.tweetMetadata) {
+                    try {
+                        const addTweet = await db.query(`INSERT INTO twitter_tweets SET ?`, [{
+                            messageid: data.id,
+                            channelid: data.channel.id,
+                            listid: MessageContents.tweetMetadata.list,
+                            tweetid: MessageContents.tweetMetadata.id,
+                            userid: MessageContents.tweetMetadata.userId
+                        }])
+                    } catch (e) {
+                        Logger.printLine("Discord", "Failed to save tweet to database", "warning", e);
+                    }
+                }
             }
         } catch (er) {
-            SendMessage(`Failed to send message to discord - ${er.message}`, "err", "main", "Send", er.message)
-            if (!(er.message.includes("empty message") || er.message.includes(" entity too large") || er.message.includes("Invalid") || er.message.includes("No content") || er.message.includes("not supported")))
-                success = true;
+            let retryCount = MessageContents.retryCount
+            retryCount++
+            success = await new Promise((retrySent) => {
+                if (MessageContents.retryCount && MessageContents.retryCount >= 3) {
+                    mqClient.sendData(MQWorker10, {...MessageContents, retryCount}, (sentOk) => {
+                        SendMessage(`Failed to send message to discord - ${er.message}\nRetry to send by moving it from the failed MQ to a standard MQ`, "err", "main", "Send", er.message)
+                        retrySent(!!sentOk);
+                    });
+                } else {
+                    mqClient.sendData(MQWorker3, {...MessageContents, retryCount}, (sentOk) => {
+                        SendMessage(`Failed to send message to discord - ${er.message}\nRetring as a backlog task...`, "warn", "main", "Send", er.message)
+                        retrySent(!!sentOk);
+                    });
+                }
+            })
 
         }
         Timers.set('taskSend', setTimeout(() => { activeTasks.delete('SEND_MESSAGE'); }))
@@ -1845,1088 +2233,1793 @@ This code is publicly released and is restricted by its project license
         });
     }
     function registerCommands() {
-        discordClient.registerCommand("jfs", async (msg,args) => {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    function collector() {
-                        switch (args[1].toLowerCase()) {
-                            case 'enable':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    messsageCollector.keys()
-                                        .then(function (results) {
-                                            const count = filterItems(results, msg.guildID + '-').length
-                                            if (collectorEnable.get(msg.guildID)) {
-                                                if (count === 0) {
-                                                    SendMessage(`⚠️ Collector already enabled`, "system", msg.guildID, "Collector")
-                                                } else {
-                                                    SendMessage(`⚠️ Collector already enabled, with ${count} Message in Collector`, "system", msg.guildID, "Collector")
-                                                }
-                                            } else {
-                                                localParameters.setItem('collector-' + msg.guildID, {
-                                                    status: 'on'
-                                                })
-                                                    .then(function () {
-                                                        if (count === 0) {
-                                                            SendMessage(`📂 Message Collector is ready!`, "system", msg.guildID, "Collector")
-                                                        } else {
-                                                            SendMessage(`✅ Message Collector Enabled! ${count} Messages in Collector`, "system", msg.guildID, "Collector")
-                                                        }
-                                                        collectorEnable.set(msg.guildID, true)
-                                                    })
-                                                    .catch(function (err) {
-                                                        SendMessage("❌ Failed to enable collector", "system", msg.guildID, "Collector")
-                                                        Logger.printLine(`Collector`, `Failed to enable the message collector`, `error`, err)
-                                                        collectorEnable.set(msg.guildID, false)
-                                                    })
-                                            }
-                                        })
-                                        .catch(function (err) {
-                                            SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
-                                            Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
-                                        })
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'disable':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    messsageCollector.keys()
-                                        .then(function (results) {
-                                            const count = filterItems(results, msg.guildID + '-').length
-                                            if (collectorEnable.get(msg.guildID)) {
-                                                localParameters.setItem('collector-' + msg.guildID, {
-                                                    status: 'off'
-                                                })
-                                                    .then(function () {
-                                                        if (count === 0) {
-                                                            SendMessage(`❎ Collector was disabled`, "system", msg.guildID, "Collector")
-                                                        } else {
-                                                            SendMessage(`⏸ Collector was disabled, there are still ${count} messages in Collector`, "system", msg.guildID, "Collector")
-                                                        }
-                                                        collectorEnable.set(msg.guildID, false)
-                                                    })
-                                                    .catch(function (err) {
-                                                        SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
-                                                        Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
-                                                    })
-                                            } else {
-                                                if (count === 0) {
-                                                    SendMessage(`⚠️ Collector already disabled`, "system", msg.guildID, "Collector")
-                                                } else {
-                                                    SendMessage(`⚠️ Collector already disabled, with ${count} Message in Collector`, "system", msg.guildID, "Collector")
-                                                }
-                                            }
-                                        })
-                                        .catch(function (err) {
-                                            SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
-                                            Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
-                                        })
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'search':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    if (args.length > 3) {
-                                        const channelnumber = args[2].replace("<#", "").replace(">", "");
-                                        const searchTermString = args[3].toString();
-                                        let numResults = 0
-                                        discordClient.getMessages(channelnumber, 100000)
-                                            .then((messages) => {
-                                                SendMessage(`🔍 Searching ${messages.length.toString()} items...`, "system", msg.guildID, "Collector")
-                                                let requests = messages.reverse().reduce((promiseChain, itemRequested) => {
-                                                    return promiseChain.then(() => new Promise((resolve) => {
-                                                        function addItem() {
-                                                            const ItemID = `${itemRequested.guildID}-${Date.now().toString()}-${itemRequested.id}`
-                                                            messsageCollector.setItem(ItemID, {
-                                                                itemKey: ItemID,
-                                                                messageID: itemRequested.id,
-                                                                channelID: itemRequested.channel.id,
-                                                                guildID: itemRequested.guildID,
-                                                            })
-                                                                .then(() => {
-                                                                    Logger.printLine("AddMessageCollector", `Message ${itemRequested.id} added to Collector`, "debug");
-                                                                    numResults++;
-                                                                    resolve();
-                                                                })
-                                                                .catch(err => {
-                                                                    Logger.printLine("AddMessageCollector", `Failed to add Message ${itemRequested.id} to Collector`, "err");
-                                                                    resolve();
-                                                                })
-                                                        }
-
-                                                        if (itemRequested.content.includes(searchTermString)) {
-                                                            addItem();
-                                                        } else if (itemRequested.attachments.length > 0) {
-                                                            itemRequested.attachments.forEach((item) => {
-                                                                if (item.filename.includes(searchTermString)) {
-                                                                    addItem()
-                                                                }
-                                                            })
-                                                            resolve()
-                                                        } else {
-                                                            resolve()
-                                                        }
-                                                    }));
-                                                }, Promise.resolve());
-                                                requests.then(function () {
-                                                    SendMessage(`⚙️ Found and added ${numResults.toString()} items to the Collector`, "system", msg.guildID, "Collector")
-                                                })
-                                            })
-                                    } else {
-                                        SendMessage("⁉ Missing required channel destination or search term", "system", msg.guildID, "CollectorMove")
-                                    }
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'clear':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    localParameters.setItem('collector-' + msg.guildID, {
-                                        status: 'off'
-                                    })
-                                        .then(function () {
-                                            collectorEnable.set(msg.guildID, false)
-                                            messsageCollector.keys()
-                                                .then(function (results) {
-                                                    const filteredkeys = filterItems(results, msg.guildID + '-')
-                                                    for (let keyItem of filteredkeys) {
-                                                        messsageCollector.removeItem(keyItem)
-                                                            .catch(function (err) {
-                                                                Logger.printLine(`Collector`, `Failed to remove an items from the collector`, `error`, err)
-                                                            })
-                                                    }
-                                                    SendMessage(`🗑 ${filteredkeys.length} Messages Cleared from the Collector`, "system", msg.guildID, "Collector")
-                                                })
-                                                .catch(function (err) {
-                                                    SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
-                                                    Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
-                                                })
-                                        })
-                                        .catch(function (err) {
-                                            SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
-                                            Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
-                                        })
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'status':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    messsageCollector.keys()
-                                        .then(function (results) {
-                                            const count = filterItems(results, msg.guildID + '-').length;
-                                            let head = `**🗳 ${count} Messages in the Collector`
-                                            if (collectorEnable.get(msg.guildID)) {
-                                                head += ` (✅)`
-                                            } else {
-                                                head += ` (🛑)`
-                                            }
-                                            let itemsText = ''
-                                            messsageCollector.forEach(function (message) {
-                                                if (message.value.guildID === msg.guildID) {
-                                                    itemsText += `✉️ ${message.value.messageID} from <#${message.value.channelID}>\n`
-                                                }
-                                            })
-                                                .then(function () {
-                                                    if (count === 0) {
-                                                        SendMessage(head + '**', "system", msg.guildID, "Collector")
-                                                    } else {
-                                                        SendMessage(head + ':**\n' + itemsText.substring(0, 1900), "system", msg.guildID, "Collector")
-                                                    }
-                                                })
-                                        })
-                                        .catch(function (err) {
-                                            SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
-                                            Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
-                                        })
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'done':
-                                if (collectorEnable.has(msg.guildID)) {
-                                    messsageCollector.keys()
-                                        .then(function (results) {
-                                            const count = filterItems(results, msg.guildID + '-').length
-                                            if (collectorEnable.get(msg.guildID)) {
-                                                if (args.length > 2) {
-                                                    if (count === 0) {
-                                                        SendMessage(`🛑 Collector is empty!`, `system`, msg.guildID,  "Collector")
-                                                    } else {
-                                                        const channelnumber = args[2].replace("<#", "").replace(">", "");
-                                                        SendMessage(`⏳ Moving ${count} Messages, Please standby...`, "system", msg.guildID, "CollectorMove")
-                                                        messsageCollector.keys()
-                                                            .then(function (itemKeys) {
-                                                                const sortedKeys = filterItems(itemKeys, msg.guildID + '-').sort().reverse()
-                                                                let requests = sortedKeys.reduce((promiseChain, itemRequested) => {
-                                                                    return promiseChain.then(() => new Promise((resolve) => {
-                                                                        messsageCollector.getItem(itemRequested)
-                                                                            .then(function (messages) {
-                                                                                discordClient.getMessage(messages.channelID, messages.messageID)
-                                                                                    .then(function (messageToMove) {
-                                                                                        jfsMove(messageToMove, channelnumber, function (cb) {
-                                                                                            if (!cb) {
-                                                                                                messsageCollector.removeItem(itemRequested)
-                                                                                                    .then(function () {
-                                                                                                        Logger.printLine('CollectorMove', `Message ${messages.messageID} moved from ${messages.channelID} to ${channelnumber}`, "log")
-                                                                                                        resolve()
-                                                                                                    })
-                                                                                                    .catch(function (err) {
-                                                                                                        Logger.printLine('CollectorMove', `Failed to delete the item ${itemRequested} from the collector!`, "log", err)
-                                                                                                        resolve()
-                                                                                                    })
-                                                                                            } else {
-                                                                                                Logger.printLine("CollectorMove", `There was an error moving message : ${messages.messageID}`, "error")
-                                                                                                resolve()
-                                                                                            }
-                                                                                        })
-                                                                                    })
-                                                                                    .catch((er) => {
-                                                                                        Logger.printLine("CollectorMove", `Message was not found : ${messages.messageID}`, "error")
-                                                                                        resolve()
-                                                                                    })
-                                                                            })
-                                                                            .catch(function (err) {
-                                                                                Logger.printLine(`Collector`, `Failed to get item ${itemRequested} from message collector`, `error`, err)
-                                                                            })
-                                                                    }));
-                                                                }, Promise.resolve());
-                                                                requests.then(function () {
-                                                                    localParameters.setItem('collector-' + msg.guildID, {
-                                                                        status: 'off'
-                                                                    })
-                                                                        .then(function () {
-                                                                            collectorEnable.set(msg.guildID, false)
-                                                                        })
-                                                                        .catch(function (err) {
-                                                                            SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
-                                                                            Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
-                                                                        })
-                                                                })
-
-                                                            })
-                                                    }
-                                                } else {
-                                                    SendMessage("⁉ Missing required channel destination", "system", msg.guildID, "CollectorMove")
-                                                }
-                                            } else {
-                                                SendMessage("⚠️ Collector already disabled", "system", msg.guildID, "Collector")
-                                            }
-                                        })
-                                        .catch(function (err) {
-                                            SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
-                                            Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
-                                        })
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
-                                    Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            default:
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "CollectorMove")
-                                break;
-                        }
-                    }
-
-                    switch (args[0].toLowerCase()) {
-                        case 'lsmap':
-                            db.simple(`SELECT channelid,watch_folder FROM kanmi_channels WHERE watch_folder IS NOT NULL AND source = 0`, function (err, folders) {
-                                if (err) {
-                                    SendMessage("SQL Error occurred when getting fileworker table", "err", 'main', "SQL", err)
-                                } else {
-                                    let message = '**Mapped Channels:**\n'
-                                    for (let index in folders) {
-                                        if (folders[index].watch_folder.toString() !== "MultiPartFolder" && folders[index].watch_folder.toString() !== "Data") {
-                                            message += `📂 ${folders[index].watch_folder} => <#${folders[index].channelid}>\n`
-                                        }
-                                        if (parseInt(index) === folders.length - 1) {
-                                            discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
-                                                content: message.substring(0, 1980) + ""
-                                            })
-                                                .catch((er) => {
-                                                    SendMessage("Failed to send message", "err", msg.guildID, "FWls", er)
-                                                });
-                                        }
-                                    }
-                                }
-                            })
-                            break;
-                        case 'mkmap':
-                            if (args.length > 2) {
-                                const channelToAdd = args[1].replace("<#", "").replace(">", "");
-                                const folderName = args[2]
-                                Logger.printLine("Discord", `Created Map to ${channelToAdd} from ${folderName}`, "info")
-                                db.safe(`UPDATE kanmi_channels SET watch_folder = ? WHERE channelid = ?`, [folderName, channelToAdd], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when writing to fileworker table", "err", 'main', "SQL", err)
-                                    } else {
-                                        mqClient.sendCmd('fileworker', 'RESET')
-                                        SendMessage("✅ Created channel map", "system", msg.guildID, "FWAdd")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "FWAdd")
-                            }
-                            break;
-                        case 'rmmap':
-                            if (args.length > 1) {
-                                Logger.printLine("Discord", `Removing map ${args[1]}`, "info")
-                                db.safe(`UPDATE kanmi_channels SET watch_folder = null WHERE watch_folder = ?`, [args[1]], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when deleting from the fileworker table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage("❎ Removed channel map", "system", msg.guildID, "FWRm")
-                                        mqClient.sendCmd('fileworker', 'RESET')
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "FWRm")
-                            }
-                            break;
-                        case 'chmap':
-                            if (args.length > 2) {
-                                const channelToAdd = args[1].replace("<#", "").replace(">", "");
-                                const folderName = args[2]
-                                Logger.printLine("Discord", `Changed Map to ${channelToAdd} from ${folderName}`, "info")
-                                db.safe(`UPDATE kanmi_channels SET watch_folder = ? WHERE channelid = ?`, [folderName, channelToAdd], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when writing to fileworker table", "err", 'main', "SQL", err)
-                                    } else {
-                                        mqClient.sendCmd('fileworker', 'RESET')
-                                        SendMessage("✅ Changed channel map", "system", msg.guildID, "FWMod")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "FWMod")
-                            }
-                            break;
-                        case 'rlch':
-                            if (args.length > 2) {
-                                const channelfrom = args[1].replace("<#", "").replace(">", "");
-                                const channelnumber = args[2].replace("<#", "").replace(">", "");
-                                const check1 = await discordClient.getChannel(channelfrom)
-                                const check2 = await discordClient.getChannel(channelnumber)
-                                if (!check1) {
-                                    SendMessage(`"❌ Can not access "From" channel"`, "system", msg.guildID, "Move")
-                                } else if (!check2) {
-                                    SendMessage(`"❌ Can not access "To" channel"`, "system", msg.guildID, "Move")
-                                } else if (args.length > 3 && args[3] === 'deep') {
-                                    const messagesToMove = await discordClient.getMessages(channelfrom, (args.length > 4 && !isNaN(parseInt(args[4]))) ? parseInt(args[4]) : 1000000);
-                                    if (messagesToMove && messagesToMove.length > 0) {
-                                        for (let f of messagesToMove) {
-                                            limiter3.removeTokens(1, function() {
-                                                jfsMove(f, channelnumber, cb => {
-
-                                                })
-                                            });
-                                        }
-                                        SendMessage(`📂 ${messagesToMove.length} Messages moved from ${args[1]} to ${args[2]}`, "system", msg.guildID, "Move")
-                                    } else {
-                                        SendMessage("❌ Failed to get messages for that channel", "system", msg.guildID, "Move")
-                                    }
-                                } else {
-                                    const messagesToMove = await db.query(`SELECT id, channel, server FROM kanmi_records WHERE channel = ? ORDER BY eid DESC${(args.length > 4 && !isNaN(parseInt(args[4]))) ? ' LIMIT ' + parseInt(args[4]) : ''}`, [channelfrom])
-                                    if (messagesToMove.error) {
-                                        SendMessage("❌ Failed to get messages for that channel due to SQL error", "system", msg.guildID, "Move", messagesToMove.error)
-                                    } else if (messagesToMove.rows.length === 0) {
-                                        SendMessage("❌ No messages stored in that channel, try `juzo jfs rlch " + args[1] + ' ' + args[2] + " deep`", "system", msg.guildID, "Move")
-                                    } else {
-                                        messagesToMove.rows.forEach(e => {
-                                            mqClient.sendData(MQWorker3, {
-                                                fromClient: `return.Discord.${systemglobal.SystemName}`,
-                                                messageReturn: false,
-                                                messageID: e.id,
-                                                messageChannelID: e.channel,
-                                                messageServerID: e.server,
-                                                messageType: 'command',
-                                                messageAction: 'MovePost',
-                                                messageData: channelnumber
-                                            }, function (callback) {
-                                                if (!callback) {
-                                                    Logger.printLine("Move", `Failed to request message ${e.id} to move`, "error")
-                                                }
-                                            })
-                                        })
-                                        SendMessage(`⏳ Requested ${messagesToMove.rows.length} Messages to be moved from ${args[1]} to ${args[2]}`, "system", msg.guildID, "Move")
-                                    }
-
-                                }
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
-                            }
-                            break;
-                        case 'rmrf':
-                            if (args.length > 1) {
-                                const channelfrom = args[1].replace("<#", "").replace(">", "");
-                                const messagesToDelete = await db.query(`SELECT id, channel, server, fileid FROM kanmi_records WHERE channel = ?`, [channelfrom])
-                                if (messagesToDelete.error) {
-                                    return "❌ SQL Failure"
-                                } else {
-                                    await Promise.all(messagesToDelete.rows.map(async msgdel => {
-                                        mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
-                                            fromClient: `return.Discord.${systemglobal.SystemName}`,
-                                            messageReturn: false,
-                                            messageID: msgdel.id,
-                                            messageChannelID: msgdel.channel,
-                                            messageServerID: msgdel.server,
-                                            messageType: 'command',
-                                            messageAction: 'RemovePost'
-                                        }, ok => {})
-                                    }))
-                                    return `Deleted ${messagesToDelete.rows.length} messages`
-                                }
-                            } else {
-                                return "⁉ Missing required information"
-                            }
-                            break;
-                        case 'name':
-                            if (args.length > 2) {
-                                const channel = args[1].replace("<#", "").replace(">", "");
-                                let newName = args.filter((e, i) => { if (i > 1) return e }).join(" ")
-                                if (newName === '' || newName === ' ') {
-                                    SendMessage("❌ New name could not be parsed", "system", msg.guildID, "RenameChannel")
-                                } else {
-                                    db.safe(`UPDATE kanmi_channels SET nice_name = ? WHERE channelid = ? `, [newName, channel], function (err, result) {
-                                        if (err) {
-                                            SendMessage("SQL Error occurred when saving to the channel cache", "err", 'main', "SQL", err)
-                                        } else {
-                                            SendMessage(`✅ Channel name was been updated to  ${newName}`, "system", msg.guildID, "RenameChannel")
-                                        }
-                                    })
-                                }
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
-                            }
-                            break;
-                        case 'rnf':
-                            if (args.length > 3) {
-                                const channelfrom = args[1].replace("<#", "").replace(">", "");
-                                let newName = msg.content.split(args[2]).pop()
-                                jfsRename(channelfrom, args[2], newName, function (complete) {
-                                    if (complete) {
-                                        SendMessage(`✅ File renamed to: ${newName}\nhttps://discord.com/channels/${msg.guildID}/${channelfrom}/${args[2]}/`, "system", msg.guildID, "Rename")
-                                    }
-                                });
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "Rename")
-                            }
-                            break;
-                        case 'mvf':
-                            if (args.length > 3) {
-                                const channelfrom = args[1].replace("<#", "").replace(">", "");
-                                const channelnumber = args[3].replace("<#", "").replace(">", "");
-                                discordClient.getMessage(channelfrom, args[2])
-                                    .then(function (messageToMove) {
-                                        jfsMove(messageToMove, channelnumber, function (cb) {
-                                            if (!cb) {
-                                                SendMessage(`📂 Message moved from ${args[1]} to ${args[3]}`, "system", msg.guildID, "Move")
-                                            } else {
-                                                SendMessage("❌ There was an error moving the message", "system", msg.guildID, "Move")
-                                            }
-                                        })
-                                    })
-                                    .catch((er) => {
-                                        SendMessage("❌ Message was not found", "system", msg.guildID, "Move", er)
-                                    })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
-                            }
-                            break;
-                        case 'rmf':
-                            if (args.length > 2) {
-                                const channelnumber = args[1].replace("<#", "").replace(">", "");
-                                jfsRemoveSF(channelnumber, args[2], msg.guildID);
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "RMSF")
-                            }
-                            break;
-                        case 'mvc':
-                            if (args.length > 1) {
-                                collector()
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
-                            }
-                            break;
-                        case 'lsarc':
-                            db.simple(`SELECT * FROM discord_archive_overide`, function (err, folders) {
-                                if (err) {
-                                    SendMessage("SQL Error occurred when getting fileworker table", "err", 'main', "SQL", err)
-                                } else {
-                                    let message = '**Mapped Archive Channels:**\n'
-                                    for (let index in folders) {
-                                        message += `🗄 <#${folders[index].fromch}> => <#${folders[index].archivech}>\n`
-                                        if (parseInt(index) === folders.length - 1) {
-                                            discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
-                                                content: message.substring(0, 1980) + ""
-                                            })
-                                                .catch((er) => {
-                                                    SendMessage("Failed to send message", "err", msg.guildID, "FWls", er)
-                                                });
-                                        }
-                                    }
-                                }
-                            })
-                            break;
-                        case 'mkarc':
-                            if (args.length > 2) {
-                                const channelFrom = args[1].replace("<#", "").replace(">", "");
-                                const channelArchive = args[2].replace("<#", "").replace(">", "");
-                                db.safe(`INSERT INTO discord_archive_overide VALUES (?, ?)`, [channelFrom, channelArchive], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when writing to archive channel map table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`✅ Archive Channel Map Created`, "system", msg.guildID, "ArchiveMk")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveMk")
-                            }
-                            break;
-                        case 'rmarc':
-                            if (args.length > 1) {
-                                const channelFrom = args[1].replace("<#", "").replace(">", "");
-                                db.safe(`DELETE FROM discord_archive_overide WHERE fromch = ?`, [channelFrom], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when deleting from archive channel map table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`❎ Archive Channel Map Removed`, "system", msg.guildID, "ArchiveRm")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveRm")
-                            }
-                            break;
-                        case 'repair':
-                            if (args.length > 1) {
-                                if (args[1] === 'all') {
-                                    db.simple(`SELECT channelid FROM kanmi_channels WHERE parent != 'isparent' AND classification NOT LIKE '%system%' AND classification NOT LIKE '%timeline%' AND source = 0`, async function (err, result) {
-                                        if (!(err) && result && result.length > 0) {
-                                            let limit = undefined
-                                            let forceLarge = false
-                                            if (args.length > 2 && !isNaN(parseInt(args[2]))) {
-                                                limit = parseInt(args[2])
-                                            }
-                                            if (args.length > 3 && args[3] === 'force') {
-                                                forceLarge = true
-                                            }
-
-                                            SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem", 0, limit, forceLarge)
-                                            messageRecache(result, msg.guildID);
-                                        } else {
-                                            SendMessage(`❌ Failed to start filesystem repair, could not find and folders!`, "system", msg.guildID, "RepairFileSystem")
-                                        }
-                                    })
-                                } else if (args[1] === 'parts' || args[1] === 'parity') {
-                                    let limit = undefined
-                                    let messagesBefore = 0
-                                    if (args.length > 4 && !isNaN(parseInt(args[4]))) {
-                                        messagesBefore = parseInt(args[4])
-                                    }
-                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
-                                        limit = parseInt(args[2])
-                                    }
-                                    SendMessage(`✅ Started Full Filesystem Parity Repair...`, "system", msg.guildID, "RepairFileSystem");
-                                    spannedPartsRecache(messagesBefore, limit);
-                                } else {
-                                    const channelFrom = args[1].replace("<#", "").replace(">", "");
-                                    let limit = undefined
-                                    let messagesBefore = 0
-                                    if (args.length > 4 && !isNaN(parseInt(args[4]))) {
-                                        messagesBefore = parseInt(args[4])
-                                    }
-                                    if (args.length > 2 && !isNaN(parseInt(args[2]))) {
-                                        limit = parseInt(args[2])
-                                    }
-                                    SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem");
-                                    messageRecache([{channelid: channelFrom}], msg.guildID, messagesBefore, limit, true);
-                                }
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveRm")
-                            }
-                            break;
-                        case 'update':
-                            SendMessage(`✅ Started Filesystem Update...`, "system", msg.guildID, "RepairFileSystem");
-                            messageCheckCache();
-                            break;
-                        case 'initch':
-                            discordClient.getRESTGuildChannels(msg.guildID)
-                                .then(function (channels) {
-                                    channels.forEach(function (channel) {
-                                        channelCreate(channel);
-                                    })
-                                })
-                            break;
-                        default:
-                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "FSCmd")
-                            break;
-                    }
-                } else {
-                    SendMessage("⁉ Missing required information", "system", msg.guildID, "FSCmd")
-                }
-            }
-        }, {
-            argsRequired: true,
-            caseInsensitive: true,
-            description: "Manage the Discord Filesystem",
-            fullDescription: "Allows you to manage channel mappings, create and remove channels\n" +
-                "   **lsmap** - Lists all channel maps\n   **mkmap** - Create channel maps\n      [Channel, Folder]\n   **rmmap** - Removes a channel maps\n      [Folder]\n" +
-                "   **chmap** - Remap a channel\n      [Channel, Folder]\n   **mkdir** - Creates new channel\n      [Name, Type, (nsfw)]\n   **rmdir** - Removes a channel\n      [Channel]\n" +
-                "   **mvf** - Move Message or file\n      [ChFrom, MessageID, ChTo]\n   **rlch** - Move All Messages to Channel\n      [ChFrom, ChTo, (deep), (count)]\n   **rmf** - Delete Multi-Part File\n      [ChFrom, MessageID]\n" +
-                "   **lsarc** - List Archive Channel Maps\n   **mkarc** - Create Archive Channel Map\n      [ChFrom, ChTo]\n   **rmarc** - Removes Archive Channel Map\n      [Channel]\n" +
-                "   **mvc** - Manage the Collector\n      **enable** - Enable\n      **disable** - Disable\n      **status** - Displays status\n" +
-                "      **done** - Moves all items to a channel\n         [Channel]\n      **search** - Search a channel for items to add\n         [Channel, Term]\n      **clear** - Clears all\n" +
-                "   **repair** - Repairs a JFS folder or parity\n      [[ChannelID, all, or parts], (num to search), (force), (before id)]",
-            usage: "command [arguments]",
-            guildOnly: true
-        })
-        discordClient.registerCommand("clr", function (msg,args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    if (args[1] === "Confirm") {
-                        const channelToClear = args[0].replace("<#", "").replace(">", "");
-                        deleteAbove(channelToClear);
-                        SendMessage(`🗑 Channel has been cleared`, "system", msg.guildID, "Clear")
-                    } else {
-                        SendMessage("⁉ You did not confirm the action", "system", msg.guildID, "Clear")
-                    }
-                } else {
-                    let channelClear = '';
-                    if (msg.channel.id === discordServers.get(msg.guildID).chid_system.toString()) {
-                        channelClear = discordServers.get(msg.guildID).chid_system.toString();
-                    }
-                    if (channelClear !== '') {
-                        deleteAbove(channelClear);
-                    } else {
-                        Logger.printLine("Discord", "Not a recognized channel number", "error")
-                    }
-                }
-            }
-        }, {
-            argsRequired: false,
-            caseInsensitive: true,
-            description: "Clears all messages from a channel",
-            fullDescription: "Clears all messages from the system channel or a specified channel",
-            usage: "#channel (optional)",
-            guildOnly: true
-        })
-
-        discordClient.registerCommand("twit", function (msg,args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    switch (args[0].toLowerCase()) {
-                        case 'add':
-                            if (args.length > 2) {
-                                const channelToAdd = args[1].replace("<#", "").replace(">", "");
-                                const username = args[2];
-                                sendTwitterAction(username, "listManager", "adduser", "", channelToAdd, msg.guildID)
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterAdd")
-                            }
-                            break;
-                        case 'rm':
-                            if (args.length > 2) {
-                                const channelToAdd = args[1].replace("<#", "").replace(">", "");
-                                const username = args[2];
-                                sendTwitterAction(username, "listManager", "removeuser", "", channelToAdd, msg.guildID)
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterAdd")
-                            }
-                            break;
-                        case 'ls':
-                            sendTwitterAction("empty", "listManager", "getusers", "", '', msg.guildID)
-                            break;
-                        case 'blkwd':
-                            if (args.length > 1) {
-                                Logger.printLine("Discord", `Blocked the word "${args[1]}"`, "info")
-                                db.safe(`INSERT INTO twitter_blockedwords VALUES (?, ?)`, [args[1] + ' ', systemglobal.TwitterUser], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when writing to twitter blocked words table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`🚫 You will no longer receive tweets containing the word "${args[1]}"`, "system", msg.guildID, "TwitterBlock")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
-                            }
-                            break;
-                        case 'ublkwd':
-                            if (args.length > 1) {
-                                Logger.printLine("Discord", `Blocked the word "${args[1]}"`, "info")
-                                db.safe(`DELETE FROM twitter_blockedwords WHERE word = ?`, [args[1] + ' '], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when deleting from the twitter blocked words table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`✅ You will receive tweets containing the word "${args[1]}"`, "system", msg.guildID, "TwitterUBlock")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
-                            }
-                            break;
-                        case 'release':
-                            if (args.length > 1) {
-                                mqClient.sendData(systemglobal.Twitter_In, {
-                                    fromWorker: systemglobal.SystemName,
-                                    messageText: "",
-                                    messageIntent: 'releaseTweet',
-                                    messageAction: (args.length > 2) ? args[2] : undefined,
-                                    accountID: parseInt(args[1].toString())
-                                }, function (ok) {
-                                    if (ok)
-                                        SendMessage(`Releasing a${(args.length > 2) ? ' ' + args[2] : ''} tweet for Twitter account #${args[1]}`, "system", msg.guildID, "TwitterRelease")
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
-                            }
-                            break;
-                        default:
-                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "TwitterMgr")
-                            break;
-                    }
-                } else {
-                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterMgr")
-                }
-            }
-        }, {
-            argsRequired: true,
-            caseInsensitive: true,
-            description: "Manage the Twitter Client",
-            fullDescription: "Manages twitter lists and blocked words\n" +
-                "   **get** - Get More Tweets (Flowcontrol only)\n   **add** - Add user to Twitter List\n      [Channel, Username]\n   **rm** - Remove user from Twitter List\n      [Channel, Username]\n   **ls** - Lists all users in a list\n" +
-                "   **blkwd** - Add word to blocklist\n      [word]\n   **ublkwd** - Remove word from blocklist\n      [word]\n   **release** - Release a tweet on a Flow Controlled account\n      [accountID]",
-            usage: "command [arguments]",
-            guildOnly: true
-        })
-
-        discordClient.registerCommand("yt", function (msg,args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    switch (args[0].toLowerCase()) {
-                        case 'add':
-                            if (args.length > 2) {
-                                const channelToAdd = args[1].replace("<#", "").replace(">", "");
-                                Logger.printLine("Discord", `Now Watching Channel "${args[2]}"`, "info")
-                                db.safe(`INSERT INTO youtube_watchlist VALUES (?, ?, ?, null)`, [args[2], systemglobal.YouTubeUser, channelToAdd], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when writing to youtube list table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`✅ You are subscribed to that channel`, "system", msg.guildID, "YTWatch")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "YTWatch")
-                            }
-                            break;
-                        case 'rm':
-                            if (args.length > 1) {
-                                Logger.printLine("Discord", `No longer watching channel "${args[1]}"`, "info")
-                                db.safe(`DELETE FROM youtube_watchlist WHERE yuser = ?`, [args[1]], function (err, resultsend) {
-                                    if (err) {
-                                        SendMessage("SQL Error occurred when deleting from the youtube list table", "err", 'main', "SQL", err)
-                                    } else {
-                                        SendMessage(`❎ You are unsubscribed to that channel`, "system", msg.guildID, "YTRm")
-                                    }
-                                })
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "YTRm")
-                            }
-                            break;
-                        default:
-                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "YouTubeMgr")
-                            break;
-                    }
-                } else {
-                    SendMessage("⁉ Missing required information", "system", msg.guildID, "YouTubeMgr")
-                }
-            }
-        }, {
-            argsRequired: true,
-            caseInsensitive: true,
-            description: "Manage the YouTube Client",
-            fullDescription: "Manages followed youtube channels\n" +
-                "   **add** - Add channel to subscription group\n      [Channel, UserID]\n**rm** - Remove a channel from a subscription group\n      [UserID]",
-            usage: "command [arguments]",
-            guildOnly: true
-        })
-
-        discordClient.registerCommand("pixiv", function (msg,args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
-                if (args.length > 0) {
-                    switch (args[0].toLowerCase()) {
-                        case 'recom':
-                            sendPixivAction("empty", "GetRecommended", "get")
-                            SendMessage(`⏳ Request was sent to Pixiv, View in <#${pixivaccount[0].feed_channelid}>`, "system", msg.guildID, "PixivRecom")
-                            break;
-                        case 'add':
-                            if (args.length > 1) {
-                                const userID = args[1];
-                                sendPixivAction(userID, "Follow", "add")
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
-                            }
-                            break;
-                        case 'rm':
-                            if (args.length > 1) {
-                                const userID = args[1];
-                                sendPixivAction(userID, "Follow", "remove")
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
-                            }
-                            break;
-                        case 'get':
-                            if (args.length > 1) {
-                                if (args[1].includes("pixiv.net/")) {
-                                    const postID = parseInt(args[1].split("/").pop()).toString()
-                                    if (postID !== 'NaN') {
-                                        if (args[1].includes("/artworks/")) { // Illustration
-                                            sendPixivAction(postID, "DownloadPost", "get", undefined, true)
-                                            SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
-                                        } else if (args[1].includes("/users/")) { // User
-                                            sendPixivAction(postID, "DownloadUser", "get", undefined, true)
-                                            SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
-                                        }
-                                    } else {
-                                        SendMessage("⁉ No post ID was found", "system", msg.guildID, "PixivMgr")
-                                    }
-                                } else {
-                                    const postID = parseInt(args[2]).toString()
-                                    if (postID !== 'NaN') {
-                                        if (args[1].toLowerCase() === "user") {
-                                            sendPixivAction(postID, "DownloadUser", "get", undefined, true)
-                                            SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
-                                        } else if (args[1].toLowerCase() === "illu" || args[1].toLowerCase() === "single") {
-                                            sendPixivAction(postID, "DownloadPost", "get", undefined, true)
-                                            SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
-                                        }
-                                    } else {
-                                        SendMessage("⁉ No post ID was found", "system", msg.guildID, "PixivMgr")
-                                    }
-                                }
-                            } else {
-                                SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivDownload")
-                            }
-                            break;
-                        default:
-                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "PixivMgr")
-                            break;
-                    }
-                } else {
-                    SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
-                }
-            }
-        }, {
-            argsRequired: true,
-            caseInsensitive: true,
-            description: "Manage the Pixiv Client",
-            fullDescription: "Allows you to interact with the Pixiv Client Functions\n" +
-                "   **recom** - Release a Recommended post for your account\n      **clear** - Refreshes Recommended posts for your account\n   **get** - Downloads a illustrations or a user\n      [(user/illu), PixivID]\n      [URL]\n" +
-                "   **add** - Follow a user\n      [PixivUserID]\n   **rm** - Unfollow a user\n      [PixivUserID]\n",
-            usage: "command [arguments]",
-            guildOnly: true
-        })
-
-        if (systemglobal.RadioFolder) {
-            discordClient.registerCommand("music", function (msg,args) {
-                if (discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
+        if (!systemglobal.Discord_Upload_Only) {
+            discordClient.registerCommand("jfs", async (msg, args) => {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                     if (args.length > 0) {
-                        switch (args[0].toLowerCase()) {
-                            case 'ls':
-                                if (playingStatus.has(msg.guildID)) {
-                                    let message = "List of current music boxes\n```"
-                                    for (let item of musicFolders) {
-                                        message = message + `🎹 - ${item}\n`
-                                    }
-                                    discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
-                                        content: message.substring(0, 1900) + "```"
-                                    })
-                                        .catch((er) => {
-                                            SendMessage("Failed to send message", "err", msg.guildID, "Playlist", er)
-                                        });
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'play':
-                                if (playingStatus.has(msg.guildID)) {
-                                    if (args.length > 1) {
-                                        if (msg.member.voiceState.channelID !== null) {
-                                            if (musicFolders.indexOf(args[1]) > -1) {
-                                                nowPlaying.clear()
-                                                    .then(() => {
-                                                        const musicbox_name = musicFolders[musicFolders.indexOf(args[1])]
-                                                        const files = shuffle(fs.readdirSync(path.join(systemglobal.RadioFolder, musicbox_name)))
-                                                        for (let index in files) {
-                                                            const key = msg.guildID.toString() + '-' + crypto.randomBytes(5).toString("hex")
-                                                            nowPlaying.setItem(key, {
-                                                                file: files[index].toString(),
-                                                                musicbox: musicbox_name,
-                                                            })
-                                                                .then(function () {
-                                                                    if (parseInt(index) === files.length - 1) {
-                                                                        discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
-                                                                            .catch((err) => {
-                                                                                SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "Radio", err)
-                                                                            })
-                                                                            .then((connection) => {
-                                                                                if (playingStatus.get(msg.guildID)) {
-                                                                                    connection.stopPlaying();
-                                                                                } else {
-                                                                                    playStation(connection)
-                                                                                }
-                                                                            });
-                                                                    }
-
-                                                                })
-                                                                .catch(function (err) {
-                                                                    Logger.printLine("Musicbox", `Failed to generate a track record for ${files[index].toString()}`, "err", err)
-                                                                })
-                                                        }
-                                                    })
-                                                    .catch(function (err) {
-                                                        Logger.printLine("Musicbox", `Failed to clear the playlist`, "err", err)
-                                                    })
-                                            } else {
-                                                SendMessage("⁉️ That music box is not available", "systempublic", msg.guildID, "Radio")
-                                            }
-                                        } else {
-                                            SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
-                                        }
-                                    } else {
-                                        SendMessage("⁉ Missing required information", "systempublic", msg.guildID, "Radio")
-                                    }
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'stop':
-                                if (playingStatus.has(msg.guildID)) {
-                                    if (discordClient.voiceConnections.size > 0) {
-                                        if (discordClient.voiceConnections.has(msg.guildID)) {
-                                            nowPlaying.clear()
-                                                .then(() => {
-                                                    if (playingStatus.get(msg.guildID)) {
-                                                        discordClient.voiceConnections.get((msg.guildID)).stopPlaying();
+                        function collector() {
+                            switch (args[1].toLowerCase()) {
+                                case 'enable':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        messsageCollector.keys()
+                                            .then(function (results) {
+                                                const count = filterItems(results, msg.guildID + '-').length
+                                                if (collectorEnable.get(msg.guildID)) {
+                                                    if (count === 0) {
+                                                        SendMessage(`⚠️ Collector already enabled`, "system", msg.guildID, "Collector")
+                                                    } else {
+                                                        SendMessage(`⚠️ Collector already enabled, with ${count} Message in Collector`, "system", msg.guildID, "Collector")
                                                     }
-                                                    discordClient.closeVoiceConnection(msg.guildID)
-                                                    localParameters.setItem('player-' + msg.guildID, {
-                                                        status: 'off',
-                                                        key: '',
-                                                        channel: '',
+                                                } else {
+                                                    localParameters.setItem('collector-' + msg.guildID, {
+                                                        status: 'on'
                                                     })
                                                         .then(function () {
-                                                            playingStatus.set(msg.guildID, false);
+                                                            if (count === 0) {
+                                                                SendMessage(`📂 Message Collector is ready!`, "system", msg.guildID, "Collector")
+                                                            } else {
+                                                                SendMessage(`✅ Message Collector Enabled! ${count} Messages in Collector`, "system", msg.guildID, "Collector")
+                                                            }
+                                                            collectorEnable.set(msg.guildID, true)
                                                         })
                                                         .catch(function (err) {
-                                                            SendMessage("❌ Failed to set player status", "system", msg.guildID, "Musicbox")
-                                                            Logger.printLine(`Musicbox`, `Failed to set play status`, `error`, err)
+                                                            SendMessage("❌ Failed to enable collector", "system", msg.guildID, "Collector")
+                                                            Logger.printLine(`Collector`, `Failed to enable the message collector`, `error`, err)
+                                                            collectorEnable.set(msg.guildID, false)
                                                         })
-                                                })
-                                                .catch(function (err) {
-                                                    Logger.printLine("Musicbox", `Failed to clear the playlist`, "err", err)
+                                                }
+                                            })
+                                            .catch(function (err) {
+                                                SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
+                                                Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
+                                            })
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'disable':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        messsageCollector.keys()
+                                            .then(function (results) {
+                                                const count = filterItems(results, msg.guildID + '-').length
+                                                if (collectorEnable.get(msg.guildID)) {
+                                                    localParameters.setItem('collector-' + msg.guildID, {
+                                                        status: 'off'
+                                                    })
+                                                        .then(function () {
+                                                            if (count === 0) {
+                                                                SendMessage(`❎ Collector was disabled`, "system", msg.guildID, "Collector")
+                                                            } else {
+                                                                SendMessage(`⏸ Collector was disabled, there are still ${count} messages in Collector`, "system", msg.guildID, "Collector")
+                                                            }
+                                                            collectorEnable.set(msg.guildID, false)
+                                                        })
+                                                        .catch(function (err) {
+                                                            SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
+                                                            Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
+                                                        })
+                                                } else {
+                                                    if (count === 0) {
+                                                        SendMessage(`⚠️ Collector already disabled`, "system", msg.guildID, "Collector")
+                                                    } else {
+                                                        SendMessage(`⚠️ Collector already disabled, with ${count} Message in Collector`, "system", msg.guildID, "Collector")
+                                                    }
+                                                }
+                                            })
+                                            .catch(function (err) {
+                                                SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
+                                                Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
+                                            })
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'search':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        if (args.length > 3) {
+                                            const channelnumber = args[2].replace("<#", "").replace(">", "");
+                                            const searchTermString = args[3].toString();
+                                            let numResults = 0
+                                            discordClient.getMessages(channelnumber, 100000)
+                                                .then((messages) => {
+                                                    SendMessage(`🔍 Searching ${messages.length.toString()} items...`, "system", msg.guildID, "Collector")
+                                                    let requests = messages.reverse().reduce((promiseChain, itemRequested) => {
+                                                        return promiseChain.then(() => new Promise((resolve) => {
+                                                            function addItem() {
+                                                                const ItemID = `${itemRequested.guildID}-${Date.now().toString()}-${itemRequested.id}`
+                                                                messsageCollector.setItem(ItemID, {
+                                                                    itemKey: ItemID,
+                                                                    messageID: itemRequested.id,
+                                                                    channelID: itemRequested.channel.id,
+                                                                    guildID: itemRequested.guildID,
+                                                                })
+                                                                    .then(() => {
+                                                                        Logger.printLine("AddMessageCollector", `Message ${itemRequested.id} added to Collector`, "debug");
+                                                                        numResults++;
+                                                                        resolve();
+                                                                    })
+                                                                    .catch(err => {
+                                                                        Logger.printLine("AddMessageCollector", `Failed to add Message ${itemRequested.id} to Collector`, "err");
+                                                                        resolve();
+                                                                    })
+                                                            }
+
+                                                            if (itemRequested.content.includes(searchTermString)) {
+                                                                addItem();
+                                                            } else if (itemRequested.attachments.length > 0) {
+                                                                itemRequested.attachments.forEach((item) => {
+                                                                    if (item.filename.includes(searchTermString)) {
+                                                                        addItem()
+                                                                    }
+                                                                })
+                                                                resolve()
+                                                            } else {
+                                                                resolve()
+                                                            }
+                                                        }));
+                                                    }, Promise.resolve());
+                                                    requests.then(function () {
+                                                        SendMessage(`⚙️ Found and added ${numResults.toString()} items to the Collector`, "system", msg.guildID, "Collector")
+                                                    })
                                                 })
                                         } else {
-                                            SendMessage("⁉️ Radio is not currently playing", "systempublic", msg.guildID, "Radio")
+                                            SendMessage("⁉ Missing required channel destination or search term", "system", msg.guildID, "CollectorMove")
                                         }
                                     } else {
-                                        SendMessage("⁉️ Radio is not currently playing", "systempublic", msg.guildID, "Radio")
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
                                     }
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'replay':
-                                if (playingStatus.has(msg.guildID)) {
-                                    if (msg.member.voiceState.channelID !== null) {
-                                        discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
-                                            .catch((err) => {
-                                                SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioStop", err)
+                                    break;
+                                case 'clear':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        localParameters.setItem('collector-' + msg.guildID, {
+                                            status: 'off'
+                                        })
+                                            .then(function () {
+                                                collectorEnable.set(msg.guildID, false)
+                                                messsageCollector.keys()
+                                                    .then(function (results) {
+                                                        const filteredkeys = filterItems(results, msg.guildID + '-')
+                                                        for (let keyItem of filteredkeys) {
+                                                            messsageCollector.removeItem(keyItem)
+                                                                .catch(function (err) {
+                                                                    Logger.printLine(`Collector`, `Failed to remove an items from the collector`, `error`, err)
+                                                                })
+                                                        }
+                                                        SendMessage(`🗑 ${filteredkeys.length} Messages Cleared from the Collector`, "system", msg.guildID, "Collector")
+                                                    })
+                                                    .catch(function (err) {
+                                                        SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
+                                                        Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
+                                                    })
                                             })
-                                            .then((connection) => {
-                                                if (playingStatus.get(msg.guildID)) {
-                                                    playStation(connection, "restart")
-                                                }
+                                            .catch(function (err) {
+                                                SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
+                                                Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
                                             })
                                     } else {
-                                        SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
                                     }
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'next':
-                                if (playingStatus.has(msg.guildID)) {
-                                    if (msg.member.voiceState.channelID !== null) {
-                                        discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
-                                            .catch((err) => {
-                                                SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioNext", err)
-                                            })
-                                            .then((connection) => {
-                                                if (playingStatus.get(msg.guildID)) {
-                                                    connection.stopPlaying();
+                                    break;
+                                case 'status':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        messsageCollector.keys()
+                                            .then(function (results) {
+                                                const count = filterItems(results, msg.guildID + '-').length;
+                                                let head = `**🗳 ${count} Messages in the Collector`
+                                                if (collectorEnable.get(msg.guildID)) {
+                                                    head += ` (✅)`
+                                                } else {
+                                                    head += ` (🛑)`
                                                 }
-                                            })
-                                    } else {
-                                        SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
-                                    }
-                                } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
-                                }
-                                break;
-                            case 'pause':
-                                if (playingStatus.has(msg.guildID)) {
-                                    if (msg.member.voiceState.channelID !== null) {
-                                        discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
-                                            .catch((err) => {
-                                                SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioPause", err)
-                                            })
-                                            .then((connection) => {
-                                                if (connection.playing || connection.paused) {
-                                                    if (connection.paused) {
-                                                        connection.resume()
-                                                    } else {
-                                                        connection.pause()
+                                                let itemsText = ''
+                                                messsageCollector.forEach(function (message) {
+                                                    if (message.value.guildID === msg.guildID) {
+                                                        itemsText += `✉️ ${message.value.messageID} from <#${message.value.channelID}>\n`
                                                     }
-                                                } else if (playingStatus.get(msg.guildID)) {
-                                                    playStation(connection, "restart")
+                                                })
+                                                    .then(function () {
+                                                        if (count === 0) {
+                                                            SendMessage(head + '**', "system", msg.guildID, "Collector")
+                                                        } else {
+                                                            SendMessage(head + ':**\n' + itemsText.substring(0, 1900), "system", msg.guildID, "Collector")
+                                                        }
+                                                    })
+                                            })
+                                            .catch(function (err) {
+                                                SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
+                                                Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
+                                            })
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'done':
+                                    if (collectorEnable.has(msg.guildID)) {
+                                        messsageCollector.keys()
+                                            .then(function (results) {
+                                                const count = filterItems(results, msg.guildID + '-').length
+                                                if (collectorEnable.get(msg.guildID)) {
+                                                    if (args.length > 2) {
+                                                        if (count === 0) {
+                                                            SendMessage(`🛑 Collector is empty!`, `system`, msg.guildID, "Collector")
+                                                        } else {
+                                                            const channelnumber = args[2].replace("<#", "").replace(">", "");
+                                                            SendMessage(`⏳ Moving ${count} Messages, Please standby...`, "system", msg.guildID, "CollectorMove")
+                                                            messsageCollector.keys()
+                                                                .then(function (itemKeys) {
+                                                                    const sortedKeys = filterItems(itemKeys, msg.guildID + '-').sort().reverse()
+                                                                    let requests = sortedKeys.reduce((promiseChain, itemRequested) => {
+                                                                        return promiseChain.then(() => new Promise((resolve) => {
+                                                                            messsageCollector.getItem(itemRequested)
+                                                                                .then(function (messages) {
+                                                                                    discordClient.getMessage(messages.channelID, messages.messageID)
+                                                                                        .then(function (messageToMove) {
+                                                                                            jfsMove(messageToMove, channelnumber, function (cb) {
+                                                                                                if (!cb) {
+                                                                                                    messsageCollector.removeItem(itemRequested)
+                                                                                                        .then(function () {
+                                                                                                            Logger.printLine('CollectorMove', `Message ${messages.messageID} moved from ${messages.channelID} to ${channelnumber}`, "log")
+                                                                                                            resolve()
+                                                                                                        })
+                                                                                                        .catch(function (err) {
+                                                                                                            Logger.printLine('CollectorMove', `Failed to delete the item ${itemRequested} from the collector!`, "log", err)
+                                                                                                            resolve()
+                                                                                                        })
+                                                                                                } else {
+                                                                                                    Logger.printLine("CollectorMove", `There was an error moving message : ${messages.messageID}`, "error")
+                                                                                                    resolve()
+                                                                                                }
+                                                                                            })
+                                                                                        })
+                                                                                        .catch((er) => {
+                                                                                            Logger.printLine("CollectorMove", `Message was not found : ${messages.messageID}`, "error")
+                                                                                            resolve()
+                                                                                        })
+                                                                                })
+                                                                                .catch(function (err) {
+                                                                                    Logger.printLine(`Collector`, `Failed to get item ${itemRequested} from message collector`, `error`, err)
+                                                                                })
+                                                                        }));
+                                                                    }, Promise.resolve());
+                                                                    requests.then(function () {
+                                                                        localParameters.setItem('collector-' + msg.guildID, {
+                                                                            status: 'off'
+                                                                        })
+                                                                            .then(function () {
+                                                                                collectorEnable.set(msg.guildID, false)
+                                                                            })
+                                                                            .catch(function (err) {
+                                                                                SendMessage("❌ Failed to disable collector", "system", msg.guildID, "Collector")
+                                                                                Logger.printLine(`Collector`, `Failed to disable the message collector`, `error`, err)
+                                                                            })
+                                                                    })
+
+                                                                })
+                                                        }
+                                                    } else {
+                                                        SendMessage("⁉ Missing required channel destination", "system", msg.guildID, "CollectorMove")
+                                                    }
+                                                } else {
+                                                    SendMessage("⚠️ Collector already disabled", "system", msg.guildID, "Collector")
+                                                }
+                                            })
+                                            .catch(function (err) {
+                                                SendMessage(`❌ Error retrieving the items in the collector!`, `system`, msg.guildID, "Collector")
+                                                Logger.printLine(`Collector`, `Failed retrieving the items in the collector`, `error`, err)
+                                            })
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `system`, msg.guildID, "Collector")
+                                        Logger.printLine(`Collector`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                default:
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "CollectorMove")
+                                    break;
+                            }
+                        }
+
+                        switch (args[0].toLowerCase()) {
+                            case 'lsmap':
+                                db.simple(`SELECT channelid, watch_folder
+                                           FROM kanmi_channels
+                                           WHERE watch_folder IS NOT NULL
+                                             AND source = 0`, function (err, folders) {
+                                    if (err) {
+                                        SendMessage("SQL Error occurred when getting fileworker table", "err", 'main', "SQL", err)
+                                    } else {
+                                        let message = '**Mapped Channels:**\n'
+                                        for (let index in folders) {
+                                            if (folders[index].watch_folder.toString() !== "MultiPartFolder" && folders[index].watch_folder.toString() !== "Data") {
+                                                message += `📂 ${folders[index].watch_folder} => <#${folders[index].channelid}>\n`
+                                            }
+                                            if (parseInt(index) === folders.length - 1) {
+                                                discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
+                                                    content: message.substring(0, 1980) + ""
+                                                })
+                                                    .catch((er) => {
+                                                        SendMessage("Failed to send message", "err", msg.guildID, "FWls", er)
+                                                    });
+                                            }
+                                        }
+                                    }
+                                })
+                                break;
+                            case 'mkmap':
+                                if (args.length > 2) {
+                                    const channelToAdd = args[1].replace("<#", "").replace(">", "");
+                                    const folderName = args[2]
+                                    Logger.printLine("Discord", `Created Map to ${channelToAdd} from ${folderName}`, "info")
+                                    db.safe(`UPDATE kanmi_channels
+                                             SET watch_folder = ?
+                                             WHERE channelid = ?`, [folderName, channelToAdd], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when writing to fileworker table", "err", 'main', "SQL", err)
+                                        } else {
+                                            mqClient.sendCmd('fileworker', 'RESET')
+                                            SendMessage("✅ Created channel map", "system", msg.guildID, "FWAdd")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "FWAdd")
+                                }
+                                break;
+                            case 'rmmap':
+                                if (args.length > 1) {
+                                    Logger.printLine("Discord", `Removing map ${args[1]}`, "info")
+                                    db.safe(`UPDATE kanmi_channels
+                                             SET watch_folder = null
+                                             WHERE watch_folder = ?`, [args[1]], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when deleting from the fileworker table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage("❎ Removed channel map", "system", msg.guildID, "FWRm")
+                                            mqClient.sendCmd('fileworker', 'RESET')
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "FWRm")
+                                }
+                                break;
+                            case 'chmap':
+                                if (args.length > 2) {
+                                    const channelToAdd = args[1].replace("<#", "").replace(">", "");
+                                    const folderName = args[2]
+                                    Logger.printLine("Discord", `Changed Map to ${channelToAdd} from ${folderName}`, "info")
+                                    db.safe(`UPDATE kanmi_channels
+                                             SET watch_folder = ?
+                                             WHERE channelid = ?`, [folderName, channelToAdd], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when writing to fileworker table", "err", 'main', "SQL", err)
+                                        } else {
+                                            mqClient.sendCmd('fileworker', 'RESET')
+                                            SendMessage("✅ Changed channel map", "system", msg.guildID, "FWMod")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "FWMod")
+                                }
+                                break;
+                            case 'rlch':
+                                if (args.length > 2) {
+                                    const channelfrom = args[1].replace("<#", "").replace(">", "");
+                                    const channelnumber = args[2].replace("<#", "").replace(">", "");
+                                    const check1 = await discordClient.getChannel(channelfrom)
+                                    const check2 = await discordClient.getChannel(channelnumber)
+                                    if (!check1) {
+                                        SendMessage(`"❌ Can not access "From" channel"`, "system", msg.guildID, "Move")
+                                    } else if (!check2) {
+                                        SendMessage(`"❌ Can not access "To" channel"`, "system", msg.guildID, "Move")
+                                    } else if (args.length > 3 && args[3] === 'deep') {
+                                        const messagesToMove = await discordClient.getMessages(channelfrom, (args.length > 4 && !isNaN(parseInt(args[4]))) ? parseInt(args[4]) : 1000000);
+                                        if (messagesToMove && messagesToMove.length > 0) {
+                                            for (let f of messagesToMove) {
+                                                limiter3.removeTokens(1, function () {
+                                                    jfsMove(f, channelnumber, cb => {
+
+                                                    })
+                                                });
+                                            }
+                                            SendMessage(`📂 ${messagesToMove.length} Messages moved from ${args[1]} to ${args[2]}`, "system", msg.guildID, "Move")
+                                        } else {
+                                            SendMessage("❌ Failed to get messages for that channel", "system", msg.guildID, "Move")
+                                        }
+                                    } else {
+                                        const messagesToMove = await db.query(`SELECT id, channel, server
+                                                                               FROM kanmi_records
+                                                                               WHERE channel = ?
+                                                                               ORDER BY eid DESC ${(args.length > 4 && !isNaN(parseInt(args[4]))) ? ' LIMIT ' + parseInt(args[4]) : ''}`, [channelfrom])
+                                        if (messagesToMove.error) {
+                                            SendMessage("❌ Failed to get messages for that channel due to SQL error", "system", msg.guildID, "Move", messagesToMove.error)
+                                        } else if (messagesToMove.rows.length === 0) {
+                                            SendMessage("❌ No messages stored in that channel, try `juzo jfs rlch " + args[1] + ' ' + args[2] + " deep`", "system", msg.guildID, "Move")
+                                        } else {
+                                            messagesToMove.rows.forEach(e => {
+                                                mqClient.sendData(MQWorker3, {
+                                                    fromClient: `return.Discord.${systemglobal.SystemName}`,
+                                                    messageReturn: false,
+                                                    messageID: e.id,
+                                                    messageChannelID: e.channel,
+                                                    messageServerID: e.server,
+                                                    messageType: 'command',
+                                                    messageAction: 'MovePost',
+                                                    messageData: channelnumber
+                                                }, function (callback) {
+                                                    if (!callback) {
+                                                        Logger.printLine("Move", `Failed to request message ${e.id} to move`, "error")
+                                                    }
+                                                })
+                                            })
+                                            SendMessage(`⏳ Requested ${messagesToMove.rows.length} Messages to be moved from ${args[1]} to ${args[2]}`, "system", msg.guildID, "Move")
+                                        }
+
+                                    }
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
+                                }
+                                break;
+                            case 'rmrf':
+                                if (args.length > 1) {
+                                    const channelfrom = args[1].replace("<#", "").replace(">", "");
+                                    const messagesToDelete = await db.query(`SELECT id, channel, server, fileid
+                                                                             FROM kanmi_records
+                                                                             WHERE channel = ?`, [channelfrom])
+                                    if (messagesToDelete.error) {
+                                        return "❌ SQL Failure"
+                                    } else {
+                                        await Promise.all(messagesToDelete.rows.map(async msgdel => {
+                                            mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                                fromClient: `return.Discord.${systemglobal.SystemName}`,
+                                                messageReturn: false,
+                                                messageID: msgdel.id,
+                                                messageChannelID: msgdel.channel,
+                                                messageServerID: msgdel.server,
+                                                messageType: 'command',
+                                                messageAction: 'RemovePost'
+                                            }, ok => {
+                                            })
+                                        }))
+                                        return `Deleted ${messagesToDelete.rows.length} messages`
+                                    }
+                                } else {
+                                    return "⁉ Missing required information"
+                                }
+                                break;
+                            case 'chname':
+                                if (args.length > 2) {
+                                    const channel = args[1].replace("<#", "").replace(">", "");
+                                    let newName = args.filter((e, i) => {
+                                        if (i > 1) return e
+                                    }).join(" ")
+                                    if (newName === '' || newName === ' ') {
+                                        SendMessage("❌ New name could not be parsed", "system", msg.guildID, "RenameChannel")
+                                    } else {
+                                        db.safe(`UPDATE kanmi_channels
+                                                 SET nice_name = ?
+                                                 WHERE channelid = ? `, [newName, channel], function (err, result) {
+                                            if (err) {
+                                                SendMessage("SQL Error occurred when saving to the channel cache", "err", 'main', "SQL", err)
+                                            } else {
+                                                SendMessage(`✅ Channel name was been updated to  ${newName}`, "system", msg.guildID, "RenameChannel")
+                                            }
+                                        })
+                                    }
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
+                                }
+                                break;
+                            case 'rnf':
+                                if (args.length > 3) {
+                                    const channelfrom = args[1].replace("<#", "").replace(">", "");
+                                    let newName = msg.content.split(args[2]).pop()
+                                    jfsRename(channelfrom, args[2], newName, function (complete) {
+                                        if (complete) {
+                                            SendMessage(`✅ File renamed to: ${newName}\nhttps://discord.com/channels/${msg.guildID}/${channelfrom}/${args[2]}/`, "system", msg.guildID, "Rename")
+                                        }
+                                    });
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "Rename")
+                                }
+                                break;
+                            case 'mvf':
+                                if (args.length > 3) {
+                                    const channelfrom = args[1].replace("<#", "").replace(">", "");
+                                    const channelnumber = args[3].replace("<#", "").replace(">", "");
+                                    discordClient.getMessage(channelfrom, args[2])
+                                        .then(function (messageToMove) {
+                                            jfsMove(messageToMove, channelnumber, function (cb) {
+                                                if (!cb) {
+                                                    SendMessage(`📂 Message moved from ${args[1]} to ${args[3]}`, "system", msg.guildID, "Move")
+                                                } else {
+                                                    SendMessage("❌ There was an error moving the message", "system", msg.guildID, "Move")
+                                                }
+                                            })
+                                        })
+                                        .catch((er) => {
+                                            SendMessage("❌ Message was not found", "system", msg.guildID, "Move", er)
+                                        })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
+                                }
+                                break;
+                            case 'rmf':
+                                if (args.length > 2) {
+                                    const channelnumber = args[1].replace("<#", "").replace(">", "");
+                                    jfsRemoveSF(channelnumber, args[2], msg.guildID);
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "RMSF")
+                                }
+                                break;
+                            case 'mvc':
+                                if (args.length > 1) {
+                                    collector()
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "Move")
+                                }
+                                break;
+                            case 'lsarc':
+                                db.simple(`SELECT *
+                                           FROM discord_archive_overide`, function (err, folders) {
+                                    if (err) {
+                                        SendMessage("SQL Error occurred when getting fileworker table", "err", 'main', "SQL", err)
+                                    } else {
+                                        let message = '**Mapped Archive Channels:**\n'
+                                        for (let index in folders) {
+                                            message += `🗄 <#${folders[index].fromch}> => <#${folders[index].archivech}>\n`
+                                            if (parseInt(index) === folders.length - 1) {
+                                                discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
+                                                    content: message.substring(0, 1980) + ""
+                                                })
+                                                    .catch((er) => {
+                                                        SendMessage("Failed to send message", "err", msg.guildID, "FWls", er)
+                                                    });
+                                            }
+                                        }
+                                    }
+                                })
+                                break;
+                            case 'mkarc':
+                                if (args.length > 2) {
+                                    const channelFrom = args[1].replace("<#", "").replace(">", "");
+                                    const channelArchive = args[2].replace("<#", "").replace(">", "");
+                                    db.safe(`INSERT INTO discord_archive_overide
+                                             VALUES (?, ?)`, [channelFrom, channelArchive], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when writing to archive channel map table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`✅ Archive Channel Map Created`, "system", msg.guildID, "ArchiveMk")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveMk")
+                                }
+                                break;
+                            case 'rmarc':
+                                if (args.length > 1) {
+                                    const channelFrom = args[1].replace("<#", "").replace(">", "");
+                                    db.safe(`DELETE
+                                             FROM discord_archive_overide
+                                             WHERE fromch = ?`, [channelFrom], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when deleting from archive channel map table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`❎ Archive Channel Map Removed`, "system", msg.guildID, "ArchiveRm")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveRm")
+                                }
+                                break;
+                            case 'repair':
+                                if (args.length > 1) {
+                                    if (args[1] === 'all') {
+                                        db.simple(`SELECT channelid
+                                                   FROM kanmi_channels
+                                                   WHERE parent != 'isparent'
+                                                     AND classification NOT LIKE '%system%'
+                                                     AND classification NOT LIKE '%timeline%'
+                                                     AND source = 0`, async function (err, result) {
+                                            if (!(err) && result && result.length > 0) {
+                                                let limit = undefined
+                                                let forceLarge = false
+                                                if (args.length > 2 && !isNaN(parseInt(args[2]))) {
+                                                    limit = parseInt(args[2])
+                                                }
+                                                if (args.length > 3 && args[3] === 'force') {
+                                                    forceLarge = true
                                                 }
 
-                                            })
+                                                SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem")
+                                                messageRecache(result, msg.guildID, 0, limit, forceLarge);
+                                            } else {
+                                                SendMessage(`❌ Failed to start filesystem repair, could not find and folders!`, "system", msg.guildID, "RepairFileSystem")
+                                            }
+                                        })
+                                    } else if (args[1] === 'parts' || args[1] === 'parity') {
+                                        let limit = undefined
+                                        let messagesBefore = 0
+                                        if (args.length > 4 && !isNaN(parseInt(args[4]))) {
+                                            messagesBefore = parseInt(args[4])
+                                        }
+                                        if (args.length > 2 && !isNaN(parseInt(args[2]))) {
+                                            limit = parseInt(args[2])
+                                        }
+                                        SendMessage(`✅ Started Full Filesystem Parity Repair...`, "system", msg.guildID, "RepairFileSystem");
+                                        spannedPartsRecache(messagesBefore, limit);
                                     } else {
-                                        SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                        const channelFrom = args[1].replace("<#", "").replace(">", "");
+                                        let limit = undefined
+                                        let messagesBefore = 0
+                                        if (args.length > 4 && !isNaN(parseInt(args[4]))) {
+                                            messagesBefore = parseInt(args[4])
+                                        }
+                                        if (args.length > 2 && !isNaN(parseInt(args[2]))) {
+                                            limit = parseInt(args[2])
+                                        }
+                                        SendMessage(`✅ Started Filesystem Repair...`, "system", msg.guildID, "RepairFileSystem");
+                                        messageRecache([{channelid: channelFrom}], msg.guildID, messagesBefore, limit, true);
                                     }
                                 } else {
-                                    SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
-                                    Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "ArchiveRm")
                                 }
                                 break;
+                            case 'verify':
+                                SendMessage(`✅ Started Filesystem Verify${(args.length > 1) ? ' for ' + args[1] + ' Files' : ''}...`, "system", msg.guildID, "RepairFileSystem");
+                                verifySpannedFiles((args.length > 1) ? args[1] : undefined);
+                                break;
+                            case 'update':
+                                SendMessage(`✅ Started Filesystem Update...`, "system", msg.guildID, "RepairFileSystem");
+                                messageCheckCache();
+                                break;
+                            case 'initch':
+                                discordClient.getRESTGuildChannels(msg.guildID)
+                                    .then(function (channels) {
+                                        channels.forEach(function (channel) {
+                                            channelCreate(channel);
+                                        })
+                                    })
+                                break;
                             default:
-                                SendMessage("⁉ Unknown Command", "systempublic", msg.guildID, "RadioCmd")
+                                SendMessage("⁉ Unknown Command", "system", msg.guildID, "FSCmd")
                                 break;
                         }
                     } else {
-                        SendMessage("⁉ Missing required information", "systempublic", msg.guildID, "PixivMgr")
+                        SendMessage("⁉ Missing required information", "system", msg.guildID, "FSCmd")
                     }
                 }
             }, {
                 argsRequired: true,
                 caseInsensitive: true,
-                description: "Control Music Player",
-                fullDescription: "Manages the radio Channel\n" +
-                    "   **ls** - Lists all music boxes\n   **play** - Play a named musicbox\n      [Musicbox]\n   **stop** - Stop and Disconnect player\n   **next** - Next track\n   **pause** - Pause or Resume track\n",
+                description: "Manage the Discord Filesystem",
+                fullDescription: "Allows you to manage channel mappings, create and remove channels\n" +
+                    "   **lsmap** - Lists all channel maps\n   **mkmap** - Create channel maps\n      [Channel, Folder]\n   **rmmap** - Removes a channel maps\n      [Folder]\n" +
+                    "   **chmap** - Remap a channel\n      [Channel, Folder]\n   **rlch** - Move All Messages to Channel\n      [ChFrom, ChTo, (deep), (count)]\n   **rmrf** - Delete All Files in a Channel\n      [Channel]\n   **chname** - Change the display name of a channel in Sequenzia (Spaces Ok)\n      [Channel, Name]\n" +
+                    "   **rnf** - Rename Message or file\n      [ChFrom, FileID, Filename]\n   **mvf** - Move Message or file\n      [ChFrom, MessageID, ChTo]\n   **rmf** - Delete Multi-Part File\n      [ChFrom, MessageID]\n" +
+                    "   **lsarc** - List Archive Channel Maps\n   **mkarc** - Create Archive Channel Map\n      [ChFrom, ChTo]\n   **rmarc** - Removes Archive Channel Map\n      [Channel]\n" +
+                    "   **mvc** - Manage the Collector\n      **enable** - Enable\n      **disable** - Disable\n      **status** - Displays status\n" +
+                    "      **done** - Moves all items to a channel\n         [Channel]\n      **search** - Search a channel for items to add\n         [Channel, Term]\n      **clear** - Clears all\n" +
+                    "   **repair** - Repairs a JFS folder or parity\n      [[Channel, all, or parts], (num to search), (force), (before id)]",
                 usage: "command [arguments]",
                 guildOnly: true
             })
+
+            discordClient.registerCommand("seq", async function (msg, args) {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                    if (args.length > 0) {
+                        console.log(args)
+                        switch (args[0].toLowerCase()) {
+                            case 'roles':
+                                if (args.length > 1) {
+                                    switch (args[1].toLowerCase()) {
+                                        case 'list':
+                                            try {
+                                                const list = await db.query(`SELECT *
+                                                                             FROM discord_permissons`);
+                                                await discordClient.createMessage(msg.channel.id, `Named Permissions from Database`, [{
+                                                    file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                    name: `roles.json`
+                                                }])
+                                            } catch (e) {
+                                                return `Error sending metadata - ${e.message}`
+                                            }
+                                            break;
+                                        case 'assign':
+                                            const assignRoles = args[2].replace("<@&", "").replace(">", "");
+                                            let assignedName = null
+                                            if (args.length > 3) {
+                                                assignedName = args[3]
+                                            }
+                                            const results = await db.query(`UPDATE discord_permissons
+                                                                            SET name = ?
+                                                                            WHERE role = ?`, [assignedName, assignRoles])
+                                            console.log(results)
+                                            return `Updated Role`
+                                        default:
+                                            return "⁉ Unknown Command"
+                                    }
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "RenameChannel")
+                                }
+                                break;
+                            case 'library':
+                                switch (args[1].toLowerCase()) {
+                                    case 'group':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                try {
+                                                    const list = await db.query(`SELECT *
+                                                                                 FROM kongou_media_groups`);
+                                                    await discordClient.createMessage(msg.channel.id, `Media Groups from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `media_groups.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
+                                            case 'update':
+                                                if (args.length > 4) {
+                                                    const classID = args[3].trim();
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'name':
+                                                            object.name = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'icon':
+                                                            object.icon = (args[5] && args[5].startsWith('fa-')) ? args.splice(5).join(' ').trim() : 'fa-' + args.splice(5).join(' ').trim();
+                                                            break;
+                                                        case 'type':
+                                                            switch (args[5].toLowerCase()) {
+                                                                case 'series':
+                                                                    object.type = 2
+                                                                    break
+                                                                case 'movies':
+                                                                    object.type = 1
+                                                                    break
+                                                                default:
+                                                                    return `Only accepts series or movies as a type!`
+                                                                    break;
+                                                            }
+                                                            break;
+                                                        case 'nsfw':
+                                                            object.adult = (args[5].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        case 'description':
+                                                            object.description = args.splice(5).join(' ').trim();
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                        const results = await db.query(`UPDATE kongou_media_groups
+                                                                                        SET ?
+                                                                                        WHERE media_group = ?`, [object, classID])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            case 'create':
+                                                if (args.length > 5) {
+                                                    const mediaGroup = args[3].trim();
+                                                    const groupIcon = args[4].trim();
+                                                    let groupType = 1;
+                                                    switch (args[5].toLowerCase()) {
+                                                        case 'series':
+                                                            groupType = 2
+                                                            break
+                                                        case 'movies':
+                                                            groupType = 1
+                                                            break
+                                                        default:
+                                                            return `Only accepts series or movies as a type!`
+                                                            break;
+                                                    }
+                                                    const groupName = args.splice(6).join(' ').trim();
+
+                                                    await db.query(`INSERT INTO kongou_media_groups
+                                                                    SET ?`, [{
+                                                        media_group: mediaGroup,
+                                                        icon: groupIcon,
+                                                        name: groupName,
+                                                        type: groupType
+                                                    }])
+                                                    return `Updated Database, Assign Channels to the new media_group`
+                                                } else {
+                                                    return "⁉ Missing required information\nFormat: GROUP FA-ICON TYPE NAME"
+                                                }
+                                            case 'remove':
+                                                const classID = args[3].trim();
+                                                await db.query(`DELETE
+                                                                FROM kongou_media_groups
+                                                                WHERE media_group = ?`, [classID])
+                                                return `Updated Database, Media Group removed`
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
+                                    case 'show':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                try {
+                                                    const list = await db.query(`SELECT show_id, media_group, name, original_name, nsfw, subtitled, background, poster, search
+                                                                                 FROM kongou_shows`);
+                                                    await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `show.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
+                                            case 'retry':
+                                                const results = await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [args.splice(4).join(' ').trim()])
+                                                return `Updated Database, Wait or restart IntelliDex to research the show.`
+                                            case 'update':
+                                                if (args.length > 4) {
+                                                    const classID = args[3].trim();
+                                                    let object = {};
+                                                    switch (args[4].toLowerCase()) {
+                                                        case 'nsfw':
+                                                            object.nsfw = (args[5].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        case 'subtitled':
+                                                            object.subtitled = (args[5].trim() === 'true') ? 1 : 0;
+                                                            break;
+                                                        case 'poster':
+                                                            object.poster = args[5].trim();
+                                                            break;
+                                                        case 'background':
+                                                            object.background = args[5].trim();
+                                                            break;
+                                                        default:
+                                                            return "⁉ Unknown Sub Command"
+                                                    }
+                                                    if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                        const results = await db.query(`UPDATE kongou_shows
+                                                                                        SET ?
+                                                                                        WHERE show_id = ?`, [object, classID])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
+                                    case 'map':
+                                        switch (args[2].toLowerCase()) {
+                                            case 'list':
+                                                try {
+                                                    const list = await db.query(`SELECT *
+                                                                                 FROM kongou_shows_maps`);
+                                                    await discordClient.createMessage(msg.channel.id, `Show Maps from Database`, [{
+                                                        file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                        name: `show_maps.json`
+                                                    }])
+                                                } catch (e) {
+                                                    return `Error sending metadata - ${e.message}`
+                                                }
+                                                break;
+                                            case 'create':
+                                                if (args.length > 3) {
+                                                    const showID = args[3].trim();
+                                                    const showSearch = args.splice(4).join(' ').trim().toLowerCase();
+                                                    if (showID.length > 0 && showSearch.length > 0) {
+                                                        await db.query(`DELETE
+                                                                        FROM kongou_shows_maps
+                                                                        WHERE search = ?`, [showID, showSearch])
+                                                        await db.query(`INSERT INTO kongou_shows_maps
+                                                                        SET show_id = ?,
+                                                                            search  = ?`, [showID, showSearch])
+                                                        await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [showSearch])
+                                                        return `Updated Database, Wait for chnages to be cached on Sequenzia and wait or restart IntelliDex.`
+                                                    }
+                                                } else {
+                                                    return "⁉ Missing required information"
+                                                }
+                                                break;
+                                            case 'remove':
+                                                const classID = args.splice(3).join(' ').trim().toLowerCase();
+                                                await db.query(`DELETE
+                                                                FROM kongou_shows_maps
+                                                                WHERE search = ?`, [classID])
+                                                await db.query(`UPDATE kongou_shows SET search = null WHERE search = ?`, [classID])
+                                                return `Updated Database, Show map removed`
+                                            default:
+                                                return "⁉ Unknown Command"
+                                        }
+                                        break;
+                                    default:
+                                        return "⁉ Unknown Command"
+                                }
+                                break;
+                            case 'layout':
+                                if (args.length > 2) {
+                                    switch (args[1].toLowerCase()) {
+                                        case 'super':
+                                            switch (args[2].toLowerCase()) {
+                                                case 'list':
+                                                    try {
+                                                        const list = await db.query(`SELECT *
+                                                                                     FROM sequenzia_superclass`);
+                                                        await discordClient.createMessage(msg.channel.id, `Superclass Metadata from Database`, [{
+                                                            file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                            name: `superclass.json`
+                                                        }])
+                                                    } catch (e) {
+                                                        return `Error sending metadata - ${e.message}`
+                                                    }
+                                                    break;
+                                                case 'update':
+                                                    if (args.length > 4) {
+                                                        const superID = args[3].trim();
+                                                        let object = {};
+                                                        switch (args[4].toLowerCase()) {
+                                                            case 'id':
+                                                                object.super = args[5].trim();
+                                                                break;
+                                                            case 'name':
+                                                                object.name = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'position':
+                                                                object.position = parseInt(args[5].trim())
+                                                                if (isNaN(object.position))
+                                                                    return `❌ Position must be a number!`
+                                                                break;
+                                                            case 'uri':
+                                                                object.uri = args[5].trim();
+                                                                break;
+                                                            default:
+                                                                return "⁉ Unknown Sub Command"
+                                                        }
+                                                        if (Object.keys(object).length > 0 && superID.length > 0) {
+                                                            const results = await db.query(`UPDATE sequenzia_superclass
+                                                                                            SET ?
+                                                                                            WHERE super = ?`, [object, superID])
+                                                            return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
+                                                        }
+                                                    } else {
+                                                        return "⁉ Missing required information"
+                                                    }
+                                                    break;
+                                                case 'create':
+                                                    if (args.length > 5) {
+                                                        const superID = args[3].trim();
+                                                        const superURI = args[4].trim();
+                                                        const superPosition = parseInt(args[5].trim());
+                                                        if (isNaN(superPosition))
+                                                            return `❌ Position must be a number!`
+                                                        const superName = args.splice(6).join(' ').trim();
+
+                                                        await db.query(`INSERT INTO sequenzia_superclass
+                                                                        SET ?`, [{
+                                                            super: superID,
+                                                            name: superName,
+                                                            uri: superURI,
+                                                            position: superPosition
+                                                        }])
+                                                        return `Updated Database, Assign Classes to the new super`
+                                                    } else {
+                                                        return "⁉ Missing required information\nFormat: SUPERID URI POSITION NAME"
+                                                    }
+                                                case 'remove':
+                                                    const superID = args[3].trim();
+                                                    await db.query(`DELETE
+                                                                    FROM sequenzia_superclass
+                                                                    WHERE super = ?`, [superID])
+                                                    return `Updated Database, Super was removed`
+                                                default:
+                                                    return "⁉ Unknown Command"
+                                            }
+                                            break;
+                                        case 'class':
+                                            switch (args[2].toLowerCase()) {
+                                                case 'list':
+                                                    try {
+                                                        const list = await db.query(`SELECT *
+                                                                                     FROM sequenzia_class`);
+                                                        await discordClient.createMessage(msg.channel.id, `Class Metadata from Database`, [{
+                                                            file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                            name: `class.json`
+                                                        }])
+                                                    } catch (e) {
+                                                        return `Error sending metadata - ${e.message}`
+                                                    }
+                                                    break;
+                                                case 'update':
+                                                    if (args.length > 4) {
+                                                        const classID = args[3].trim();
+                                                        let object = {};
+                                                        switch (args[4].toLowerCase()) {
+                                                            case 'id':
+                                                                object.class = args[5].trim();
+                                                                break;
+                                                            case 'super':
+                                                                object.super = args[5].trim();
+                                                                break;
+                                                            case 'name':
+                                                                object.name = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'icon':
+                                                                object.icon = (args[5] && args[5].startsWith('fa-')) ? args.splice(5).join(' ').trim() : 'fa-' + args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'position':
+                                                                object.position = parseInt(args[5].trim())
+                                                                if (isNaN(object.position))
+                                                                    return `❌ Position must be a number!`
+                                                                break;
+                                                            case 'uri':
+                                                                object.uri = args[5].trim();
+                                                                if (object.uri.length === 0)
+                                                                    object.uri = null
+                                                                break;
+                                                            default:
+                                                                return "⁉ Unknown Sub Command"
+                                                        }
+                                                        if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                            const results = await db.query(`UPDATE sequenzia_class
+                                                                                            SET ?
+                                                                                            WHERE class = ?`, [object, classID])
+                                                            return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
+                                                        }
+                                                    } else {
+                                                        return "⁉ Missing required information"
+                                                    }
+                                                    break;
+                                                case 'create':
+                                                    if (args.length > 6) {
+                                                        const classSuper = args[3].trim();
+                                                        const classID = args[4].trim();
+                                                        const classIcon = args[5].trim();
+                                                        const classPosition = parseInt(args[6].trim());
+                                                        if (isNaN(classPosition))
+                                                            return `❌ Position must be a number!`
+                                                        const className = args.splice(7).join(' ').trim();
+
+                                                        await db.query(`INSERT INTO sequenzia_class
+                                                                        SET ?`, [{
+                                                            super: classSuper,
+                                                            class: classID,
+                                                            icon: classIcon,
+                                                            name: className,
+                                                            position: classPosition
+                                                        }])
+                                                        return `Updated Database, Assign Channels to the new class`
+                                                    } else {
+                                                        return "⁉ Missing required information\nFormat: SUPERID CLASSID FA-ICON POSITION NAME"
+                                                    }
+                                                case 'remove':
+                                                    const classID = args[3].trim();
+                                                    await db.query(`DELETE
+                                                                    FROM sequenzia_class
+                                                                    WHERE class = ?`, [classID])
+                                                    return `Updated Database, Class removed`
+                                                default:
+                                                    return "⁉ Unknown Command"
+                                            }
+                                            break;
+                                        case 'virtual_channel':
+                                            switch (args[2].toLowerCase()) {
+                                                case 'list':
+                                                    try {
+                                                        const list = await db.query(`SELECT *
+                                                                                     FROM kanmi_virtual_channels`);
+                                                        await discordClient.createMessage(msg.channel.id, `Virtual Channels Metadata from Database`, [{
+                                                            file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                            name: `virtual_channels.json`
+                                                        }])
+                                                    } catch (e) {
+                                                        return `Error sending metadata - ${e.message}`
+                                                    }
+                                                    break;
+                                                case 'update':
+                                                    if (args.length > 4) {
+                                                        const classID = args[3].trim();
+                                                        let object = {};
+                                                        switch (args[4].toLowerCase()) {
+                                                            case 'id':
+                                                                object.virtual_cid = args[5].trim();
+                                                                break;
+                                                            case 'name':
+                                                                object.name = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'description':
+                                                                object.description = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'uri':
+                                                                object.uri = args[5].trim();
+                                                                if (object.uri.length === 0)
+                                                                    object.uri = null
+                                                                break;
+                                                            default:
+                                                                return "⁉ Unknown Sub Command"
+                                                        }
+                                                        if (Object.keys(object).length > 0 && classID.length > 0) {
+                                                            const results = await db.query(`UPDATE kanmi_virtual_channels
+                                                                                            SET ?
+                                                                                            WHERE virtual_cid = ?`, [object, classID])
+                                                            return `Updated Database, Wait for chnages to be cached on Sequenzia and reload your account.`
+                                                        }
+                                                    } else {
+                                                        return "⁉ Missing required information"
+                                                    }
+                                                    break;
+                                                case 'create':
+                                                    if (args.length > 4) {
+                                                        const classID = args[3].trim();
+                                                        const className = args.splice(4).join(' ').trim();
+
+                                                        await db.query(`INSERT INTO kanmi_virtual_channels
+                                                                        SET ?`, [{
+                                                            virtual_cid: classID,
+                                                            name: className
+                                                        }])
+                                                        return `Updated Database, Assign Channels to the new class`
+                                                    } else {
+                                                        return "⁉ Missing required information\nFormat: VCID NAME"
+                                                    }
+                                                case 'remove':
+                                                    const classID = args[3].trim();
+                                                    await db.query(`DELETE
+                                                                    FROM kanmi_virtual_channels
+                                                                    WHERE virtual_cid = ?`, [classID])
+                                                    return `Updated Database, Class removed`
+                                                default:
+                                                    return "⁉ Unknown Command"
+                                            }
+                                            break;
+                                        case 'channel':
+                                            switch (args[2].toLowerCase()) {
+                                                case 'list':
+                                                    try {
+                                                        const list = await db.query(`SELECT channelid,
+                                                                                            serverid,
+                                                                                            parent,
+                                                                                            virtual_cid,
+                                                                                            name,
+                                                                                            nice_name,
+                                                                                            nice_title,
+                                                                                            classification,
+                                                                                            media_group,
+                                                                                            uri,
+                                                                                            watch_folder,
+                                                                                            notify,
+                                                                                            role,
+                                                                                            role_write,
+                                                                                            role_manage,
+                                                                                            description,
+                                                                                            nsfw
+                                                                                     FROM kanmi_channels
+                                                                                     WHERE classification IS NOT NULL
+                                                                                       AND classification != 'system'
+                                                                                       AND classification != 'timeline'`);
+
+                                                        await discordClient.createMessage(msg.channel.id, `Channel Metadata from Database`, [{
+                                                            file: Buffer.from(JSON.stringify(list.rows, null, '\t')),
+                                                            name: `channels.json`
+                                                        }])
+                                                    } catch (e) {
+                                                        return `Error sending metadata - ${e.message}`
+                                                    }
+                                                    break;
+                                                case 'update':
+                                                    if (args.length > 4) {
+                                                        const ChannelID = args[3].replace("<#", "").replace(">", "");
+                                                        let object = {};
+                                                        let updateFW = false;
+                                                        switch (args[4].toLowerCase()) {
+                                                            case 'class':
+                                                                object.classification = args[5].trim();
+                                                                break;
+                                                            case 'notify':
+                                                                object.notify = args[5].replace("<#", "").replace(">", "");
+                                                                break;
+                                                            case 'name':
+                                                                object.nice_name = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'title':
+                                                                object.nice_title = args.splice(5).join(' ').trim();
+                                                                break;
+                                                            case 'folder':
+                                                                object.watch_folder = args.splice(5).join(' ').trim();
+                                                                updateFW = true
+                                                                break;
+                                                            case 'media_group':
+                                                                object.media_group = args.splice(5).join('_').trim();
+                                                                break;
+                                                            case 'vcid':
+                                                                object.virtual_cid = parseInt(args[5].trim())
+                                                                if (isNaN(object.virtual_cid))
+                                                                    return `❌ Virtual Channel ID must be a number!`
+                                                                break;
+                                                            case 'uri':
+                                                                object.uri = args[5].trim();
+                                                                if (object.uri.length === 0)
+                                                                    object.uri = null
+                                                                break;
+                                                            case 'autofetch':
+                                                                object.autofetch = (args[5].trim() === 'true') ? 1 : 0
+                                                                break;
+                                                            case 'read':
+                                                                if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                    object.role = args[5]
+                                                                } else {
+                                                                    const role_name = await db.query(`SELECT name
+                                                                                                      FROM discord_permissons
+                                                                                                      WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                    if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                        object.role = role_name.rows[0].name
+                                                                    } else {
+                                                                        return `❌ Roles does not exist or has not been assigned a name`
+                                                                    }
+                                                                }
+                                                                break;
+                                                            case 'write':
+                                                                if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                    object.role_write = args[5]
+                                                                } else {
+                                                                    const role_name = await db.query(`SELECT name
+                                                                                                      FROM discord_permissons
+                                                                                                      WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                    if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                        object.role_write = role_name.rows[0].name
+                                                                    } else {
+                                                                        return `❌ Roles does not exist or has not been assigned a name`
+                                                                    }
+                                                                }
+                                                                break;
+                                                            case 'manage':
+                                                                if (isNaN(parseInt(args[5].replace("<@&", "").replace(">", "")))) {
+                                                                    object.role_manage = args[5]
+                                                                } else {
+                                                                    const role_name = await db.query(`SELECT name
+                                                                                                      FROM discord_permissons
+                                                                                                      WHERE role = ?`, [args[5].replace("<@&", "").replace(">", "")]);
+                                                                    if (role_name.rows.length > 0 & role_name.rows[0].name !== null) {
+                                                                        object.role_manage = role_name.rows[0].name
+                                                                    } else {
+                                                                        return `❌ Roles does not exist or has not been assigned a name`
+                                                                    }
+                                                                }
+                                                                break;
+                                                            default:
+                                                                return "⁉ Unknown Sub Command"
+                                                        }
+                                                        if (Object.keys(object).length > 0 && ChannelID.length > 0) {
+                                                            const results = await db.query(`UPDATE kanmi_channels
+                                                                                            SET ?
+                                                                                            WHERE channelid = ?`, [object, ChannelID])
+                                                            return `Updated Database, Wait for changes to be cached on Sequenzia and reload your account.`
+                                                            if (updateFW) {
+                                                                mqClient.sendCmd('fileworker', 'RESET');
+                                                            }
+                                                        }
+                                                    } else {
+                                                        return "⁉ Missing required information"
+                                                    }
+                                                    break;
+                                                case 'create-parent':
+                                                    if (args.length > 3) {
+                                                        let parentName;
+                                                        let parentServer = parseInt(args[3].trim());
+                                                        if (isNaN(parentServer)) {
+                                                            parentServer = msg.guildID;
+                                                            parentName = args.splice(3).join(' ').trim();
+                                                        } else {
+                                                            parentServer = msg.guildID;
+                                                            parentName = args.splice(4).join(' ').trim();
+                                                        }
+                                                        try {
+                                                            const parentCreate = await discordClient.createChannel(parentServer, parentName, 4);
+                                                            const guildRoles = await discordClient.getRESTGuildRoles(parentCreate.guild.id);
+                                                            const roleSystem = guildRoles.filter(e => e.name === "⚡ System Engine").map(async e => {
+                                                                return await discordClient.editChannelPermission(parentCreate.id, e.id, 395140262992, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                            })
+                                                            const roleAdminMode = guildRoles.filter(e => e.name === "🔓 Admin Mode").map(async e => {
+                                                                return await discordClient.editChannelPermission(parentCreate.id, e.id, 17183089744, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                            })
+                                                            const roleReadOnly = guildRoles.filter(e => e.name === "📀 Data Reader").map(async e => {
+                                                                return await discordClient.editChannelPermission(parentCreate.id, e.id, 1115136, 0, 0, `Create new parent, permissions for ${e.name}`);
+                                                            })
+                                                            if (parentCreate, guildRoles, roleSystem, roleAdminMode, roleReadOnly) {
+                                                                return `Create Parent, Please move the channel to the position you want and use the layout commands to configure class and role access`
+                                                            } else {
+                                                                return `Create Failed - A Task Failed`
+                                                            }
+                                                        } catch (e) {
+                                                            return `Create Failed - ${e.message}`
+                                                        }
+                                                    } else {
+                                                        return "⁉ Missing required information, Provide a name and or a serverID"
+                                                    }
+                                                default:
+                                                    return "⁉ Unknown Command"
+                                            }
+                                            break;
+                                        default:
+                                            SendMessage("⁉ Unknown Command", "system", msg.guildID, "LayoutManager")
+                                            break;
+                                    }
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "LayoutManager")
+                                }
+                                break;
+                            default:
+                                SendMessage("⁉ Unknown Command", "system", msg.guildID, "SequenziaManager")
+                                break;
+                        }
+                    } else {
+                        SendMessage("⁉ Missing required information", "system", msg.guildID, "SequenziaManager")
+                    }
+                }
+            }, {
+                argsRequired: true,
+                caseInsensitive: true,
+                description: "Manage Sequenzia",
+                fullDescription: "Manage Features Related to the Sequenzia Interface\nUsage: https://github.com/UiharuKazari2008/sequenzia-compose/wiki/Administration#layout-commands",
+                usage: "command [arguments]",
+                guildOnly: true
+            })
+
+            discordClient.registerCommand("clr", function (msg, args) {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
+                    if (args.length > 0) {
+                        if (args[1] === "Confirm") {
+                            const channelToClear = args[0].replace("<#", "").replace(">", "");
+                            deleteAbove(channelToClear);
+                            SendMessage(`🗑 Channel has been cleared`, "system", msg.guildID, "Clear")
+                        } else {
+                            SendMessage("⁉ You did not confirm the action", "system", msg.guildID, "Clear")
+                        }
+                    } else {
+                        let channelClear = '';
+                        if (msg.channel.id === discordServers.get(msg.guildID).chid_system.toString()) {
+                            channelClear = discordServers.get(msg.guildID).chid_system.toString();
+                        }
+                        if (channelClear !== '') {
+                            deleteAbove(channelClear);
+                        } else {
+                            Logger.printLine("Discord", "Not a recognized channel number", "error")
+                        }
+                    }
+                }
+            }, {
+                argsRequired: false,
+                caseInsensitive: true,
+                description: "Clears all messages from a channel",
+                fullDescription: "Clears all messages from the system channel or a specified channel",
+                usage: "#channel (optional)",
+                guildOnly: true
+            })
+
+            discordClient.registerCommand("twit", function (msg, args) {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                    if (args.length > 0) {
+                        switch (args[0].toLowerCase()) {
+                            case 'add':
+                                if (args.length > 2) {
+                                    const channelToAdd = args[1].replace("<#", "").replace(">", "");
+                                    const username = args[2];
+                                    sendTwitterAction(username, "listManager", "adduser", "", channelToAdd, msg.guildID)
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterAdd")
+                                }
+                                break;
+                            case 'rm':
+                                if (args.length > 2) {
+                                    const channelToAdd = args[1].replace("<#", "").replace(">", "");
+                                    const username = args[2];
+                                    sendTwitterAction(username, "listManager", "removeuser", "", channelToAdd, msg.guildID)
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterAdd")
+                                }
+                                break;
+                            case 'ls':
+                                sendTwitterAction("empty", "listManager", "getusers", "", '', msg.guildID)
+                                break;
+                            case 'blkwd':
+                                if (args.length > 1) {
+                                    Logger.printLine("Discord", `Blocked the word "${args[1]}"`, "info")
+                                    db.safe(`INSERT INTO twitter_blockedwords
+                                             VALUES (?,
+                                                     ?)`, [args[1] + ' ', systemglobal.TwitterUser], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when writing to twitter blocked words table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`🚫 You will no longer receive tweets containing the word "${args[1]}"`, "system", msg.guildID, "TwitterBlock")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
+                                }
+                                break;
+                            case 'ublkwd':
+                                if (args.length > 1) {
+                                    Logger.printLine("Discord", `Blocked the word "${args[1]}"`, "info")
+                                    db.safe(`DELETE
+                                             FROM twitter_blockedwords
+                                             WHERE word = ?`, [args[1] + ' '], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when deleting from the twitter blocked words table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`✅ You will receive tweets containing the word "${args[1]}"`, "system", msg.guildID, "TwitterUBlock")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
+                                }
+                                break;
+                            case 'release':
+                                if (args.length > 1) {
+                                    mqClient.sendData(systemglobal.Twitter_In, {
+                                        fromWorker: systemglobal.SystemName,
+                                        messageText: "",
+                                        messageIntent: 'releaseTweet',
+                                        messageAction: (args.length > 2) ? args[2] : undefined,
+                                        accountID: parseInt(args[1].toString())
+                                    }, function (ok) {
+                                        if (ok)
+                                            SendMessage(`Releasing a${(args.length > 2) ? ' ' + args[2] : ''} tweet for Twitter account #${args[1]}`, "system", msg.guildID, "TwitterRelease")
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
+                                }
+                                break;
+                            default:
+                                SendMessage("⁉ Unknown Command", "system", msg.guildID, "TwitterMgr")
+                                break;
+                        }
+                    } else {
+                        SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterMgr")
+                    }
+                }
+            }, {
+                argsRequired: true,
+                caseInsensitive: true,
+                description: "Manage the Twitter Client",
+                fullDescription: "Manages twitter lists and blocked words\n" +
+                    "   **get** - Get More Tweets (Flowcontrol only)\n   **add** - Add user to Twitter List\n      [Channel, Username]\n   **rm** - Remove user from Twitter List\n      [Channel, Username]\n   **ls** - Lists all users in a list\n" +
+                    "   **blkwd** - Add word to blocklist\n      [word]\n   **ublkwd** - Remove word from blocklist\n      [word]\n   **release** - Release a tweet on a Flow Controlled account\n      [accountID]",
+                usage: "command [arguments]",
+                guildOnly: true
+            })
+
+            discordClient.registerCommand("yt", function (msg, args) {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                    if (args.length > 0) {
+                        switch (args[0].toLowerCase()) {
+                            case 'add':
+                                if (args.length > 2) {
+                                    const channelToAdd = args[1].replace("<#", "").replace(">", "");
+                                    Logger.printLine("Discord", `Now Watching Channel "${args[2]}"`, "info")
+                                    db.safe(`INSERT INTO youtube_watchlist
+                                             VALUES (?, ?, ?,
+                                                     null)`, [args[2], systemglobal.YouTubeUser, channelToAdd], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when writing to youtube list table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`✅ You are subscribed to that channel`, "system", msg.guildID, "YTWatch")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "YTWatch")
+                                }
+                                break;
+                            case 'rm':
+                                if (args.length > 1) {
+                                    Logger.printLine("Discord", `No longer watching channel "${args[1]}"`, "info")
+                                    db.safe(`DELETE
+                                             FROM youtube_watchlist
+                                             WHERE yuser = ?`, [args[1]], function (err, resultsend) {
+                                        if (err) {
+                                            SendMessage("SQL Error occurred when deleting from the youtube list table", "err", 'main', "SQL", err)
+                                        } else {
+                                            SendMessage(`❎ You are unsubscribed to that channel`, "system", msg.guildID, "YTRm")
+                                        }
+                                    })
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "YTRm")
+                                }
+                                break;
+                            default:
+                                SendMessage("⁉ Unknown Command", "system", msg.guildID, "YouTubeMgr")
+                                break;
+                        }
+                    } else {
+                        SendMessage("⁉ Missing required information", "system", msg.guildID, "YouTubeMgr")
+                    }
+                }
+            }, {
+                argsRequired: true,
+                caseInsensitive: true,
+                description: "Manage the YouTube Client",
+                fullDescription: "Manages followed youtube channels\n" +
+                    "   **add** - Add channel to subscription group\n      [Channel, UserID]\n**rm** - Remove a channel from a subscription group\n      [UserID]",
+                usage: "command [arguments]",
+                guildOnly: true
+            })
+
+            discordClient.registerCommand("pixiv", function (msg, args) {
+                if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                    if (args.length > 0) {
+                        switch (args[0].toLowerCase()) {
+                            case 'recom':
+                                sendPixivAction("empty", "GetRecommended", "get")
+                                SendMessage(`⏳ Request was sent to Pixiv, View in <#${pixivaccount[0].feed_channelid}>`, "system", msg.guildID, "PixivRecom")
+                                break;
+                            case 'add':
+                                if (args.length > 1) {
+                                    const userID = args[1];
+                                    sendPixivAction(userID, "Follow", "add")
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
+                                }
+                                break;
+                            case 'rm':
+                                if (args.length > 1) {
+                                    const userID = args[1];
+                                    sendPixivAction(userID, "Follow", "remove")
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
+                                }
+                                break;
+                            case 'get':
+                                if (args.length > 1) {
+                                    if (args[1].includes("pixiv.net/")) {
+                                        const postID = parseInt(args[1].split("/").pop()).toString()
+                                        if (postID !== 'NaN') {
+                                            if (args[1].includes("/artworks/")) { // Illustration
+                                                sendPixivAction(postID, "DownloadPost", "get", undefined, true)
+                                                SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
+                                            } else if (args[1].includes("/users/")) { // User
+                                                sendPixivAction(postID, "DownloadUser", "get", undefined, true)
+                                                SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
+                                            }
+                                        } else {
+                                            SendMessage("⁉ No post ID was found", "system", msg.guildID, "PixivMgr")
+                                        }
+                                    } else {
+                                        const postID = parseInt(args[2]).toString()
+                                        if (postID !== 'NaN') {
+                                            if (args[1].toLowerCase() === "user") {
+                                                sendPixivAction(postID, "DownloadUser", "get", undefined, true)
+                                                SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
+                                            } else if (args[1].toLowerCase() === "illu" || args[1].toLowerCase() === "single") {
+                                                sendPixivAction(postID, "DownloadPost", "get", undefined, true)
+                                                SendMessage(`⏳ Download request was sent to Pixiv, View in <#${discordServers.get(msg.guildID).chid_download}>`, "system", msg.guildID, "PixivDownload")
+                                            }
+                                        } else {
+                                            SendMessage("⁉ No post ID was found", "system", msg.guildID, "PixivMgr")
+                                        }
+                                    }
+                                } else {
+                                    SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivDownload")
+                                }
+                                break;
+                            default:
+                                SendMessage("⁉ Unknown Command", "system", msg.guildID, "PixivMgr")
+                                break;
+                        }
+                    } else {
+                        SendMessage("⁉ Missing required information", "system", msg.guildID, "PixivMgr")
+                    }
+                }
+            }, {
+                argsRequired: true,
+                caseInsensitive: true,
+                description: "Manage the Pixiv Client",
+                fullDescription: "Allows you to interact with the Pixiv Client Functions\n" +
+                    "   **recom** - Release a Recommended post for your account\n      **clear** - Refreshes Recommended posts for your account\n   **get** - Downloads a illustrations or a user\n      [(user/illu), PixivID]\n      [URL]\n" +
+                    "   **add** - Follow a user\n      [PixivUserID]\n   **rm** - Unfollow a user\n      [PixivUserID]\n",
+                usage: "command [arguments]",
+                guildOnly: true
+            })
+
+            if (systemglobal.RadioFolder) {
+                discordClient.registerCommand("music", function (msg, args) {
+                    if (discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
+                        if (args.length > 0) {
+                            switch (args[0].toLowerCase()) {
+                                case 'ls':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        let message = "List of current music boxes\n```"
+                                        for (let item of musicFolders) {
+                                            message = message + `🎹 - ${item}\n`
+                                        }
+                                        discordClient.createMessage(discordServers.get(msg.guildID).chid_system.toString(), {
+                                            content: message.substring(0, 1900) + "```"
+                                        })
+                                            .catch((er) => {
+                                                SendMessage("Failed to send message", "err", msg.guildID, "Playlist", er)
+                                            });
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'play':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        if (args.length > 1) {
+                                            if (msg.member.voiceState.channelID !== null) {
+                                                if (musicFolders.indexOf(args[1]) > -1) {
+                                                    nowPlaying.clear()
+                                                        .then(() => {
+                                                            const musicbox_name = musicFolders[musicFolders.indexOf(args[1])]
+                                                            const files = shuffle(fs.readdirSync(path.join(systemglobal.RadioFolder, musicbox_name)))
+                                                            for (let index in files) {
+                                                                const key = msg.guildID.toString() + '-' + crypto.randomBytes(5).toString("hex")
+                                                                nowPlaying.setItem(key, {
+                                                                    file: files[index].toString(),
+                                                                    musicbox: musicbox_name,
+                                                                })
+                                                                    .then(function () {
+                                                                        if (parseInt(index) === files.length - 1) {
+                                                                            discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
+                                                                                .catch((err) => {
+                                                                                    SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "Radio", err)
+                                                                                })
+                                                                                .then((connection) => {
+                                                                                    if (playingStatus.get(msg.guildID)) {
+                                                                                        connection.stopPlaying();
+                                                                                    } else {
+                                                                                        playStation(connection)
+                                                                                    }
+                                                                                });
+                                                                        }
+
+                                                                    })
+                                                                    .catch(function (err) {
+                                                                        Logger.printLine("Musicbox", `Failed to generate a track record for ${files[index].toString()}`, "err", err)
+                                                                    })
+                                                            }
+                                                        })
+                                                        .catch(function (err) {
+                                                            Logger.printLine("Musicbox", `Failed to clear the playlist`, "err", err)
+                                                        })
+                                                } else {
+                                                    SendMessage("⁉️ That music box is not available", "systempublic", msg.guildID, "Radio")
+                                                }
+                                            } else {
+                                                SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                            }
+                                        } else {
+                                            SendMessage("⁉ Missing required information", "systempublic", msg.guildID, "Radio")
+                                        }
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'stop':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        if (discordClient.voiceConnections.size > 0) {
+                                            if (discordClient.voiceConnections.has(msg.guildID)) {
+                                                nowPlaying.clear()
+                                                    .then(() => {
+                                                        if (playingStatus.get(msg.guildID)) {
+                                                            discordClient.voiceConnections.get((msg.guildID)).stopPlaying();
+                                                        }
+                                                        discordClient.closeVoiceConnection(msg.guildID)
+                                                        localParameters.setItem('player-' + msg.guildID, {
+                                                            status: 'off',
+                                                            key: '',
+                                                            channel: '',
+                                                        })
+                                                            .then(function () {
+                                                                playingStatus.set(msg.guildID, false);
+                                                            })
+                                                            .catch(function (err) {
+                                                                SendMessage("❌ Failed to set player status", "system", msg.guildID, "Musicbox")
+                                                                Logger.printLine(`Musicbox`, `Failed to set play status`, `error`, err)
+                                                            })
+                                                    })
+                                                    .catch(function (err) {
+                                                        Logger.printLine("Musicbox", `Failed to clear the playlist`, "err", err)
+                                                    })
+                                            } else {
+                                                SendMessage("⁉️ Radio is not currently playing", "systempublic", msg.guildID, "Radio")
+                                            }
+                                        } else {
+                                            SendMessage("⁉️ Radio is not currently playing", "systempublic", msg.guildID, "Radio")
+                                        }
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'replay':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        if (msg.member.voiceState.channelID !== null) {
+                                            discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
+                                                .catch((err) => {
+                                                    SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioStop", err)
+                                                })
+                                                .then((connection) => {
+                                                    if (playingStatus.get(msg.guildID)) {
+                                                        playStation(connection, "restart")
+                                                    }
+                                                })
+                                        } else {
+                                            SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                        }
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'next':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        if (msg.member.voiceState.channelID !== null) {
+                                            discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
+                                                .catch((err) => {
+                                                    SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioNext", err)
+                                                })
+                                                .then((connection) => {
+                                                    if (playingStatus.get(msg.guildID)) {
+                                                        connection.stopPlaying();
+                                                    }
+                                                })
+                                        } else {
+                                            SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                        }
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                case 'pause':
+                                    if (playingStatus.has(msg.guildID)) {
+                                        if (msg.member.voiceState.channelID !== null) {
+                                            discordClient.joinVoiceChannel(msg.member.voiceState.channelID)
+                                                .catch((err) => {
+                                                    SendMessage("There was an error connecting to the radio station!", "err", msg.guildID, "RadioPause", err)
+                                                })
+                                                .then((connection) => {
+                                                    if (connection.playing || connection.paused) {
+                                                        if (connection.paused) {
+                                                            connection.resume()
+                                                        } else {
+                                                            connection.pause()
+                                                        }
+                                                    } else if (playingStatus.get(msg.guildID)) {
+                                                        playStation(connection, "restart")
+                                                    }
+
+                                                })
+                                        } else {
+                                            SendMessage("⁉️ You are not currently connected to the radio station, Please join the channel!", "systempublic", msg.guildID, "Radio")
+                                        }
+                                    } else {
+                                        SendMessage(`❌ System Parameters have not loaded yet!`, `systempublic`, msg.guildID, "Musicbox")
+                                        Logger.printLine(`Musicbox`, `System Parameters have not loaded yet, please try again.`, `warn`)
+                                    }
+                                    break;
+                                default:
+                                    SendMessage("⁉ Unknown Command", "systempublic", msg.guildID, "RadioCmd")
+                                    break;
+                            }
+                        } else {
+                            SendMessage("⁉ Missing required information", "systempublic", msg.guildID, "PixivMgr")
+                        }
+                    }
+                }, {
+                    argsRequired: true,
+                    caseInsensitive: true,
+                    description: "Control Music Player",
+                    fullDescription: "Manages the radio Channel\n" +
+                        "   **ls** - Lists all music boxes\n   **play** - Play a named musicbox\n      [Musicbox]\n   **stop** - Stop and Disconnect player\n   **next** - Next track\n   **pause** - Pause or Resume track\n",
+                    usage: "command [arguments]",
+                    guildOnly: true
+                })
+            }
         }
 
         discordClient.registerCommand("status", async function (msg,args) {
@@ -3618,11 +4711,14 @@ This code is publicly released and is restricted by its project license
 
         let embed = {
             "footer": {
-                "text": "System Status",
+                "text": `${(systemglobal.Discord_Upload_Only) ? "Publisher Status (" + systemglobal.SystemName + ")" : "System Status"}`,
                 "icon_url": discordClient.guilds.get(guildID).iconURL
             },
             "timestamp": (new Date().toISOString()) + "",
             "color": 65366,
+            "thumbnail" : {
+                "url": null
+            },
             "image" : {
                 "url": null
             },
@@ -3632,25 +4728,25 @@ This code is publicly released and is restricted by its project license
                     "value": `${msConversion(process.uptime() * 1000)} (${msConversion(discordClient.uptime)})`.substring(0,1024),
                     "inline": true
                 },
-                {
-                    "name": "📚 Servers",
-                    "value": `${discordClient.guilds.size}`.substring(0,1024),
-                    "inline": true
-                },
             ]
         }
+
+        // Get MQ Statics
+        let discordMQMessages = 0;
         let discordMQ = {
-            "title": "Discord I/O Queue Status",
-            "color": 1502061,
+            "footer" : {
+                "title": "Discord I/O Queue Status"
+            },
+            "color": 1473771,
             "fields": []
         }
         let fileworkerMQ = {
-            "title": "FileWorker Queue Status",
-            "color": 1502061,
+            "footer": {
+                "title": "FileWorker Queue Status"
+            },
+            "color": 1473771,
             "fields": []
         }
-        // Get MQ Statics
-        let discordMQMessages = 0;
         try {
             const promisifiedRequest = function(options) {
                 return new Promise((resolve,reject) => {
@@ -3678,7 +4774,7 @@ This code is publicly released and is restricted by its project license
                 console.error(ampqResponse.err)
             }
             await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => { UndeliveredMQ = e.messages; })
-            await ampqJSON.filter(e => e.name.includes('.discord')).map(e => {
+            await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
                 discordMQMessages = discordMQMessages + e.messages
                 let _name = ''
                 let _return = '';
@@ -3695,7 +4791,7 @@ This code is publicly released and is restricted by its project license
                         break;
                 }
                 switch (e.name.split('.discord').pop().toLowerCase()) {
-                    case '.':
+                    case '':
                         _name += '⭐ Standard'
                         id = id + 1
                         break;
@@ -3719,7 +4815,9 @@ This code is publicly released and is restricted by its project license
                 if (e.messages > 0) {
                     _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
                 }
-                if (e.message_bytes >= 1000000) {
+                if (e.message_bytes >= 1000000000) {
+                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                } else if (e.message_bytes >= 1000000) {
                     _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
                 } else if (e.message_bytes >= 1000) {
                     _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
@@ -3774,7 +4872,9 @@ This code is publicly released and is restricted by its project license
                 if (e.messages > 0) {
                     _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
                 }
-                if (e.message_bytes >= 1000000) {
+                if (e.message_bytes >= 1000000000) {
+                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                } else if (e.message_bytes >= 1000000) {
                     _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
                 } else if (e.message_bytes >= 1000) {
                     _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
@@ -3808,6 +4908,27 @@ This code is publicly released and is restricted by its project license
         } catch (e) {
             console.error(e);
         }
+        if (!systemglobal.Discord_Upload_Only) {
+            embed.fields.push({
+                "name": "🏘 Servers",
+                "value": `${discordClient.guilds.size}`.substring(0,1024),
+                "inline": true
+            })
+        } else {
+            embed.fields.push({
+                "name": "📤 Outbox",
+                "value": `${discordMQMessages}`.substring(0,1024),
+                "inline": true
+            })
+        }
+        if (discordClient.unavailableGuilds.size > 0) {
+            systemFault = true;
+            bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
+        }
+        if (gracefulShutdown) {
+            systemFault = true;
+            bannerFault.unshift('🛑 System is shutting down!')
+        }
         let _ud = [];
         // Get Insight Footer Image
         if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL[guildID] !== undefined) {
@@ -3823,8 +4944,32 @@ This code is publicly released and is restricted by its project license
         else {
             embed.image = undefined;
         }
+        // Get Insight Icon Image
+        if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon[guildID] === true) {
+            embed.thumbnail = {
+                "url": discordClient.guilds.get(guildID).iconURL
+            }
+        }
+        else if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon.default === true) {
+            embed.thumbnail = {
+                "url": discordClient.guilds.get(guildID).iconURL
+            }
+        }
+        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL[guildID] !== undefined) {
+            embed.thumbnail = {
+                "url": systemglobal.Discord_Insights_Custom_Icon_URL[guildID]
+            }
+        }
+        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL.default !== undefined) {
+            embed.thumbnail = {
+                "url": systemglobal.Discord_Insights_Custom_Icon_URL.default
+            }
+        }
+        else {
+            embed.thumbnail = undefined;
+        }
         // Undelivered Messages Counts
-        if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin)) {
+        if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && !systemglobal.Discord_Upload_Only) {
             const binChannel = await cacheData.get(systemglobal.Discord_Recycling_Bin);
             if (binChannel >= 5) { systemFault = true; }
             if (binChannel > 0)
@@ -3846,202 +4991,301 @@ This code is publicly released and is restricted by its project license
         let _bt = '❔ Unknown'
         let _bc = null;
 
-        // File Count and Usage
-        const totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count FROM kanmi_records WHERE (attachment_hash IS NOT NULL OR fileid IS NOT NULL)`);
-        if (!totalCounts.error && totalCounts.rows.length > 0) {
-            // File Count
-            embed.fields.push({
-                "name": "📁 Files",
-                "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0,1024),
-                "inline": true
-            })
-            const totalData = parseInt(totalCounts.rows[0].total_data.toString());
-            // File Usage
-            let totalText = ''
-            if (totalData > 1024000) {
-                totalText += `${(totalData / 1024000).toFixed(2)} TB`
-            } else if (totalData > 1024) {
-                totalText += `${(totalData / 1024).toFixed(2)} GB`
-            } else {
-                totalText += `${totalData} MB`
+
+        if (!systemglobal.Discord_Upload_Only) {
+            // File Count and Usage
+            const imageWhereQuery = `(${[
+                "attachment_name LIKE '%.jp%_'",
+                "attachment_name LIKE '%.jfif'",
+                "attachment_name LIKE '%.png'",
+                "attachment_name LIKE '%.gif'",
+                "attachment_name LIKE '%.web%_'",
+            ].join(' OR ')})`
+            const musicWhereQuery = `(${[
+                '(' + [
+                    '(' + [
+                        "real_filename LIKE '%.mp3'",
+                        "real_filename LIKE '%.m4a'",
+                        "real_filename LIKE '%.wav'",
+                        "real_filename LIKE '%.flac'",
+                        "real_filename LIKE '%.ogg'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+                '(' + [
+                    '(' + [
+                        "attachment_name LIKE '%.mp3'",
+                        "attachment_name LIKE '%.m4a'",
+                        "attachment_name LIKE '%.wav'",
+                        "attachment_name LIKE '%.flac'",
+                        "attachment_name LIKE '%.ogg'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+            ].join(' OR ')})`
+            const videoWhereQuery = `(${[
+                '(' + [
+                    '(' + [
+                        "real_filename LIKE '%.mp4'",
+                        "real_filename LIKE '%.mov'",
+                        "real_filename LIKE '%.m4v'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+                '(' + [
+                    '(' + [
+                        "attachment_name LIKE '%.mp4'",
+                        "attachment_name LIKE '%.mov'",
+                        "attachment_name LIKE '%.m4v'",
+                    ].join(' OR ') + ')',
+                    "attachment_extra IS NULL"
+                ].join(' AND ') + ')',
+            ].join(' OR ')})`
+
+            const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${imageWhereQuery}`);
+            const musicCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${musicWhereQuery}`);
+            const videoCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${videoWhereQuery}`);
+            const totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE (attachment_hash IS NOT NULL OR fileid IS NOT NULL)`);
+            if (!imageCount.error && imageCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "🖼 Images",
+                    "value": `${imageCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
             }
-            embed.fields.push({
-                "name": "💾 Usage",
-                "value": totalText.substring(0,1024),
-                "inline": true
-            })
-        }
-        // Backup and Sync System
-        _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
-            const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name`, [row.system_name])
-            let partsDisabled = false;
-            let cdsAccess = false;
-            let backupInterval = 3600000;
-            if (configForHost.rows.length > 0) {
-                const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
-                if (_backup_config.length > 0 && _backup_config[0].param_data) {
-                    if (_backup_config[0].param_data.backup_parts)
-                        partsDisabled = !(_backup_config[0].param_data.backup_parts);
-                    if (_backup_config[0].param_data.interval_min)
-                        backupInterval = parseInt(_backup_config[0].param_data.interval_min.toString()) * 60000
-                    if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
-                        cdsAccess = true;
+            if (!videoCount.error && videoCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "🎞 Videos",
+                    "value": `${videoCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
+            if (!musicCount.error && musicCount.rows.length > 0) {
+                embed.fields.push({
+                    "name": "💿 Audio",
+                    "value": `${musicCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
+            if (!totalCounts.error && totalCounts.rows.length > 0) {
+                // File Count
+                embed.fields.push({
+                    "name": "📁 Files",
+                    "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                    "inline": true
+                })
+                const totalData = parseInt(totalCounts.rows[0].total_data.toString());
+                // File Usage
+                let totalText = ''
+                if (totalData > 1024000) {
+                    totalText += `${(totalData / 1024000).toFixed(2)} TB`
+                } else if (totalData > 1024) {
+                    totalText += `${(totalData / 1024).toFixed(2)} GB`
+                } else {
+                    totalText += `${totalData} MB`
                 }
+                embed.fields.push({
+                    "name": "💾 Usage",
+                    "value": totalText.substring(0, 1024),
+                    "inline": true
+                })
             }
-            const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
-            let partCounts = { rows: [] }
-            if (!partsDisabled) {
-                partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
-            }
-            return {
-                hostname: row.system_name,
-                files: (fileCounts.rows.length > 0) ? parseInt(fileCounts.rows[0].backup_needed.toString()) : 0,
-                parts: (!partsDisabled) ? (fileCounts.rows.length > 0) ? parseInt(partCounts.rows[0].backup_needed.toString()) : 0 : 0,
-                interval: backupInterval
-            }
-        }))
-        let backupValues = [];
-        function getPrefix(index, length) {
-            let _bcP = ''
-            if (length > 1) {
-                switch (index + 1) {
-                    case 1:
-                        _bcP += (length < 3) ? '🅰' : '1️⃣'
-                        break;
-                    case 2:
-                        _bcP += (length < 3) ? '🅱' : '2️⃣'
-                        break;
-                    case 3:
-                        _bcP += '3️⃣'
-                        break;
-                    case 4:
-                        _bcP += '4️⃣'
-                        break;
-                    case 5:
-                        _bcP += '5️⃣'
-                        break;
-                    case 6:
-                        _bcP += '6️⃣'
-                        break;
-                    case 7:
-                        _bcP += '7️⃣'
-                        break;
-                    case 8:
-                        _bcP += '8️⃣'
-                        break;
-                    case 9:
-                        _bcP += '9️⃣'
-                        break;
-                    case 10:
-                        _bcP += '🔟'
-                        break;
-                    default:
-                        _bcP += '*️⃣'
-                        break;
+
+            // Backup and Sync System
+            _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
+                const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
+                let partsDisabled = false;
+                let cdsAccess = false;
+                let backupInterval = 3600000;
+                let ignoreQuery = [];
+                if (configForHost.rows.length > 0) {
+                    const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
+                    if (_backup_config.length > 0 && _backup_config[0].param_data) {
+                        if (_backup_config[0].param_data.backup_parts)
+                            partsDisabled = !(_backup_config[0].param_data.backup_parts);
+                        if (_backup_config[0].param_data.interval_min)
+                            backupInterval = parseInt(_backup_config[0].param_data.interval_min.toString()) * 60000
+                        if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
+                            cdsAccess = true;
+                    }
+                    const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
+                    if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
+                        if (_backup_ignore[0].param_data.channels)
+                            ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
+                        if (_backup_ignore[0].param_data.servers)
+                            ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
+                    }
                 }
-                _bcP += ' '
-            }
-            return _bcP
-        }
-        let extraText= []
-        backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
-            .map((e,i,a) => {
-                const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
-                if (_bcF.length > 0) {
-                    if (e.data.active && e.data.total > 25) {
-                        const _si = e.data;
-                        let lns = [];
-                        if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
-                        } else {
-                            if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
-                            } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
-                            }
 
 
-                            if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
-                                lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                            } else if (_bcF.length > 0 && _bcF[0].files > 0) {
-                                lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+
+                const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
+                let partCounts = { rows: [] }
+                if (!partsDisabled) {
+                    partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
+                }
+                return {
+                    hostname: row.system_name,
+                    files: (fileCounts.rows.length > 0) ? parseInt(fileCounts.rows[0].backup_needed.toString()) : 0,
+                    parts: (!partsDisabled) ? (fileCounts.rows.length > 0) ? parseInt(partCounts.rows[0].backup_needed.toString()) : 0 : 0,
+                    interval: backupInterval
+                }
+            }))
+
+            let extraText= [];
+            function getPrefix(index, length) {
+                let _bcP = ''
+                if (length > 1) {
+                    switch (index + 1) {
+                        case 1:
+                            _bcP += (length < 3) ? '🅰' : '1️⃣'
+                            break;
+                        case 2:
+                            _bcP += (length < 3) ? '🅱' : '2️⃣'
+                            break;
+                        case 3:
+                            _bcP += '3️⃣'
+                            break;
+                        case 4:
+                            _bcP += '4️⃣'
+                            break;
+                        case 5:
+                            _bcP += '5️⃣'
+                            break;
+                        case 6:
+                            _bcP += '6️⃣'
+                            break;
+                        case 7:
+                            _bcP += '7️⃣'
+                            break;
+                        case 8:
+                            _bcP += '8️⃣'
+                            break;
+                        case 9:
+                            _bcP += '9️⃣'
+                            break;
+                        case 10:
+                            _bcP += '🔟'
+                            break;
+                        default:
+                            _bcP += '*️⃣'
+                            break;
+                    }
+                    _bcP += ' '
+                }
+                return _bcP
+            }
+            const backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
+                .map((e,i,a) => {
+                    const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
+                    if (_bcF.length > 0) {
+                        if (e.data.active && e.data.total > 25) {
+                            const _si = e.data;
+                            let lns = [];
+                            if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
+                            } else {
+                                if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
+                                } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
+                                }
+
+
+                                if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
+                                    lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                                } else if (_bcF.length > 0 && _bcF[0].files > 0) {
+                                    lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
+                                if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
+                                    lns.push(`🔄🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                                } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
+                                    lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
+                                    lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
                             }
-                            if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
-                                lns.push(`🔄🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                            } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
-                                lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                            } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
-                                lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            if (lns.length > 0) {
+                                return {
+                                    "name": `🗄 ${getPrefix(i, a.length)}${_si.hostname} Sync Status`,
+                                    "value": `${lns.join('\n')}`.substring(0,1024)
+                                };
+                            } else {
+                                if (_bcF[0].files > 0) {
+                                    extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
+                                if (_bcF[0].parts > 0) {
+                                    extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
                             }
-                        }
-                        if (lns.length > 0) {
-                            return {
-                                "name": `🗄 ${getPrefix(i, a.length)}${_si.hostname} Sync Status`,
-                                "value": `${lns.join('\n')}`.substring(0,1024)
-                            };
                         } else {
-                            if (_bcF[0].files > 0) {
+                            if (e.data.cleanup) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is cleaning up the filesystem`)
+                            }
+                            if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
+                            }
+                            if (_bcF[0].files > 25) {
                                 extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
-                            if (_bcF[0].parts > 0) {
+                            if (_bcF[0].parts > 50) {
                                 extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
                         }
-                    } else {
-                        if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
-                        }
-                        if (_bcF[0].files > 25) {
-                            extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        }
-                        if (_bcF[0].parts > 50) {
-                            extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        }
                     }
-                }
-                return false
-            }).filter(e => !(!e))
-        if (backupValues.length > 0) {
-            embed.fields.push({
-                "name": "🗄 Sync",
-                "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0,1024),
-                "inline": true
-            })
-            embed.fields.push(...backupValues)
-        }
-        else {
-            const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50 )
-            if (_bcF.length > 0) {
-                const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
-                _bt = [];
-                await _bcF.forEach((e,i) => {
-                    if (e.files > 0) {
-                        _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                    }
-                    if (e.parts > 0) {
-                        _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                    }
-                    if (e.files >= 500 || e.parts >= 500) {
-                        systemWarning = true;
-                        bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
-                    } else if (e.files >= 100 || e.parts >= 250) {
-                        systemWarning = true;
-                        bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
-                    }
+                    return false
+                }).filter(e => !(!e))
+            if (backupValues.length > 0) {
+                embed.fields.push({
+                    "name": "🗃 Backup",
+                    "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0,1024),
+                    "inline": true
                 })
-                _bt = _bt.join('\n')
-            } else {
-                _bt = '✅ Complete'
+                embed.fields.push(...backupValues)
             }
-            embed.fields.push({
-                "name": "🗄 Sync",
-                "value": _bt.substring(0,1024),
-                "inline": true
-            })
+            else {
+                const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50 )
+                if (_bcF.length > 0) {
+                    const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
+                    _bt = [];
+                    await _bcF.forEach((e,i) => {
+                        if (e.files > 0) {
+                            _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        }
+                        if (e.parts > 0) {
+                            _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        }
+                        if (e.files >= 500 || e.parts >= 500) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
+                        } else if (e.files >= 100 || e.parts >= 250) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
+                        }
+                    })
+                    _bt = _bt.join('\n')
+                } else {
+                    _bt = '✅ Complete'
+                }
+                embed.fields.push({
+                    "name": "🗃 Backup",
+                    "value": _bt.substring(0,1024),
+                    "inline": true
+                })
+            }
         }
         // Active Tasks
         let _ioT = []
@@ -4075,13 +5319,15 @@ This code is publicly released and is restricted by its project license
             _ioT.push(`💤 No Active Jobs`)
         }
         if (discordMQMessages > 0) {
-            _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-            if (discordMQMessages > 150) {
+            if (!systemglobal.Discord_Upload_Only) {
+                _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
+            }
+            if ((systemglobal.Discord_Upload_Only && discordMQMessages > 1000) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 250)) {
                 systemFault = true;
-                bannerFault.unshift('📬 Message Queue is actively backlogged!')
-            } else if (discordMQMessages > 50) {
+                bannerFault.unshift('📨 Message Queue is actively backlogged!')
+            } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 500) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 100)) {
                 systemWarning = true;
-                bannerWarnings.unshift('📬 Message Queue is getting congested')
+                bannerWarnings.unshift('📨 Message Queue is getting congested')
             }
         }
         embed.fields.push({
@@ -4089,116 +5335,139 @@ This code is publicly released and is restricted by its project license
             "value": _ioT.join('\n').substring(0,1024)
         })
         if (activeProccessing.length > 10) { systemWarning = true; }
-        // Extended Entity Statistics
-        function convertMBtoText(value, noUnit) {
-            const diskValue = parseFloat(value.toString());
-            if (diskValue >= 1000000) {
-                return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
-            } else if (diskValue >= 1000) {
-                return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
-            } else {
-                return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
-            }
-        }
-        const diskValues = statusData.filter(e => e.name.endsWith('_disk'))
-            .map(statusRecord => {
-                const _si = statusRecord.data;
-                let _sL = [];
-                if (_si.diskFault) {
-                    bannerFault.push(`📀 Disk "${_si.diskMount}" free space is low!`);
-                }
-                if (_si.preferUsed) {
-                    _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskUsed)} (${_si.diskPercent}%)`)
-                    _sL.push(`${convertMBtoText(_si.diskFree, true)} / ${convertMBtoText(_si.diskTotal)}`)
-                } else {
-                    _sL.push(`${_si.statusIcon} ${convertMBtoText(_si.diskFree)} (${_si.diskPercent}%)`)
-                    _sL.push(`${convertMBtoText(_si.diskUsed, true)} / ${convertMBtoText(_si.diskTotal)}`)
-                }
-
-                return {
-                    "name": `${_si.diskIcon}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''} Disk${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? ' 🕗' : ''}`,
-                    "value": `${_sL.join('\n')}`.substring(0,1024),
-                    "inline": true
-                };
-            })
-        if (diskValues.length > 0) {
-            embed.fields.push(...diskValues)
-        }
-        const watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
-            .map(statusRecord => {
-                const _si = statusRecord.data;
-                bannerWarnings.push(..._si.wdWarnings.map(e => '👁 ' + e));
-                bannerFault.push(..._si.wdFaults.map(e => '👁 ' + e));
-
-                return `${_si.header}${_si.name}: ${_si.statusIcons}`;
-            })
-        if (watchdogValues.length > 0) {
+        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000))
+        if (fileTicker.length > 0) {
             embed.fields.push({
-                "name": `👁 Service Watchdog`,
-                "value": `${watchdogValues.join('\n')}`.substring(0,1024)
+                "name": `📂 Recent Uploads (${fileTicker.length})`,
+                "value": `${fileTicker.slice(0,5).map(e => e.name).join('\n')}`.substring(0, 1024)
             })
         }
-        // Twitter Flow Control Statistics
-        embed.fields.push(...statusData.filter(e => e.name.startsWith('tflow_'))
-            .map(statusRecord => {
-                let statusItems = [];
-                const _si = statusRecord.data;
-                if (_si.flowVolume) {
-                    if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) {
-                        if (_si.flowMode !== 0) {
-                            systemFault = true;
-                            bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                        }
-                        statusItems.push(`**🛑 Queue Empty!**`);
-                        if (_si.flowMinAlert) {
-                            systemWarning = true;
-                            bannerFault.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is empty!`)
-                        }
-                    }
-                    else if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) {
-                        if (_si.flowMode !== 0) {
-                            systemFault = true;
-                            bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                        }
-                        statusItems.push(`**🔻 Queue Underflow!**`);
-                        if (_si.flowMinAlert) {
-                            systemWarning = true;
-                            bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is running out of items!`)
-                        }
-                    }
-                    else if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) {
-                        if (_si.flowMode !== 2) {
-                            systemFault = true;
-                            bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                        }
-                        statusItems.push(`**🌊 Queue Overflow!**`);
-                        if (_si.flowMaxAlert) {
-                            systemWarning = true;
-                            bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is overflowing!, Rectifying`)
-                        }
-                    }
-                    else if (_si.statusIcon) {
-                        if (_si.flowMode !== 1) {
-                            systemFault = true;
-                            bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                        }
-                    }
+        let diskValues = [];
+        let watchdogValues = [];
+        if (!systemglobal.Discord_Upload_Only) {
+            // Extended Entity Statistics
+            function convertMBtoText(value, noUnit) {
+                const diskValue = parseFloat(value.toString());
+                if (diskValue >= 1000000) {
+                    return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
+                } else if (diskValue >= 1000) {
+                    return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
+                } else {
+                    return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
                 }
-                if (_si.flowCountTotal > 1) {
-                    let _siT = [];
-                    if (_si.flowCountSend > 0) { _siT.push(`📨 ${_si.flowCountSend}`) }
-                    if (_si.flowCountLikeRt > 0) { _siT.push(`❤ ${_si.flowCountLikeRt}`) }
-                    if (_si.flowCountLike > 0) { _siT.push(`💙 ${_si.flowCountLike}`) }
-                    if (_si.flowCountRt > 0) { _siT.push(`🔄 ${_si.flowCountRt}`) }
-                    if (_siT.length > 0) { statusItems.push(_siT.join(' / ')) }
-                }
+            }
 
-                return {
-                    "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account`,
-                    "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0,1024),
-                    "inline": true
-                };
-            }))
+            diskValues = statusData.filter(e => e.name.endsWith('_disk'))
+                .map(statusRecord => {
+                    const _si = statusRecord.data;
+                    let _sL = [
+                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 0) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
+                    ];
+                    if (_si.diskFault) {
+                        bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
+                    }
+                    if (_si.preferUsed) {
+                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
+                    } else {
+                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
+                    }
+                    // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
+
+                    if (_si.diskShow || _si.diskFault || (!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true))) {
+                        return `${_sL.join(' - ')}`.substring(0, 1024)
+                    } else {
+                        return false
+                    }
+                }).filter(e => !!e)
+            if (diskValues.length > 0) {
+                embed.fields.push({
+                    "name": "💽 Local Storage",
+                    "value": `${diskValues.join('\n')}`.substring(0, 1024)
+                })
+            }
+            watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
+                .map(statusRecord => {
+                    const _si = statusRecord.data;
+                    bannerWarnings.push(..._si.wdWarnings.map(e => '️♻️ ' + e));
+                    bannerFault.push(..._si.wdFaults.map(e => '🔌 ' + e));
+
+                    return `${_si.header}${_si.name}: ${_si.statusIcons}`;
+                })
+            if (watchdogValues.length > 0) {
+                embed.fields.push({
+                    "name": `🚥 Service Watchdog`,
+                    "value": `${watchdogValues.join('\n')}`.substring(0, 1024)
+                })
+            }
+            // Twitter Flow Control Statistics
+            embed.fields.push(...statusData.filter(e => e.name.startsWith('tflow_'))
+                .map(statusRecord => {
+                    let statusItems = [];
+                    const _si = statusRecord.data;
+                    if (_si.flowVolume) {
+                        if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) {
+                            if (_si.flowMode !== 0) {
+                                systemFault = true;
+                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                            }
+                            statusItems.push(`**🛑 Queue Empty!**`);
+                            if (_si.flowMinAlert) {
+                                systemWarning = true;
+                                bannerFault.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is empty!`)
+                            }
+                        } else if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) {
+                            if (_si.flowMode !== 0) {
+                                systemFault = true;
+                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                            }
+                            statusItems.push(`**🔻 Queue Underflow!**`);
+                            if (_si.flowMinAlert) {
+                                systemWarning = true;
+                                bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is running out of items!`)
+                            }
+                        } else if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) {
+                            if (_si.flowMode !== 2) {
+                                systemFault = true;
+                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                            }
+                            statusItems.push(`**🌊 Queue Overflow!**`);
+                            if (_si.flowMaxAlert) {
+                                systemWarning = true;
+                                bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is overflowing!, Rectifying`)
+                            }
+                        } else if (_si.statusIcon) {
+                            if (_si.flowMode !== 1) {
+                                systemFault = true;
+                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                            }
+                        }
+                    }
+                    if (_si.flowCountTotal > 1) {
+                        let _siT = [];
+                        if (_si.flowCountSend > 0) {
+                            _siT.push(`📨 ${_si.flowCountSend}`)
+                        }
+                        if (_si.flowCountLikeRt > 0) {
+                            _siT.push(`❤ ${_si.flowCountLikeRt}`)
+                        }
+                        if (_si.flowCountLike > 0) {
+                            _siT.push(`💙 ${_si.flowCountLike}`)
+                        }
+                        if (_si.flowCountRt > 0) {
+                            _siT.push(`🔄 ${_si.flowCountRt}`)
+                        }
+                        if (_siT.length > 0) {
+                            statusItems.push(_siT.join(' / '))
+                        }
+                    }
+
+                    return {
+                        "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} (FCQ)`,
+                        "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0, 1024),
+                        "inline": true
+                    };
+                }))
+        }
         let embdedArray = [];
         if (discordMQ.fields.length > 0){
             embdedArray.push(discordMQ)
@@ -4212,14 +5481,16 @@ This code is publicly released and is restricted by its project license
         else if (systemWarning) {
             embed.color = 16771840
         }
-        const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
-            return `*${(e.startsWith(`alarmExpires-`)) ? '*⏰' : '💤'} ${Timers.get(e).text}${(e.startsWith(`alarmExpires-`)) ? '*' : ''}*`
-        })
-        if (activeAlarmClocks.length > 0) {
-            embed.fields.unshift({
-                "name": `🔔 Reminders`,
-                "value": activeAlarmClocks.join('\n').substring(0,1024)
+        if (!systemglobal.Discord_Upload_Only) {
+            const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
+                return `*${(e.startsWith(`alarmExpires-`)) ? '*⏰' : '💤'} ${Timers.get(e).text}${(e.startsWith(`alarmExpires-`)) ? '*' : ''}*`
             })
+            if (activeAlarmClocks.length > 0) {
+                embed.fields.unshift({
+                    "name": `🔔 Reminders`,
+                    "value": activeAlarmClocks.join('\n').substring(0,1024)
+                })
+            }
         }
         if (bannerWarnings.length > 0) {
             embed.fields.unshift({
@@ -4316,7 +5587,7 @@ This code is publicly released and is restricted by its project license
                         message: msg.id,
                     })
                     const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                    if (reactionNeeded.rows.length > 0) {
+                    if (reactionNeeded.rows.length > 0 && !systemglobal.Discord_Upload_Only) {
                         let emoji = reactionNeeded.rows[0].reaction_emoji
                         if (reactionNeeded.rows[0].reaction_custom !== null) {
                             emoji = reactionNeeded.rows[0].reaction_custom
@@ -4451,13 +5722,13 @@ This code is publicly released and is restricted by its project license
         if (type === "listManager" && !TwitterLists.has(chid) && !(embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color))) {
             SendMessage("The specified Twitter list was not found!", "err", guildid,"Twitter")
         } else {
-            if (overide || TwitterLists.has(chid) || (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) || TwitterLikeList.has(chid) || (embed && embed.length > 0 && TwitterPixivLike.has(embed[0].color)) || TwitterPixivLike.has(chid) || TwitterActivityChannels.has(chid) || (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download)) {
+            if (overide || TwitterCDSBypass.has(overide) || TwitterLists.has(chid) || (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) || TwitterLikeList.has(chid) || (embed && embed.length > 0 && TwitterPixivLike.has(embed[0].color)) || TwitterPixivLike.has(chid) || TwitterActivityChannels.has(chid) || (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download)) {
                 let originalembeds = []
                 let listID = ''
                 if (embed) {
                     originalembeds = embed
                 }
-                if (discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download) {
+                if (!TwitterCDSBypass.has(overide) && discordServers.has(guildid) && chid === discordServers.get(guildid).chid_download) {
                     mqClient.sendData(`${systemglobal.Twitter_In}`, {
                         fromWorker: systemglobal.SystemName,
                         botSelfID: selfstatic.id,
@@ -4476,6 +5747,8 @@ This code is publicly released and is restricted by its project license
                 } else {
                     if (TwitterLikeList.has(chid)) {
                         listID = TwitterLikeList.get(chid)
+                    } else if (TwitterCDSBypass.has(overide)) {
+                        listID = overide
                     } else if (embed && embed.length > 0 && TwitterListsEncoded.has(embed[0].color)) {
                         listID = TwitterListsEncoded.get(embed[0].color);
                     } else {
@@ -4558,13 +5831,15 @@ This code is publicly released and is restricted by its project license
             PostID = body
         } else if (typeof body === 'string') {
             PostID = body.split(' - ').pop().split(':')[0]
-        } else if (body.url) {
+        } else if (body.hasOwnProperty('url')) {
             PostID = body.url.split('/').pop();
             PostName = (body.title) ? body.title : undefined
             PostArtist = (body.author) ? body.author.name.split(") - ")[0] : undefined
+        } else {
+            PostID = body
         }
         try {
-            if (systemglobal.CMS_Timeline_Parent && createThread) {
+            if (systemglobal.CMS_Timeline_Parent && createThread && !systemglobal.CMS_Disable_Threads) {
                 const newMessage = await discordClient.createMessage((chid) ? chid : systemglobal.CMS_Timeline_Parent, (type === 'DownloadUser' || type === 'DownloadPost') ? `Downloading ${PostID} illustrations` : `Downloading related posts to ${PostID}`)
                 if (newMessage) {
                     const newThread = await discordClient.createThreadWithMessage(newMessage.channel.id, newMessage.id, {
@@ -4615,7 +5890,7 @@ This code is publicly released and is restricted by its project license
             if (fullmsg.embeds[0] && fullmsg.embeds[0].description !== undefined) {
                 messageText += `**${fullmsg.embeds[0].description}**\n`
             }
-            messageEdited.content = `${messageText}**🎆 ${fullmsg.embeds[0].author.name}** : ***${fullmsg.embeds[0].title.replace('🎆 ', '')}***`
+            messageEdited.content = `${messageText}**🎆 ${fullmsg.embeds[0].author.name}** : ***${fullmsg.embeds[0].title.replace('🎆 ', '')}${(fullmsg.embeds[0].description) ? '\n' + fullmsg.embeds[0].description : ''}***`
             let image = (fullmsg.embeds[0].image) ? fullmsg.embeds[0].image : (fullmsg.attachments[0]) ? fullmsg.attachments[0] : undefined;
             image.filename = getIDfromText(image.url)
             messageEdited.attachments = [ image ];
@@ -4848,7 +6123,7 @@ This code is publicly released and is restricted by its project license
                         let chid = undefined
                         const username = urlItem.split('/').pop().trim()
                         try {
-                            if (systemglobal.CMS_Timeline_Parent) {
+                            if (systemglobal.CMS_Timeline_Parent && !systemglobal.CMS_Disable_Threads) {
                                 const newMessage = await discordClient.createMessage(systemglobal.CMS_Timeline_Parent, `Downloading ${username} illustrations`)
                                 if (newMessage) {
                                     const newThread = await discordClient.createThreadWithMessage(newMessage.channel.id, newMessage.id, {
@@ -5039,7 +6314,26 @@ This code is publicly released and is restricted by its project license
     // Discord Framework - File Systems Tasks
     async function jfsMove(message, moveTo, cb, delay) {
         await activeTasks.set(`JFSMOVE_${message.id}`, { started: Date.now().valueOf() });
-        if (message.attachments.length === 0 || (message.attachments.length > 0 && message.attachments.filter(e => e.size > 7900000).length === 0)) {
+        const database_vales = (await db.query(`SELECT * FROM kanmi_records WHERE id = ? LIMIT 1`, [message.id])).rows
+        let attachments = message.attachments;
+        if (database_vales.length > 0 && database_vales[0].attachement_hash && database_vales[0].attachement_name) {
+            Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
+            attachments = [
+                {
+                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name}`),
+                    filename: database_vales[0].attachment_name
+                }
+            ]
+            if (database_vales[0].cache_proxy) {
+                const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}`
+                attachments.push({
+                    url: cache_url,
+                    filename: cache_url.split('/').pop()
+                })
+            }
+        }
+        if (attachments.length === 0 || (attachments.length > 0 && attachments.filter(e => e.size > 7900000).length === 0)) {
+            Logger.printLine("Move", `Need to move ${message.id}`, "debug")
             let emotesToAdd = []
             Object.keys(message.reactions).forEach(function (key) {
                 emotesToAdd.push(key)
@@ -5052,10 +6346,10 @@ This code is publicly released and is restricted by its project license
             } else {
                 messagecontent = "" + message.content
             }
-            if (message.attachments && message.attachments.length > 0) {
-                Logger.printLine("Move", `Need to download ${message.attachments[0].url}`, "debug", message.attachments[0])
+            if (attachments && attachments.length > 0) {
+                Logger.printLine("Move", `Need to download ${attachments[0].url}`, "debug", attachments[0])
                 request.get({
-                    url: message.attachments[0].url,
+                    url: attachments[0].url,
                     headers: {
                         'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                         'accept-language': 'en-US,en;q=0.9',
@@ -5085,18 +6379,18 @@ This code is publicly released and is restricted by its project license
                         let messagefiles = [
                             {
                                 file: Buffer.from(body),
-                                name: message.attachments[0].filename
+                                name: attachments[0].filename
                             }
                         ];
-                        if (colorSearchFormats.indexOf(message.attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
+                        if (colorSearchFormats.indexOf(attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
                             try {
                                 _color = await getAverageColor(body, {mode: 'precision'})
                             } catch (e) {
                                 console.error(e);
                             }
                         }
-                        if (message.attachments.length > 1 && message.attachments.filter(e => e.filename.includes('-t9-preview-video')).length > 0) {
-                            const previewAttachment = message.attachments.filter(e => e.filename.includes('-t9-preview-video')).pop()
+                        if (attachments.length > 1 && attachments.filter(e => e.filename.includes('-t9-preview-video')).length > 0) {
+                            const previewAttachment = attachments.filter(e => e.filename.includes('-t9-preview-video')).pop()
                             Logger.printLine("Move", `Need to download preview ${previewAttachment.url}`, "debug", previewAttachment)
                             const previewItem = await new Promise(resolve => {
                                 request.get({
@@ -5142,12 +6436,26 @@ This code is publicly released and is restricted by its project license
                                 color: _color,
                             })
                             if (data.content && data.content.includes('🏷 Name:')) {
-                                jfsMigrateFileParts(data);
+                                mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                    fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+                                    messageReturn: false,
+                                    messageChannelID: data.channel.id,
+                                    messageType: 'command',
+                                    messageAction: 'MigrateSpannedParts',
+                                    messageData: {
+                                        id: data.id,
+                                        channel: data.channel.id,
+                                        content: data.content,
+                                        guildID: data.guildID
+                                    }
+                                }, (ok) => {
+                                    if (!ok) { console.error('Failed to send update to MQ') }
+                                })
                             }
                             if (delay) {
                                 discordClient.editMessage(message.channel.id, message.id, `<:Download:830552108377964615> **Downloaded Successfully!**`)
                                     .catch((er) => {
-                                        SendMessage("There was a error updating the old message", "err", message.guildID, "Move", er)
+
                                     })
                             }
                             try {
@@ -5157,7 +6465,7 @@ This code is publicly released and is restricted by its project license
                                         SendMessage("SQL Error occurred when retrieving the previouly sent tweets for pixiv", "err", 'main', "SQL", foundMessage.error)
                                     } else if (foundMessage.rows.length === 0 && ((pixivaccount[0].like_taccount_nsfw !== null && message.channel.nsfw) || pixivaccount[0].like_taccount !== null)) {
                                         await db.query(`INSERT INTO pixiv_tweets SET id = ?`, [message.id])
-                                        sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : message.attachments[0]], moveTo, message.guildID, []);
+                                        sendTwitterAction(`Artist: ${message.embeds[0].author.name}\nSource: ${message.embeds[0].url}`, 'SendTweet', "send", [(data.attachments[0]) ? data.attachments[0] : attachments[0]], moveTo, message.guildID, []);
                                     }
                                     sendPixivAction(message.embeds[0], 'Like', "add");
                                 }
@@ -5178,8 +6486,10 @@ This code is publicly released and is restricted by its project license
                     }
                 })
             } else {
+
                 discordClient.createMessage(moveTo, {content: message.content})
                     .then(async (data) => {
+                        Logger.printLine("Move", `Message moved from ${message.channel.id} to ${data.channel.id}`, "debug", attachments[0])
                         // Send Response
                         await addEmojisToMessage(data, emotesToAdd);
                         await messageUpdate(data, {
@@ -5190,7 +6500,21 @@ This code is publicly released and is restricted by its project license
                             delay: (delay)
                         })
                         if (data.content && data.content.includes('🏷 Name:')) {
-                            await jfsMigrateFileParts(data);
+                            mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
+                                fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+                                messageReturn: false,
+                                messageChannelID: data.channel.id,
+                                messageType: 'command',
+                                messageAction: 'MigrateSpannedParts',
+                                messageData: {
+                                    id: data.id,
+                                    channel: data.channel.id,
+                                    content: data.content,
+                                    guildID: data.guildID
+                                }
+                            }, (ok) => {
+                                if (!ok) { console.error('Failed to send update to MQ') }
+                            })
                         }
                         activeTasks.delete(`JFSMOVE_${message.id}`)
                         cb(true);
@@ -5206,7 +6530,7 @@ This code is publicly released and is restricted by its project license
                     });
             }
         } else {
-            message.attachments.filter(e => !e.filename.includes('-t9-preview')).forEach(e => {
+            attachments.filter(e => !e.filename.includes('-t9-preview')).forEach(e => {
                 mqClient.sendData(systemglobal.FileWorker_In, {
                     fromClient: MQWorker1,
                     messageReturn: false,
@@ -5232,7 +6556,11 @@ This code is publicly released and is restricted by its project license
         }
     }
     async function jfsMigrateFileParts(data) {
-        await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: Date.now().valueOf() })
+        // data.id
+        // data.content
+        // data.guildID
+        const startTime = Date.now().valueOf();
+        await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: startTime })
         const input = data.content.split("**\n*")[0].replace("**🧩 File : ", '').replace(/\n|\r/g, '').trim();
         const fileParts = await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ? AND serverid != ?`, [input, data.guildID])
         const newServerData = await db.query(`SELECT * FROM discord_servers WHERE serverid = ?`, [data.guildID])
@@ -5244,72 +6572,102 @@ This code is publicly released and is restricted by its project license
         }
         if (fileParts.rows.length > 0 && newServerData.rows.length > 0) {
             // noinspection ES6MissingAwait
-            await Promise.all(fileParts.rows.map(async filepart => {
+            const masterResults = await Promise.all(fileParts.rows.map(async (filepart, i) => {
                 try {
+                    await activeTasks.set(`JFSPARITY_SYNC_${data.id}`, { started: startTime, details: `${i + 1}/${fileParts.rows.length}` });
                     const orgPartMsg = await discordClient.getMessage(filepart.channelid, filepart.messageid)
-                    await new Promise(resolve => {
-                        request.get({
-                            url: orgPartMsg.attachments[0].url,
-                            headers: {
-                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                'accept-language': 'en-US,en;q=0.9',
-                                'cache-control': 'max-age=0',
-                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                'sec-ch-ua-mobile': '?0',
-                                'sec-fetch-dest': 'document',
-                                'sec-fetch-mode': 'navigate',
-                                'sec-fetch-site': 'none',
-                                'sec-fetch-user': '?1',
-                                'upgrade-insecure-requests': '1',
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                            },
-                        }, async function (err, res, partbody) {
-                            if (err) {
-                                SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move", err)
-                                resolve(false);
-                            } else if (!partbody || (partbody && partbody.length < 100)) {
-                                SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move")
-                                resolve(false);
-                            } else {
-                                await discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
-                                    file: Buffer.from(partbody),
+                    let downloadTry = 0;
+                    let fileData = undefined;
+                    while (!fileData || downloadTry < 4) {
+                        downloadTry++;
+                        fileData = await new Promise(ok => {
+                            request.get({
+                                url: orgPartMsg.attachments[0].url,
+                                headers: {
+                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                    'accept-language': 'en-US,en;q=0.9',
+                                    'cache-control': 'max-age=0',
+                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                    'sec-ch-ua-mobile': '?0',
+                                    'sec-fetch-dest': 'document',
+                                    'sec-fetch-mode': 'navigate',
+                                    'sec-fetch-site': 'none',
+                                    'sec-fetch-user': '?1',
+                                    'upgrade-insecure-requests': '1',
+                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                },
+                            }, async function (err, res, partbody) {
+                                if (err) {
+                                    SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move", err)
+                                    ok(false);
+                                } else if (!partbody || (partbody && partbody.length < 100)) {
+                                    SendMessage("Failed to download file part attachments from discord", "err", data.guildID, "Move")
+                                    ok(false);
+                                } else {
+                                    ok(partbody);
+                                }
+                            })
+                        })
+                        if (fileData)
+                            break;
+                    }
+                    if (fileData) {
+                        let uploadTry = 0;
+                        let uploadResult = undefined;
+                        while (!uploadResult || uploadTry < 4) {
+                            uploadTry++;
+                            uploadResult = await new Promise(resolve => {
+                                discordClient.createMessage(newServerData.rows[0].chid_filedata, orgPartMsg.content, {
+                                    file: Buffer.from(fileData),
                                     name: orgPartMsg.attachments[0].filename
                                 })
                                     .then(async newPartMsg => {
-                                        const movedMessage = await db.query(`REPLACE INTO discord_multipart_files SET ?`, [{
+                                        const movedMessage = await db.query(`UPDATE discord_multipart_files SET ? WHERE messageid = ?`, [{
                                             channelid: newPartMsg.channel.id,
                                             messageid: newPartMsg.id,
                                             serverid: data.guildID,
                                             fileid: input,
                                             url: newPartMsg.attachments[0].url,
-                                            hash: md5(partbody),
-                                        }])
+                                            hash: md5(fileData),
+                                        }, filepart.messageid])
                                         if (movedMessage.error) {
                                             Logger.printLine('MoveMessage-Parts', `Failed to update File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'error', movedMessage.error)
                                             resolve(false);
                                         } else {
+                                            try {
+                                                await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
+                                            } catch (e) { }
+                                            Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug');
                                             resolve(true);
-                                            await discordClient.deleteMessage(filepart.channelid, filepart.messageid);
-                                            Logger.printLine('MoveMessage-Parts', `Moved File Part ${orgPartMsg.id}@${orgPartMsg.channel.id} to ${newPartMsg.id}@${newPartMsg.channel.id}`, 'debug')
                                         }
                                     })
                                     .catch(err => {
                                         SendMessage("Failed to move message part to new discord server", "err", data.guildID, "Move", err)
                                         resolve(false);
                                     })
-                            }
-                        })
-                    })
+                            })
+                            if (uploadResult)
+                                break;
+                        }
+                        if (!uploadResult) {
+                            SendMessage("Failed to move message part to new discord server after multiple attempts", "critical", data.guildID, "Move", err)
+                        }
+                    } else {
+                        SendMessage("Failed to download file part attachments from discord after multiple attempts", "critical", data.guildID, "Move")
+                    }
                 } catch (err) {
                     SendMessage("Failed to get message part to move to the new discord server", "err", data.guildID, "Move", err)
                     if (err.message && err.message.toLowerCase().includes('unknown message')) {
                         await db.query(`DELETE FROM discord_multipart_files WHERE channelid = ? AND messageid = ?`, [filepart.channelid, filepart.messageid])
                     }
+                    return false;
                 }
             }))
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
+            return masterResults.filter(e => !e).length > 0;
         } else {
             activeTasks.delete(`JFSPARITY_SYNC_${data.id}`)
+            return true;
         }
     }
     async function jfsRotate(message, rotate, cb) {
@@ -5385,29 +6743,49 @@ This code is publicly released and is restricted by its project license
     }
     async function jfsRename(channelid, messageid, name, cb) {
         await activeTasks.set(`JFSRENAME_${messageid}`, { started: Date.now().valueOf() });
-        const response = await db.query(`SELECT content_full, real_filename, fileid FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
+        const response = await db.query(`SELECT content_full, real_filename, fileid, filesize FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
         if (response.error) {
             SendMessage("SQL Error occurred when retrieving the channel classification data", "err", 'main', "SQL", response.error)
             cb(false)
         } else if (response.rows.length > 0 && response.rows[0].fileid) {
-            const completeText = response.rows[0].content_full.split("🏷 Name:")[0].trim() + '🏷 Name: ' + name.trim().replace(/[/\\?%*:|"<> ]/g, '_') + ' (' + response.rows[0].content_full.split("🏷 Name:").pop().split(' (').pop()
-            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ?, real_filename = ? WHERE id = ? AND source = 0`, [completeText, name.trim().replace(/[/\\?%*:|"<> ]/g, '_'), messageid])
-            if (updatedFile.error) {
-                SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", updatedFile.error)
-                cb(false)
-            } else {
-                try {
-                    await discordClient.editMessage(channelid, messageid, completeText)
-                } catch (err) {
-                    SendMessage("❌ File could not be renamed", "system", 'main', "Rename", err.message)
-                }
-                cb(true)
+            const completeText = `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${name.trim().replace(/[/\\?%*:|"<>]/g, '_')} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + response.rows[0].content_full.split('\n').slice(2).join('\n')
+            try {
+                await discordClient.editMessage(channelid, messageid, completeText)
+            } catch (err) {
+                SendMessage("❌ File could not be renamed", "system", 'main', "Rename", err.message)
             }
+            cb(true)
         } else {
             SendMessage("❌ File could not be renamed because it does not exist", "system", 'main', "Rename")
             cb(true)
         }
         activeTasks.delete(`JFSRENAME_${messageid}`)
+    }
+    async function jfsReplaceContents(channelid, messageid, textContents, cb) {
+        await activeTasks.set(`JFSMODIFYTEXT_${messageid}`, { started: Date.now().valueOf() });
+        const response = await db.query(`SELECT content_full, real_filename, fileid, filesize FROM kanmi_records WHERE id = ? AND source = 0`, [messageid])
+        if (response.error) {
+            SendMessage("SQL Error occurred when retrieving message data to update", "err", 'main', "SQL", response.error)
+            cb(false)
+        } else if (response.rows.length > 0) {
+            const completeText = (response.rows[0].fileid) ? `**🧩 File : ${response.rows[0].fileid}**\n*🏷 Name: ${response.rows[0].real_filename} (${response.rows[0].filesize.toFixed(2)} MB)*\n` + textContents : textContents
+            const updatedFile = await db.query(`UPDATE kanmi_records SET content_full = ? WHERE id = ? AND source = 0`, [completeText, messageid])
+            if (updatedFile.error) {
+                SendMessage("SQL Error occurred when saving message data to cacahe", "err", 'main', "SQL", updatedFile.error)
+                cb(false)
+            } else {
+                try {
+                    await discordClient.editMessage(channelid, messageid, completeText)
+                } catch (err) {
+                    SendMessage("❌ Contents could not be updated", "system", 'main', "EditContents", err.message)
+                }
+                cb(true)
+            }
+        } else {
+            SendMessage("❌ Contents could not be updated because it does not exist", "system", 'main', "EditContents")
+            cb(true)
+        }
+        activeTasks.delete(`JFSMODIFYTEXT_${messageid}`)
     }
     function jfsArchive(fullmsg, serverdata) {
         db.safe(`SELECT archivech FROM discord_archive_overide WHERE fromch = ?`, [fullmsg.channel.id], function (err, archiveoveride) {
@@ -5510,6 +6888,108 @@ This code is publicly released and is restricted by its project license
                 SendMessage("No Spanned File was found in the database, with ID " + fileUUID, "err", filedata[0].server, "SFDownload")
             }
         })
+    }
+    async function verifySpannedFiles(searchLimit) {
+        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
+        if (files && files.length) {
+            await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
+            Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
+            let i = 0
+            for (let file of files) {
+                ++i;
+                await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf(), details: `${i}/${files.length}` });
+                await new Promise(async completed => {
+                    Logger.printLine("MPFValidator", `Validating ${file.real_filename} (${file.fileid}) ${file.paritycount} parts...`, "debug")
+                    const spannedFiles = (await db.query(`SELECT * FROM discord_multipart_files WHERE fileid = ?`, [file.fileid])).rows
+                    if (spannedFiles.length === 0) {
+                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have any file parts associated with its fileid!\nThey may not have arrived or are deleted!`, "error", "MPFDownload");
+                        completed(false);
+                    } else if (spannedFiles.length >= file.paritycount) {
+                        let probeFile = []
+                        for (let part of spannedFiles) {
+                            probeFile.push(await (async () => {
+                                let j = 0;
+                                let lastResult = {
+                                    url: part.url,
+                                    ok: false
+                                }
+                                while (j < 3) {
+                                    j++
+                                    lastResult = await new Promise((resolve) => {
+                                        remoteSize(part.url, async (err, size) => {
+                                            if (!err || (size !== undefined && size > 5)) {
+                                                resolve({
+                                                    url: part.url,
+                                                    id: part.messageid,
+                                                    ch: part.channelid,
+                                                    ok: (size)
+                                                })
+                                                j = 100;
+                                            } else {
+                                                console.error(err)
+                                                resolve({
+                                                    url: part.url,
+                                                    id: part.messageid,
+                                                    ch: part.channelid,
+                                                    ok: false
+                                                })
+                                            }
+                                        })
+                                    })
+                                }
+                                return lastResult
+                            })())
+                        }
+                        for (let part of probeFile.filter(e => e.ok === 'retry')) {
+
+                        }
+                        const acceptedFiles = probeFile.filter(e => e.ok)
+                        const deadFiles = probeFile.filter(e => !e.ok)
+                        if (acceptedFiles.length > file.paritycount) {
+                            const names = acceptedFiles.map(e => e.url.split('/').pop())
+                            let removed = []
+                            const duplicates = acceptedFiles.map(async e => {
+                                if ((names.filter(f => e.url.split('/').pop() === f).length > 1) && removed.indexOf(e.url) === -1) {
+                                    const itemToRemove = acceptedFiles[names.indexOf(e.url.split('/').pop())]
+                                    removed.push(itemToRemove.url);
+                                    try {
+                                        const okSql = await db.query(`DELETE FROM discord_multipart_files WHERE url = ?`, [itemToRemove.url])
+                                        const okDis = await discordClient.deleteMessage(itemToRemove.ch, itemToRemove.id, "Duplicate Item");
+                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid})is a duplicate and was deleted!`, "warn", "MPFDownload");
+                                        return (okSql)
+                                    } catch (e) {
+                                        console.error(e);
+                                        mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid}) Failed to delete!`, "error", "MPFDownload", e);
+                                        return false;
+                                    }
+
+                                }
+                                return false
+                            })
+                            deadFiles.map(e => {
+                                mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) Dead File: ${e.id}`, "error", "MPFDownload");
+                            })
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) has a issue and has to many file parts associated with its fileid!\nIt has automatically been resovled!`, "warn", "MPFDownload");
+                            completed(false);
+                        } else if (acceptedFiles.length < file.paritycount) {
+                            mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                            deadFiles.map(e => {
+                                mqClient.sendMessage(`Stage 2: The file ${file.real_filename} (${file.fileid}) Dead File: ${e.id}`, "error", "MPFDownload");
+                            })
+                            completed(false);
+                        } else if (acceptedFiles.length === file.paritycount) {
+                            Logger.printLine("MPFValidator", `${file.real_filename} (${file.fileid}) is valid with ${acceptedFiles.length} = ${file.paritycount}`, "debug")
+                            setTimeout(() => { completed(true); }, 5000)
+                        }
+                    } else {
+                        mqClient.sendMessage(`Stage 1: The file ${file.real_filename} (${file.fileid}) is corrupted and does not have all its parts!\nTry to use jfs repair or reupload the file!`, "error", "MPFDownload");
+                        completed(false);
+                    }
+                })
+            }
+            Logger.printLine("MPFValidator", `Validated ${files.length} files`, "debug")
+            activeTasks.delete('VERIFY_SFPARTS');
+        }
     }
     // Discord Framework - Thread Management
     function cycleThreads(type) {
@@ -5736,7 +7216,7 @@ This code is publicly released and is restricted by its project license
                             // Extract FileID, Name, and Size
                             if (options && options.fileData) {
                                 if (options.fileData.name)
-                                    sqlObject.real_filename = options.fileData.name.trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                                    sqlObject.real_filename = options.fileData.name.trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                                 if (options.fileData.uuid)
                                     sqlObject.fileid = options.fileData.uuid.trim();
                                 if (options.fileData.size)
@@ -5762,9 +7242,9 @@ This code is publicly released and is restricted by its project license
                                             real_filename = real_filename.trim()
                                         }
                                     })
-                                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_');;
+                                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<>]/g, '_');;
                                 } else {
-                                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                                 }
                             }
                             // Extract Embedded Data
@@ -5876,6 +7356,42 @@ This code is publicly released and is restricted by its project license
                                 sqlObject.colorB = options.color.value[2];
                                 sqlObject.dark_color = options.color.isDark;
                             }
+                            /*sqlObject.attachment_type = ((r,n) => {
+                                const _n = ((r) ? r : n).split('.').pop().toLowerCase()
+                                if (_n.startsWith('jp') || _n === 'jfif') // JPEG
+                                    return 1
+                                else if (_n === 'png') // PNG
+                                    return 2
+                                else if (_n === 'tiff') // TIFF
+                                    return 3
+                                else if (_n === 'bmp') // Bitmap
+                                    return 4
+                                else if (_n === 'webp') // WebP
+                                    return 5
+                                else if (_n === 'heif') // HEIF
+                                    return 6
+                                else if (_n.startsWith('gif')) // GIF
+                                    return 10
+                                else if (_n === 'psd' || _n === 'psb') // Photoshop
+                                    return 50
+                                else if (_n === 'mp4' || _n === 'mpeg4' || _n === 'mov' || _n === 'm4v' || _n === 'webm') // Possible Web Video
+                                    return 20
+                                else if (_n === 'ts' || _n === 'mkv' || _n === 'm2ts' || _n === 'mts') // Non-Web Video
+                                    return 21
+                                else if (_n === 'mp3' || _n === 'm4a' || _n === 'ogg' || _n === 'oga' || _n === 'mogg' || _n === 'opus' || _n === 'wav') // Web Audio
+                                    return 40
+                                else if (_n === 'flac' || _n === 'aiff' || _n === 'alac' || _n === 'wma') // Non-Web Audio
+                                    return 41
+                                else if (_n.startsWith('unity') || _n === 'material' || _n === 'shader' || _n === 'vrca') // Unity Format
+                                    return 61
+                                else if (_n === 'fbx' || _n === 'dae' || _n === 'obj' || _n.startsWith('c4')) // 3D Format
+                                    return 62
+                                else if (_n === 'zip' || _n === 'tar' || _n === 'rar' || _n.startsWith('7z') || _n.startsWith('bz')) // Archive
+                                    return 80
+                                else if (_n === 'iso' || _n === 'bin' || _n === 'cd' || _n === 'img') // Archive Disk
+                                    return 81
+                                return 0;
+                            })(sqlObject.real_filename, sqlObject.attachment_name)*/
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
@@ -5893,13 +7409,13 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
-                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
 
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
-                                        //systemglobal.Base_URL
+                                        //systemglobal.base_url
                                         const guildInfo = discordClient.guilds.get(msg.guildID)
                                         let embedText = sqlObject.content_full
                                         if (sqlObject.fileid) {
@@ -5937,8 +7453,8 @@ This code is publicly released and is restricted by its project license
                                                 "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                             }
                                         }
-                                        if (systemglobal.Base_URL)
-                                            embed["url"] = `${systemglobal.Base_URL}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
+                                        if (systemglobal.base_url)
+                                            embed["url"] = `${systemglobal.base_url}${(embed.thumbnail || embed.image) ? 'gallery' : 'cards'}?channel=${msg.channel.id}&search=id:${msg.id}&nsfw=true`
                                         await Promise.all(chDbval.notify.split(' ').map(async ch => {
                                             try {
                                                 await discordClient.createMessage(ch, { embed });
@@ -5950,6 +7466,69 @@ This code is publicly released and is restricted by its project license
                                         Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
                                         console.error(err)
                                     }
+                                }
+                                if (options && options.extendedData) {
+                                    const newItem = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])
+                                    if (newItem.rows.length > 0) {
+                                        let jsonData = {}
+                                        await Promise.all(Object.keys(options.extendedData).map(async (ext_key) => {
+                                            const value = options.extendedData[ext_key];
+                                            if (typeof value === "string" && value.startsWith('FILE-')) {
+                                                const fileIndex = parseInt(value.substring(5))
+                                                if (!isNaN(fileIndex) && fileIndex > -1 && options.extendedAttachments && options.extendedAttachments[fileIndex] && discordServers.has(msg.guildID) && discordServers.get(msg.guildID).chid_filecache) {
+                                                    try {
+                                                        const data = await discordClient.createMessage(discordServers.get(msg.guildID).chid_filecache.toString(), '', {
+                                                            name: options.extendedAttachments[fileIndex].name,
+                                                            file: Buffer.from(options.extendedAttachments[fileIndex].file, 'base64')
+                                                        })
+                                                        if (data && data.attachments.length > 0) {
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                            if (attachmentUrl) {
+                                                                jsonData[ext_key] = attachmentUrl
+                                                            }
+                                                        }
+                                                    } catch (err) {
+                                                        Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
+                                                        console.log(err);
+                                                    }
+                                                } else {
+                                                    Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
+                                                }
+                                            } else {
+                                                jsonData[ext_key] = value;
+                                            }
+                                        }))
+                                        if (Object.keys(jsonData).length > 0) {
+                                            const stringJson = JSON.stringify(jsonData);
+                                            db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [newItem.rows[0].eid, stringJson, stringJson])
+                                        } else {
+                                            Logger.printLine("ExtendedContent", `Failed to process extended data because no data!`, "warn");
+                                        }
+                                    } else {
+                                        Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
+                                    }
+                                }
+                                if (sqlObject.attachment_name || sqlObject.real_filename) {
+                                    const fileIcon = ((x,y) => {
+                                        const z = (x) ? x : y
+                                        const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
+                                        const ii = accepted_cache_types.indexOf(t) !== -1
+                                        if (ii)
+                                            return '🖼'
+                                        const iv = accepted_video_types.indexOf(t) !== -1
+                                        if (iv)
+                                            return '🎞'
+                                        const ia = accepted_audio_types.indexOf(t) !== -1
+                                        if (ia)
+                                            return '💿'
+                                        if (x)
+                                            return '📦'
+                                        return '📄'
+                                    })(sqlObject.real_filename, sqlObject.attachment_name)
+                                    fileTicker.unshift({
+                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                        date: Date.now(),
+                                    });
                                 }
                             }
                         }
@@ -6084,9 +7663,9 @@ This code is publicly released and is restricted by its project license
                             real_filename = real_filename.trim()
                         }
                     })
-                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<> ]/g, '_');;
+                    sqlObject.real_filename = real_filename.trim().replace(/[/\\?%*:|"<>]/g, '_');;
                 } else {
-                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<> ]/g, '_').trim();
+                    sqlObject.real_filename = splitName[0].trim().replace(/[/\\?%*:|"<>]/g, '_').trim();
                 }
             }
             if (msg.attachments && (msg.attachments.length === 1 || (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0))) {
@@ -6106,8 +7685,8 @@ This code is publicly released and is restricted by its project license
                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                 }
 
-                if (msg.attachments.length > 1 && msg.attachments.pop().filename.toLowerCase().includes('-t9-preview-video')) {
-                    sqlObject.cache_proxy = msg.attachments.pop().proxy_url.split('/attachments').pop();
+                if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
+                    sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop();
                 }
             } else if (msg.attachments && msg.attachments.length > 1) {
                 sqlObject.attachment_name = null
@@ -6205,6 +7784,7 @@ This code is publicly released and is restricted by its project license
         }
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
+        await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
     }
     async function messageDeleteBulk(msg_array) {
         const dateNow = new Date().valueOf();
@@ -6284,7 +7864,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 if (channelid.length === 1) {
                                     getMessages(startBefore, true)
-                                } else if (forceBypass === true && find_response.rows.length < 10000) {
+                                } else if (forceBypass === true || find_response.rows.length < 10000) {
                                     getMessages(startBefore, true)
                                 } else {
                                     SendMessage(`Skipped repairing <#${channelItem.channelid}> because there are more then 10000 items!`, "err", 'main', "RepairFileSystem")
@@ -6441,8 +8021,8 @@ This code is publicly released and is restricted by its project license
     // Discord Events - Actions
     function messageReactionAdd(msg, emoji, user) {
         const userID = (user.id) ? user.id : user
-        const isBot = discordClient.users.get(userID).is_bot
-        if ((!isBot || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.lenth > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id) ) {
+        const isBot = (user) ? discordClient.users.get(userID).is_bot : true
+        if ((!isBot || (systemglobal.Discord_Allow_Reactions_From_Bots && systemglobal.Discord_Allow_Reactions_From_Bots.length > 0 && systemglobal.Discord_Allow_Reactions_From_Bots.indexOf(userID) !== -1)) && parseInt(userID.toString()) !== parseInt(selfstatic.id.toString()) && isAuthorizedUser('notBot', userID, null, msg.channel.id)) {
             Logger.printLine("Discord", `Reaction Added: ${emoji.name} - ${msg.guildID}`, "debug", emoji)
             db.safe(`SELECT * FROM discord_reactions WHERE reaction_emoji = ? AND serverid = ?`, [emoji.name, msg.guildID], function (err, discordreact) {
                 if (err) {
@@ -6518,7 +8098,7 @@ This code is publicly released and is restricted by its project license
                                             case 'ReqFile' :
                                                 const input = fullmsg.content.split("**\n*")[0].replace("**🧩 File : ", '')
                                                 jfsGetSF(input.trim().replace(/\n|\r/g, ''), {
-                                                    userID: userID
+                                                    userID: (userID) ? userID : undefined
                                                 })
                                                 break;
                                             case 'RemoveFile' :
@@ -6776,17 +8356,17 @@ This code is publicly released and is restricted by its project license
     // Discord Events - Channel
     function channelCreate(channel) {
         if (channel && channel.type === 0) {
-            db.safe(`SELECT channelid, classification, role, role_write, role_manage, autofetch FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
+            db.safe(`SELECT channelid, classification, role, role_write, role_manage, virtual_cid, autofetch FROM kanmi_channels WHERE ( channelid = ? AND parent = 'isparent' ) AND source = 0 LIMIT 1`, [channel.parentID], function (err, result) {
                 if (!(err) && result && result.length === 1 && result[0].classification !== null) {
-                    sendChannel(channel, result[0].channelid, result[0].classification.split(' ')[0], result[0].role, result[0].role_write, result[0].role_manage, result[0].autofetch)
+                    sendChannel(channel, result[0].channelid, result[0].classification.split(' ')[0], result[0].role, result[0].role_write, result[0].role_manage, result[0].autofetch, result[0].virtual_cid)
                 } else {
-                    sendChannel(channel, channel.parentID, null, null, null, null, 1)
+                    sendChannel(channel, channel.parentID, null, null, null, null, 0, null)
                 }
             })
         } else if (channel.type === 4) {
-            sendChannel(channel, 'isparent', null, null, null, null, 1)
+            sendChannel(channel, 'isparent', null, null, null, null, 0, null)
         }
-        function sendChannel(channel, parent, classification, role, write, manage, fetch) {
+        function sendChannel(channel, parent, classification, role, write, manage, fetch, virtual_cid) {
             let nsfw = 0
             let lastmessage = ''
             if (parent === 'isparent' || (channel !== undefined && channel.nsfw === 0)) {
@@ -6805,7 +8385,7 @@ This code is publicly released and is restricted by its project license
             if (channel.topic) {
                 topic = channel.topic;
             }
-            db.safe(`INSERT IGNORE INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, nsfw, role, write, manage, topic, fetch], function (err, result) {
+            db.safe(`INSERT IGNORE INTO kanmi_channels SET source = 0, channelid = ?, serverid = ?, position = ?, name = ?, short_name = ?, parent = ?, classification = ?, virtual_cid = ?, nsfw = ?, role = ?, role_write = ?, role_manage = ?, description = ?, autofetch = ?`, [channel.id, channel.guild.id, channel.position, channel.name, channel.name.replace(/[^A-Za-z 0-9 \.,\?""!@#\$%\^&\*\(\)-_=\+;:<>\/\\\|\}\{\[\]`~]*/g, '').trim(), parent, classification, virtual_cid, nsfw, role, write, manage, topic, fetch], function (err, result) {
                 if (err) {
                     SendMessage("SQL Error occurred when writing the channel to the database", "err", 'main', "SQL", err)
                 }
@@ -6941,7 +8521,7 @@ This code is publicly released and is restricted by its project license
         name: "Kanmi Framework with JuneFS/JuzoFS",
         description: (systemglobal.DiscordDescription) ? systemglobal.DiscordDescription : "Multi-Purpose Discord Framework and Filesystem",
         owner: (systemglobal.DiscordOwner) ?  systemglobal.DiscordOwner : "Yukimi Kazari",
-        prefix: (systemglobal.DiscordPrefix) ? systemglobal.DiscordPrefix + " " : "juzo ",
+        prefix: `${(systemglobal.DiscordPrefix) ? systemglobal.DiscordPrefix : "juzo"} ${(systemglobal.Discord_Upload_Only) ? systemglobal.SystemName : ''}`,
         ignoreSelf: true,
         restMode: true,
     });
@@ -6973,71 +8553,85 @@ This code is publicly released and is restricted by its project license
                 }, 5000)
                 setTimeout(sendWatchdogPing, 60000);
             }
-            discordClient.editStatus( "dnd",{
-                name: 'Initializing System',
-                type: 0
-            })
-            discordClient.getRESTGuilds()
-                .then(async (guilds) => {
-                    guilds.forEach(function (guild) {
-                        discordClient.getRESTGuildChannels(guild.id.toString())
-                            .then((channels) => {
-                                channels.forEach(channel => {
-                                    channelUpdate(channel)
+            if (!systemglobal.Discord_Upload_Only) {
+                discordClient.editStatus( "dnd",{
+                    name: 'Initializing System',
+                    type: 0
+                })
+                discordClient.getRESTGuilds()
+                    .then(async (guilds) => {
+                        guilds.forEach(function (guild) {
+                            discordClient.getRESTGuildChannels(guild.id.toString())
+                                .then((channels) => {
+                                    channels.forEach(channel => {
+                                        channelUpdate(channel)
+                                    })
                                 })
-                            })
-                            .catch(function (e) {
-                                SendMessage("Unable to get discord channel list", "error", 'main', "RefreshUser", e);
-                                console.log(e);
-                            })
+                                .catch(function (e) {
+                                    SendMessage("Unable to get discord channel list", "error", 'main', "RefreshUser", e);
+                                    console.log(e);
+                                })
+                        })
                     })
-                })
-                .catch(function (e) {
-                    SendMessage("Unable to get discord server list", "error", 'main', "RefreshUser", e);
-                    console.log(e);
-                })
-            Logger.printLine("Discord", "Registering Commands", "debug")
-            registerCommands();
-            await reloadLocalCache();
-            setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
-            await syncStatusValues();
-            setInterval(syncStatusValues, 90000)
-            resetInitStates();
-            Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
-            refreshCounts();
-            setInterval(refreshCounts, (systemglobal.Discord_Timer_Counts) ? systemglobal.Discord_Timer_Counts : 900000)
-            setTimeout(revalidateFiles, 60000)
-
-            cron.schedule((systemglobal.Discord_Cron_Thread_Rollover) ? systemglobal.Discord_Cron_Thread_Rollover : '55 23 * * *', () => {
-                cycleThreads(false);
-            });
-            cron.schedule('3 * * * *', () => {
+                    .catch(function (e) {
+                        SendMessage("Unable to get discord server list", "error", 'main', "RefreshUser", e);
+                        console.log(e);
+                    })
+                Logger.printLine("Discord", "Registering Commands", "debug")
+                registerCommands();
+                await reloadLocalCache();
+                setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
+                await syncStatusValues();
+                setInterval(syncStatusValues, 90000)
+                resetInitStates();
+                Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
+                refreshCounts();
+                setInterval(refreshCounts, (systemglobal.Discord_Timer_Counts) ? systemglobal.Discord_Timer_Counts : 900000)
+                setTimeout(revalidateFiles, 60000)
+                cron.schedule((systemglobal.Discord_Cron_Thread_Rollover) ? systemglobal.Discord_Cron_Thread_Rollover : '55 23 * * *', () => {
+                    cycleThreads(false);
+                });
+                cron.schedule('3 * * * *', () => {
+                    cycleThreads(true);
+                });
+                cron.schedule((systemglobal.Discord_Cron_Thread_Peak) ? systemglobal.Discord_Cron_Thread_Peak : '50 2 * * *', () => {
+                    addTimecodeMessage("Peak");
+                });
+                cron.schedule((systemglobal.Discord_Cron_Thread_Offpeak) ? systemglobal.Discord_Cron_Thread_Offpeak : '0 12 * * *', () => {
+                    addTimecodeMessage("Off Peak");
+                });
                 cycleThreads(true);
-            });
-            cron.schedule((systemglobal.Discord_Cron_Thread_Peak) ? systemglobal.Discord_Cron_Thread_Peak : '50 2 * * *', () => {
-                addTimecodeMessage("Peak");
-            });
-            cron.schedule((systemglobal.Discord_Cron_Thread_Offpeak) ? systemglobal.Discord_Cron_Thread_Offpeak : '0 12 * * *', () => {
-                addTimecodeMessage("Off Peak");
-            });
-            cycleThreads(true);
-            init = 1
-            setTimeout(start, 5000);
-            setInterval(() => {
-                const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
-                if (ap && ap.length === 0 && activeProccess === true) {
-                    discordClient.editStatus( "idle",{
-                        name: 'requests',
-                        type: 2
-                    });
-                    activeProccess = false;
-                } else if (activeProccess === true) {
-                    discordClient.editStatus( "online", {
-                        name: `${ap.length} requests`,
-                        type: 0
-                    });
-                }
-            }, 30000);
+                init = 1
+                verifySpannedFiles(5);
+                cleanOldMessages();
+                setInterval(async () => { cleanOldMessages(); }, 3600000);
+                setInterval(async () => { verifySpannedFiles(25); }, 14400000);
+                setTimeout(start, 5000);
+                /*setInterval(() => {
+                    const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
+                    if (ap && ap.length === 0 && activeProccess === true) {
+                        discordClient.editStatus( "idle",{
+                            name: 'requests',
+                            type: 2
+                        });
+                        activeProccess = false;
+                    } else if (activeProccess === true) {
+                        discordClient.editStatus( "online", {
+                            name: `${ap.length} requests`,
+                            type: 0
+                        });
+                    }
+                }, 30000);*/
+            } else {
+                Logger.printLine("Discord", "Registering Commands", "debug")
+                registerCommands();
+                await reloadLocalCache();
+                resetInitStates();
+                setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
+                setTimeout(start, 5000);
+                init = 1
+                Logger.printLine("Discord", "Discord Client is running is upload only mode and will not accept any remote chnages!", "warning")
+            }
         }
     });
     discordClient.on("error", (err) => {
@@ -7045,22 +8639,25 @@ This code is publicly released and is restricted by its project license
         discordClient.connect()
     });
 
-    discordClient.on("messageReactionAdd", (msg, emoji, user) => messageReactionAdd(msg, emoji, user));
-    discordClient.on("messageReactionRemove", (msg, emoji, user) => messageReactionRemove(msg, emoji, (user.id) ? user.id : user));
-    discordClient.on("messageReactionRemoveAll", (msg) => messageReactionRemoveAll(msg));
+    if (!systemglobal.Discord_Upload_Only) {
+        discordClient.on("messageReactionAdd", (msg, emoji, user) => messageReactionAdd(msg, emoji, user));
+        discordClient.on("messageReactionRemove", (msg, emoji, user) => messageReactionRemove(msg, emoji, (user.id) ? user.id : user));
+        discordClient.on("messageReactionRemoveAll", (msg) => messageReactionRemoveAll(msg));
 
-    discordClient.on("messageCreate", (msg) => messageCreate(msg));
-    discordClient.on('messageUpdate', (msg) => messageUpdate(msg));
-    discordClient.on("messageDelete", (msg) => { messageDelete(msg) });
-    discordClient.on("messageDeleteBulk", (msg_array) => messageDeleteBulk(msg_array));
+        discordClient.on("messageCreate", (msg) => messageCreate(msg));
+        discordClient.on('messageUpdate', (msg) => messageUpdate(msg));
+        discordClient.on("messageDelete", (msg) => {
+            messageDelete(msg)
+        });
+        discordClient.on("messageDeleteBulk", (msg_array) => messageDeleteBulk(msg_array));
 
-    discordClient.on("channelCreate", (channel) => channelCreate(channel));
-    discordClient.on("channelDelete", (channel) => channelDelete(channel));
-    discordClient.on("channelUpdate", (channel) => channelUpdate(channel));
-    discordClient.on("threadUpdate", (channel) => threadUpdate(channel));
+        discordClient.on("channelCreate", (channel) => channelCreate(channel));
+        discordClient.on("channelDelete", (channel) => channelDelete(channel));
+        discordClient.on("channelUpdate", (channel) => channelUpdate(channel));
+        discordClient.on("threadUpdate", (channel) => threadUpdate(channel));
 
-    discordClient.on("guildEmojisUpdate", (guild, emojiArray) => guildEmojiUpdate(guild, emojiArray));
-
+        discordClient.on("guildEmojisUpdate", (guild, emojiArray) => guildEmojiUpdate(guild, emojiArray));
+    }
     await discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 
     tx2.action('halt', async (reply) => {
@@ -7074,6 +8671,7 @@ This code is publicly released and is restricted by its project license
     })
 
     process.on('SIGINT', function() {
+        Logger.printLine("Shutdown", 'Shutdown was requested at console!', "critical")
         shutdownSystem((ok) => {
             process.exit(0)
         })
@@ -7082,12 +8680,9 @@ This code is publicly released and is restricted by its project license
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
         setInterval(() => {
-            const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
-            if (activeProccessing && activeProccessing > 0) {
-                Logger.printLine("uncaughtException", `Reboot blocked, Processing ${activeProccessing} Actions`, "critical", err)
-            } else {
+            shutdownSystem((ok) => {
                 process.exit(1)
-            }
+            })
         }, 5000);
     });
 })();

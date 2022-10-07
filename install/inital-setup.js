@@ -1,46 +1,35 @@
 // noinspection ES6MissingAwait
 
 let systemglobal = require('./../config.json');
+if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+    systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
 const fs = require('fs');
 const path = require('path');
-const RateLimiter = require('limiter').RateLimiter;
-const minimist = require("minimist");
 const eris = require("eris");
-let args = minimist(process.argv.slice(2));
-const inquirer = require('inquirer');
-
+const emojiStrip = require('emoji-strip');
 const db = require('./../js/utils/shutauraSQL')("InitSetup");
 
-const readline = require("readline");
-const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout
-});
-let discordClient = null;
+console.log(systemglobal)
+
 let authwareOnly = false;
 
 (async () => {
     try {
+        if (!(process.env.SETUP_TYPE && process.env.SETUP_TYPE.trim().length > 0 && process.env.SETUP_SERVERID && process.env.SETUP_SERVERID.trim().length > 0)){
+            console.log("No setup required");
+            process.exit(0);
+        }
+
         let discordKey = undefined;
-        const type = await inquirer
-            .prompt([
-                {
-                    type: 'list',
-                    name: 'e',
-                    message: 'What system are you settings up?',
-                    choices: [
-                        'Storage / Omnibus',
-                        'Authentication Only'
-                    ]
-                }
-            ])
-        switch (type.e) {
-            case 'Storage / Omnibus':
-                discordKey = systemglobal.Discord_Key;
-                break;
-            case 'Authentication Only':
+        switch (process.env.SETUP_TYPE) {
+            case "auth":
                 discordKey = systemglobal.Authware_Key;
                 authwareOnly = true;
+                console.log("AuthWare Only Configuration")
+                break;
+            case "storage":
+                discordKey = systemglobal.Discord_Key;
+                console.log("Storage and AuthWare Configuration")
                 break;
             default:
                 console.error('Invalid Option')
@@ -60,50 +49,25 @@ let authwareOnly = false;
 
         await discordClient.on("ready", async () => {
             const searchParents = [
-                "Control Center",
-                "System Status",
-                "System Data",
-                "Pictures",
-                "NSFW",
-                "Files",
-                "Archives",
+                "🚥 Control Center",
+                "📊 System Status",
+                "🔩 System Data",
+                "📷 Photos",
+                "🔞 NSFW",
+                "📂 Files",
+                "💼 Archives",
             ];
             let parentMap = [];
             let channels = [];
-
-            const joinBot = await inquirer
-                .prompt([
-                    {
-                        type: 'confirm',
-                        name: 'e',
-                        message: 'Have you added the bot to the server and assigned the role yet?',
-                    }
-                ])
-            if (!joinBot.e) {
-                console.log('Please add the bot to the server and assign the \'System Engine\' role for Framework or assign the \'Security Engine\' role to AuthWare');
-                process.exit(1)
-            }
 
             const guilds = await discordClient.getRESTGuilds()
             if (guilds.length === 0) {
                 console.error(`Bot is not a member of any servers`)
                 process.exit(1);
             }
-            console.log(`DANGER: NEVER import an existing server again as it will erase all data associated with that server!\n`);
-            const guildSelect = await inquirer
-                .prompt([
-                    {
-                        type: 'list',
-                        name: 'e',
-                        message: 'Select server to configure?',
-                        choices: [
-                            ...guilds.map(e => `${e.name} - ${e.id}`)
-                        ]
-                    }
-                ])
-            const guild = guilds.filter(e => e.name === guildSelect.e.split(' - ')[0] && e.id === guildSelect.e.split(' - ')[1])
+            const guild = guilds.filter(e => e.id === process.env.SETUP_SERVERID.trim() + '')
             if (guild.length === 0) {
-                console.error(`${guildSelect.e} was not found`)
+                console.error(`${process.env.SETUP_SERVERID} was not found`)
                 process.exit(1);
             }
 
@@ -219,47 +183,47 @@ let authwareOnly = false;
                 const r = e.name.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim()
                 if (e.name.startsWith("🎫")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_read',
+                        name: r.replace('🎫 ', '').toLowerCase().trim().split(' ').join('_') + '_read',
                         role: e.id,
                         server: guild[0].id
                     })
                 } else if (e.name.startsWith("📥")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_write',
+                        name: r.replace('📥 ', '').toLowerCase().trim().split(' ').join('_') + '_write',
                         role: e.id,
                         server: guild[0].id
                     })
                 } else if (e.name.startsWith("🔨")) {
                     rolesRecords.push({
-                        name: r.toLowerCase().trim().split(' ').join('_') + '_manage',
+                        name: r.replace('🔨 ', '').toLowerCase().trim().split(' ').join('_') + '_manage',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Sequenzia Access") {
+                } else if (r === "🔑 Sequenzia Access") {
                     rolesRecords.push({
                         name: 'system_user',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Content Manager") {
+                } else if (r === "🔍 Content Manager") {
                     rolesRecords.push({
                         name: 'system_interact',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Server Manager") {
+                } else if (r === "🧰 Server Manager") {
                     rolesRecords.push({
                         name: 'system_admin',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "System Engine" || r === "Security Engine" || r === "Data Reader" || r === "Modules") {
+                } else if (r === "⚡ System Engine" || r === "🔐 Security Engine" || r === "📀 Data Reader" || r === "🧱 Modules") {
                     rolesRecords.push({
                         name: 'sysbot',
                         role: e.id,
                         server: guild[0].id
                     })
-                } else if (r === "Admin Mode") {
+                } else if (r === "🔓 Admin Mode") {
                     rolesRecords.push({
                         name: 'syselevated',
                         role: e.id,
@@ -277,7 +241,7 @@ let authwareOnly = false;
                 serverid: guild[0].id,
                 avatar: guild[0].icon,
                 name: guild[0].name,
-                short_name: guild[0].name.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim().substring(0,3).toUpperCase()
+                short_name: emojiStrip(guild[0].name).trim().substring(0,3).toUpperCase()
             };
             if (!authwareOnly) {
                 console.log("Reading Channels...")
@@ -304,11 +268,16 @@ let authwareOnly = false;
                             values.role_manage = null;
                             break;
                         case 3:
-                        case 4:
                             values.classification = "pictures";
-                            values.role = "photo_read";
-                            values.role_write = 'photo_write';
-                            values.role_manage = 'photo_manage';
+                            values.role = "photos_read";
+                            values.role_write = 'photos_write';
+                            values.role_manage = 'photos_manage';
+                            break;
+                        case 4:
+                            values.classification = "nsfw";
+                            values.role = "nsfw_read";
+                            values.role_write = 'nsfw_write';
+                            values.role_manage = 'photos_manage';
                             break;
                         case 5:
                             values.classification = "data";
@@ -352,7 +321,6 @@ let authwareOnly = false;
                         description: (channel.topic) ? channel.topic : null,
                     }
                     const parent = parentMap.filter(e => e.id === channel.parentID)
-                    const channel_name = channel.name.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim()
                     if (parent.length > 0) {
                         values.classification = parent[0].class;
                         values.role = parent[0].role;
@@ -364,29 +332,28 @@ let authwareOnly = false;
                         values.role_write = null;
                         values.role_manage = null;
                     }
-                    switch (channel_name.toLowerCase()) {
-                        case 'mailbox':
+                    switch (channel.name.toLowerCase()) {
+                        case '📬mailbox':
+                            values.classification = 'system';
+                            values.role = 'admin';
+                            values.role_write = 'admin';
+                            values.role_manage = 'admin';
+                            break;
+                        case '🧪tripcode':
                             values.watch_folder = `Tripcode`;
                             values.classification = 'data';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'tripcode':
-                            values.watch_folder = `Tripcode`;
-                            values.classification = 'data';
-                            values.role = 'admin';
-                            values.role_write = 'admin';
-                            values.role_manage = 'admin';
-                            break;
-                        case 'notebook':
-                        case 'bookmarks':
+                        case '📓notebook':
+                        case '🔗bookmarks':
                             values.classification = 'notes';
                             values.role = 'admin';
                             values.role_write = 'admin';
                             values.role_manage = 'admin';
                             break;
-                        case 'downloads':
+                        case '📥downloads':
                             values.classification = 'data';
                             values.role = 'admin';
                             values.role_write = 'admin';
@@ -396,37 +363,36 @@ let authwareOnly = false;
                             break;
                         case 'root-fs':
                             values.watch_folder = `Data`;
-                            values.classification = 'data';
-                            values.role = 'admin';
-                            values.role_write = 'admin';
-                            values.role_manage = 'admin';
                             break;
-                        case 'console':
+                        case 'backups':
+                            values.watch_folder = `Backups`;
+                            break;
+                        case '🧰console':
                             serverMap.chid_system = channel.id;
                             break;
-                        case 'notifications':
+                        case '🔔notifications':
                             values.classification = "system";
                             values.role = null;
                             values.role_write = null;
                             values.role_manage = null;
                             serverMap.chid_msg_notif = channel.id;
                             break;
-                        case 'infomation':
+                        case '🆗infomation':
                             serverMap.chid_msg_info = channel.id;
                             break;
-                        case 'warnings':
+                        case '🔶warnings':
                             serverMap.chid_msg_warn = channel.id;
                             break;
-                        case 'errors':
+                        case '❌errors':
                             serverMap.chid_msg_err = channel.id;
                             break;
-                        case 'critical':
+                        case '⛔critical':
                             serverMap.chid_msg_crit = channel.id;
                             break;
-                        case 'system-file-parity':
+                        case '🧩system-file-parity':
                             serverMap.chid_filedata = channel.id;
                             break;
-                        case 'system-cache':
+                        case '🧩system-cache':
                             serverMap.chid_filecache = channel.id;
                             break;
                         case 'archives-root':
@@ -441,9 +407,9 @@ let authwareOnly = false;
                     channels.push(values);
                 }))
                 let serverEmojis = await discordClient.getRESTGuildEmojis(guild[0].id)
-                await Promise.all(fs.readdirSync(path.join(process.cwd(), '/assets/emojis/')).filter(e => path.extname(e.toLowerCase()) === ".png" && expectedEmojis.filter(f => f.reaction_name.toLowerCase() === path.basename(e, path.extname(e.toLowerCase()))) && serverEmojis.filter(f => f.name === path.basename(e, path.extname(e.toLowerCase()))).length === 0).map(async e => {
+                await Promise.all(fs.readdirSync(path.join(process.cwd(), './../assets/emojis/')).filter(e => path.extname(e.toLowerCase()) === ".png" && expectedEmojis.filter(f => f.reaction_name.toLowerCase() === path.basename(e, path.extname(e.toLowerCase()))) && serverEmojis.filter(f => f.name === path.basename(e, path.extname(e.toLowerCase()))).length === 0).map(async e => {
                     await discordClient.createGuildEmoji(guild[0].id, {
-                        image: 'data:image/png;base64,' + fs.readFileSync(path.join(process.cwd(), '/assets/emojis/', e)).toString('base64'),
+                        image: 'data:image/png;base64,' + fs.readFileSync(path.join(process.cwd(), './../assets/emojis/', e)).toString('base64'),
                         name: path.basename(e, path.extname(e))
                     })
                     console.log(`✅ Installed Emoji "${path.basename(e, path.extname(e))}"`)
@@ -490,6 +456,12 @@ let authwareOnly = false;
                         position: 20,
                         name: 'Cards',
                         uri: 'cards'
+                    },
+                    {
+                        super: `personal`,
+                        position: 99,
+                        name: 'Personal',
+                        uri: 'cards'
                     }
                 ]
                 const classes = [
@@ -498,7 +470,14 @@ let authwareOnly = false;
                         super: 'images',
                         position: 0,
                         name: 'Pictures',
-                        icon: 'fa-image'
+                        icon: 'fa-camera'
+                    },
+                    {
+                        class: 'nsfw',
+                        super: 'images',
+                        position: 99,
+                        name: 'NSFW',
+                        icon: 'fa-minus-circle'
                     },
                     {
                         class: 'data',
@@ -506,6 +485,13 @@ let authwareOnly = false;
                         position: 0,
                         name: 'Files',
                         icon: 'fa-folder'
+                    },
+                    {
+                        class: 'private',
+                        super: 'personal',
+                        position: 0,
+                        name: 'Personal',
+                        icon: 'fa-folder-user'
                     },
                     {
                         class: 'archives',
@@ -532,29 +518,8 @@ let authwareOnly = false;
             }
             const exsistingServer = await db.query(`SELECT * FROM discord_servers WHERE serverid = ?`, [guild[0].id])
             if (exsistingServer && exsistingServer.rows && exsistingServer.rows.length === 0) {
-                const names = await inquirer.prompt([
-                    {
-                        type: 'input',
-                        name: 'a',
-                        message: 'Server Path (Max 3 letters, Ex: SEQ, Leave blank for default):'
-                    },
-                    {
-                        type: 'input',
-                        name: 'b',
-                        message: 'Server Public Name (Name that is displayed in Sequenzia, Leave blank for default):'
-                    },
-                    {
-                        type: 'confirm',
-                        name: 'c',
-                        message: 'Enable Login to Web via this server (Always yes, for Onmibus setups)',
-                        default: true
-                    }
-                ])
-                if (names.a && names.a.length > 0)
-                    serverMap.short_name = names.a.replace(/[\u{0080}-\u{FFFF}]/gu, "").trim().substring(0,3).toUpperCase()
-                if (names.b && names.b.length > 0)
-                    serverMap.nice_name = names.b
-                serverMap.authware_enabled = (authwareOnly || names.c) ? 1 : 0
+                serverMap.short_name = guild[0].name.trim().substring(0,3).toUpperCase()
+                serverMap.authware_enabled = 1
                 await db.query('REPLACE INTO discord_servers SET ?', serverMap);
                 console.log(`✅ Server Installed`)
             } else {

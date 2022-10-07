@@ -1,0 +1,7 @@
+{
+  "entry": [
+    "js/*.js",
+    "install/*.js",
+    "patch/*.js"
+  ]
+}

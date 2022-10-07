@@ -22,6 +22,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Discord-AuthWare';
 
     const eris = require('eris');
@@ -31,6 +33,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
+    const fs = require('fs');
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
@@ -49,6 +52,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let init = 0
 
     Logger.printLine("Init", "Discord AuthWare", "info")
+
+    // Load Enviorment Varibles
+    if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+        systemglobal.MQServer = process.env.MQ_HOST.trim()
+    if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+    if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
+
     // Shutaura SQL Cache
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -575,7 +587,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         } else {
             let username = (member.nick) ? member.nick : member.user.username;
-            const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, username, member.user.avatar])
+            /*const banner = await new Promise(resolve => {
+                request.get(`https://discord.com/api/v9/api/users/`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            })*/
+
+            const user = await discordClient.getRESTUser(member.id)
+            const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ?, banner = ?, color = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?, banner = ?, color = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, user.banner, user.accentColor, username, member.user.avatar, user.banner, user.accentColor])
 
             if (updateUser && updateUser.rows.length > 0) {
                 memberTokenGeneration();
@@ -645,6 +666,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     discordClient.on("ready", async () => {
         Logger.printLine("Discord", "Connected successfully to Discord!", "debug")
         Logger.printLine("Discord", `Using Account: ${discordClient.user.username} (${discordClient.user.id})`, "debug")
+        const gatewayURL = new URL(discordClient.gatewayURL);
+        Logger.printLine("Discord", `Gateway: ${gatewayURL.host} using v${gatewayURL.searchParams.getAll('v').pop()}`, "debug")
         if (init === 0) {
             discordClient.editStatus( "dnd", {
                 name: 'Initializing System',
@@ -659,7 +682,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         setInterval(memberTokenGeneration, 3600000);
         setTimeout(() => {
             discordClient.editStatus( "online", null);
-            process.send('ready');
+            if (process.send && typeof process.send === 'function') {
+                process.send('ready');
+            }
         }, 60000);
         await Promise.all(discordservers.map(async (server) => {
             const _br = (discordperms.filter(e => { return e.server === server.serverid && e.name === 'sysbot'}).pop()).role
@@ -699,6 +724,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
+        discordClient.editStatus( "dnd", {
+            name: 'System Failure',
+            type: 0
+        })
         setTimeout(function() {
             process.exit(1)
         }, 3000)

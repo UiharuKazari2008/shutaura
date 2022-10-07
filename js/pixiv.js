@@ -1,5 +1,4 @@
 // noinspection ES6MissingAwait
-
 /*    ___                  __                        _______ __
      /   | _________ _____/ /__  ____ ___  __  __   / ____(_) /___  __
     / /| |/ ___/ __ `/ __  / _ \/ __ `__ \/ / / /  / /   / / __/ / / /
@@ -24,6 +23,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 (async () => {
     let systemglobal = require('../config.json');
+    if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+        systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'Pixiv-Worker';
 
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -46,6 +47,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Pixiv Actor/Processor", "debug")
 
+    if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+        systemglobal.MQServer = process.env.MQ_HOST.trim()
+    if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+    if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
+
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
         const _systemparams = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) AND (account = ? OR account IS NULL) AND (application = 'pixiv' OR application IS NULL) ORDER BY system_name, application, account`, [systemglobal.SystemName, systemglobal.PixivUser])
@@ -53,6 +61,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const systemparams_sql = _systemparams.rows.reverse();
 
         if (systemparams_sql.length > 0) {
+            const _home_guild = systemparams_sql.filter(e => e.param_key === 'discord.home_guild');
+            if (_home_guild.length > 0 && _home_guild[0].param_value) {
+                systemglobal.DiscordHomeGuild = _home_guild[0].param_value;
+            }
             const _mq_account = systemparams_sql.filter(e => e.param_key === 'mq.login');
             if (_mq_account.length > 0 && _mq_account[0].param_data) {
                 if (_mq_account[0].param_data.host)
@@ -108,8 +120,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
-    if (!fs.existsSync(systemglobal.TempFolder)){
-        fs.mkdirSync(systemglobal.TempFolder);
+    try {
+        if (!fs.existsSync(systemglobal.TempFolder)) {
+            fs.mkdirSync(systemglobal.TempFolder);
+        }
+    } catch (e) {
+        console.error('Failed to create the temp folder, not a issue if your using docker');
+        console.error(e);
     }
 
 // Kanmi MQ Backend
@@ -194,7 +211,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("TokenSystem", `Connected successfully to Pixiv as ${auth.user.name} (${auth.user.id})`, "debug")
 
                 sleep(500).then(() => {
-                    process.send('ready');
+                    if (process.send && typeof process.send === 'function') {
+                        process.send('ready');
+                    }
                     Logger.printLine("Init", "Pixiv Client is ready!", "info")
                     if (auth) {
                         getNewIllust();
@@ -345,7 +364,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     reactions.push("Archive", "MoveMessage")
                 }
 
-                if (post.file.avatar && objectMode) {
+                if (post.file.avatar && objectMode && post.channelID) {
                     return {
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'smultifileext',
@@ -366,7 +385,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         ],
                         addButtons: reactions
                     }
-                } else if (objectMode) {
+                } else if (objectMode && post.channelID) {
                     return {
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'sfileext',
@@ -384,8 +403,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'sfile',
                         messageReturn: false,
-                        messageChannelID: post.channelID,
-                        messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}***`,
+                        messageChannelID: (post.channelID) ? post.channelID : post.saveID,
+                        messageText: `**🎆 ${messageObject.author.name}** : ***${messageObject.title.replace('🎆 ', '')}${(messageObject.description) ? '\n' + messageObject.description : ''}***`,
                         messageLink: post.link,
                         itemFileData: post.file.data,
                         itemFileName: post.file.name,
@@ -411,7 +430,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 return {
                     fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                     messageReturn: false,
-                    messageChannelID: post.channelID,
+                    messageChannelID: (post.channelID) ? post.channelID : post.saveID,
                     messageText: messageText,
                     messageLink: post.link,
                     itemFileData: post.file.data,
@@ -429,6 +448,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     feed_nsfw: (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw :_pconfig.rows[0].feed_channelid,
                     recommended: (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : _pconfig.rows[0].feed_channelid,
                     recommended_nsfw: (_pconfig.rows[0].recom_channelid_nsfw) ? _pconfig.rows[0].recom_channelid_nsfw : (_pconfig.rows[0].recom_channelid) ? _pconfig.rows[0].recom_channelid : (_pconfig.rows[0].feed_channelid_nsfw) ? _pconfig.rows[0].feed_channelid_nsfw : _pconfig.rows[0].feed_channelid,
+                    save: _pconfig.rows[0].save_channelid,
+                    save_nsfw: (_pconfig.rows[0].save_channelid_nsfw) ? _pconfig.rows[0].save_channelid_nsfw :_pconfig.rows[0].save_channelid
                 };
                 let requests = list.reduce((promiseChain, item, i, a) => {
                     return promiseChain.then(() => new Promise(async (resolve) => {
@@ -455,20 +476,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
                                     post.channelID = autoDownload.rows[0].channelid
+                                    post.saveID = autoDownload.rows[0].channelid
                                     post.color = 6010879;
                                 } else if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.channelID = _pconfig.rows[0].save_channelid_nsfw
+                                    post.saveID = _pconfig.rows[0].save_channelid_nsfw
                                     post.color = 16711724;
                                 } else {
                                     post.channelID = _pconfig.rows[0].save_channelid
+                                    post.saveID = _pconfig.rows[0].save_channelid
                                     post.color = 6010879;
                                 }
                             } else if (channel === "new") {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.channelID = staticChannels.feed_nsfw
+                                    post.saveID = staticChannels.save_nsfw
                                     post.color = 16711724;
                                 } else {
                                     post.channelID = staticChannels.feed
+                                    post.saveID = staticChannels.save
                                     post.color = 6010879;
                                 }
                             } else if (channel === "recom" || channel === "recompost") {
@@ -482,6 +508,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         post.color = 16711724;
                                     }
                                     post.channelID = staticChannels.recommended_nsfw
+                                    post.saveID = staticChannels.save_nsfw
                                 } else {
                                     if (channel === "recompost") {
                                         post.color = 14156031;
@@ -489,6 +516,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         post.color = 7264269;
                                     }
                                     post.channelID = staticChannels.recommended;
+                                    post.saveID = staticChannels.save
                                 }
                             } else if (channel === "download") {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
@@ -497,6 +525,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     post.color = 6010879;
                                 }
                                 post.channelID = _pconfig.rows[0].download_channelid
+                                post.saveID = _pconfig.rows[0].download_channelid
                             } else {
                                 if (post.postSanity === 6 || post.postNSFW === 1) {
                                     post.color = 16711724;
@@ -504,6 +533,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     post.color = 6010879;
                                 }
                                 post.channelID = channel
+                                post.saveID = staticChannels.save
                             }
 
                             const avatar = await getImagetoB64(item.user.profile_image_urls.medium);
@@ -517,7 +547,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return promiseChain.then(() => new Promise(async (sentImage) => {
                                     const image = await getImagetoB64(url)
                                     if (image) {
-                                        post.finalText = `${post.postTitle}` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
+                                        post.finalText = `${post.postTitle} [${post.postID}]` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
                                         post.file = {
                                             data: image,
                                             avatar: (avatar) ? avatar : undefined,
@@ -528,7 +558,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         if (autoDownload.rows.length > 0) {
                                             _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
                                         } else {
-                                            _mqMessage = await sendEmbed(post, level, followUser, (channel !== "download"), (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                            _mqMessage = await sendEmbed(post, level, followUser, false, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
                                         }
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
@@ -584,7 +614,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
     }
     async function postRecommPost() {
-        const recommIllust = await db.query(`SELECT * FROM pixiv_recomm_illu WHERE paccount = ? ORDER BY RAND() LIMIT 1`, [systemglobal.PixivUser]);
+        const recommIllust = await db.query(`SELECT * FROM pixiv_recomm_illu WHERE paccount = ? LIMIT 1`, [systemglobal.PixivUser]);
         if (recommIllust.error) {
             Logger.printLine(`PostRecomIllt`, `Failed to get recommended illustration records`, `error`, recommIllust.error);
         } else if (recommIllust.rows.length > 0) {

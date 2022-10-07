@@ -1,4 +1,6 @@
 let systemglobal = require('../../config.json');
+if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+    systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
 
 const os = require('os');
 const { clone } = require('./tools');
@@ -85,39 +87,43 @@ module.exports = function (facility, sgoveride) {
         return true;
     }
 
-    amqp.connect(MQServer, function(err, conn) {
-        if (err) {
-            Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
-            return setTimeout(function () {
-                process.exit(1)
-            }, 1000);
-        }
-        conn.on("error", function(err) {
-            if (err.message !== "Connection closing") {
-                Logger.printLine("KanmiMQ", "Initialization Connection Error", "emergency", err)
+    function connect() {
+        amqp.connect(MQServer, function(err, conn) {
+            if (err) {
+                Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
+                return setTimeout(function () {
+                    connect();
+                }, 1000);
             }
-        });
-        conn.on("close", function() {
-            Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-            return setTimeout(function () {
-                process.exit(1)
-            }, 1000);
-        });
-        Logger.printLine("KanmiMQ", `Publisher Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
-        amqpConn = conn;
-        amqpConn.createConfirmChannel(function(err, ch) {
-            if (closeOnErr(err)) return;
-            ch.on("error", function(err) {
-                Logger.printLine("KanmiMQ", "Channel Error", "error", err)
+            conn.on("error", function(err) {
+                if (err.message !== "Connection closing") {
+                    Logger.printLine("KanmiMQ", "Initialization Connection Error", "critical", err)
+                }
             });
-            ch.on("close", function() {
-                Logger.printLine("KanmiMQ", "Channel Closed", "critical", {
-                    message: "null"
-                })
+            conn.on("close", function() {
+                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
+                return setTimeout(function () {
+                    connect();
+                }, 1000);
             });
-            pubChannel = ch;
+            Logger.printLine("KanmiMQ", `Publisher Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            amqpConn = conn;
+            amqpConn.createConfirmChannel(function(err, ch) {
+                if (closeOnErr(err)) return;
+                ch.on("error", function(err) {
+                    Logger.printLine("KanmiMQ", "Channel Error", "error", err)
+                });
+                ch.on("close", function() {
+                    Logger.printLine("KanmiMQ", "Channel Closed", "critical", {
+                        message: "null"
+                    })
+                });
+                pubChannel = ch;
+            });
         });
-    });
+    }
+    connect();
+
 
     module.sendMessage = function (message, channel, proccess, inbody) {
         if (staticChID.System) {

@@ -19,9 +19,10 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
-
 (async () => {
 	let systemglobal = require('../config.json');
+	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
+		systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
 	const facilityName = 'FileWorker';
 
 	const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -43,12 +44,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const globalRunKey = crypto.randomBytes(5).toString("hex");
 	let globalItemNumber = 0;
 	const FileType = require('file-type');
-	const youtubedl = require('youtube-dl');
+	let youtubedl = undefined
+	try {
+		youtubedl = require('youtube-dl');
+	} catch (e) {
+		console.error("YouTube DL is not available, You must manually install it with 'npm install youtube-dl --force'")
+	}
 	const rimraf = require('rimraf');
 	const ExifImage = require('exif').ExifImage;
 	const moment = require('moment');
 	const minimist = require("minimist");
 	const { spawn } = require("child_process");
+	const exec = require('child_process').exec;
 	let args = minimist(process.argv.slice(2));
 	let init = false
 
@@ -69,6 +76,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const db = require('./utils/shutauraSQL')(facilityName);
 
 	Logger.printLine("Init", "FileWorker Server I/O", "debug")
+
+	if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+		systemglobal.MQServer = process.env.MQ_HOST.trim()
+	if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+		systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+	if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+		systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
 	async function loadDatabaseCache() {
 		Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -111,13 +125,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					ABitrate: `${_ffmpeg_config[0].param_data.abitrate}`
 				};
 			}
-			const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
-			if (_seq_config.length > 0 && _seq_config[0].param_data) {
-				if (_seq_config[0].param_data.pickup_base_url)
-					systemglobal.Pickup_Base_URL = _seq_config[0].param_data.pickup_base_url;
-				if (_seq_config[0].param_data.base_url)
-					systemglobal.Base_URL = _seq_config[0].param_data.base_url;
-			}
 
 			const _mq_discord_out = systemparams_sql.filter(e => e.param_key === 'mq.discord.out');
 			if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
@@ -143,6 +150,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					systemglobal.WatchFolder_1 = _fileworker_config[0].param_data.watch_dir;
 				if (_fileworker_config[0].param_data.pickup_dir)
 					systemglobal.PickupFolder = _fileworker_config[0].param_data.pickup_dir;
+				if (_fileworker_config[0].param_data.priority_channels)
+					systemglobal.FW_Priority_Channels = _fileworker_config[0].param_data.priority_channels;
 				if (_fileworker_config[0].param_data.classic_split)
 					systemglobal.UseJSSplit = (_fileworker_config[0].param_data.classic_split);
 				if (_fileworker_config[0].param_data.keep_original_images)
@@ -167,6 +176,47 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parts: (folder.discord_filedata) ? folder.discord_filedata : (folder.telegram_filedata) ? folder.telegram_filedata : null
 			})
 		}))
+
+		if (systemglobal.WatchFolder_1) {
+			// Create Folder Listing
+			const getDirectories = fs.readdirSync(systemglobal.WatchFolder_1, {withFileTypes: true})
+				.filter(dirent => dirent.isDirectory())
+				.map(dirent => dirent.name)
+			// Add new folder maps
+			FolderPairs.forEach((data, name) => {
+				if (!fs.existsSync(path.join(systemglobal.WatchFolder_1, name))) {
+					if (name !== "MultiPartFolder" && name !== "Data") {
+						fs.mkdirSync(path.join(systemglobal.WatchFolder_1, name));
+						Logger.printLine("FolderInit", `Created new folder ${name}`, "debug")
+					}
+				}
+				if (!init) {
+					console.log(`Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`)
+				}
+			});
+			// Remove old folder maps
+			getDirectories.forEach(function (foldername) {
+				if (FolderPairs.has(foldername) === false) {
+					fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
+						if (file.startsWith(".")) {
+							fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
+						}
+					})
+					if (foldername !== "MultiPartFolder" && foldername !== "Data") {
+						fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
+							if (file.startsWith(".")) {
+								fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
+							} else {
+								fs.renameSync(path.join(systemglobal.WatchFolder_1, foldername, file), systemglobal.WatchFolder_1)
+								Logger.printLine("FolderInit", `Found orphan file ${file} in ${foldername}`, "debug")
+							}
+						});
+						fs.rmdirSync(path.join(systemglobal.WatchFolder_1, foldername));
+						Logger.printLine("FolderInit", `Removed folder ${foldername}`, "debug")
+					}
+				}
+			})
+		}
 
 		await Promise.all(_discordservers.rows.map(server => {
 			discordServers.set(server.serverid, server);
@@ -194,14 +244,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 	const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
-	if (!fs.existsSync(systemglobal.TempFolder)) {
-		fs.mkdirSync(systemglobal.TempFolder);
-	}
-	if (systemglobal.WatchFolder_1 && !fs.existsSync(systemglobal.WatchFolder_1)) {
-		fs.mkdirSync(systemglobal.WatchFolder_1);
-	}
-	if (systemglobal.PickupFolder && !fs.existsSync(systemglobal.PickupFolder)) {
-		fs.mkdirSync(systemglobal.PickupFolder);
+	try {
+		if (!fs.existsSync(systemglobal.TempFolder)) {
+			fs.mkdirSync(systemglobal.TempFolder);
+		}
+		if (systemglobal.WatchFolder_1 && !fs.existsSync(systemglobal.WatchFolder_1)) {
+			fs.mkdirSync(systemglobal.WatchFolder_1);
+		}
+		if (systemglobal.PickupFolder && !fs.existsSync(systemglobal.PickupFolder)) {
+			fs.mkdirSync(systemglobal.PickupFolder);
+		}
+	} catch (e) {
+		console.error('Failed to create the temp folder, not a issue if your using docker');
+		console.error(e);
 	}
 
 	// Normal Requests
@@ -410,44 +465,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		startWorker2();
 		if (systemglobal.WatchFolder_1) {
 			Logger.printLine('Init', 'File Watching is enabled on this FileWorker instance, now watching for uploads', 'debug')
-			// Create Folder Listing
-			const getDirectories = fs.readdirSync(systemglobal.WatchFolder_1, {withFileTypes: true})
-				.filter(dirent => dirent.isDirectory())
-				.map(dirent => dirent.name)
-			// Add new folder maps
-			FolderPairs.forEach((data, name) => {
-				if (!fs.existsSync(path.join(systemglobal.WatchFolder_1, name))) {
-					if (name !== "MultiPartFolder" && name !== "Data") {
-						fs.mkdirSync(path.join(systemglobal.WatchFolder_1, name));
-						Logger.printLine("FolderInit", `Created new folder ${name}`, "debug")
-					}
-				}
-				if (!init) {
-					console.log(`Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`)
-				}
-			});
-			// Remove old folder maps
-			getDirectories.forEach(function (foldername) {
-				if (FolderPairs.has(foldername) === false) {
-					fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
-						if (file.startsWith(".")) {
-							fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
-						}
-					})
-					if (foldername !== "MultiPartFolder" && foldername !== "Data") {
-						fs.readdirSync(path.join(systemglobal.WatchFolder_1, foldername)).forEach((file, index) => {
-							if (file.startsWith(".")) {
-								fs.unlinkSync(path.join(systemglobal.WatchFolder_1, foldername, file));
-							} else {
-								fs.renameSync(path.join(systemglobal.WatchFolder_1, foldername, file), systemglobal.WatchFolder_1)
-								Logger.printLine("FolderInit", `Found orphan file ${file} in ${foldername}`, "debug")
-							}
-						});
-						fs.rmdirSync(path.join(systemglobal.WatchFolder_1, foldername));
-						Logger.printLine("FolderInit", `Removed folder ${foldername}`, "debug")
-					}
-				}
-			})
 			// Setup Folder Watchers
 			sleep(1000).then(() => {
 				function onboardFileAdd(filePath, groupID) {
@@ -475,8 +492,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												const dateOfFile = moment(stats.mtime).format('YYYY-MM-DD HH:mm:ss');
 												mqClient.sendData(MQWorker2, {
 													Type: "Local",
-													FileName: path.basename(filePath),
+													FileName: path.basename(filePath).replace('PRIORITY-',''),
 													FilePath: path.join(systemglobal.TempFolder, fileNameID),
+													Priority: (path.basename(filePath).startsWith('PRIORITY-')),
 													OriginPath: filePath,
 													OriginGroup: groupID,
 													DateTime: dateOfFile,
@@ -519,7 +537,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					});
 					datawatcher1.on('add', function (filePath) {
 						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-'))) {
-							onboardFileAdd(slash("./" + filePath), "1")
+							onboardFileAdd(slash(filePath), "1")
 						}
 					})
 						.on('error', function (error) {
@@ -533,7 +551,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		} else {
 			Logger.printLine('Init', 'File Watching is disabled on this FileWorker instance!', 'warning')
 		}
-		process.send('ready');
+		if (process.send && typeof process.send === 'function') {
+			process.send('ready');
+		}
 		init = true
 	}
 	// Support Functions
@@ -549,18 +569,214 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		})
 	}
-	function createMissingLinks() {
-		return Promise.all(fs.readdirSync(systemglobal.PickupFolder)
-			.filter(e => e.startsWith('.')).map(async (e) => {
-				const cacheresponse = await db.query(`SELECT eid, real_filename FROM kanmi_records WHERE fileid = ?`, [e.substring(1)])
-				if (!cacheresponse.error && cacheresponse.rows.length > 0) {
-					const linkname = `${cacheresponse.rows[0].eid}-${cacheresponse.rows[0].real_filename}`
+	async function createMissingLinks() {
+		const localFiles = fs.readdirSync(systemglobal.PickupFolder).filter(e => e.startsWith('.')).map(e => e.substring(1));
+		const databaseItems = await db.query(`SELECT eid, fileid, real_filename FROM kanmi_records WHERE fileid IS NOT NULL AND filecached = 1`, [])
+		if (!databaseItems.error && databaseItems.rows.length > 0) {
+			await Promise.all(databaseItems.rows.filter(e => localFiles.indexOf(e.fileid) === -1).map(async (e) => {
+				await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [e.eid]);
+				Logger.printLine('cleanCache', `Successfully removed invalid cache mark for file ${e.real_filename}`, 'warn');
+			}))
+			await Promise.all(localFiles.map(async (e) => {
+				const cacheresponse = databaseItems.rows.filter(f => f.fileid === e)
+				if (cacheresponse.length > 0) {
+					const linkname = `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`
 					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
-						fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
-						Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
+						try {
+							fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
+							Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
+						} catch (err) {
+							Logger.printLine('cleanCache', `Failed to create missing symlink for file ${e.substring(1)} => ${linkname}`, 'error');
+						}
 					}
 				}
 			}))
+		}
+	}
+	function msToTime(s) {
+		// Pad to 2 or 3 digits, default is 2
+		function pad(n, z) {
+			z = z || 2;
+			return ('00' + n).slice(-z);
+		}
+
+		var ms = s % 1000;
+		s = (s - ms) / 1000;
+		var secs = s % 60;
+		s = (s - secs) / 60;
+		var mins = s % 60;
+		var hrs = (s - mins) / 60;
+
+		return pad(hrs) + ':' + pad(mins) + ':' + pad(secs)
+	}
+	// Get Video Duration
+	async function startPosition(filename) {
+		let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+		const duration = await new Promise((resolve) => {
+			exec(ffmpegParam, (err, stdout, stderr) => {
+				if (err) {
+					console.error(err);
+					resolve(false);
+				}
+				resolve(parseInt(stdout.split("\n").join("").trim()));
+			})
+		})
+		if (duration) {
+			return msToTime((duration * .25) * 1000)
+		} else {
+			return '00:00:00'
+		}
+	}
+	// Generate Video GIF Preview
+	async function animateVideo(filename, time) {
+		return await new Promise(function (fulfill) {
+			const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.gif`);
+			let scriptOutput = "";
+			const spawn = require('child_process').spawn;
+			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
+			console.log("[FFMPEG] Getting Animated Preview Image...")
+			const child = spawn(EncoderConf.Exec, ffmpegParam);
+			child.stdout.setEncoding('utf8');
+			child.stdout.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.stderr.setEncoding('utf8');
+			child.stderr.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.on('close', function (code) {
+				if (code === 0 && fileSize(outputfile) > 0.00001) {
+					try {
+						const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
+					} catch (err) {
+						fulfill(null);
+						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+					}
+				} else {
+					mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
+					deleteFile(outputfile, function (ready) {
+						// Do Nothing
+					})
+					fulfill(null)
+				}
+			});
+		})
+	}
+	// Generate Video Preview Image
+	async function previewVideo(filename, time) {
+		return await new Promise(function (fulfill) {
+			const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
+			let scriptOutput = "";
+			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
+			console.log("[FFMPEG] Getting Preview Image...")
+			const child = spawn(EncoderConf.Exec, ffmpegParam);
+			child.stdout.setEncoding('utf8');
+			child.stdout.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.stderr.setEncoding('utf8');
+			child.stderr.on('data', function (data) {
+				console.log(data);
+				data = data.toString();
+				scriptOutput += data;
+			});
+			child.on('close', function (code) {
+				if (code === 0 && fileSize(outputfile) > 0.00001) {
+					try {
+						const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(output);
+					} catch (err) {
+						fulfill(null);
+						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+					}
+				} else {
+					mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+					deleteFile(outputfile, function (ready) {
+						// Do Nothing
+					})
+					fulfill(null)
+				}
+			});
+		})
+	}
+	// Encode Video File
+	async function encodeVideo(filename, intent) {
+		return await new Promise(function (fulfill) {
+			const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
+			if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
+				try {
+					const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
+					deleteFile(possiblePreview, function (ready) {
+						// Do Nothing
+					})
+					fulfill(output);
+				} catch (err) {
+					fulfill(null);
+					Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+				}
+			} else {
+				const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
+				let scriptOutput = "";
+				const spawn = require('child_process').spawn;
+				let ffmpegParam = []
+				if (intent) {
+					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+				} else {
+					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
+				}
+				console.log("[FFMPEG] Starting to encode video...")
+				const child = spawn(EncoderConf.Exec, ffmpegParam);
+				// You can also use a variable to save the output
+				// for when the script closes later
+				child.stdout.setEncoding('utf8');
+				child.stdout.on('data', function (data) {
+					//Here is where the output goes
+					console.log(data);
+					data = data.toString();
+					scriptOutput += data;
+				});
+				child.stderr.setEncoding('utf8');
+				child.stderr.on('data', function (data) {
+					//Here is where the error output goes
+					console.log(data);
+					data = data.toString();
+					scriptOutput += data;
+				});
+				child.on('close', function (code) {
+					if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+						try {
+							const output = fs.readFileSync(outputfile, {encoding: 'base64'})
+							deleteFile(outputfile, function (ready) {
+								// Do Nothing
+							})
+							fulfill(output);
+						} catch (err) {
+							fulfill(null);
+							Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+						}
+					} else {
+						mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
+						deleteFile(outputfile, function (ready) {
+							// Do Nothing
+						})
+						fulfill(null)
+					}
+				});
+			}
+		})
 	}
 
 	function proccessJob(MessageContents, cb) {
@@ -569,20 +785,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				switch (MessageContents.messageAction) {
 					case 'CacheSpannedFile':
 						if (MessageContents.fileUUID) {
-							db.safe(`SELECT kanmi_records.*, discord_multipart_files.url, discord_multipart_files.valid
+							db.safe(`SELECT x.*, y.data FROM (SELECT kanmi_records.*, discord_multipart_files.url, discord_multipart_files.valid
 									 FROM kanmi_records,
 										  discord_multipart_files
 									 WHERE kanmi_records.fileid = ?
 									   AND kanmi_records.source = 0
-									   AND kanmi_records.fileid = discord_multipart_files.fileid`, [MessageContents.fileUUID], function (err, cacheresponse) {
+									   AND kanmi_records.fileid = discord_multipart_files.fileid) x LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.fileUUID], function (err, cacheresponse) {
 								if (err || cacheresponse.length === 0) {
 									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 									cb(true)
 								} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
-									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
 									cb(true)
 								} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
-									mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+									mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
 									cb(true)
 								} else {
 									let itemsCompleted = [];
@@ -628,7 +844,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}, Promise.resolve());
 									requests.then(async () => {
 										if (itemsCompleted.length === cacheresponse[0].paritycount) {
-											rimraf(CompleteFilename, function (err) { });
+											await new Promise((deleted) => {
+												rimraf(CompleteFilename, function (err) { deleted(!err) });
+											})
 											try {
 												await splitFile.mergeFiles(itemsCompleted.sort(function (a, b) {
 													return a - b
@@ -649,166 +867,180 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														Logger.printLine("MPFCache", `File ${fileName.replace(/[/\\?%*:|"<> ]/g, '_')} was cached successfully!`, 'info')
 													}
 												})
-												if (MessageContents.userRequest && MessageContents.userRequest !== 'none')
-													mqClient.sendMessage(`File is now available <@!${MessageContents.userRequest.toString()}>${(systemglobal.Base_URL) ? '\nDownload URL: ' + systemglobal.Base_URL + '/stream/' + cacheresponse[0].fileid + '/' + fileName : ''}`, "message", "MPFDownload")
-												rimraf(PartsFilePath, function (err) { });
+												await new Promise((deleted) => {
+													rimraf(PartsFilePath, function (err) { deleted(!err) });
+												})
 												if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(fileName.toString()).split(".").pop().toLowerCase()) !== -1) {
+													// Get Video Duration
+													const startPosition = await (async (filename) => {
+														const exec = require('child_process').exec;
+														let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+														const duration = await new Promise((resolve) => {
+															exec(ffmpegParam, (err, stdout, stderr) => {
+																if (err) {
+																	console.error(err);
+																	resolve(false);
+																}
+																resolve(parseInt(stdout.split("\n").join("").trim()));
+															})
+														})
+														if (duration) {
+															return msToTime((duration * .25) * 1000)
+														} else {
+															return '00:00:00'
+														}
+													})(CompleteFilename);
+
 													if (cacheresponse[0].attachment_hash === null) {
-														// Encode Video File
-														function encodeVideo(filename, intent, fulfill) {
-															return new Promise(function (fulfill) {
-																const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-																let scriptOutput = "";
-																const spawn = require('child_process').spawn;
-																let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-																console.log("[FFMPEG] Starting to encode video...")
-																const child = spawn(EncoderConf.Exec, ffmpegParam);
-																// You can also use a variable to save the output
-																// for when the script closes later
-																child.stdout.setEncoding('utf8');
-																child.stdout.on('data', function (data) {
-																	//Here is where the output goes
-																	console.log(data);
-																	data = data.toString();
-																	scriptOutput += data;
-																});
-																child.stderr.setEncoding('utf8');
-																child.stderr.on('data', function (data) {
-																	//Here is where the error output goes
-																	console.log(data);
-																	data = data.toString();
-																	scriptOutput += data;
-																});
-																child.on('close', function (code) {
-																	if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-																		try {
-																			const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																			deleteFile(outputfile, function (ready) {
-																				// Do Nothing
-																			})
-																			fulfill(output);
-																		} catch (err) {
-																			fulfill(null);
-																			Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-																		}
-																	} else {
-																		mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(null)
-																	}
-																});
-															})
-														}
-
-														await encodeVideo(CompleteFilename, true)
-															.then((fulfill) => {
-																if (fulfill != null) {
-																	mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																		fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																		messageReturn: false,
-																		messageID: cacheresponse[0].id,
-																		messageChannelID: cacheresponse[0].channel,
-																		messageServerID: cacheresponse[0].server,
-																		messageType: 'command',
-																		messageAction: 'ReplaceContent',
-																		itemCacheName: `${cacheresponse[0].id}.mp4`,
-																		itemCacheData: fulfill,
-																		itemCacheType: 1
-																	}, function (callback) {
-																		if (callback) {
-																			Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																		} else {
-																			Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																		}
-																	});
+														const preview_video = await encodeVideo(CompleteFilename, true)
+														if (preview_video) {
+															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																messageReturn: false,
+																messageID: cacheresponse[0].id,
+																messageChannelID: cacheresponse[0].channel,
+																messageServerID: cacheresponse[0].server,
+																messageType: 'command',
+																messageAction: 'ReplaceContent',
+																itemCacheName: `${cacheresponse[0].id}.mp4`,
+																itemCacheData: preview_video,
+																itemCacheType: 1
+															}, function (callback) {
+																if (callback) {
+																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 																} else {
-																	mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
+																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
-															})
-															.catch((er) => {
-																mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
-															})
-
+															});
+														} else {
+															mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
+														}
 													}
-													if (cacheresponse[0].cache_proxy === null) {
-														// Generate Video Preview Image
-														function previewVideo(filename, intent, fulfill) {
-															return new Promise(function (fulfill) {
-																const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
-																let scriptOutput = "";
-																const spawn = require('child_process').spawn;
-																let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-																console.log("[FFMPEG] Getting Preview Image...")
-																const child = spawn(EncoderConf.Exec, ffmpegParam);
-																child.stdout.setEncoding('utf8');
-																child.stdout.on('data', function (data) {
-																	console.log(data);
-																	data = data.toString();
-																	scriptOutput += data;
-																});
-																child.stderr.setEncoding('utf8');
-																child.stderr.on('data', function (data) {
-																	console.log(data);
-																	data = data.toString();
-																	scriptOutput += data;
-																});
-																child.on('close', function (code) {
-																	if (code === 0 && fileSize(outputfile) > 0.00001) {
-																		try {
-																			const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-																			deleteFile(outputfile, function (ready) {
-																				// Do Nothing
-																			})
-																			fulfill(output);
-																		} catch (err) {
-																			fulfill(null);
-																			Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+													if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif'))) {
+														const preview_animated = await animateVideo(CompleteFilename, startPosition)
+														const preview_image = await previewVideo(CompleteFilename, startPosition)
+
+														if (preview_animated) {
+															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																messageReturn: false,
+																messageID: cacheresponse[0].id,
+																messageChannelID: cacheresponse[0].channel,
+																messageServerID: cacheresponse[0].server,
+																messageType: 'command',
+																messageAction: 'ReplaceContent',
+																itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
+																itemCacheData: preview_animated,
+																itemCacheType: 0
+															}, function (callback) {
+																if (callback) {
+																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																} else {
+																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																}
+															});
+															if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
+																mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																	fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																	messageReturn: false,
+																	messageID: cacheresponse[0].id,
+																	messageChannelID: cacheresponse[0].channel,
+																	messageServerID: cacheresponse[0].server,
+																	messageType: 'command',
+																	messageAction: 'ModifyExtendedContent',
+																	extendedContent: {
+																		preview_image: 'FILE-0'
+																	},
+																	extendedAttachments: [
+																		{
+																			name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+																			file: preview_image
 																		}
+																	]
+																}, function (callback) {
+																	if (callback) {
+																		Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 																	} else {
-																		mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-																		deleteFile(outputfile, function (ready) {
-																			// Do Nothing
-																		})
-																		fulfill(null)
+																		Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																	}
 																});
-															})
-														}
-
-														await previewVideo(CompleteFilename)
-															.then((imageFulfill) => {
-																if (imageFulfill != null) {
-																	mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-																		fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-																		messageReturn: false,
-																		messageID: cacheresponse[0].id,
-																		messageChannelID: cacheresponse[0].channel,
-																		messageServerID: cacheresponse[0].server,
-																		messageType: 'command',
-																		messageAction: 'ReplaceContent',
-																		itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-																		itemCacheData: imageFulfill,
-																		itemCacheType: 0
-																	}, function (callback) {
-																		if (callback) {
-																			Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-																		} else {
-																			Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-																		}
-																	});
+															}
+														} else if (preview_image) {
+															mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																messageReturn: false,
+																messageID: cacheresponse[0].id,
+																messageChannelID: cacheresponse[0].channel,
+																messageServerID: cacheresponse[0].server,
+																messageType: 'command',
+																messageAction: 'ReplaceContent',
+																itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+																itemCacheData: preview_image,
+																itemCacheType: 0
+															}, function (callback) {
+																if (callback) {
+																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 																} else {
-																	mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
+																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 																}
-															})
-															.catch((er) => {
-																mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
-															})
+															});
+															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																messageReturn: false,
+																messageID: cacheresponse[0].id,
+																messageChannelID: cacheresponse[0].channel,
+																messageServerID: cacheresponse[0].server,
+																messageType: 'command',
+																messageAction: 'ModifyExtendedContent',
+																extendedContent: {
+																	preview_image: null
+																},
+															}, function (callback) {
+																if (callback) {
+																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																} else {
+																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																}
+															});
+														} else {
+															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+														}
+													} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
+														const preview_image = await previewVideo(CompleteFilename, startPosition)
+														if (preview_image) {
+															mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+																fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+																messageReturn: false,
+																messageID: cacheresponse[0].id,
+																messageChannelID: cacheresponse[0].channel,
+																messageServerID: cacheresponse[0].server,
+																messageType: 'command',
+																messageAction: 'ModifyExtendedContent',
+																extendedContent: {
+																	preview_image: 'FILE-0'
+																},
+																extendedAttachments: [
+																	{
+																		name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+																		file: preview_image
+																	}
+																]
+															}, function (callback) {
+																if (callback) {
+																	Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+																} else {
+																	Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+																}
+															});
+														} else {
+															mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
+														}
 													}
 												}
 											} catch (err) {
 												mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild!`, "err", "MPFDownload", err)
+												console.error(err)
 												for (let part of itemsCompleted) {
 													fs.unlink(part, function (err) {
 														if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
@@ -819,10 +1051,38 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											}
 											cb(true)
 										} else {
-											mqClient.sendMessage(`Failed to proccess the MultiPart File ${MessageContents.fileUUID} \nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
+											mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID})\nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
 											cb(true)
 										}
 									})
+								}
+							})
+						} else {
+							cb(true)
+						}
+						break;
+					case 'RemoveSpannedFile':
+						if (MessageContents.fileUUID) {
+							db.safe(`SELECT kanmi_records.*
+									 FROM kanmi_records
+									 WHERE kanmi_records.fileid = ?
+									   AND kanmi_records.source = 0`, [MessageContents.fileUUID], async function (err, cacheresponse) {
+								if (err || cacheresponse.length === 0) {
+									mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+									cb(true)
+								} else {
+									const fileNameUniq = '.' + cacheresponse[0].fileid
+									const CompleteFilename = path.join(systemglobal.PickupFolder, fileNameUniq);
+									const LinkFileName = path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`)
+									await new Promise((deleted) => {
+										rimraf(CompleteFilename, function (err) { deleted(!err) });
+									})
+									await new Promise((deleted) => {
+										rimraf(LinkFileName, function (err) { deleted(!err) });
+									})
+									await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
+									Logger.printLine('cleanCache', `Successfully removed cache for file ${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`, 'info');
+									cb(true);
 								}
 							})
 						} else {
@@ -836,166 +1096,177 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								cb(true)
 							} else if (cacheresponse.length > 0 && cacheresponse[0].filecached === 1) {
 								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
-								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1) {
-									if (cacheresponse[0].attachment_hash === null || cacheresponse[0].attachment_name === null || MessageContents.forceRefresh) {
-										// Encode Video File
-										function encodeVideo(filename, intent, fulfill) {
-											return new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPVIDEO-${crypto.randomBytes(8).toString("hex")}`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-1', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-												console.log("[FFMPEG] Starting to encode video...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												// You can also use a variable to save the output
-												// for when the script closes later
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													//Here is where the output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													//Here is where the error output goes
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
+								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
+								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
+									// Get Video Duration
+									const startPosition = await (async (filename) => {
+										const exec = require('child_process').exec;
+										let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+										const duration = await new Promise((resolve) => {
+											exec(ffmpegParam, (err, stdout, stderr) => {
+												if (err) {
+													console.error(err);
+													resolve(false);
+												}
+												resolve(parseInt(stdout.split("\n").join("").trim()));
+											})
+										})
+										if (duration) {
+											return msToTime((duration * .25) * 1000)
+										} else {
+											return '00:00:00'
+										}
+									})(CompleteFilename);
+
+									if (cacheresponse[0].cache_proxy === null || (cacheresponse[0] && !cacheresponse[0].cache_proxy.includes('-t9-preview-video.gif')) || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview')) {
+										const preview_animated = await animateVideo(CompleteFilename, startPosition)
+										const preview_image = await previewVideo(CompleteFilename, startPosition)
+										if (preview_animated) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}-t9-preview-video.gif`,
+												itemCacheData: preview_animated,
+												itemCacheType: 0
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+											if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
+												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+													messageReturn: false,
+													messageID: cacheresponse[0].id,
+													messageChannelID: cacheresponse[0].channel,
+													messageServerID: cacheresponse[0].server,
+													messageType: 'command',
+													messageAction: 'ModifyExtendedContent',
+													extendedContent: {
+														preview_image: 'FILE-0'
+													},
+													extendedAttachments: [
+														{
+															name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+															file: preview_image
 														}
+													]
+												}, function (callback) {
+													if (callback) {
+														Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 													} else {
-														mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
+														Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 													}
 												});
-											})
-										}
-
-										await encodeVideo(CompleteFilename, true)
-											.then((fulfill) => {
-												if (fulfill != null) {
-													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-														messageReturn: false,
-														messageID: cacheresponse[0].id,
-														messageChannelID: cacheresponse[0].channel,
-														messageServerID: cacheresponse[0].server,
-														messageType: 'command',
-														messageAction: 'ReplaceContent',
-														itemCacheName: `${cacheresponse[0].id}.mp4`,
-														itemCacheData: fulfill,
-														itemCacheType: 1
-													}, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-														}
-													});
+											}
+										} else if (preview_image) {
+											mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+												itemCacheData: preview_image,
+												itemCacheType: 0
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "")
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 												}
-											})
-											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
-											})
-
+											});
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'RemoveExtendedContent',
+												extendedContent: ['preview_image']
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+										}
+									} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
+										const preview_image = await previewVideo(CompleteFilename, startPosition)
+										if (preview_image) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ModifyExtendedContent',
+												extendedContent: {
+													preview_image: 'FILE-0'
+												},
+												extendedAttachments: [
+													{
+														name: `${cacheresponse[0].id}-t9-preview-video.jpg`,
+														file: preview_image
+													}
+												]
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
+												} else {
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
+												}
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "warn")
+										}
 									}
-									if (cacheresponse[0].cache_proxy === null || MessageContents.forceRefresh) {
-										// Generate Video Preview Image
-										function previewVideo(filename, intent, fulfill) {
-											return new Promise(function (fulfill) {
-												const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
-												let scriptOutput = "";
-												const spawn = require('child_process').spawn;
-												let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-												console.log("[FFMPEG] Getting Preview Image...")
-												const child = spawn(EncoderConf.Exec, ffmpegParam);
-												child.stdout.setEncoding('utf8');
-												child.stdout.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.stderr.setEncoding('utf8');
-												child.stderr.on('data', function (data) {
-													console.log(data);
-													data = data.toString();
-													scriptOutput += data;
-												});
-												child.on('close', function (code) {
-													if (code === 0 && fileSize(outputfile) > 0.00001) {
-														try {
-															const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-															deleteFile(outputfile, function (ready) {
-																// Do Nothing
-															})
-															fulfill(output);
-														} catch (err) {
-															fulfill(null);
-															Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-														}
-													} else {
-														mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-														deleteFile(outputfile, function (ready) {
-															// Do Nothing
-														})
-														fulfill(null)
-													}
-												});
-											})
-										}
-
-										await previewVideo(CompleteFilename)
-											.then(async (imageFulfill) => {
-												if (imageFulfill != null) {
-													mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-														fromClient: `return.FileWorker.${systemglobal.SystemName}`,
-														messageReturn: false,
-														messageID: cacheresponse[0].id,
-														messageChannelID: cacheresponse[0].channel,
-														messageServerID: cacheresponse[0].server,
-														messageType: 'command',
-														messageAction: 'ReplaceContent',
-														itemCacheName: `${cacheresponse[0].id}-t9-preview-video.jpg`,
-														itemCacheData: imageFulfill,
-														itemCacheType: 0
-													}, function (callback) {
-														if (callback) {
-															Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
-														} else {
-															Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
-														}
-													});
+									if (cacheresponse[0].cache_proxy === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'video')) {
+										const preview_video = await encodeVideo(CompleteFilename, true)
+										if (preview_video) {
+											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
+												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
+												messageReturn: false,
+												messageID: cacheresponse[0].id,
+												messageChannelID: cacheresponse[0].channel,
+												messageServerID: cacheresponse[0].server,
+												messageType: 'command',
+												messageAction: 'ReplaceContent',
+												itemCacheName: `${cacheresponse[0].id}.mp4`,
+												itemCacheData: preview_video,
+												itemCacheType: 1
+											}, function (callback) {
+												if (callback) {
+													Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out + '.backlog'}`, "debug")
 												} else {
-													mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "")
-													cb(true);
+													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 												}
-											})
-											.catch(async (er) => {
-												mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`, "err", "", er)
-												cb(true);
-											})
+											});
+										} else {
+											mqClient.sendMessage(`Error occurred when encoding the video "${fileNameUniq}" for transport, Will not send preview video!`, "err", "", er)
+										}
 									}
 								} else {
+									mqClient.sendMessage(`"File "${CompleteFilename}" is cached but is not available here!"`, "warn", 'GenerateVideoPreview')
 									cb(true);
 								}
 							} else {
+								mqClient.sendMessage(`File ${MessageContents.messageID} is not cached!`, "warn", 'GenerateVideoPreview')
 								cb(true);
 							}
 						})
@@ -1145,61 +1416,66 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					// Download Video in best Video Quality & Audio Quality and Output as MP4
 					console.log(MessageContents)
 					let videoinfo = {}
-					const video = youtubedl(MessageContents.itemVideoURL,
-						[],
-						{cwd: __dirname})
-					video.on('info', function (info) {
-						// Write output to the Temp Filesystem
-						Logger.printLine("DownloadVideo", `Download Started : ${info._filename} (${info.size})`, "debug")
-						videoinfo.name = info.title
-						video.pipe(fs.createWriteStream(tempFilePath))
-					})
-					video.on('error', function (error) {
-						mqClient.sendMessage(`Error downloading the video ${MessageContents.itemVideoURL}`, "err", "DownloadVideo", error)
-						cb(true);
-					})
-					video.on('end', function () {
-						fs.open(tempFilePath, 'r+', function (err, fd) {
-							if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
-								mqClient.sendMessage(`Error accessing the downloaded video ${MessageContents.itemFileName.split("?")[0]}, File was not available`, "err", "DownloadVideo")
-							} else {
-								fs.close(fd, function () {
-									let messageText = MessageContents.messageText
-									if (MessageContents.messageText === '**🎞 Downloaded Video**') {
-										if (videoinfo.name !== undefined) {
-											messageText += ` - ***${videoinfo.name}***`
-										}
-									}
-									messageText += '\n`' + MessageContents.itemVideoURL + '`'
-									let Cleanedobject = {
-										Type: 'Remote',
-										ChannelID: MessageContents.messageChannelID,
-										MessageText: messageText,
-										FileName: MessageContents.itemFileName.split("?")[0],
-										FilePath: tempFilePath
-									}
-									if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
-										Cleanedobject.Backlog = true
-									}
-									if (MessageContents.itemDateTime) {
-										Cleanedobject.DateTime = MessageContents.itemDateTime
-									}
-									if (MessageContents.messageUserID) {
-										Cleanedobject.UserID = MessageContents.messageUserID
-									}
-									parseFile(Cleanedobject,function (check) {
-										fs.access(tempFilePath, error => {
-											if (!error) {
-												fs.unlink(tempFilePath, function (err) {
-												})
+					if (youtubedl !== undefined) {
+						const video = youtubedl(MessageContents.itemVideoURL,
+							[],
+							{cwd: __dirname})
+						video.on('info', function (info) {
+							// Write output to the Temp Filesystem
+							Logger.printLine("DownloadVideo", `Download Started : ${info._filename} (${info.size})`, "debug")
+							videoinfo.name = info.title
+							video.pipe(fs.createWriteStream(tempFilePath))
+						})
+						video.on('error', function (error) {
+							mqClient.sendMessage(`Error downloading the video ${MessageContents.itemVideoURL}`, "err", "DownloadVideo", error)
+							cb(true);
+						})
+						video.on('end', function () {
+							fs.open(tempFilePath, 'r+', function (err, fd) {
+								if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
+									mqClient.sendMessage(`Error accessing the downloaded video ${MessageContents.itemFileName.split("?")[0]}, File was not available`, "err", "DownloadVideo")
+								} else {
+									fs.close(fd, function () {
+										let messageText = MessageContents.messageText
+										if (MessageContents.messageText === '**🎞 Downloaded Video**') {
+											if (videoinfo.name !== undefined) {
+												messageText += ` - ***${videoinfo.name}***`
 											}
+										}
+										messageText += '\n`' + MessageContents.itemVideoURL + '`'
+										let Cleanedobject = {
+											Type: 'Remote',
+											ChannelID: MessageContents.messageChannelID,
+											MessageText: messageText,
+											FileName: MessageContents.itemFileName.split("?")[0],
+											FilePath: tempFilePath
+										}
+										if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
+											Cleanedobject.Backlog = true
+										}
+										if (MessageContents.itemDateTime) {
+											Cleanedobject.DateTime = MessageContents.itemDateTime
+										}
+										if (MessageContents.messageUserID) {
+											Cleanedobject.UserID = MessageContents.messageUserID
+										}
+										parseFile(Cleanedobject, function (check) {
+											fs.access(tempFilePath, error => {
+												if (!error) {
+													fs.unlink(tempFilePath, function (err) {
+													})
+												}
+											})
 										})
 									})
-								})
-							}
+								}
+							})
+							cb(true);
 						})
+					} else {
+						mqClient.sendMessage(`Error downloading the video ${MessageContents.itemVideoURL}, Not Installed`, "err", "DownloadVideo")
 						cb(true);
-					})
+					}
 				} else if (MessageContents.itemFileRaw) { // Save a Raw File
 					fs.writeFile(tempFilePath, MessageContents.itemFileRaw, "base64", function (err) {
 						if (err) {
@@ -1249,7 +1525,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			cb(true);
 		}
 	}
-	function parseFile(object, cb) {
+	async function parseFile(object, cb) {
 		try {
 			// Get Snowflake
 			globalItemNumber++
@@ -1259,13 +1535,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				itemID: itemID,
 				sendTo: systemglobal.Discord_Out,
 				messageReturn: false,
-				fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+				fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
 				messageType: "sfile"
 			}
 			if (object.Backlog && object.Backlog === true) {
 				parameters.sendTo = systemglobal.Discord_Out + '.backlog'
 			}
-			if ( object.Type.toString() === "Remote" ) {
+			if (object.Type.toString() === "Remote") {
 				// Remote - File has been sent from a remote client and has been downloaded local
 				//          This should already have its requested message and Channel ID passed
 				parameters.messageChannelID = object.ChannelID.toString()
@@ -1276,12 +1552,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					console.log(`Got Remote Date and Time for File : ${parameters.itemDateTime}`)
 				}
 				Logger.printLine("FileProcessor", `Processing Remote File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
-			} else if ( object.Type.toString() === "Local" ) {
+			} else if (object.Type.toString() === "Local") {
 				// Local - File has been sent from the local file queue and is a local file on the system
 				//         No known channel is passed but comes with a GroupID and original file pat
 				parameters.messageText = ''
 				parameters.itemFileName = object.FileName.split("?")[0].toString()
 				parameters.clientPath = object.OriginPath.toString()
+				parameters.prioritySend = (!!object.Priority)
 				parameters.clientGroupID = object.OriginGroup.toString()
 				parameters.itemDateTime = object.DateTime.toString()
 				// Determine the Channel to send file to from its folder Path
@@ -1293,7 +1570,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.messageChannelID = FolderPairs.get("Data").id;
 				}
 				Logger.printLine("FileProcessor", `Processing Local File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
-			} else if (object.Type.toString() === "Proxy"  ) {
+			} else if (object.Type.toString() === "Proxy") {
 				// Proxy - File has been sent from a remote FileWorker but requires this server to send
 				//         the file to its final destination, No processing is required for the file
 				//         Pretty much its just a message proxy to discord
@@ -1308,9 +1585,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("FileProcessor", `Processing Proxy File : ${object.FileName.toString()}`, "debug", parameters)
 			}
 			//  If not going to the Twitter Compose channel, Add the Buttons
-			parameters.addButtons = ["Pin" ]
+			parameters.addButtons = ["Pin"]
 			if (parameters.messageChannelID === discordServers.get('homeGuild').chid_download) {
 				parameters.addButtons.push("RemoveFile")
+			}
+
+			if (parameters.prioritySend || (systemglobal.FW_Priority_Channels && systemglobal.FW_Priority_Channels.length > 0 && systemglobal.FW_Priority_Channels.indexOf(parameters.messageChannelID) !== -1)) {
+				parameters.sendTo = systemglobal.Discord_Out + '.priority';
 			}
 			parameters.addButtons.push("Archive", "MoveMessage")
 			if (object.UserID) {
@@ -1339,9 +1620,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					.resize(resizeParam)
 					.toFormat('jpg')
 					.toBuffer({resolveWithObject: true})
-					.then(({data, info}) => { callback(data.toString('base64')) })
-					.catch((err) => { callback(false) });
+					.then(({data, info}) => {
+						callback(data.toString('base64'))
+					})
+					.catch((err) => {
+						callback(false)
+					});
 			}
+
 			// Get EXIF Data
 			function getImageData(filename, callback) {
 				try {
@@ -1373,115 +1659,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					console.error(e);
 				}
 			}
-			// Encode Video File
-			function encodeVideo(filename, intent, fulfill) {
-				return new Promise(function (fulfill) {
-					const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
-					if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
-						try {
-							const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
-							deleteFile(possiblePreview, function (ready) {
-								// Do Nothing
-							})
-							fulfill(output);
-						} catch (err) {
-							fulfill(null);
-							Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-						}
-					} else {
-						const outputfile = path.join(systemglobal.TempFolder, 'TEMPVIDEO');
-						let scriptOutput = "";
-						const spawn = require('child_process').spawn;
-						let ffmpegParam = []
-						if (intent === true) {
-							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
-						} else {
-							ffmpegParam = ['-hide_banner', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
-						}
-						console.log("[FFMPEG] Starting to encode video...")
-						const child = spawn(EncoderConf.Exec, ffmpegParam);
-						// You can also use a variable to save the output
-						// for when the script closes later
-						child.stdout.setEncoding('utf8');
-						child.stdout.on('data', function (data) {
-							//Here is where the output goes
-							console.log(data);
-							data = data.toString();
-							scriptOutput += data;
-						});
-						child.stderr.setEncoding('utf8');
-						child.stderr.on('data', function (data) {
-							//Here is where the error output goes
-							console.log(data);
-							data = data.toString();
-							scriptOutput += data;
-						});
-						child.on('close', function (code) {
-							if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
-								try {
-									const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-									deleteFile(outputfile, function (ready) {
-										// Do Nothing
-									})
-									fulfill(output);
-								} catch (err) {
-									fulfill(null);
-									Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-								}
-							} else {
-								mqClient.sendMessage("Post-Encoded video file was to large to be send! Will be a multipart file", "info")
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(null)
-							}
-						});
-					}
-				})
-			}
-			// Generate Video Preview Image
-			function previewVideo(filename, intent, fulfill) {
-				return new Promise(function (fulfill) {
-					const outputfile = path.join(systemglobal.TempFolder, 'TEMPPREVIEW.jpg');
-					let scriptOutput = "";
-					const spawn = require('child_process').spawn;
-					let ffmpegParam = ['-hide_banner', '-y', '-ss', '0.25', '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-					console.log("[FFMPEG] Getting Preview Image...")
-					const child = spawn(EncoderConf.Exec, ffmpegParam);
-					child.stdout.setEncoding('utf8');
-					child.stdout.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.stderr.setEncoding('utf8');
-					child.stderr.on('data', function (data) {
-						console.log(data);
-						data = data.toString();
-						scriptOutput += data;
-					});
-					child.on('close', function (code) {
-						if (code === 0 && fileSize(outputfile) > 0.00001) {
-							try {
-								const output = fs.readFileSync(outputfile, {encoding: 'base64'})
-								deleteFile(outputfile, function (ready) {
-									// Do Nothing
-								})
-								fulfill(output);
-							} catch (err) {
-								fulfill(null);
-								Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
-							}
-						} else {
-							mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
-							deleteFile(outputfile, function (ready) {
-								// Do Nothing
-							})
-							fulfill(null)
-						}
-					});
-				})
-			}
+
 			// Generate a MultiPart File
 			function sendMultiPartFile(cb) {
 				const filepartsid = crypto.randomBytes(16).toString("hex");
@@ -1509,6 +1687,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
+
 				function sendPreview(b64Data, previewSuffix) {
 					parameters.messageType = "sfile";
 					parameters.messageText = `**🧩 File : ${filepartsid}**\n*🏷 Name: ${object.FileName.toString()} (${flesize.toFixed(2)} MB)*\n` + txtMessage;
@@ -1532,21 +1711,53 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
-				function sendMultiPreview(b64Data, b64Preview, videoSuffix, previewSuffix) {
+
+				function sendMultiPreview(b64Data, b64AnimatedPreview, b64Preview) {
 					parameters.messageType = "smultifile";
 					parameters.messageText = `**🧩 File : ${filepartsid}**\n*🏷 Name: ${object.FileName.toString()} (${flesize.toFixed(2)} MB)*\n` + txtMessage
 					parameters.addButtons = ["ReqFile", "Pin", "RemoveFile", "Archive", "MoveMessage"]
-					parameters.itemFileArray = [
-						{
-							fileName: '' + filepartsid + videoSuffix,
+					let attachments = [];
+					if (b64Data) {
+						attachments.push({
+							fileName: '' + filepartsid + '.mp4',
 							fileData: '' + b64Data
-						},
-						{
-							fileName: '' + filepartsid + previewSuffix,
+						})
+					}
+					if (b64AnimatedPreview) {
+						attachments.push({
+							fileName: `${filepartsid}-t9-preview-video.gif`,
+							fileData: '' + b64AnimatedPreview
+						})
+					}
+					if (b64Preview) {
+						attachments.push({
+							fileName: '' + filepartsid + '-t9-preview-video.jpg',
 							fileData: '' + b64Preview
+						})
+					}
+
+					if (attachments.length === 1) {
+						parameters.itemFileData = attachments[0].fileData;
+						parameters.itemFileName = attachments[0].fileName;
+					} else if (attachments.length === 2) {
+						parameters.itemFileArray = attachments;
+						delete parameters.itemFileName
+					} else if (attachments.length === 3) {
+						parameters.itemFileArray = attachments.slice(0,2)
+						parameters.extendedContent = {
+							preview_image: 'FILE-0'
 						}
-					];
-					delete parameters.itemFileName
+						parameters.extendedAttachments = [
+							{
+								name: attachments[2].fileName,
+								file: attachments[2].fileData
+							}
+						]
+						delete parameters.itemFileName
+					} else {
+						sendTxt();
+					}
+
 					mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 						if (callback) {
 							Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
@@ -1564,16 +1775,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					});
 				}
+
 				function postSplit(names) {
 					Logger.printLine("MPFGen", `Completed splitting file "${filepartsid}" into ${names.length} parts`, "info")
 					// Send Each Part
 					let MPFChannelID_Lookup = undefined
-					FolderPairs.forEach(e => { if (e.id === parameters.messageChannelID.toString()) { MPFChannelID_Lookup = e.parts } })
+					FolderPairs.forEach(e => {
+						if (e.id === parameters.messageChannelID.toString()) {
+							MPFChannelID_Lookup = e.parts
+						}
+					})
 					if (MPFChannelID_Lookup) {
 						postSplitParser(MPFChannelID_Lookup, names);
 					} else {
 						Logger.printLine("MPFGen", `No Parity Channel was mapped, Searching for Spanned File Storage Channel ID...`, "debug", parameters)
-						db.safe(`SELECT discord_servers.chid_filedata FROM kanmi_channels, discord_servers WHERE kanmi_channels.channelid = ? AND kanmi_channels.serverid = discord_servers.serverid`, [parameters.messageChannelID], (err, serverdata) => {
+						db.safe(`SELECT discord_servers.chid_filedata
+								 FROM kanmi_channels,
+									  discord_servers
+								 WHERE kanmi_channels.channelid = ?
+								   AND kanmi_channels.serverid = discord_servers.serverid`, [parameters.messageChannelID], (err, serverdata) => {
 							if (err) {
 								if (FolderPairs.has("Data")) {
 									mqClient.sendMessage(`SQL Error occurred when finding the file parts channel for ${parameters.messageChannelID}, Using default channel`, "err", "SQL", err);
@@ -1597,10 +1817,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})
 					}
 				}
+
 				function postSplitParser(MPFChannelID, names) {
 					let sentParts = 0;
 					parameters.fileData = {
-						name: object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_'),
+						name: object.FileName.toString().trim().replace(/[/\\?%*:|"<>]/g, '_'),
 						uuid: filepartsid,
 						size: flesize.toFixed(2),
 						total: names.length
@@ -1620,7 +1841,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									filePartTotal: names.length,
 									messageType: "sfile",
 									messageChannelID: MPFChannelID,
-									messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<> ]/g, '_')}\n📦 Part: ${key}/${names.length}`,
+									messageText: `🧩 ID: ${filepartsid}\n🏷 Name: ${object.FileName.toString().trim().replace(/[/\\?%*:|"<>]/g, '_')}\n📦 Part: ${key}/${names.length}`,
 									itemFileName: path.basename(partpath).split("?")[0],
 									itemFileData: '' + partBase64String
 								}, async (ok) => {
@@ -1640,7 +1861,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}))
 					}, Promise.resolve());
-					requests.then(() => {
+					requests.then(async () => {
 						if (sentParts !== names.length) {
 							mqClient.sendMessage(`Error occurred when getting split file "${object.FilePath.toString()}" for transport - Not all parts were uploaded (${sentParts} !== ${names.length})! Retry...`, "err", "MPFGen")
 							cb(false)
@@ -1662,53 +1883,32 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								})
 							})
 						} else if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
-							previewVideo(object.FilePath.toString())
-								.then((imageFulfill) => {
-									if (imageFulfill != null ) {
-										encodeVideo(object.FilePath.toString(), true)
-											.then((fulfill) => {
-												if (fulfill != null ) {
-													sendMultiPreview(fulfill, imageFulfill, '.mp4', '-t9-preview-video.jpg')
-												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "")
-													sendPreview(imageFulfill, '.mp4')
-												}
-											})
-											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send with image preview only!`, "err", "", er)
-												sendPreview(imageFulfill, '-t9-preview-video.jpg')
-											})
-									} else {
-										encodeVideo(object.FilePath.toString(), true)
-											.then((fulfill) => {
-												if (fulfill != null ) {
-													sendPreview(fulfill, '.mp4')
-												} else {
-													mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "")
-													sendTxt()
-												}
-											})
-											.catch((er) => {
-												mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-												sendTxt()
-											})
-									}
+							// Get Video Duration
+							const startPosition = await (async (filename) => {
+								const exec = require('child_process').exec;
+								let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+								const duration = await new Promise((resolve) => {
+									exec(ffmpegParam, (err, stdout, stderr) => {
+										if (err) {
+											console.error(err);
+											resolve(false);
+										}
+										resolve(parseInt(stdout.split("\n").join("").trim()));
+									})
 								})
-								.catch((er) => {
-									encodeVideo(object.FilePath.toString(), true)
-										.then((fulfill) => {
-											if (fulfill != null ) {
-												sendPreview(fulfill, '.mp4')
-											} else {
-												mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-												sendTxt()
-											}
-										})
-										.catch((er) => {
-											mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send without previews!`, "err", "", er)
-											sendTxt()
-										})
-								})
+								if (duration) {
+									return msToTime((duration * .25) * 1000)
+								} else {
+									return '00:00:00'
+								}
+							})(object.FilePath.toString());
+
+							const preview_animated = await animateVideo(object.FilePath.toString(), startPosition)
+							const preview_image = await previewVideo(object.FilePath.toString(), startPosition)
+							const preview_video = await encodeVideo(object.FilePath.toString(), true)
+
+
+							sendMultiPreview(preview_video, preview_animated, preview_image)
 						} else {
 							sendTxt()
 						}
@@ -1718,52 +1918,139 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (systemglobal.UseJSSplit) {
 					Logger.printLine("MPFGen", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
 					splitFile.splitFileBySize(object.FilePath.toString(), 7500000)
-						.then((names) => { postSplit(names) })
+						.then((names) => {
+							postSplit(names)
+						})
 						.catch((err) => {
 							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport, Ticket will be dropped!`, "err", "MPFGen", err)
 							cb(true);
 						});
 				} else {
-					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
+					expectedParityParts = (fileSize(object.FilePath.toString()) / 7.5)
 
+					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" in to ${expectedParityParts} parts as "${filepartsid}"...`, "info")
 					try {
-						const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
-						const FileName = path.basename(object.FilePath.toString())
-						const nativeSplit = spawn("split", ["-b", "7500K", "--verbose", `${FileName}`, `JFS_${filepartsid}.PSF-`], { cwd: FileBase });
+						if (expectedParityParts > 670) {
+							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
+							const FileName = path.basename(object.FilePath.toString())
+							const nativeSplit = spawn("split", ["-b", "5000000000", `${FileName}`, `MULTI_JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
-						nativeSplit.stderr.on("data", data => {
-							Logger.printLine("MPFGen-Native", `${data}`, "error")
-						});
+							nativeSplit.stderr.on("data", data => {
+								Logger.printLine("MPFGen-Native-MultiSplit", `${data}`, "info")
+							});
 
-						nativeSplit.on('error', (err) => {
-							mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${err.message}", Ticket will be dropped!`, "err", "MPFGen", err)
-							cb(true);
-						});
-
-						nativeSplit.on("close", code => {
-							if (code === 0) {
-								fs.readdir(FileBase, function (err, files) {
-									//handling error
-									if (err) {
-										mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
-										cb(true);
-									} else if (files.length > 0) {
-										const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
-										if (nativeParts.length > 0) {
-											setTimeout(() => {
-												postSplit(nativeParts.map(e => path.join(FileBase, e)))
-											}, 2000);
-										} else {
-											mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
-											cb(true);
-										}
-									}
-								});
-							} else {
-								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen", err)
+							nativeSplit.on('error', (err) => {
+								mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
 								cb(true);
-							}
-						});
+							});
+
+							nativeSplit.on("close", code => {
+								if (code === 0) {
+									fs.readdir(FileBase, async function (err, files) {
+										//handling error
+										if (err) {
+											mqClient.sendMessage(`Error occurred when getting the multi-split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+											cb(true);
+										} else if (files.length > 0) {
+											const nativeParts = files.filter(e => e.startsWith(`MULTI_JFS_${filepartsid}.PSF-`));
+											if (nativeParts.length > 0) {
+												let parityList = [];
+												let requests = nativeParts.reduce((promiseChain, msf) => {
+													return promiseChain.then(() => new Promise((resolve) => {
+														const nativeSplitParts = spawn("split", ["-b", "7500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
+
+														nativeSplitParts.stderr.on("data", data => { Logger.printLine("MPFGen-Native", `${data}`, "info") });
+
+														nativeSplitParts.on('error', (err) => {
+															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+															cb(true);
+															resolve(false);
+														});
+
+														nativeSplitParts.on("close", code => {
+															if (code === 0) {
+																fs.readdir(FileBase, function (err, files) {
+																	//handling error
+																	if (err) {
+																		mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+																		cb(true);
+																		resolve(false);
+																	} else if (files.length > 0) {
+																		const nativeParts = files.filter(e => e.startsWith(`${msf.replace('MULTI_JFS_', 'JFS_')}-`));
+																		if (nativeParts.length > 0) {
+																			rimraf(path.join(path.resolve(path.dirname(object.FilePath.toString())), msf), () => {console.log('Removed Temp Multi-Split File')})
+																			parityList.push(...nativeParts.map(e => path.join(FileBase, e)))
+																			setTimeout(() => {
+																				resolve(true);
+																			}, 2000);
+																		} else {
+																			mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+																			cb(true);
+																			resolve(false);
+																		}
+																	}
+																});
+															} else {
+																mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+																cb(true);
+																resolve(false);
+															}
+														});
+													}));
+												}, Promise.resolve());
+												requests.then(function (results) {
+													postSplit(parityList)
+												})
+											} else {
+												mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+												cb(true);
+											}
+										}
+									});
+								} else {
+									mqClient.sendMessage(`Error occurred when multi-splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+									cb(true);
+								}
+							});
+						} else {
+							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
+							const FileName = path.basename(object.FilePath.toString())
+							const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
+
+							nativeSplit.stderr.on("data", data => {
+								Logger.printLine("MPFGen-Native", `${data}`, "info")
+							});
+
+							nativeSplit.on('error', (err) => {
+								mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
+								cb(true);
+							});
+
+							nativeSplit.on("close", code => {
+								if (code === 0) {
+									fs.readdir(FileBase, function (err, files) {
+										//handling error
+										if (err) {
+											mqClient.sendMessage(`Error occurred when getting split files "${object.FilePath.toString()}" for transport - ${err.message}, Ticket will be dropped!`, "err", "MPFGen", err)
+											cb(true);
+										} else if (files.length > 0) {
+											const nativeParts = files.filter(e => e.startsWith(`JFS_${filepartsid}.PSF-`));
+											if (nativeParts.length > 0) {
+												setTimeout(() => {
+													postSplit(nativeParts.map(e => path.join(FileBase, e)))
+												}, 2000);
+											} else {
+												mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - No parity parts generated, Ticket will be dropped!`, "err", "MPFGen", err)
+												cb(true);
+											}
+										}
+									});
+								} else {
+									mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - Stop Code ${code}, Ticket will be dropped!`, "err", "MPFGen")
+									cb(true);
+								}
+							});
+						}
 					} catch (err) {
 						Logger.printLine("JobParser", "Error Parsing Local Job - " + err.message, "critical")
 						console.error(err);
@@ -1772,7 +2059,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
-			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy" ) {
+			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 12 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {
 						if (path.extname(object.FileName.toString()).split(".").pop().toLowerCase() !== "png") {
@@ -1824,30 +2111,26 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					Logger.printLine("ParseFile", `${object.FileName.toString()} : Encode Video`, "debug", {
 						fileSize: fileSize(object.FilePath.toString())
 					})
-					encodeVideo(object.FilePath.toString(), false)
-						.then((fulfill) => {
-							if (fulfill != null ) {
-								parameters.itemFileData = fulfill
-								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-									if (callback) {
-										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-										if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-											// Do Nothing
-										}) }
-										cb(true)
-									} else {
-										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-										cb(false)
-									}
-								});
+					const fulfill = await encodeVideo(object.FilePath.toString(), false)
+					if (fulfill) {
+						parameters.itemFileData = fulfill
+						mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+							if (callback) {
+								Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+								if (object.Type.toString() === "Remote") {
+									deleteFile(object.FilePath.toString(), function (ready) {
+										// Do Nothing
+									})
+								}
+								cb(true)
 							} else {
-								sendMultiPartFile(cb)
+								Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+								cb(false)
 							}
-						})
-						.catch((er) => {
-							mqClient.sendMessage(`Error occurred when encoding the video "${object.FilePath.toString()}" for transport, Will send as MPF!`, "err", "", err)
-							sendMultiPartFile(cb)
-						})
+						});
+					} else {
+						sendMultiPartFile(cb)
+					}
 				} else {
 					Logger.printLine("ParseFile", `${object.FileName.toString()} : File to Large`, "debug", {
 						fileSize: fileSize(object.FilePath.toString())
@@ -1858,6 +2141,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("ParseFile", `${object.FileName.toString()} : Direct Send`, "debug", {
 					fileSize: fileSize(object.FilePath.toString())
 				})
+
 				function sendFile(ready) {
 					fs.open(object.FilePath.toString(), 'r+', function (err, fd) {
 						if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
@@ -1874,20 +2158,32 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				}
+
 				function sendMultiFile(preview, ready) {
 					fs.open(object.FilePath.toString(), 'r+', function (err, fd) {
 						if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
 							ready(false)
 						} else {
 							fs.close(fd, function () {
+								if (preview.length > 1) {
+									parameters.extendedContent = {
+										preview_image: 'FILE-0'
+									}
+									parameters.extendedAttachments = [
+										{
+											name: `${parameters.itemFileName.split('.')[0]}-t9-preview-video.${(preview[1].type === 1) ? 'gif' : 'jpg'}`,
+											file: preview[1].data
+										}
+									]
+								}
 								parameters.itemFileArray = [
 									{
 										fileName: '' + parameters.itemFileName,
 										fileData: '' + fs.readFileSync(object.FilePath.toString(), {encoding: 'base64'}).toString()
 									},
 									{
-										fileName: '' + parameters.itemFileName.split('.')[0] + "-t9-preview-video.jpg",
-										fileData: '' + preview
+										fileName: `${parameters.itemFileName.split('.')[0]}-t9-preview-video.${(preview[0].type === 1) ? 'gif' : 'jpg'}`,
+										fileData: '' + preview[0].data
 									}
 								];
 								ready(true)
@@ -1895,6 +2191,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				}
+
 				if (systemglobal.FW_Accepted_Images.indexOf(object.FileName.toString().split(".").pop().toLowerCase()) !== -1) {
 					getImageData(object.FilePath.toString(), function (_date) {
 						if (_date) {
@@ -1908,9 +2205,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 									if (callback) {
 										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-										if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-											// Do Nothing
-										}) }
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
+										}
 										cb(true)
 									} else {
 										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
@@ -1921,71 +2220,84 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})
 					})
 				} else if (systemglobal.FW_Accepted_Videos.indexOf(object.FileName.toString().split(".").pop().toLowerCase()) !== -1) {
-					previewVideo(object.FilePath.toString())
-						.then((imageFulfill) => {
-							if (imageFulfill != null ) {
-								sendMultiFile(imageFulfill, function (ready) {
-									if (ready) {
-										mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-											if (callback) {
-												Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-												if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-													// Do Nothing
-												}) }
-												cb(true)
-											} else {
-												Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-												cb(false)
-											}
-										});
-									}
-								})
-							} else {
-								sendFile(function (ready) {
-									if (ready) {
-										mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-											if (callback) {
-												Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-												if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-													// Do Nothing
-												}) }
-												cb(true)
-											} else {
-												Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-												cb(false)
-											}
-										});
-									}
-								})
-							}
-						})
-						.catch((er) => {
-							sendFile(function (ready) {
-								if (ready) {
-									mqClient.sendData(parameters.sendTo, parameters, function (callback) {
-										if (callback) {
-											Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-											if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-												// Do Nothing
-											}) }
-											cb(true)
-										} else {
-											Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
-											cb(false)
-										}
-									});
+					// Get Video Duration
+					const startPosition = await (async (filename) => {
+						const exec = require('child_process').exec;
+						let ffmpegParam = `ffmpeg -i "${filename}" 2>&1 | grep "Duration"| cut -d ' ' -f 4 | sed s/,// | sed 's@\\..*@@g' | awk '{ split($1, A, ":"); split(A[3], B, "."); print 3600*A[1] + 60*A[2] + B[1] }'`
+						const duration = await new Promise((resolve) => {
+							exec(ffmpegParam, (err, stdout, stderr) => {
+								if (err) {
+									console.error(err);
+									resolve(false);
 								}
+								resolve(parseInt(stdout.split("\n").join("").trim()));
 							})
 						})
+						if (duration) {
+							return msToTime((duration * .25) * 1000)
+						} else {
+							return '00:00:00'
+						}
+					})(object.FilePath.toString());
+
+					const preview_animated = await animateVideo(object.FilePath.toString(), startPosition)
+					const preview_image = await previewVideo(object.FilePath.toString(), startPosition)
+
+					let previews = [];
+					if (preview_animated)
+						previews.push({ data: preview_animated, type: 1 });
+					if (preview_image)
+						previews.push({ data: preview_image, type: 0 });
+					if (previews.length > 0) {
+						sendMultiFile(previews, function (ready) {
+							if (ready) {
+								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+									if (callback) {
+										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
+										}
+										cb(true)
+									} else {
+										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										cb(false)
+									}
+								});
+							}
+						})
+					} else {
+						sendFile(function (ready) {
+							if (ready) {
+								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+									if (callback) {
+										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										if (object.Type.toString() === "Remote") {
+											deleteFile(object.FilePath.toString(), function (ready) {
+												// Do Nothing
+											})
+										}
+										cb(true)
+									} else {
+										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										cb(false)
+									}
+								});
+							}
+						})
+					}
 				} else {
 					sendFile(function (ready) {
 						if (ready) {
 							mqClient.sendData(parameters.sendTo, parameters, function (callback) {
 								if (callback) {
 									Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
-									if (object.Type.toString() === "Remote") { deleteFile(object.FilePath.toString(), function (ready) {
-										// Do Nothing
-									}) }
+									if (object.Type.toString() === "Remote") {
+										deleteFile(object.FilePath.toString(), function (ready) {
+											// Do Nothing
+										})
+									}
 									cb(true)
 								} else {
 									Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
