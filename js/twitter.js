@@ -2062,7 +2062,7 @@ const systemglobal = require("../config.json");
 							}
 						}
 					} else {
-						mqClient.sendMessage(`Error retrieving tweet`, "err", "TwitterMentions", err)
+						Logger.printLine("TwitterMentions", `Error retrieving tweet`, "error", err)
 					}
 				})
 			})
@@ -2093,7 +2093,7 @@ const systemglobal = require("../config.json");
 						}
 					twit.client.get('lists/statuses', params, function (err, tweets) {
 						if (err) {
-							mqClient.sendMessage(`Error retrieving twitter ${list.name} (${list.listid})!`, "err", "TwitterInbound", err)
+							Logger.printLine("TwitterInbound", `Error retrieving twitter ${list.name} (${list.listid})!`, "error", err)
 							listResolve(false);
 						} else {
 					twit.client.get('lists/members', { list_id: '' + list.listid, count: 1000 }, function (err, listUsers) {
