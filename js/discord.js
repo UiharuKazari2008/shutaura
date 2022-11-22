@@ -3673,6 +3673,18 @@ This code is publicly released and is restricted by its project license
                                     SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
                                 }
                                 break;
+                            case 'pull':
+                                mqClient.sendData(systemglobal.Twitter_In, {
+                                    fromWorker: systemglobal.SystemName,
+                                    messageText: "",
+                                    messageIntent: 'PullTweets',
+                                    messageAction: undefined,
+                                    tweetCount: (args.length > 1) ? args[1] : undefined
+                                }, function (ok) {
+                                    if (ok)
+                                        SendMessage(`Grabbing ${(args.length > 1) ? args[1] : ''}tweets from lists`, "system", msg.guildID, "TwitterUpdate")
+                                })
+                                break;
                             default:
                                 SendMessage("⁉ Unknown Command", "system", msg.guildID, "TwitterMgr")
                                 break;

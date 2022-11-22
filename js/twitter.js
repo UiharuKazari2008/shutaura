@@ -1988,6 +1988,10 @@ const systemglobal = require("../config.json");
 				case "DownloadUser":
 					downloadUser(message, cb);
 					break;
+				case "PullTweets":
+					getTweets(message.tweetCount);
+					cb(true);
+					break;
 				case "SendTweet":
 					sendTweet((message.accountID) ? message.accountID : 1, message, (ok) => {
 						cb(true);
@@ -2068,7 +2072,7 @@ const systemglobal = require("../config.json");
 			})
 		})
 	}
-	async function getTweets(getRt) {
+	async function getTweets(countLimit) {
 		Array.from(twitterAccounts.entries()).forEach(async e => {
 			const id = e[0];
 			const twit = e[1];
@@ -2088,7 +2092,7 @@ const systemglobal = require("../config.json");
 					limiter1.removeTokens(1, function () {
 						let params = {
 							list_id: '' + list.listid,
-							count: 500,
+							count: countLimit || 500,
 							include_rts: '' + list.getretweets
 						}
 					twit.client.get('lists/statuses', params, function (err, tweets) {
