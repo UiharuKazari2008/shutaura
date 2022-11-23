@@ -160,6 +160,8 @@ const systemglobal = require("../config.json");
 	// Twitter Timeline Checkins
 	const limiter1 = new RateLimiter(1, (systemglobal.Twitter_Timeline_Pull) ? parseInt(systemglobal.Twitter_Timeline_Pull.toString()) * 1000 : 1000);
 	const limiter5 = new RateLimiter(75, 15 * 60 * 1000);
+	// Twitter User Timeline Pulls
+	const limiter6 = new RateLimiter(895, 15 * 60 * 1000);
 	// RabbitMQ
 	const limiter3 = new RateLimiter(10, 1000);
 	// Twitter Media Upload
@@ -1829,6 +1831,58 @@ const systemglobal = require("../config.json");
 			});
 		}
 	}
+	async function downloadMissingTweets(cb) {
+		Array.from(twitterAccounts.entries()).forEach(async e => {
+			const id = e[0];
+			const twit = e[1];
+
+			const twitterlist = await db.query(`SELECT * FROM twitter_list WHERE taccount = ?`, [id]);
+			if (twitterlist.error) { console.error(twitterlist.error) }
+
+			let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
+				return promiseChain.then(() => new Promise((listResolve) => {
+					limiter1.removeTokens(1, function () {
+						let params = {
+							list_id: '' + list.listid,
+							count: 5000,
+							skip_status: true,
+							include_entities: false
+						}
+						twit.client.get('lists/members', params, function (err, listMembers) {
+							if (err) {
+								Logger.printLine("TwitterImport", `Error retrieving twitter ${list.name} (${list.listid})!`, "error", err)
+								listResolve(false);
+							} else {
+								let tweetRequests = listMembers.reduce((promiseChain1, memeber) => {
+									return promiseChain1.then(() => new Promise(async (tweetResolve) => {
+										limiter6.removeTokens(1, function () {
+											downloadUser({
+												accountID: id,
+												userID: memeber.screen_name,
+												excludeRT: true,
+												excludeReplys: true,
+												allowDuplicates: false,
+												messageChannelID: list.channelid
+											},(state) => {
+												tweetResolve(state);
+											})
+										})
+									}));
+								}, Promise.resolve());
+								tweetRequests.then((ok) => {
+									console.log(`Account ${id}: List Complete - ${list.listid}`)
+									listResolve(true);
+								});
+							}
+						})
+					});
+				}))
+			}, Promise.resolve());
+			listRequests.then(async (ok) => {
+				console.log(`Account ${id}: Completed Pass`);
+			})
+		})
+	}
 	function listManagment(message, cb) {
 		const accountID = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
 		const twit = twitterAccounts.get(accountID);
@@ -1989,7 +2043,7 @@ const systemglobal = require("../config.json");
 					downloadUser(message, cb);
 					break;
 				case "PullTweets":
-					getTweets(message.tweetCount);
+					downloadMissingTweets();
 					cb(true);
 					break;
 				case "SendTweet":
