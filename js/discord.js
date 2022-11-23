@@ -3683,10 +3683,10 @@ This code is publicly released and is restricted by its project license
                                     messageText: "",
                                     messageIntent: 'PullTweets',
                                     messageAction: undefined,
-                                    tweetCount: (args.length > 1) ? args[1] : undefined
+                                    listID: (args.length > 1) ? args[1] : undefined
                                 }, function (ok) {
                                     if (ok)
-                                        SendMessage(`Grabbing ${(args.length > 1) ? args[1] : ''}tweets from lists`, "system", msg.guildID, "TwitterUpdate")
+                                        SendMessage(`Grabbing tweets from ${(args.length > 1) ? 'list ID ' + args[1] : 'lists'}`, "system", msg.guildID, "TwitterUpdate")
                                 })
                                 break;
                             default:
