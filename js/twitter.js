@@ -1831,7 +1831,7 @@ const systemglobal = require("../config.json");
 			});
 		}
 	}
-	async function downloadMissingTweets(cb) {
+	async function downloadMissingTweets() {
 		Array.from(twitterAccounts.entries()).forEach(async e => {
 			const id = e[0];
 			const twit = e[1];
@@ -1853,7 +1853,7 @@ const systemglobal = require("../config.json");
 								Logger.printLine("TwitterImport", `Error retrieving twitter ${list.name} (${list.listid})!`, "error", err)
 								listResolve(false);
 							} else {
-								let tweetRequests = listMembers.reduce((promiseChain1, memeber) => {
+								let tweetRequests = listMembers.users.reduce((promiseChain1, memeber) => {
 									return promiseChain1.then(() => new Promise(async (tweetResolve) => {
 										limiter6.removeTokens(1, function () {
 											downloadUser({
