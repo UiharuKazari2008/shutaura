@@ -1079,8 +1079,11 @@ This code is publicly released and is restricted by its project license
                                                 }
                                             } else {
                                                 const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
-                                                if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
-                                                    sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                                if (tweetMeta.rows.length > 0) {
+                                                    await db.query(`UPDATE twitter_tweets SET decision = 1 WHERE messageid = ?`, [fullmsg.id])
+                                                    if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
+                                                        sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                                    }
                                                 }
                                             }
                                         })().then(r => {})
@@ -1167,7 +1170,7 @@ This code is publicly released and is restricted by its project license
                                                 Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
                                                 console.error(er)
                                                 if (er && er.message && er.message.includes('Unknown Message')) {
-                                                    await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
+                                                    //await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
                                                 }
                                                 cb(true);
                                             })
@@ -1183,6 +1186,7 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'RemovePost':
+                            await db.query(`UPDATE IGNORE twitter_tweets SET decision = 0 WHERE messageid = ?`, [MessageContents.messageID])
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     jfsRemove(fullmsg)
@@ -7796,7 +7800,6 @@ This code is publicly released and is restricted by its project license
         }
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
-        await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
     }
     async function messageDeleteBulk(msg_array) {
         const dateNow = new Date().valueOf();
