@@ -1836,7 +1836,7 @@ const systemglobal = require("../config.json");
 			const id = e[0];
 			const twit = e[1];
 
-			const twitterlist = await db.query(`SELECT * FROM twitter_list WHERE taccount = ?${(listID) ? " AND listid = '" + listID "'" }`, [id]);
+			const twitterlist = await db.query(`SELECT * FROM twitter_list WHERE taccount = ?${(listID) ? " AND listid = '" + listID "'" : '' }`, [id]);
 			if (twitterlist.error) { console.error(twitterlist.error) }
 
 			let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
