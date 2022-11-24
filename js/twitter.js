@@ -1537,20 +1537,20 @@ const systemglobal = require("../config.json");
 					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
 						const competedTweet = await sendTweetToDiscordv2({
 							channelid: `${(message.messageChannelID) ? message.messageChannelID : discordaccount[0].chid_download}`,
-							saveid: discordaccount[0].chid_download,
+							saveid: message.messageDestinationID || discordaccount[0].chid_download,
 							nsfw: 0,
 							txtallowed: 0,
-							fromname: "Manual Download",
+							fromname: message.listName || "Manual Download",
 							tweet,
-							redirect: 0,
-							bypasscds: 0,
-							autolike: 0,
-							replyenabled: 0,
-							mergelike: 0,
-							listusers: false,
-							disablelike: 0,
-							list_num: 0,
-							list_id: 0,
+							redirect: message.listRedirect_taccount || 0,
+							bypasscds: message.listBypasscds || 0,
+							autolike: message.listAutolike || 0,
+							replyenabled: message.listReplyenabled || 0,
+							mergelike: message.listMergelike || 0,
+							listusers: message.listUsers || 0,
+							disablelike: message.listDisablelike || 0,
+							list_num: message.listNum || 0,
+							list_id: message.listId || 0,
 							accountid: twitterUser,
 						})
 						if (competedTweet && competedTweet.length > 0) {
@@ -1862,7 +1862,18 @@ const systemglobal = require("../config.json");
 												excludeRT: true,
 												excludeReplys: true,
 												allowDuplicates: false,
-												messageChannelID: list.channelid
+
+												messageDestinationID: list.channelid,
+												listName: list.name,
+												listRedirect_taccount: list.redirect_taccount,
+												listBypasscds: list.bypasscds,
+												listAutolike: list.autolike,
+												listReplyenabled: list.replyenabled,
+												listMergelike: list.mergelike,
+												listUsers: listMembers.users,
+												listDisablelike: list.disablelike,
+												listNum: list.id,
+												listId: list.listid,
 											},(state) => {
 												tweetResolve(state);
 											})
