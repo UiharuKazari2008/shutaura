@@ -1561,7 +1561,7 @@ const systemglobal = require("../config.json");
 									sent = false;
 							}
 							if (lasttweet.rows.length === 0 && sent)
-								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, null, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str])
+								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str, message.listId || null])
 						}
 					}
 					tweetResolve(true);
