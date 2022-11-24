@@ -1536,10 +1536,10 @@ const systemglobal = require("../config.json");
 					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str]);
 					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
 						const competedTweet = await sendTweetToDiscordv2({
-							channelid: `${(message.messageChannelID) ? message.messageChannelID : discordaccount[0].chid_download}`,
+							channelid: message.messageChannelID || message.messageDestinationID || discordaccount[0].chid_download,
 							saveid: message.messageDestinationID || discordaccount[0].chid_download,
-							nsfw: 0,
-							txtallowed: 0,
+							nsfw: message.listNsfw || 0,
+							txtallowed: message.listTxtallowed || 0,
 							fromname: message.listName || "Manual Download",
 							tweet,
 							redirect: message.listRedirect_taccount || 0,
@@ -1863,7 +1863,10 @@ const systemglobal = require("../config.json");
 												excludeReplys: true,
 												allowDuplicates: false,
 
-												messageDestinationID: list.channelid,
+												messageChannelID: list.channelid,
+												listNsfw: (list.nsfw === 1) ? (list.redirect_taccount !== list.taccount) ? 0 : list.nsfw : list.nsfw,
+												listTxtallowed: list.textallowed,
+												messageDestinationID: list.saveid,
 												listName: list.name,
 												listRedirect_taccount: list.redirect_taccount,
 												listBypasscds: list.bypasscds,
