@@ -1044,7 +1044,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												for (let part of itemsCompleted) {
 													fs.unlink(part, function (err) {
 														if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
-															mqClient.sendMessage(`Error removing file part from temporary folder! - ${err.message}`, "err", "MPFDownload", err)
+															//mqClient.sendMessage(`Error removing file part from temporary folder! - ${err.message}`, "err", "MPFDownload", err)
 														}
 													})
 												}
