@@ -574,6 +574,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     type = 0
                 }
                 await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, role = ?, type = ?`, [member.user.id, guild.id, roleName, type]);
+                if (roleName === 'user') {
+                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, role = ?, type = ?`, [member.user.id, guild.id, `${roleName}-${guild.id}`, type]);
+                }
             }
         }
         const userRole = serverPermissions.rows.filter(e => e.name && e.name === 'system_user').map(e => e.role)
