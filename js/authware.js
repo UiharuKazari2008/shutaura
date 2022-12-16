@@ -557,14 +557,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }))
     }
-    async function reactionAdded(partialMsg, emoji, user) {
-        if (reactionmessages.indexOf(partialMsg.id) !== -1) {
-            const msg = await discordClient.getMessage(partialMsg.channel.id, partialMsg.id);
+    async function reactionAdded(msg, emoji, user) {
+        if (reactionmessages.indexOf(msg.id) !== -1) {
             const userID = (user.id) ? user.id : user
             const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-            if (data.emoji === emoji.name && data.server === msg.guild.id) {
+            if (data.emoji === emoji.name && data.server === msg.guildID) {
                 try {
-                    const member = await discordClient.getRESTGuildMember(msg.guild.id, userID);
+                    const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
                     if (member.roles.indexOf(data.role) === -1) {
                         if (data.approval === 1) {
                             try {
@@ -572,7 +571,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 if (reqMsg && reqMsg.id) {
                                     pendingRequests.set(reqMsg.id, {
                                         data,
-                                        server: msg.guild.id,
+                                        server: msg.guildID,
                                         user: userID
                                     })
                                     await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '✅');
@@ -593,8 +592,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     Logger.printLine("UserRightsMgr", `Error when trying to get user data for ${userID}`, "error", e)
                 }
             }
-        } else if (pendingRequests.has(partialMsg.id)) {
-            const msg = await discordClient.getMessage(partialMsg.channel.id, partialMsg.id);
+        } else if (pendingRequests.has(msg.id)) {
             const req = pendingRequests.get(msg.id);
             const data = req.data;
             if (emoji.name === '✅') {
@@ -626,8 +624,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (reactionmessages.indexOf(msg.id) !== -1) {
             const userID = (user.id) ? user.id : user
             const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-            if (data.emoji === emoji.name && data.server === msg.guild.id) {
-                const member = await discordClient.getRESTGuildMember(msg.guild.id, userID);
+            if (data.emoji === emoji.name && data.server === msg.guildID) {
+                const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
                 if (member.roles.indexOf(data.role) !== -1) {
                     let _roles = removeItemAll(member.roles, [data.role]);
                     discordClient.editGuildMember(data.server, member.id, { roles: _roles, }, "User Removed Permission (Open Access)")
