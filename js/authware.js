@@ -561,8 +561,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const userID = (user.id) ? user.id : user
         if (userID !== discordClient.user.id) {
             if (reactionmessages.indexOf(msg.id) !== -1) {
-                const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-                if (data.emoji === emoji.name && data.server === msg.guildID) {
+                const data = discordreactionsroles.filter(e => e.message === msg.id && e.emoji === emoji.name).pop()
+                if (data) {
                     try {
                         const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
                         if (member.roles.indexOf(data.role) === -1) {
@@ -572,7 +572,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     if (reqMsg && reqMsg.id) {
                                         pendingRequests.set(reqMsg.id, {
                                             data,
-                                            server: msg.guildID,
+                                            server: member.guild.id,
                                             user: userID
                                         })
                                         await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '✅');
@@ -584,7 +584,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             } else {
                                 let _roles = member.roles.slice();
                                 _roles.push(data.role);
-                                discordClient.editGuildMember(data.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
+                                discordClient.editGuildMember(member.guild.id, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
                                     .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr") })
                                     .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
                             }
@@ -629,12 +629,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const userID = (user.id) ? user.id : user
         if (userID !== discordClient.user.id) {
             if (reactionmessages.indexOf(msg.id) !== -1) {
-                const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-                if (data.emoji === emoji.name && data.server === msg.guildID) {
+                const data = discordreactionsroles.filter(e => e.message === msg.id && e.emoji === emoji.name).pop()
+                if (data) {
                     const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
                     if (member.roles.indexOf(data.role) !== -1) {
                         let _roles = removeItemAll(member.roles, [data.role]);
-                        discordClient.editGuildMember(data.server, member.id, {roles: _roles,}, "User Removed Permission (Open Access)")
+                        discordClient.editGuildMember(member.guild.id, member.id, {roles: _roles,}, "User Removed Permission (Open Access)")
                             .then(() => {
                                 SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} revoked ${(data.text) ? data.text : data.role} permission`, "info", 'main', "UserRightsMgr")
                             })
