@@ -563,7 +563,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let roleText = role.text.trim();
                 let color = null;
                 if (role.color !== null && role.color !== "0") {
-                    color = role.toString(16);
+                    color = "#" + Number(parseInt(role.color)).toString(16).padStart(2, '0')
                 }
                 if (role.name.includes('_read')) {
                     type = 1
