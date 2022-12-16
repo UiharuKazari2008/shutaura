@@ -639,7 +639,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function guildRoleCreate(guild, role) {
         if (discordperms.filter(e => e.role === role.id).length === 0) {
-            const addedRole = await db.query('INSERT INTO discord_permissons SET role = ?, server = ?, color = ?, name = NULL ON DUPLICATE KEY UPDATE color = ?', [role.id, role.color, guild.id, role.color])
+            const addedRole = await db.query('INSERT INTO discord_permissons SET role = ?, server = ?, color = ?, name = NULL ON DUPLICATE KEY UPDATE color = ?', [role.id, guild.id, role.color, role.color])
             if (addedRole.error)
                 SendMessage("SQL Error occurred when saving new role", "err", 'main', "SQL", addedRole.error)
         }
