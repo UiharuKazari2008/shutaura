@@ -621,6 +621,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else if (emoji.name === '❌') {
                     await discordClient.deleteMessage(msg.channel.id, msg.id, "Declined Request")
                 }
+                pendingRequests.delete(msg.id)
             }
         }
     }
