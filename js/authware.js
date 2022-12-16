@@ -557,8 +557,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }))
     }
-    async function reactionAdded(msg, emoji, user) {
-        if (reactionmessages.indexOf(msg.id) !== -1) {
+    async function reactionAdded(partialMsg, emoji, user) {
+        if (reactionmessages.indexOf(partialMsg.id) !== -1) {
+            const msg = await discordClient.getMessage(partialMsg.channel.id, partialMsg.id);
             const userID = (user.id) ? user.id : user
             const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
             if (data.emoji === emoji.name && data.server === msg.guild.id) {
@@ -592,7 +593,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     Logger.printLine("UserRightsMgr", `Error when trying to get user data for ${userID}`, "error", e)
                 }
             }
-        } else if (pendingRequests.has(msg.id)) {
+        } else if (pendingRequests.has(partialMsg.id)) {
+            const msg = await discordClient.getMessage(partialMsg.channel.id, partialMsg.id);
             const req = pendingRequests.get(msg.id);
             const data = req.data;
             if (emoji.name === '✅') {
