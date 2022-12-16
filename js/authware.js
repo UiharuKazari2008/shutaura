@@ -34,6 +34,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
     const fs = require('fs');
+    String.prototype.toHex = function() {
+        var hash = 0;
+        if (this.length === 0) return hash;
+        for (var i = 0; i < this.length; i++) {
+            hash = this.charCodeAt(i) + ((hash << 5) - hash);
+            hash = hash & hash;
+        }
+        var color = '#';
+        for (var i = 0; i < 3; i++) {
+            var value = (hash >> (i * 8)) & 255;
+            color += ('00' + value.toString(16)).substr(-2);
+        }
+        return color;
+    }
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
@@ -561,6 +575,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             for (const role of serverPermissions.rows.filter(e => e.name && member.roles.indexOf(e.role) !== -1 && ignoredPermissions.indexOf(e.name) === -1)) {
                 let type = null;
                 let roleName = role.name.trim();
+                let color = null;
+                if (role.color !== null && role.color !== "0") {
+                    color = role.color.toHex();
+                }
                 if (role.name.includes('_read')) {
                     type = 1
                 } else if (role.name.includes('_write')) {
@@ -573,9 +591,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     type = 0
                 }
-                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, role = ?, type = ?`, [member.user.id, guild.id, roleName, type]);
+                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleName, type]);
                 if (roleName === 'user') {
-                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, role = ?, type = ?`, [member.user.id, guild.id, `${roleName}-${guild.id}`, type]);
+                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, role = ?, type = ?`, [member.user.id, guild.id, color, `${roleName}-${guild.id}`, type]);
                 }
             }
         }
@@ -705,13 +723,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }))
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
-            await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
-                const member = guild.members.get(memberID)
-                await memberRoleGeneration(guild, member);
-            }))
+
             await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
                 const role = guild.roles.get(roleID)
                 await guildRoleCreate(guild, role);
+            }))
+            await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
+                const member = guild.members.get(memberID)
+                await memberRoleGeneration(guild, member);
             }))
         }))
         await updateLocalCache();
