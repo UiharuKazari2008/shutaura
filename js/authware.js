@@ -561,9 +561,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (reactionmessages.indexOf(msg.id) !== -1) {
             const userID = (user.id) ? user.id : user
             const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-            if (data.emoji === emoji.name && data.server === msg.server.id) {
+            if (data.emoji === emoji.name && data.server === msg.guild.id) {
                 try {
-                    const member = await discordClient.getRESTGuildMember(msg.server.id, userID);
+                    const member = await discordClient.getRESTGuildMember(msg.guild.id, userID);
                     if (member.roles.indexOf(data.role) === -1) {
                         if (data.approval === 1) {
                             try {
@@ -571,7 +571,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 if (reqMsg && reqMsg.id) {
                                     pendingRequests.set(reqMsg.id, {
                                         data,
-                                        server: msg.server.id,
+                                        server: msg.guild.id,
                                         user: userID
                                     })
                                     await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '✅');
@@ -624,8 +624,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (reactionmessages.indexOf(msg.id) !== -1) {
             const userID = (user.id) ? user.id : user
             const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
-            if (data.emoji === emoji.name && data.server === msg.server.id) {
-                const member = await discordClient.getRESTGuildMember(msg.server.id, userID);
+            if (data.emoji === emoji.name && data.server === msg.guild.id) {
+                const member = await discordClient.getRESTGuildMember(msg.guild.id, userID);
                 if (member.roles.indexOf(data.role) !== -1) {
                     let _roles = removeItemAll(member.roles, [data.role]);
                     discordClient.editGuildMember(data.server, member.id, { roles: _roles, }, "User Removed Permission (Open Access)")
