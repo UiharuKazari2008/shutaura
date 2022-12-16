@@ -33,21 +33,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
-    const fs = require('fs');
-    String.prototype.toHex = function() {
-        var hash = 0;
-        if (this.length === 0) return hash;
-        for (var i = 0; i < this.length; i++) {
-            hash = this.charCodeAt(i) + ((hash << 5) - hash);
-            hash = hash & hash;
-        }
-        var color = '#';
-        for (var i = 0; i < 3; i++) {
-            var value = (hash >> (i * 8)) & 255;
-            color += ('00' + value.toString(16)).substr(-2);
-        }
-        return color;
-    }
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
@@ -578,7 +563,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let roleText = role.text.trim();
                 let color = null;
                 if (role.color !== null && role.color !== "0") {
-                    color = role.color.toHex();
+                    color = role.toString(16);
                 }
                 if (role.name.includes('_read')) {
                     type = 1
