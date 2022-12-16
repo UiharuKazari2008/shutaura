@@ -575,6 +575,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             for (const role of serverPermissions.rows.filter(e => e.name && member.roles.indexOf(e.role) !== -1 && ignoredPermissions.indexOf(e.name) === -1)) {
                 let type = null;
                 let roleName = role.name.trim();
+                let roleText = role.text.trim();
                 let color = null;
                 if (role.color !== null && role.color !== "0") {
                     color = role.color.toHex();
@@ -591,9 +592,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     type = 0
                 }
-                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleName, type]);
+                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleText, roleName, type]);
                 if (roleName === 'user') {
-                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, role = ?, type = ?`, [member.user.id, guild.id, color, `${roleName}-${guild.id}`, type]);
+                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleText, `${roleName}-${guild.id}`, type]);
                 }
             }
         }
@@ -656,12 +657,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function guildRoleCreate(guild, role) {
-        const addedRole = await db.query('INSERT INTO discord_permissons SET ? ON DUPLICATE KEY UPDATE color = ?', [{
+        const addedRole = await db.query('INSERT INTO discord_permissons SET ? ON DUPLICATE KEY UPDATE ?', [{
             role: role.id,
             server: guild.id,
             color: role.color,
+            text: role.name,
             name: null
-        }, role.color])
+        }, {
+            color: role.color,
+            text: role.name
+        }])
         if (addedRole.error)
             SendMessage("SQL Error occurred when saving new role", "err", 'main', "SQL", addedRole.error)
     }
