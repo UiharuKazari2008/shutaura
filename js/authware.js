@@ -603,7 +603,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         _roles.push(data.role);
                         discordClient.editGuildMember(req.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
                             .then(async () => {
-                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr")
+                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr");
+                                await discordClient.deleteMessage(msg.channel.id, msg.id, "Approved Request")
                                 const userDirect = await discordClient.getRESTUser(member.id)
                                 if (userDirect) {
                                     userDirect.getDMChannel().then(channel => {
@@ -613,6 +614,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             });
                                     });
                                 }
+
                             })
                             .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
                     }
