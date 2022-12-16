@@ -568,7 +568,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (member.roles.indexOf(data.role) === -1) {
                             if (data.approval === 1) {
                                 try {
-                                    const reqMsg = await discordClient.createMessage(staticChID.homeGuild.System, `🛎 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} is requesting permission "${(data.name) ? data.name : data.role}"`);
+                                    const reqMsg = await discordClient.createMessage(staticChID.homeGuild.AlrmNotif, `🛎 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} is requesting permission "${(data.name) ? data.name : data.role}"`);
                                     if (reqMsg && reqMsg.id) {
                                         pendingRequests.set(reqMsg.id, {
                                             data,
