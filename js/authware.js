@@ -42,7 +42,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     let discordperms;
     let discordservers;
+    let discordreactionsroles;
+    let reactionmessages
     let staticChID = {};
+    let pendingRequests = new Map();
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
@@ -123,6 +126,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const _discordperms = await db.query(`SELECT * FROM discord_permissons WHERE name = 'sysbot' OR name = 'system_admin' OR name = 'system_interact'`)
         if (_discordperms.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordperms.error); return false }
         discordperms = _discordperms.rows;
+
+        Logger.printLine("SQL", "Getting Discord Reaction Map", "debug")
+        const _discordreactionsroles = await db.query(`SELECT * FROM discord_permissons_reactions`)
+        if (_discordreactionsroles.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordreactionsroles.error); return false }
+        discordreactionsroles = _discordreactionsroles.rows;
+        reactionmessages = discordreactionsroles.map(e => e.message)
 
         await Promise.all(discordservers.map(server => {
             const ch = {
@@ -548,6 +557,84 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }))
     }
+    async function reactionAdded(msg, emoji, user) {
+        if (reactionmessages.indexOf(msg.id) !== -1) {
+            const userID = (user.id) ? user.id : user
+            const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
+            if (data.emoji === emoji.name && data.server === msg.server.id) {
+                try {
+                    const member = await discordClient.getRESTGuildMember(msg.server.id, userID);
+                    if (member.roles.indexOf(data.role) === -1) {
+                        if (data.approval === 1) {
+                            try {
+                                const reqMsg = await discordClient.createMessage(staticChID.homeGuild.System, `🛎 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} is requesting permission "${(data.name) ? data.name : data.role}"`);
+                                if (reqMsg && reqMsg.id) {
+                                    pendingRequests.set(reqMsg.id, {
+                                        data,
+                                        server: msg.server.id,
+                                        user: userID
+                                    })
+                                    await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '✅');
+                                    await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '❌');
+                                }
+                            } catch (err) {
+                                Logger.printLine("UserRightsMgr", `Error when trying to send notification message for user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", err)
+                            }
+                        } else {
+                            let _roles = member.roles.slice();
+                            _roles.push(data.role);
+                            discordClient.editGuildMember(data.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
+                                .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr") })
+                                .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
+                        }
+                    }
+                } catch (e) {
+                    Logger.printLine("UserRightsMgr", `Error when trying to get user data for ${userID}`, "error", e)
+                }
+            }
+        } else if (pendingRequests.has(msg.id)) {
+            const req = pendingRequests.get(msg.id);
+            const data = req.data;
+            if (emoji.name === '✅') {
+                const member = await discordClient.getRESTGuildMember(req.server, req.user);
+                if (member.roles.indexOf(data.role) === -1) {
+                    let _roles = member.roles.slice();
+                    _roles.push(data.role);
+                    discordClient.editGuildMember(req.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
+                        .then(async () => {
+                            SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr")
+                            const userDirect = await discordClient.getRESTUser(member.id)
+                            if (userDirect) {
+                                userDirect.getDMChannel().then(channel => {
+                                    channel.createMessage(`Your request for ${(data.name) ? data.name : data.role} permission was granted!`)
+                                        .catch((er) => {
+                                            Logger.printLine("UserRightsMgr", `Not able to send direct message to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er)
+                                        });
+                                });
+                            }
+                        })
+                        .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
+                }
+            } else if (emoji.name === '❌') {
+                await discordClient.deleteMessage(msg.channel.id, msg.id, "Declined Request")
+            }
+        }
+    }
+    async function reactionRemoved(msg, emoji, user) {
+        if (reactionmessages.indexOf(msg.id) !== -1) {
+            const userID = (user.id) ? user.id : user
+            const data = discordreactionsroles[reactionmessages.indexOf(msg.id)];
+            if (data.emoji === emoji.name && data.server === msg.server.id) {
+                const member = await discordClient.getRESTGuildMember(msg.server.id, userID);
+                if (member.roles.indexOf(data.role) !== -1) {
+                    let _roles = removeItemAll(member.roles, [data.role]);
+                    discordClient.editGuildMember(data.server, member.id, { roles: _roles, }, "User Removed Permission (Open Access)")
+                        .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.text) ? data.text : data.role} permission`, "info", 'main', "UserRightsMgr") })
+                        .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
+                }
+            }
+        }
+    }
 
     // Discord Event Processor
     async function memberRoleGeneration(guild, member) {
@@ -730,6 +817,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         console.error(err);
         discordClient.connect();
     });
+
+    discordClient.on("messageReactionAdd", (msg, emoji, user) => reactionAdded(msg, emoji, user));
+    discordClient.on("messageReactionRemove", (msg, emoji, user) => reactionRemoved(msg, emoji, (user.id) ? user.id : user));
 
     discordClient.on("guildMemberAdd", async (guild, member) => { await memberRoleGeneration(guild, member) })
     discordClient.on("guildMemberUpdate", async (guild, member) => { await memberRoleGeneration(guild, member) })
