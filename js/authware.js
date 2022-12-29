@@ -115,6 +115,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
             }
+            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+            if (_seq_config.length > 0 && _seq_config[0].param_data) {
+                if (_seq_config[0].param_data.user_card_membership)
+                    systemglobal.user_card_membership = _seq_config[0].param_data.user_card_membership;
+            }
         }
 
         Logger.printLine("SQL", "Getting Discord Servers", "debug")
@@ -957,8 +962,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 blind_token_expires: users[0].token_expires,
             };
 
-            if (webconfig.user_card_membership) {
-                const _ms = await webconfig.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
+            if (systemglobal.user_card_membership) {
+                const _ms = await systemglobal.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
                     return {
                         text: (e.text) ? e.text : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].text) ? readPermissionsRows[readPermissions.indexOf(e.role)].text : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].text) ? writePermissionsRows[writePermissions.indexOf(e.role)].text : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].text) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].text : undefined,
                         background: (e.background) ? e.background : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].color) ? readPermissionsRows[readPermissions.indexOf(e.role)].color : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].color) ? writePermissionsRows[writePermissions.indexOf(e.role)].color : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].color) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].color : undefined,
