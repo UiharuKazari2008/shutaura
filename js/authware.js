@@ -914,7 +914,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let userAccount = {
                 discord: {
                     user: {
-                        id,
+                        userId,
                         server: _server_list.filter(e => e.serverid === users[0].server),
                         name: users[0].nice_name,
                         username: users[0].username,
