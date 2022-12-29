@@ -961,6 +961,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
                 blind_token_expires: users[0].token_expires,
             };
+            userAccount.user = {
+                id: userAccount.discord.user.id,
+                username: (userAccount.discord.user.name) ? userAccount.discord.user.name : userAccount.discord.user.username,
+                avatar: (userAccount.discord.user.avatar) ? `https://cdn.discordapp.com/avatars/${userAccount.discord.user.id}/${userAccount.discord.user.avatar}.${(userAccount.discord.user.avatar && userAccount.discord.user.avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
+                banner: (userAccount.discord.user.banner) ? `https://cdn.discordapp.com/banners/${userAccount.discord.user.id}/${userAccount.discord.user.banner}.${(userAccount.discord.user.banner && userAccount.discord.user.banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
+            }
 
             if (systemglobal.user_card_membership) {
                 const _ms = await systemglobal.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
@@ -1001,7 +1007,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
             if (tempLastEpisode.rows.length > 0) {
                 const nextEpisodeView = await db.query(`SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id);`)
-                console.log(nextEpisodeView.rows)
                 userAccount.kongou_next_episode = nextEpisodeView.rows[0];
             }
 
