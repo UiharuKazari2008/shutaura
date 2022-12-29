@@ -897,7 +897,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 'sequenzia_class.super = sequenzia_superclass.super',
             ].join(' AND ');
 
-            const users = allUsers.filter(e => userId === e.id)[0];
+            const users = allUsers.filter(e => userId === e.id);
             const userPermissions = allDisabledChannels.filter(e => e.userid === userId);
             const disabledChannels = allUserPermissions.filter(e => e.user === userId);
 
