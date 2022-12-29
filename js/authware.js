@@ -648,7 +648,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     // Discord Event Processor
-    async function memberRoleGeneration(guild, member) {
+    const stuTimerRegister = new Map();
+    async function stuTimer(guild, member) {
+        if (!stuTimerRegister.has('updateAccount-' + member.id + guild.id)) {
+            stuTimerRegister.set('updateAccount-' + member.id + guild.id, setTimeout(async () => {
+                await memberRoleGeneration(guild, member);
+                clearTimeout(stuTimerRegister.get('updateAccount-' + member.id + guild.id))
+                stuTimerRegister.delete('updateAccount-' + member.id + guild.id);
+                Logger.printLine("stuAccountUpdate", `User ${member.id} account was updated`, "info")
+            }, 15000))
+        }
+    }
+    async function memberRoleGeneration(guild, member, dontUpdateAccount) {
         const serverPermissions = await db.query(`SELECT discord_permissons.* FROM discord_servers, discord_permissons WHERE discord_servers.authware_enabled = 1 AND discord_servers.serverid = ? AND discord_servers.serverid = discord_permissons.server`, [guild.id]);
         const userExits = await db.query(`SELECT * FROM discord_users WHERE discord_users.serveruserid = ?`, [member.user.id + guild.id]);
         if (serverPermissions && serverPermissions.rows.length > 0) {
@@ -707,6 +718,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 memberTokenGeneration();
             }
         }
+        if (!dontUpdateAccount)
+            await sequenziaUserCacheGenerator(member.id);
     }
     async function memberRemoval(guild, member) {
         const userexsists = await db.query(`SELECT * FROM discord_users WHERE serveruserid = ?`,[member.user.id + guild.id])
@@ -757,6 +770,252 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const deletedRole = await db.query('DELETE FROM discord_permissons WHERE role = ?', [role.id])
         if (deletedRole.error)
             SendMessage("SQL Error occurred when deleting role", "err", 'main', "SQL", deletedRole.error)
+    }
+
+    let sequenziaAccountUpdateTimer = null;
+    async function sequenziaUserCacheGenerator(thisUser) {
+        if (sequenziaAccountUpdateTimer) {
+            clearTimeout(sequenziaAccountUpdateTimer);
+            sequenziaAccountUpdateTimer = null;
+        }
+
+        const authViewsqlFields = [
+            'kanmi_channels.channelid',
+            'kanmi_channels.cid AS channel_eid',
+            'kanmi_channels.virtual_cid AS virtual_channel_eid',
+            'discord_servers.serverid',
+            'kanmi_channels.position',
+            'discord_servers.short_name AS server_short_name',
+            'discord_servers.avatar AS server_avatar',
+            'kanmi_channels.name AS channel_name',
+            'kanmi_channels.image_hash AS channel_image',
+            'kanmi_channels.nice_title AS channel_title',
+            'kanmi_channels.short_name AS channel_short_name',
+            'kanmi_channels.nice_name AS channel_nice',
+            'kanmi_channels.description AS channel_description',
+            'kanmi_channels.nsfw AS channel_nsfw',
+            'kanmi_channels.uri AS channel_uri',
+            'kanmi_channels.role',
+            'kanmi_channels.role_write',
+            'kanmi_channels.role_manage',
+            'kanmi_channels.classification',
+            'kanmi_channels.media_group',
+            'sequenzia_class.name AS class_name',
+            'sequenzia_class.icon AS class_icon',
+        ].join(', ');
+        const authViewsqlTables = [
+            'kanmi_channels',
+            'discord_servers',
+            'sequenzia_class'
+        ].join(', ');
+        const authViewsqlWhere = [
+            "(kanmi_channels.parent IS NOT NULL AND kanmi_channels.parent != 'isparent' || kanmi_channels.parent IS NULL)",
+            'kanmi_channels.classification = sequenzia_class.class',
+            'kanmi_channels.serverid = discord_servers.serverid'
+        ].join(' AND ');
+        const sidebarViewsqlOrderBy = [
+            'x.super_position',
+            'x.class_position',
+            `x.server_position`,
+            `x.virtual_channel_eid`,
+            `x.position`,
+        ].join(', ');
+
+        const allUsers = (await db.query(`SELECT x.* FROM (SELECT * FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`)).rows
+        const allUserIds = [...new Set(allUsers.map(e => e.id))];
+        const extraLinks = (await db.query(`SELECT * FROM sequenzia_homelinks ORDER BY position`)).rows
+        const allUserPermissions = (await db.query("SELECT DISTINCT role, type, userid, color, text, serverid FROM discord_users_permissons")).rows
+        const allChannels = (await db.query("SELECT x.*, y.chid_download FROM ( SELECT DISTINCT kanmi_channels.channelid, kanmi_channels.serverid, kanmi_channels.role, kanmi_channels.role_write, kanmi_channels.role_manage FROM kanmi_channels, sequenzia_class WHERE kanmi_channels.role IS NOT NULL AND kanmi_channels.classification = sequenzia_class.class) x LEFT OUTER JOIN (SELECT chid_download, serverid FROM discord_servers) y ON (x.serverid = y.serverid AND x.channelid = y.chid_download)")).rows;
+        const allDisabledChannels = (await db.query(`SELECT DISTINCT user, cid FROM sequenzia_hidden_channels`)).rows
+        const allServers = (await db.query(`SELECT x.total_data, total_count, y.* FROM (SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count, server FROM kanmi_records WHERE fileid is not null OR attachment_hash is not null GROUP BY server) x LEFT JOIN (SELECT DISTINCT * FROM discord_servers) y ON x.server = y.serverid  ORDER BY position`)).rows;
+
+
+        let _server_list = allServers.map(e => {
+            return {
+                serverid: e.serverid,
+                name: e.name,
+                nice_name: e.nice_name,
+                short_name: e.short_name,
+                icon: `https://cdn.discordapp.com/icons/${e.serverid}/${e.avatar}.png?size=4096`,
+                login: (e.authware_enabled),
+                usage: e.total_data,
+                count: e.total_count
+            }
+        });
+        let homeLinks = extraLinks.map(link => {
+            return {
+                title: link.name,
+                icon: (link.icon !== url) ? link.icon : undefined,
+                url: link.url
+            }
+        })
+
+        allUserIds.filter(f => !thisUser || (thisUser && f === thisUser)).map(async userId => {
+            const sidebarViewsqlFields = [
+                `kanmi_auth_${userId}.channelid`,
+                `kanmi_auth_${userId}.channel_eid`,
+                `kanmi_auth_${userId}.virtual_channel_eid`,
+                'discord_servers.serverid',
+                `kanmi_auth_${userId}.position`,
+                'sequenzia_superclass.position AS super_position',
+                'sequenzia_superclass.super',
+                'sequenzia_superclass.name AS super_name',
+                'sequenzia_superclass.icon AS super_icon',
+                'sequenzia_superclass.uri AS super_uri',
+                'sequenzia_class.uri AS class_uri',
+                'sequenzia_class.position AS class_position',
+                'sequenzia_class.class',
+                'sequenzia_class.name AS class_name',
+                'sequenzia_class.icon AS class_icon',
+                `kanmi_auth_${userId}.channel_nsfw`,
+                `kanmi_auth_${userId}.channel_name`,
+                `kanmi_auth_${userId}.channel_image`,
+                `kanmi_auth_${userId}.channel_title`,
+                `kanmi_auth_${userId}.channel_short_name`,
+                `kanmi_auth_${userId}.channel_nice`,
+                `kanmi_auth_${userId}.channel_description`,
+                `kanmi_auth_${userId}.channel_uri`,
+                `discord_servers.position AS server_position`,
+                'discord_servers.name AS server_name',
+                'discord_servers.nice_name AS server_nice',
+                'discord_servers.short_name AS server_short',
+                'discord_servers.avatar AS server_avatar',
+                `kanmi_auth_${userId}.role_write`,
+                `kanmi_auth_${userId}.role_manage`,
+            ].join(', ');
+            const sidebarViewsqlTables = [
+                'discord_servers',
+                'sequenzia_superclass',
+                'sequenzia_class',
+                `kanmi_auth_${userId}`,
+            ].join(', ');
+            const sidebarViewsqlWhere = [
+                `kanmi_auth_${userId}.classification IS NOT NULL`,
+                `kanmi_auth_${userId}.classification = sequenzia_class.class`,
+                `kanmi_auth_${userId}.serverid = discord_servers.serverid`,
+                'sequenzia_class.class IS NOT NULL',
+                'sequenzia_class.super = sequenzia_superclass.super',
+            ].join(' AND ');
+
+            const users = allUsers.filter(e => userId === e.id)[0];
+            const userPermissions = allDisabledChannels.filter(e => e.userid === userId);
+            const disabledChannels = allUserPermissions.filter(e => e.user === userId);
+
+            const readPermissionsRows = userPermissions.filter(e => e.type === 1);
+            const writePermissionsRows = userPermissions.filter(e => e.type === 2);
+            const managePermissionsRows = userPermissions.filter(e => e.type === 3);
+            const specialPermissionsRows = userPermissions.filter(e => e.type === 4);
+
+            const readPermissions = readPermissionsRows.map(e => e.role);
+            const writePermissions = writePermissionsRows.map(e => e.role);
+            const managePermissions = managePermissionsRows.map(e => e.role);
+            const specialPermissions = specialPermissionsRows.map(e => e.role);
+
+            let userAccount = {
+                discord: {
+                    user: {
+                        id,
+                        server: _server_list.filter(e => e.serverid === users[0].server),
+                        name: users[0].nice_name,
+                        username: users[0].username,
+                        avatar: users[0].avatar,
+                        banner: users[0].banner,
+                        known: true,
+                        membership: {
+                            text: 'Member'
+                        },
+                        auth_token: null,
+                        token: users[0].token,
+                        token_login: users[0].blind_token,
+                        token_static: users[0].token_static,
+                        token_rotation: users[0].token_expires
+                    },
+                    permissions: {
+                        read: readPermissions,
+                        write: writePermissions,
+                        manage: managePermissions,
+                        specialPermissions: specialPermissions
+                    },
+                    channels: {
+                        read: [],
+                        write: [],
+                        manage: [],
+                    },
+                    servers: {
+                        download: [],
+                        list: _server_list
+                    },
+                    links: homeLinks
+                },
+                server_list: [],
+                cache: {
+                    channels_view: `kanmi_auth_${userId}`,
+                    sidebar_view: `kanmi_sidebar_${userId}`
+                },
+                kongou_next_episode: {},
+                disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
+                blind_token_expires: users[0].token_expires,
+            };
+
+            if (webconfig.user_card_membership) {
+                const _ms = await webconfig.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
+                    return {
+                        text: (e.text) ? e.text : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].text) ? readPermissionsRows[readPermissions.indexOf(e.role)].text : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].text) ? writePermissionsRows[writePermissions.indexOf(e.role)].text : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].text) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].text : undefined,
+                        background: (e.background) ? e.background : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].color) ? readPermissionsRows[readPermissions.indexOf(e.role)].color : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].color) ? writePermissionsRows[writePermissions.indexOf(e.role)].color : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].color) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].color : undefined,
+                        ...e
+                    }
+                })
+                if (_ms.length > 0) {
+                    userAccount.discord.user.membership = {
+                        ...userAccount.discord.user.membership,
+                        ..._ms.pop()
+                    }
+                }
+            }
+
+            await allChannels.forEach(u => {
+                if (readPermissions.indexOf(u.role) !== -1 || specialPermissions.indexOf(u.role) !== -1)
+                    userAccount.discord.channels.read.push(u.channelid)
+                if (writePermissions.indexOf(u.role_write) !== -1 || managePermissions.indexOf(u.role_write) !== -1 || specialPermissions.indexOf(u.role_write) !== -1) {
+                    userAccount.discord.channels.write.push(u.channelid)
+                    if (u.chid_download !== null) {
+                        userAccount.discord.servers.download.push({
+                            serverid: u.serverid,
+                            channelid: u.chid_download
+                        });
+                    }
+                }
+                if (managePermissions.indexOf(u.role_manage) !== -1 || specialPermissions.indexOf(u.role_manage) !== -1)
+                    userAccount.discord.channels.manage.push(u.channelid);
+            })
+
+
+            await db.query(`CREATE OR REPLACE VIEW kanmi_auth_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_description, y.virtual_channel_uri FROM (SELECT x.* FROM (SELECT DISTINCT role FROM discord_users_permissons WHERE userid = '${userId}') z LEFT JOIN (SELECT DISTINCT ${authViewsqlFields} FROM ${authViewsqlTables} WHERE (${authViewsqlWhere}) ) x ON (x.role = z.role)) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, description AS virtual_channel_description, uri AS virtual_channel_uri FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY x.position`)
+            await db.query(`CREATE OR REPLACE VIEW kanmi_sidebar_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_uri, y.virtual_channel_description FROM (SELECT ${sidebarViewsqlFields} FROM ${sidebarViewsqlTables} WHERE ${sidebarViewsqlWhere}) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, uri AS virtual_channel_uri, description AS virtual_channel_description FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY ${sidebarViewsqlOrderBy}`);
+            const tempLastEpisode = await db.query(`SELECT Max(y.eid) AS eid, MAX(y.show_id) AS show_id FROM (SELECT * FROM kanmi_system.kongou_watch_history WHERE user = '${userId}' ORDER BY date DESC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_episodes) y ON (x.eid = y.eid);`)
+
+            if (tempLastEpisode.rows.length > 0) {
+                const nextEpisodeView = await db.query(`SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id);`)
+                console.log(nextEpisodeView.rows)
+                userAccount.kongou_next_episode = nextEpisodeView.rows[0];
+            }
+
+            const serverResults = await db.query(`SELECT DISTINCT kanmi_sidebar_${userId}.serverid, kanmi_sidebar_${userId}.server_nice, kanmi_sidebar_${userId}.server_name, kanmi_sidebar_${userId}.server_short, discord_servers.position, discord_servers.authware_enabled FROM kanmi_sidebar_${userId}, discord_servers WHERE kanmi_sidebar_${userId}.serverid = discord_servers.serverid ORDER BY discord_servers.position`);
+            userAccount.server_list = serverResults.rows.map((e) => ({
+                id: e.serverid,
+                name: (e.server_nice) ? e.server_nice : e.server_name,
+                short_name: e.server_short.toUpperCase(),
+                login: (e.authware_enabled)
+            }));
+
+            await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
+                { userid: userId, data: JSON.stringify(userAccount) }, { data: JSON.stringify(userAccount) }
+            ])
+        });
+
+        if (!thisUser) {
+            sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, (thisUser) ? 900000 : 1500000);
+        }
     }
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
@@ -818,10 +1077,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }))
             await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
                 const member = guild.members.get(memberID)
-                await memberRoleGeneration(guild, member);
+                await memberRoleGeneration(guild, member, true);
             }))
         }))
         await updateLocalCache();
+        await sequenziaUserCacheGenerator();
     });
     discordClient.on("error", (err) => {
         Logger.printLine("Discord", "Shard Error, Rebooting...", "error", err);
@@ -832,8 +1092,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     discordClient.on("messageReactionAdd", (msg, emoji, user) => reactionAdded(msg, emoji, user));
     discordClient.on("messageReactionRemove", (msg, emoji, user) => reactionRemoved(msg, emoji, (user.id) ? user.id : user));
 
-    discordClient.on("guildMemberAdd", async (guild, member) => { await memberRoleGeneration(guild, member) })
-    discordClient.on("guildMemberUpdate", async (guild, member) => { await memberRoleGeneration(guild, member) })
+    discordClient.on("guildMemberAdd", async (guild, member) => { await stuTimer(guild, member) })
+    discordClient.on("guildMemberUpdate", async (guild, member) => { await stuTimer(guild, member) })
     discordClient.on("guildMemberRemove", async (guild, member) => { await memberRemoval(guild, member) })
 
     discordClient.on('guildRoleUpdate', async (guild, role) => { await guildRoleCreate(guild, role) })
