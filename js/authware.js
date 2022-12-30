@@ -957,6 +957,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     channels_view: `kanmi_auth_${userId}`,
                     sidebar_view: `kanmi_sidebar_${userId}`
                 },
+                sidebar: [],
+                albums: [],
+                artists: [],
+                media_groups: [],
+                applications_list: [],
                 kongou_next_episode: {},
                 disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
                 blind_token_expires: users[0].token_expires,
@@ -1017,6 +1022,235 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 short_name: e.server_short.toUpperCase(),
                 login: (e.authware_enabled)
             }));
+
+            if (systemglobal.web_applications) {
+                const perms = [
+                    ...userAccount.discord.permissions.read,
+                    ...userAccount.discord.permissions.write,
+                    ...userAccount.discord.permissions.manage,
+                    ...userAccount.discord.permissions.specialPermissions
+                ]
+                userAccount.applications_list.push(...Object.keys(systemglobal.web_applications).filter(k =>
+                    perms.filter(p => systemglobal.web_applications[k].read_roles.indexOf(p) !== -1).length > 0
+                ).map(k => {
+                    const app = systemglobal.web_applications[k];
+                    if (app.embedded) {
+                        let images = {}
+                        if (app.images) {
+                            const keys = Object.keys(app.images);
+                            keys.map(j => {
+                                images[j] = `/app/web/${k}/${app.images[j]}`
+                            })
+                        } else {
+                            images = undefined
+                        }
+                        return {
+                            type: 1,
+                            id: k,
+                            icon: app.icon,
+                            name: app.name,
+                            images
+                        }
+                    } else {
+                        return {
+                            type: 0,
+                            id: k,
+                            icon: app.icon,
+                            name: app.name,
+                            url: app.url
+                        }
+                    }
+                }))
+            }
+
+            let SidebarArray = [];
+            const sidebarObject = await db.query(`SELECT * FROM ${userAccount.cache.sidebar_view}`)
+            const customChannelObject = await db.query(`SELECT * FROM sequenzia_custom_channels`)
+            const userAlbums = await db.query('SELECT x.aid, x.name, x.uri, x.owner, x.privacy, y.* FROM (SELECT x.*, y.eid FROM (SELECT DISTINCT * FROM sequenzia_albums WHERE owner = ? ORDER BY name ASC) AS x LEFT JOIN (SELECT *, ROW_NUMBER() OVER(PARTITION BY aid ORDER BY RAND()) AS RowNo FROM sequenzia_album_items) AS y ON x.aid = y.aid AND y.RowNo=1) x LEFT JOIN (SELECT eid, channel, attachment_hash, attachment_name, cache_proxy FROM kanmi_records) y ON y.eid = x.eid ORDER BY name ASC', [userAccount.discord.user.id])
+            const userArtists = await db.query(`SELECT * FROM (SELECT kanmi_records.attachment_hash, kanmi_records.attachment_name, kanmi_records.cache_proxy, kanmi_records.sizeH, kanmi_records.sizeW, kanmi_records.sizeR, kanmi_records.colorR, kanmi_records.colorG, kanmi_records.colorB, sequenzia_index_artists.id AS artist_id, sequenzia_index_artists.artist, sequenzia_index_artists.name AS artist_full_name, sequenzia_index_artists.url AS artist_url, sequenzia_index_artists.search AS artist_search, sequenzia_index_artists.count AS artist_count, sequenzia_index_artists.last AS artist_last, sequenzia_index_artists.source AS artist_source, sequenzia_index_artists.confidence AS artist_confidence, sequenzia_index_artists.rating AS artist_rating, ${userAccount.cache.channels_view}.* FROM kanmi_records,${userAccount.cache.channels_view}, sequenzia_index_artists  WHERE (sequenzia_index_artists.channelid = ${userAccount.cache.channels_view}.channelid AND kanmi_records.eid = sequenzia_index_artists.last AND kanmi_records.channel = ${userAccount.cache.channels_view}.channelid)) x INNER JOIN (SELECT id AS fav_id, date AS fav_date FROM sequenzia_artists_favorites WHERE userid = "${userAccount.discord.user.id}") y ON x.artist_id = y.fav_id ORDER BY x.artist_last DESC`)
+
+            const libraryLists = await db.query(`SELECT g.* FROM (SELECT * FROM kongou_media_groups) g INNER JOIN (SELECT media_group FROM ${userAccount.cache.channels_view}) a ON (g.media_group = a.media_group) GROUP BY g.media_group`)
+
+            if (sidebarObject && sidebarObject.rows.length > 0) {
+                const superClasses = (e => {
+                    let unique = [];
+                    let distinct = [];
+                    for( let i = 0; i < e.length; i++ ){
+                        if( !unique[e[i].super]){
+                            distinct.push({
+                                super: e[i].super,
+                                super_name: e[i].super_name,
+                                super_icon: e[i].super_icon,
+                                super_uri: e[i].super_uri
+                            });
+                            unique[e[i].super] = 1;
+                        }
+                    }
+                    return distinct
+                })(sidebarObject.rows)
+                const classes = (e => {
+                    let unique = [];
+                    let distinct = [];
+                    for( let i = 0; i < e.length; i++ ){
+                        if( !unique[e[i].class]){
+                            distinct.push({
+                                class: e[i].class,
+                                super: e[i].super,
+                                class_name: e[i].class_name,
+                                class_icon: e[i].class_icon,
+                                class_uri: e[i].class_uri,
+                            });
+                            unique[e[i].class] = 1;
+                        }
+                    }
+                    return distinct
+                })(sidebarObject.rows)
+                const virtualChannels = (e => {
+                    let unique = [];
+                    let distinct = [];
+                    for( let i = 0; i < e.length; i++ ){
+                        if( e[i].virtual_channel_eid !== null && !unique[e[i].virtual_channel_eid] && e[i].virtual_channel_name !== null){
+                            distinct.push({
+                                id: e[i].virtual_channel_eid,
+                                class: e[i].class,
+                                super: e[i].super,
+                                name: e[i].virtual_channel_name,
+                                uri: e[i].virtual_channel_uri,
+                                description: e[i].virtual_channel_description,
+                            });
+                            unique[e[i].virtual_channel_eid] = 1;
+                        }
+                    }
+                    return distinct
+                })(sidebarObject.rows)
+
+                superClasses.forEach((thisSuper) => {
+                    let _items = []
+                    classes.filter(e => e.super === thisSuper.super ).forEach((thisClass) => {
+                        const _channels = sidebarObject.rows.filter(e => e.class === thisClass.class && e.virtual_channel_eid === null).map((thisChannel) => {
+                            let channelName = ''
+                            if (thisChannel.channel_nice === null) {
+                                thisChannel.channel_name.split('-').forEach((wd, i, a) => {
+                                    channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
+                                    if (i + 1 < a.length) {
+                                        channelName += ' '
+                                    }
+                                })
+                            } else { channelName = thisChannel.channel_nice }
+
+                            return ({
+                                type: 0,
+                                id: thisChannel.channelid,
+                                eid: thisChannel.channel_eid,
+                                name: channelName,
+                                image: (thisChannel.channel_image) ? (thisChannel.channel_image.startsWith('http')) ? thisChannel.channel_image : `https://media.discordapp.net/attachments/${thisChannel.channel_image}`: null,
+                                channel_title: thisChannel.channel_title,
+                                short_name: thisChannel.channel_short_name.split('-').join(' '),
+                                server: thisChannel.serverid,
+                                server_short_name: thisChannel.server_short.toUpperCase(),
+                                nsfw: (thisChannel.channel_nsfw === 1),
+                                uri: thisChannel.channel_uri,
+                                description: thisChannel.channel_description,
+                            })
+                        })
+                        let _mergedChannels = [];
+                        virtualChannels.forEach((vcid) => {
+                            let _vc_entities = [];
+                            let _vc_nsfw = false;
+                            sidebarObject.rows.filter(e => e.class === thisClass.class && vcid.class === thisClass.class && e.virtual_channel_eid !== null && e.virtual_channel_eid === vcid.id).map((thisChannel) => {
+                                let channelName = ''
+                                if (thisChannel.channel_nice === null) {
+                                    thisChannel.channel_name.split('-').forEach((wd, i, a) => {
+                                        channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
+                                        if (i + 1 < a.length) {
+                                            channelName += ' '
+                                        }
+                                    })
+                                } else {
+                                    channelName = thisChannel.channel_nice
+                                }
+                                if (thisChannel.channel_nsfw === 1) { _vc_nsfw = true; }
+
+                                _vc_entities.push({
+                                    id: thisChannel.channelid,
+                                    eid: thisChannel.channel_eid,
+                                    name: channelName,
+                                    short_name: thisChannel.channel_short_name.split('-').join(' '),
+                                    server: thisChannel.serverid,
+                                    server_short_name: thisChannel.server_short.toUpperCase(),
+                                    uri: thisChannel.channel_uri,
+                                    nsfw: (thisChannel.channel_nsfw === 1),
+                                    description: thisChannel.channel_description,
+                                })
+                            })
+                            if (_vc_entities.length > 0) {
+                                _mergedChannels.push({
+                                    type: 2,
+                                    id: vcid.id,
+                                    name: vcid.name,
+                                    description: vcid.description,
+                                    uri: vcid.uri,
+                                    nsfw: _vc_nsfw,
+                                    entities: _vc_entities
+                                })
+                            }
+                        })
+                        const _customs = customChannelObject.rows.filter((e) => e.class === thisClass.class).map((thisChannel) => {
+                            const channelName = thisChannel.name;
+                            const urlSearch = thisChannel.search + `&title=${channelName}`;
+                            return ({
+                                type: 1,
+                                id: md5(urlSearch),
+                                url: urlSearch,
+                                name: channelName,
+                                nsfw: urlSearch.includes('nsfw=true'),
+                            })
+                        })
+
+                        if (_channels.length > 0) {
+                            _items.push({
+                                id: thisClass.class,
+                                name: thisClass.class_name,
+                                icon: thisClass.class_icon,
+                                uri: thisClass.class_uri,
+                                entities: [..._channels, ..._mergedChannels, ..._customs]
+                            })
+                        }
+                    })
+                    if (_items.length > 0) {
+                        SidebarArray.push({
+                            id: thisSuper.super,
+                            name: thisSuper.super_name,
+                            icon: thisSuper.super_icon,
+                            uri: thisSuper.super_uri,
+                            entities: _items
+                        })
+                    }
+                })
+
+                userAccount.sidebar = SidebarArray;
+
+                if (userAlbums && userAlbums.rows.length > 0) {
+                    userAccount.albums = userAlbums.rows.map(e => {
+                        let ranImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                        return {
+                            ...e,
+                            image: ranImage
+                        }
+                    });
+                }
+                if (userArtists && userArtists.rows.length > 0) {
+                    userAccount.artists = userArtists.rows.map(e => {
+                        let latestImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                        return {
+                            ...e,
+                            image: latestImage
+                        }
+                    });
+                }
+                if (libraryLists && libraryLists.rows.length > 0)
+                    userAccount.media_groups = libraryLists.rows
+            }
 
             await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
                 { userid: userId, data: JSON.stringify(userAccount) }, { data: JSON.stringify(userAccount) }
