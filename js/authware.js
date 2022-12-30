@@ -1263,7 +1263,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         });
 
         if (!thisUser) {
-            sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, (thisUser) ? 900000 : 1500000);
+            sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, 300000);
         }
     }
 
