@@ -119,6 +119,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_seq_config.length > 0 && _seq_config[0].param_data) {
                 if (_seq_config[0].param_data.user_card_membership)
                     systemglobal.user_card_membership = _seq_config[0].param_data.user_card_membership;
+                if (_seq_config[0].param_data.web_applications)
+                    systemglobal.web_applications = _seq_config[0].param_data.web_applications;
             }
         }
 
