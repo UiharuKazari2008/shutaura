@@ -858,124 +858,124 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
 
         allUserIds.filter(f => !thisUser || (thisUser && f === thisUser)).map(async userId => {
-            await new Promise(async (resolve) => {
-                const sidebarViewsqlFields = [
-                    `kanmi_auth_${userId}.channelid`,
-                    `kanmi_auth_${userId}.channel_eid`,
-                    `kanmi_auth_${userId}.virtual_channel_eid`,
-                    'discord_servers.serverid',
-                    `kanmi_auth_${userId}.position`,
-                    'sequenzia_superclass.position AS super_position',
-                    'sequenzia_superclass.super',
-                    'sequenzia_superclass.name AS super_name',
-                    'sequenzia_superclass.icon AS super_icon',
-                    'sequenzia_superclass.uri AS super_uri',
-                    'sequenzia_class.uri AS class_uri',
-                    'sequenzia_class.position AS class_position',
-                    'sequenzia_class.class',
-                    'sequenzia_class.name AS class_name',
-                    'sequenzia_class.icon AS class_icon',
-                    `kanmi_auth_${userId}.channel_nsfw`,
-                    `kanmi_auth_${userId}.channel_name`,
-                    `kanmi_auth_${userId}.channel_image`,
-                    `kanmi_auth_${userId}.channel_title`,
-                    `kanmi_auth_${userId}.channel_short_name`,
-                    `kanmi_auth_${userId}.channel_nice`,
-                    `kanmi_auth_${userId}.channel_description`,
-                    `kanmi_auth_${userId}.channel_uri`,
-                    `discord_servers.position AS server_position`,
-                    'discord_servers.name AS server_name',
-                    'discord_servers.nice_name AS server_nice',
-                    'discord_servers.short_name AS server_short',
-                    'discord_servers.avatar AS server_avatar',
-                    `kanmi_auth_${userId}.role_write`,
-                    `kanmi_auth_${userId}.role_manage`,
-                ].join(', ');
-                const sidebarViewsqlTables = [
-                    'discord_servers',
-                    'sequenzia_superclass',
-                    'sequenzia_class',
-                    `kanmi_auth_${userId}`,
-                ].join(', ');
-                const sidebarViewsqlWhere = [
-                    `kanmi_auth_${userId}.classification IS NOT NULL`,
-                    `kanmi_auth_${userId}.classification = sequenzia_class.class`,
-                    `kanmi_auth_${userId}.serverid = discord_servers.serverid`,
-                    'sequenzia_class.class IS NOT NULL',
-                    'sequenzia_class.super = sequenzia_superclass.super',
-                ].join(' AND ');
+            const sidebarViewsqlFields = [
+                `kanmi_auth_${userId}.channelid`,
+                `kanmi_auth_${userId}.channel_eid`,
+                `kanmi_auth_${userId}.virtual_channel_eid`,
+                'discord_servers.serverid',
+                `kanmi_auth_${userId}.position`,
+                'sequenzia_superclass.position AS super_position',
+                'sequenzia_superclass.super',
+                'sequenzia_superclass.name AS super_name',
+                'sequenzia_superclass.icon AS super_icon',
+                'sequenzia_superclass.uri AS super_uri',
+                'sequenzia_class.uri AS class_uri',
+                'sequenzia_class.position AS class_position',
+                'sequenzia_class.class',
+                'sequenzia_class.name AS class_name',
+                'sequenzia_class.icon AS class_icon',
+                `kanmi_auth_${userId}.channel_nsfw`,
+                `kanmi_auth_${userId}.channel_name`,
+                `kanmi_auth_${userId}.channel_image`,
+                `kanmi_auth_${userId}.channel_title`,
+                `kanmi_auth_${userId}.channel_short_name`,
+                `kanmi_auth_${userId}.channel_nice`,
+                `kanmi_auth_${userId}.channel_description`,
+                `kanmi_auth_${userId}.channel_uri`,
+                `discord_servers.position AS server_position`,
+                'discord_servers.name AS server_name',
+                'discord_servers.nice_name AS server_nice',
+                'discord_servers.short_name AS server_short',
+                'discord_servers.avatar AS server_avatar',
+                `kanmi_auth_${userId}.role_write`,
+                `kanmi_auth_${userId}.role_manage`,
+            ].join(', ');
+            const sidebarViewsqlTables = [
+                'discord_servers',
+                'sequenzia_superclass',
+                'sequenzia_class',
+                `kanmi_auth_${userId}`,
+            ].join(', ');
+            const sidebarViewsqlWhere = [
+                `kanmi_auth_${userId}.classification IS NOT NULL`,
+                `kanmi_auth_${userId}.classification = sequenzia_class.class`,
+                `kanmi_auth_${userId}.serverid = discord_servers.serverid`,
+                'sequenzia_class.class IS NOT NULL',
+                'sequenzia_class.super = sequenzia_superclass.super',
+            ].join(' AND ');
 
-                const users = allUsers.filter(e => userId === e.id);
-                const userPermissions = allDisabledChannels.filter(e => e.userid === userId);
-                const disabledChannels = allUserPermissions.filter(e => e.user === userId);
+            const users = allUsers.filter(e => userId === e.id);
+            const userPermissions = allDisabledChannels.filter(e => e.userid === userId);
+            const disabledChannels = allUserPermissions.filter(e => e.user === userId);
 
-                const readPermissionsRows = userPermissions.filter(e => e.type === 1);
-                const writePermissionsRows = userPermissions.filter(e => e.type === 2);
-                const managePermissionsRows = userPermissions.filter(e => e.type === 3);
-                const specialPermissionsRows = userPermissions.filter(e => e.type === 4);
+            const readPermissionsRows = userPermissions.filter(e => e.type === 1);
+            const writePermissionsRows = userPermissions.filter(e => e.type === 2);
+            const managePermissionsRows = userPermissions.filter(e => e.type === 3);
+            const specialPermissionsRows = userPermissions.filter(e => e.type === 4);
 
-                const readPermissions = readPermissionsRows.map(e => e.role);
-                const writePermissions = writePermissionsRows.map(e => e.role);
-                const managePermissions = managePermissionsRows.map(e => e.role);
-                const specialPermissions = specialPermissionsRows.map(e => e.role);
+            const readPermissions = readPermissionsRows.map(e => e.role);
+            const writePermissions = writePermissionsRows.map(e => e.role);
+            const managePermissions = managePermissionsRows.map(e => e.role);
+            const specialPermissions = specialPermissionsRows.map(e => e.role);
 
-                let userAccount = {
-                    discord: {
-                        user: {
-                            userId,
-                            server: _server_list.filter(e => e.serverid === users[0].server),
-                            name: users[0].nice_name,
-                            username: users[0].username,
-                            avatar: users[0].avatar,
-                            banner: users[0].banner,
-                            known: true,
-                            membership: {
-                                text: 'Member'
-                            },
-                            auth_token: null,
-                            token: users[0].token,
-                            token_login: users[0].blind_token,
-                            token_static: users[0].token_static,
-                            token_rotation: users[0].token_expires
+            let userAccount = {
+                discord: {
+                    user: {
+                        userId,
+                        server: _server_list.filter(e => e.serverid === users[0].server),
+                        name: users[0].nice_name,
+                        username: users[0].username,
+                        avatar: users[0].avatar,
+                        banner: users[0].banner,
+                        known: true,
+                        membership: {
+                            text: 'Member'
                         },
-                        permissions: {
-                            read: readPermissions,
-                            write: writePermissions,
-                            manage: managePermissions,
-                            specialPermissions: specialPermissions
-                        },
-                        channels: {
-                            read: [],
-                            write: [],
-                            manage: [],
-                        },
-                        servers: {
-                            download: [],
-                            list: _server_list
-                        },
-                        links: homeLinks
+                        auth_token: null,
+                        token: users[0].token,
+                        token_login: users[0].blind_token,
+                        token_static: users[0].token_static,
+                        token_rotation: users[0].token_expires
                     },
-                    server_list: [],
-                    cache: {
-                        channels_view: `kanmi_auth_${userId}`,
-                        sidebar_view: `kanmi_sidebar_${userId}`
+                    permissions: {
+                        read: readPermissions,
+                        write: writePermissions,
+                        manage: managePermissions,
+                        specialPermissions: specialPermissions
                     },
-                    sidebar: [],
-                    albums: [],
-                    artists: [],
-                    media_groups: [],
-                    applications_list: [],
-                    kongou_next_episode: {},
-                    disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
-                    blind_token_expires: users[0].token_expires,
-                };
-                userAccount.user = {
+                    channels: {
+                        read: [],
+                        write: [],
+                        manage: [],
+                    },
+                    servers: {
+                        download: [],
+                        list: _server_list
+                    },
+                    links: homeLinks
+                },
+                user: {
                     id: userId,
                     username: (userAccount.discord.user.name) ? userAccount.discord.user.name : userAccount.discord.user.username,
                     avatar: (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
                     banner: (users[0].banner) ? `https://cdn.discordapp.com/banners/${userId}/${users[0].banner}.${(users[0].banner && users[0].banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
-                }
+                },
+                server_list: [],
+                cache: {
+                    channels_view: `kanmi_auth_${userId}`,
+                    sidebar_view: `kanmi_sidebar_${userId}`
+                },
+                sidebar: [],
+                albums: [],
+                artists: [],
+                media_groups: [],
+                applications_list: [],
+                kongou_next_episode: {},
+                disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
+                time_generated: (new Date().valueOf()).toString(),
+            };
 
+            await new Promise(async (resolve) => {
                 if (systemglobal.user_card_membership) {
                     const _ms = await systemglobal.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
                         return {
