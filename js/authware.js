@@ -905,8 +905,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             ].join(' AND ');
 
             const users = allUsers.filter(e => userId === e.id);
-            const userPermissions = allDisabledChannels.filter(e => e.userid === userId);
-            const disabledChannels = allUserPermissions.filter(e => e.user === userId);
+            const userPermissions = allUserPermissions.filter(e => e.userid === userId);
+            const disabledChannels = allDisabledChannels.filter(e => e.user === userId);
 
             const readPermissionsRows = userPermissions.filter(e => e.type === 1);
             const writePermissionsRows = userPermissions.filter(e => e.type === 2);
@@ -992,7 +992,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
 
-                await allChannels.forEach(u => {
+                allChannels.map(u => {
                     if (readPermissions.indexOf(u.role) !== -1 || specialPermissions.indexOf(u.role) !== -1)
                         userAccount.discord.channels.read.push(u.channelid)
                     if (writePermissions.indexOf(u.role_write) !== -1 || managePermissions.indexOf(u.role_write) !== -1 || specialPermissions.indexOf(u.role_write) !== -1) {
@@ -1127,13 +1127,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         return distinct
                     })(sidebarObject.rows)
 
-                    superClasses.forEach((thisSuper) => {
+                    superClasses.map((thisSuper) => {
                         let _items = []
-                        classes.filter(e => e.super === thisSuper.super ).forEach((thisClass) => {
+                        classes.filter(e => e.super === thisSuper.super ).map((thisClass) => {
                             const _channels = sidebarObject.rows.filter(e => e.class === thisClass.class && e.virtual_channel_eid === null).map((thisChannel) => {
                                 let channelName = ''
                                 if (thisChannel.channel_nice === null) {
-                                    thisChannel.channel_name.split('-').forEach((wd, i, a) => {
+                                    thisChannel.channel_name.split('-').map((wd, i, a) => {
                                         channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
                                         if (i + 1 < a.length) {
                                             channelName += ' '
@@ -1157,13 +1157,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 })
                             })
                             let _mergedChannels = [];
-                            virtualChannels.forEach((vcid) => {
+                            virtualChannels.map((vcid) => {
                                 let _vc_entities = [];
                                 let _vc_nsfw = false;
                                 sidebarObject.rows.filter(e => e.class === thisClass.class && vcid.class === thisClass.class && e.virtual_channel_eid !== null && e.virtual_channel_eid === vcid.id).map((thisChannel) => {
                                     let channelName = ''
                                     if (thisChannel.channel_nice === null) {
-                                        thisChannel.channel_name.split('-').forEach((wd, i, a) => {
+                                        thisChannel.channel_name.split('-').map((wd, i, a) => {
                                             channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
                                             if (i + 1 < a.length) {
                                                 channelName += ' '
