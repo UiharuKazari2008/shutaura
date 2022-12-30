@@ -19,11 +19,6 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
-
-import {resolve} from "path";
-import systemglobal from "../config.json";
-import md5 from "md5";
-
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
