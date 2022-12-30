@@ -324,7 +324,7 @@ const systemglobal = require("../config.json");
                         await mqClient.sendMessage(`Successfully applied all required patches for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated');
                     }
                     for (const proc of ((commits.filter(e => e.includes('STAGE0KILL') || e.includes('STAGE1KILL') || e.includes('STAGE2KILL') || e.includes('STAGE3KILL') || e.includes('FULLRESTART')).length > 0 && !systemglobal.DisablePatching && !args.nopatch) ? allApps : appToRestart)) {
-                        if (await restartProccess(proc.name)) {
+                        if (await restartProccess(proc.id)) {
                             await mqClient.sendMessage(`Updated and Restarted ${proc.name} for ${(project) ? project : 'sequenzia-framework'}`, 'info', 'GetUpdated')
                         } else {
                             await mqClient.sendMessage(`Failed to restart system ${proc.name} for ${(project) ? project : 'sequenzia-framework'}`, 'critical', 'GetUpdated')
