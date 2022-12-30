@@ -33,6 +33,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
+    const md5 = require("md5");
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
