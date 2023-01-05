@@ -1895,10 +1895,11 @@ This code is publicly released and is restricted by its project license
                                         } else {
                                             sharp(Buffer.from(body))
                                                 .extract({
-                                                    top: MessageContents.imageCrop[0],
-                                                    left: MessageContents.imageCrop[1],
-                                                    height: MessageContents.imageCrop[2],
-                                                    width: MessageContents.imageCrop[3] })
+                                                    top: parseInt(MessageContents.imageCrop[0].toString()),
+                                                    left: parseInt(MessageContents.imageCrop[1].toString()),
+                                                    height: parseInt(MessageContents.imageCrop[2].toString()),
+                                                    width: parseInt(MessageContents.imageCrop[3].toString())
+                                                })
                                                 .toBuffer((err, buffer) => {
                                                     if (err) {
                                                         SendMessage("Failed to crop new banenr with sharp", "err", "main", "SetUserBanner", err)
