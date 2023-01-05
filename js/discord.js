@@ -7448,7 +7448,8 @@ This code is publicly released and is restricted by its project license
                                             "title": `New Content added to ${channelName}!`
                                         }
                                         if (sqlObject.user !== discordClient) {
-                                            const memberAccount = await db.query(`SELECT * FROM discord_users WHERE id = ? LIMIT 1`, [sqlObject.user])
+
+                                            const memberAccount = await db.query("SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id) WHERE x.id = ? LIMIT 1", [sqlObject.user])
                                             if (memberAccount.error) {
 
                                             } else if (memberAccount.rows.length > 0) {

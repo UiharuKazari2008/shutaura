@@ -402,7 +402,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         discordClient.registerCommand("sudo", async function (msg,args) {
             if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
                 const perms = await db.query(`SELECT role, server FROM discord_permissons WHERE name = 'syselevated'`);
-                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
+                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? AND server = ? ORDER BY 2fa_key`, [msg.member.id, msg.member.guild.id]);
 
                 if (perms.error) { return "SQL Error occurred when retrieving the user permissions data" }
                 if (users.error) { return "SQL Error occurred when retrieving the user data" }
@@ -486,7 +486,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
         discordClient.registerCommand("2fa", async function (msg,args) {
             if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
-                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
+                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? AND server = ? ORDER BY 2fa_key`, [msg.member.id, msg.member.guild.id]);
                 if (users.error) { return "SQL Error occurred when retrieving the user data" }
 
                 const twofakey = users.rows.filter(e => e['2fa_key'] !== null).map(e => e['2fa_key']);
@@ -502,7 +502,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         file: Buffer.from(qr.replace('data:image/png;base64,', ''), 'base64')
                                     })
                                         .then(async completed => {
-                                            const addkey = await db.query(`UPDATE discord_users SET 2fa_key = ? WHERE id = ?`,[key, msg.member.id]);
+                                            const addkey = await db.query(`UPDATE discord_users SET 2fa_key = ? WHERE id = ? AND server = ?`,[key, msg.member.id, msg.member.guild.id]);
                                             if (addkey.error) { SendMessage("❌ Failed to save 2FA key to user account, disregard last message", msg.channel.id, msg.member.guild.id, "SystemMgr"); }
                                         })
                                         .catch(err => {
@@ -731,6 +731,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function memberRemoval(guild, member) {
         const userexsists = await db.query(`SELECT * FROM discord_users WHERE serveruserid = ?`,[member.user.id + guild.id])
         if (userexsists.rows.length > 0) {
+            if (userexsists.rows.length === 1)
+                await db.query(`DELETE FROM discord_users_extended WHERE id = ?`, [member.user.id])
             const userresults = await db.query(`DELETE FROM discord_users WHERE serveruserid = ?`, [member.user.id + guild.id])
             if (userresults.error) {
                 SendMessage("SQL Error occurred when deleting a server user", "err", 'main', "SQL", userresults.error)
@@ -740,7 +742,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function memberTokenGeneration() {
-        const users = await db.query(`SELECT * FROM discord_users`)
+        const users = await db.query(`SELECT * FROM discord_users_extended`)
         if (users.error) {
             SendMessage("SQL Error occurred when retrieving the users table", "err", 'main', "SQL", users.error)
         } else {
@@ -752,7 +754,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let token2 = crypto.randomBytes(128).toString("hex");
 
                 if (expires <= now) {
-                    const updatedUser = await db.query('UPDATE discord_users SET token = ?, blind_token = ?, token_expires = ? WHERE id = ?', [token1, token2, next_expires, user.id])
+                    const updatedUser = await db.query('UPDATE discord_users_extended SET token = ?, blind_token = ?, token_expires = ? WHERE id = ?', [token1, token2, next_expires, user.id])
                     if (updatedUser.error)
                         SendMessage("SQL Error occurred when updating user token", "err", 'main', "SQL", updatedUser.error)
                 }
@@ -828,7 +830,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             `x.position`,
         ].join(', ');
 
-        const allUsers = (await db.query(`SELECT x.* FROM (SELECT * FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`)).rows
+
+        const allUsers = (await db.query("SELECT x.*, y.authware_enabled, y.position FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id")).rows
         const allUserIds = [...new Set(allUsers.map(e => e.id))];
         const extraLinks = (await db.query(`SELECT * FROM sequenzia_homelinks ORDER BY position`)).rows
         const allUserPermissions = (await db.query("SELECT DISTINCT role, type, userid, color, text, serverid FROM discord_users_permissons")).rows
