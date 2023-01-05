@@ -1911,7 +1911,7 @@ This code is publicly released and is restricted by its project license
                                                         })
                                                             .then(async (data) => {
                                                                 if (data.attachments.length > 0) {
-                                                                    const url = data.attachments[0].url.split('/attachments')[0]
+                                                                    const url = data.attachments[0].url.split('/attachments')[1]
                                                                     db.query(`UPDATE discord_users_extended SET banner_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                     Logger.printLine('SetUserBanner', `User Banner for ${MessageContents.userId} set!`, 'debug')
                                                                 }
