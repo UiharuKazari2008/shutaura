@@ -402,7 +402,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         discordClient.registerCommand("sudo", async function (msg,args) {
             if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
                 const perms = await db.query(`SELECT role, server FROM discord_permissons WHERE name = 'syselevated'`);
-                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? AND server = ? ORDER BY 2fa_key`, [msg.member.id, msg.member.guild.id]);
+                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
 
                 if (perms.error) { return "SQL Error occurred when retrieving the user permissions data" }
                 if (users.error) { return "SQL Error occurred when retrieving the user data" }
@@ -486,7 +486,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
         discordClient.registerCommand("2fa", async function (msg,args) {
             if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
-                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? AND server = ? ORDER BY 2fa_key`, [msg.member.id, msg.member.guild.id]);
+                const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
                 if (users.error) { return "SQL Error occurred when retrieving the user data" }
 
                 const twofakey = users.rows.filter(e => e['2fa_key'] !== null).map(e => e['2fa_key']);
@@ -502,7 +502,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         file: Buffer.from(qr.replace('data:image/png;base64,', ''), 'base64')
                                     })
                                         .then(async completed => {
-                                            const addkey = await db.query(`UPDATE discord_users SET 2fa_key = ? WHERE id = ? AND server = ?`,[key, msg.member.id, msg.member.guild.id]);
+                                            const addkey = await db.query(`UPDATE discord_users SET 2fa_key = ? WHERE id = ?`,[key, msg.member.id]);
                                             if (addkey.error) { SendMessage("❌ Failed to save 2FA key to user account, disregard last message", msg.channel.id, msg.member.guild.id, "SystemMgr"); }
                                         })
                                         .catch(err => {
