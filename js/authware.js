@@ -742,19 +742,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function memberTokenGeneration() {
+        const userIds = await db.query(`SELECT DISTINCT id FROM discord_users`)
         const users = await db.query(`SELECT * FROM discord_users_extended`)
         if (users.error) {
             SendMessage("SQL Error occurred when retrieving the users table", "err", 'main', "SQL", users.error)
         } else {
-            await Promise.all(users.rows.map(async user => {
-                let expires = new Date(user.token_expires)
+            await Promise.all(userIds.rows.map(async userId => {
+                const user = users.rows.filter(e => e.id === userId.id)[0]
+                let expires = new Date((user) ? user.token_expires : undefined)
                 let now = new Date()
                 let next_expires = moment(new Date()).add(20, 'days').format('YYYY-MM-DD HH:mm:ss');
                 let token1 = crypto.randomBytes(512).toString("hex");
                 let token2 = crypto.randomBytes(128).toString("hex");
 
                 if (expires <= now) {
-                    const updatedUser = await db.query('UPDATE discord_users_extended SET token = ?, blind_token = ?, token_expires = ? WHERE id = ?', [token1, token2, next_expires, user.id])
+                    const updatedUser = await db.query('INSERT INTO discord_users_extended SET id = ?, token = ?, blind_token = ?, token_expires = ? ON DUPLICATE KEY UPDATE token = ?, blind_token = ?, token_expires = ?', [userId.id, token1, token2, next_expires, token1, token2, next_expires])
                     if (updatedUser.error)
                         SendMessage("SQL Error occurred when updating user token", "err", 'main', "SQL", updatedUser.error)
                 }
