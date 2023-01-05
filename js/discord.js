@@ -1862,6 +1862,79 @@ This code is publicly released and is restricted by its project license
                             }
                             cb(true)
                             break;
+                        case 'SetUserBanner':
+                            if (MessageContents.imageURL !== undefined && MessageContents.imageCrop !== undefined && MessageContents.imageCrop.length === 4 && MessageContents.userId !== undefined) {
+                                await activeTasks.set(`BANNER_IMG_${MessageContents.userId}`, { started: Date.now().valueOf() });
+                                let messagecontent = "Banner Image For " + MessageContents.userId
+                                const moveTo = discordServers.get('homeGuild').chid_filecache
+
+                                Logger.printLine("Rotate", `Need to download ${MessageContents.imageURL}`, "debug", MessageContents.imageURL)
+                                const result = await new Promise(resolve => {
+                                    request.get({
+                                        url: MessageContents.imageURL,
+                                        headers: {
+                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                            'accept-language': 'en-US,en;q=0.9',
+                                            'cache-control': 'max-age=0',
+                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                            'sec-ch-ua-mobile': '?0',
+                                            'sec-fetch-dest': 'document',
+                                            'sec-fetch-mode': 'navigate',
+                                            'sec-fetch-site': 'none',
+                                            'sec-fetch-user': '?1',
+                                            'upgrade-insecure-requests': '1',
+                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                        },
+                                    }, function (err, res, body) {
+                                        if (err) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserBanner", err)
+                                            resolve(true);
+                                        } else if (!body || (body && body.length < 100)) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserBanner")
+                                            resolve(true);
+                                        } else {
+                                            sharp(Buffer.from(body))
+                                                .extract({
+                                                    top: MessageContents.imageCrop[0],
+                                                    left: MessageContents.imageCrop[1],
+                                                    height: MessageContents.imageCrop[2],
+                                                    width: MessageContents.imageCrop[3] })
+                                                .toBuffer((err, buffer) => {
+                                                    if (err) {
+                                                        SendMessage("Failed to crop new banenr with sharp", "err", "main", "SetUserBanner", err)
+                                                        resolve(true)
+                                                    } else {
+                                                        discordClient.createMessage(moveTo, {content: `${messagecontent}`}, {
+                                                            file: buffer,
+                                                            name: `banner-${MessageContents.userId}.${MessageContents.imageURL.split('.').pop()}`
+                                                        })
+                                                            .then(async (data) => {
+                                                                if (data.attachments.length > 0) {
+                                                                    const url = data.attachments[0].url.split('/attachments')
+                                                                    db.query(`UPDATE discord_users_extended SET banner_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
+                                                                    Logger.printLine('SetUserBanner', `User Banner for ${MessageContents.userId} set!`, 'debug')
+                                                                }
+                                                                resolve(true)
+                                                            })
+                                                            .catch((er) => {
+                                                                SendMessage("Failed to send message to discord", "err", message.guildID, "SetUserBanner", er)
+                                                                if (er.message.includes("empty message") || er.message.includes("to large")) {
+                                                                    resolve(true)
+                                                                } else {
+                                                                    resolve(true)
+                                                                }
+                                                            });
+                                                    }
+                                                })
+                                        }
+                                    })
+                                })
+                                cb((result))
+                                activeTasks.delete(`BANNER_IMG_${MessageContents.userId}`)
+                            } else {
+                                cb(true);
+                            }
+                            break;
                         default:
                             SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", ChannelData.guild.id, "warn")
                             if (MessageContents.messageReturn === true) {
