@@ -755,7 +755,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let token1 = crypto.randomBytes(512).toString("hex");
                 let token2 = crypto.randomBytes(128).toString("hex");
 
-                if (expires <= now) {
+                if (expires <= now || !user) {
                     const updatedUser = await db.query('INSERT INTO discord_users_extended SET id = ?, token = ?, blind_token = ?, token_expires = ? ON DUPLICATE KEY UPDATE token = ?, blind_token = ?, token_expires = ?', [userId.id, token1, token2, next_expires, token1, token2, next_expires])
                     if (updatedUser.error)
                         SendMessage("SQL Error occurred when updating user token", "err", 'main', "SQL", updatedUser.error)
