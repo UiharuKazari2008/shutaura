@@ -2,7 +2,7 @@
 
 ---
 
-# Kanmi Sequenzia Framework
+# Shutaura Framework
 
 The base framework for Sequenzia
 
@@ -10,11 +10,11 @@ Includes the following systems:
 * Discord I/O
 * FileWorker Upload and Download Client
 * Sync and Backup System
-* Kanmi CMS
+* Shutaura CMS
 
 ## [Click here for simple Docker compose Installation](https://github.com/UiharuKazari2008/sequenzia-compose/)
 
-## What is Kanmi / Sequenzia
+## What is Shutaura / Sequenzia
 A modular framework and ecosystem for image management and file storage using Discord as a Filesystem and CDN<br>
 
 ## Difference Sequenzia and Sequenzia II
@@ -32,21 +32,22 @@ Sequenzia II (This version) is a new system written from scratch in JavaScript o
 
 ## Terms, Names, and Language
 Before you begin setting up Sequenzia, its important to understand terms that will be thrown around:<br/>
-* Kanmi, Kanmi Framework, or Sequenzia Framework
+* Shutaura, Shutaura Framework, Kanmi, Kanmi Framework, or Sequenzia Framework
+  - Shutaura is a rebranding of Kanmi as the Kanmi name is an internal project name
   - The backend / data management side of Sequenzia
   - The stuff the users will never see
 * Sequenzia / Sequenzia Web
   - The frontend to access images and files that are stored in the database
   - The stuff users see
 * JuneFS
-  - The filesystem and structured data that comprises all data stored in Kanmi
+  - The filesystem and structured data that comprises all data stored in Shutaura
 * Spanned Files
   - Packed and Unpacked Files that are over Discords file size limit and are segmented into 8MB pieces
   - These file can not be accessed directly via the Discord CDS and require a FileWorker and Sequenzia CDS, File share, or a Web server to use
 * CDS - Sequenzia Content Distribution and Auditing System
   - Component of Sequenzia that is responsible for serving and auditing access to Unpacked Spanned Files
   - This data is stored and served from your side
-* CMS - Kanmi Content Management System
+* CMS - Shutaura Content Management System
   - A group of components and systems that are used to ingest data from sources such as Twitter, Pixiv, Flickr, RSS Feeds, Web Scrapers, etc.
   - A system within the Data Storage Servers to approve/decline incoming pending posts from Twitter, Pixiv, and Flickr
 * ADS - Sequenzia Ambient Display System
@@ -67,7 +68,7 @@ Before you begin setting up Sequenzia, its important to understand terms that wi
 * You have administrative access to your server
 * You understand at least how to use Linux some what
 * You have installed "MySQL Workbench" or another GUI tool on your workstation
-  - There are parts of Sequenzia and Kanmi that still rely on manual Database entries.
+  - There are parts of Sequenzia and Shutaura that still rely on manual Database entries.
   - MySQL WB is not a hard requirement but is what I will use for demonstrations, any tool that talks to MySQL will work
 * A Valid publicly accessible domain name with valid SSL Certificate for access outside of home
   - Free Public Domain names - https://freedns.afraid.org/
