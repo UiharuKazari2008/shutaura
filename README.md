@@ -90,7 +90,7 @@ You can run multiple Sequenzia Servers to distribute load, But you can not run m
 * 4 GB of RAM **MINIMUM**
 * 32 GB of Storage
 * Fast Low latency disk are required for MySQL Databases
-  - **Hrd Drives are not recommended due to the excessive writes that can and will damage the disks over time**
+  - **Hard Drives are not recommended due to the excessive writes that can and **will** damage the disks over time**
 
 ## Installation
 Please refer to the embedded Wiki page of this repo for all guides
