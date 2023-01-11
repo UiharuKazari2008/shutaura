@@ -7,7 +7,7 @@
 Developed at Academy City Research
 "Developing a better automated future"
 ======================================================================================
-Kanmi Project - Discord I/O System
+Shutaura Project - Discord I/O System
 Copyright 2020
 ======================================================================================
 This code is publicly released and is restricted by its project license
@@ -40,8 +40,18 @@ This code is publicly released and is restricted by its project license
     const sharp = require("sharp");
     const sizeOf = require('image-size');
     const minimist = require("minimist");
-    let args = minimist(process.argv.slice(2));
+    // SBI
+    const express = require('express');
+    const bodyParser = require('body-parser');
+    const multer = require('multer');
+    const upload = multer();
+    const app = express();
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
+    app.use(upload.array());
+    const sbiPort = 31000;
 
+    const args = minimist(process.argv.slice(2));
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const {spawn} = require("child_process");
@@ -1079,8 +1089,11 @@ This code is publicly released and is restricted by its project license
                                                 }
                                             } else {
                                                 const tweetMeta = await db.query(`SELECT listid, tweetid, userid FROM twitter_tweets WHERE channelid = ? AND messageid = ?`, [fullmsg.channel.id, fullmsg.id])
-                                                if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
-                                                    sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                                if (tweetMeta.rows.length > 0) {
+                                                    await db.query(`UPDATE twitter_tweets SET decision = 1 WHERE messageid = ?`, [fullmsg.id])
+                                                    if (tweetMeta.rows.length > 0 && TwitterCDSBypass.has(tweetMeta.rows[0].listid)) {
+                                                        sendTwitterAction(`https://twitter.com/${tweetMeta.rows[0].userid}/status/${tweetMeta.rows[0].tweetid}`, 'LikeRT', "add", undefined, MessageContents.messageData, fullmsg.guildID, [], tweetMeta.rows[0].listid);
+                                                    }
                                                 }
                                             }
                                         })().then(r => {})
@@ -1167,7 +1180,7 @@ This code is publicly released and is restricted by its project license
                                                 Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
                                                 console.error(er)
                                                 if (er && er.message && er.message.includes('Unknown Message')) {
-                                                    await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
+                                                    //await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
                                                 }
                                                 cb(true);
                                             })
@@ -1183,6 +1196,7 @@ This code is publicly released and is restricted by its project license
                             }
                             break;
                         case 'RemovePost':
+                            await db.query(`UPDATE IGNORE twitter_tweets SET decision = 0 WHERE messageid = ?`, [MessageContents.messageID])
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     jfsRemove(fullmsg)
@@ -1858,8 +1872,172 @@ This code is publicly released and is restricted by its project license
                             }
                             cb(true)
                             break;
+                        case 'SetUserBanner':
+                            if (MessageContents.imageURL !== undefined && MessageContents.imageCrop !== undefined && MessageContents.imageCrop.length === 4 && MessageContents.userId !== undefined) {
+                                await activeTasks.set(`BANNER_IMG_${MessageContents.userId}`, { started: Date.now().valueOf() });
+                                let messagecontent = "Banner Image For " + MessageContents.userId
+                                const moveTo = discordServers.get('homeGuild').chid_filecache
+
+                                Logger.printLine("SetUserBanner", `Need to download ${MessageContents.imageURL}`, "debug", MessageContents.imageURL)
+                                const result = await new Promise(resolve => {
+                                    request.get({
+                                        url: MessageContents.imageURL,
+                                        headers: {
+                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                            'accept-language': 'en-US,en;q=0.9',
+                                            'cache-control': 'max-age=0',
+                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                            'sec-ch-ua-mobile': '?0',
+                                            'sec-fetch-dest': 'document',
+                                            'sec-fetch-mode': 'navigate',
+                                            'sec-fetch-site': 'none',
+                                            'sec-fetch-user': '?1',
+                                            'upgrade-insecure-requests': '1',
+                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                        },
+                                    }, function (err, res, body) {
+                                        if (err) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserBanner", err)
+                                            resolve(true);
+                                        } else if (!body || (body && body.length < 100)) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserBanner")
+                                            resolve(true);
+                                        } else {
+                                            sharp(Buffer.from(body))
+                                                .extract({
+                                                    top: parseInt(MessageContents.imageCrop[0].toString()),
+                                                    left: parseInt(MessageContents.imageCrop[1].toString()),
+                                                    height: parseInt(MessageContents.imageCrop[2].toString()),
+                                                    width: parseInt(MessageContents.imageCrop[3].toString())
+                                                })
+                                                .toBuffer((err, buffer) => {
+                                                    if (err) {
+                                                        SendMessage("Failed to crop new banenr with sharp", "err", "main", "SetUserBanner", err)
+                                                        resolve(true)
+                                                    } else {
+                                                        discordClient.createMessage(moveTo, {content: `${messagecontent}`}, {
+                                                            file: buffer,
+                                                            name: `banner-${MessageContents.userId}.${MessageContents.imageURL.split('.').pop()}`
+                                                        })
+                                                            .then(async (data) => {
+                                                                if (data.attachments.length > 0) {
+                                                                    const url = data.attachments[0].url.split('/attachments')[1]
+                                                                    db.query(`UPDATE discord_users_extended SET banner_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
+                                                                    Logger.printLine('SetUserBanner', `User Banner for ${MessageContents.userId} set!`, 'debug')
+
+                                                                    const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
+                                                                    if (userCache.length > 0) {
+                                                                        const _data = userCache[0].data;
+                                                                        _data.user.banner = '/full_attachments' + url
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
+                                                                        Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
+                                                                    }
+                                                                }
+                                                                resolve(true)
+                                                            })
+                                                            .catch((er) => {
+                                                                SendMessage("Failed to send message to discord", "err", message.guildID, "SetUserBanner", er)
+                                                                if (er.message.includes("empty message") || er.message.includes("to large")) {
+                                                                    resolve(true)
+                                                                } else {
+                                                                    resolve(true)
+                                                                }
+                                                            });
+                                                    }
+                                                })
+                                        }
+                                    })
+                                })
+                                cb((result))
+                                activeTasks.delete(`BANNER_IMG_${MessageContents.userId}`)
+                            } else {
+                                cb(true);
+                            }
+                            break;
+                        case 'SetUserAvatar':
+                            if (MessageContents.imageURL !== undefined && MessageContents.imageCrop !== undefined && MessageContents.imageCrop.length === 4 && MessageContents.userId !== undefined) {
+                                await activeTasks.set(`AVATAR_IMG_${MessageContents.userId}`, { started: Date.now().valueOf() });
+                                let messagecontent = "Avatar Image For " + MessageContents.userId
+                                const moveTo = discordServers.get('homeGuild').chid_filecache
+
+                                Logger.printLine("SetUserAvatar", `Need to download ${MessageContents.imageURL}`, "debug", MessageContents.imageURL)
+                                const result = await new Promise(resolve => {
+                                    request.get({
+                                        url: MessageContents.imageURL,
+                                        headers: {
+                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                            'accept-language': 'en-US,en;q=0.9',
+                                            'cache-control': 'max-age=0',
+                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                            'sec-ch-ua-mobile': '?0',
+                                            'sec-fetch-dest': 'document',
+                                            'sec-fetch-mode': 'navigate',
+                                            'sec-fetch-site': 'none',
+                                            'sec-fetch-user': '?1',
+                                            'upgrade-insecure-requests': '1',
+                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                        },
+                                    }, function (err, res, body) {
+                                        if (err) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserAvatar", err)
+                                            resolve(true);
+                                        } else if (!body || (body && body.length < 100)) {
+                                            SendMessage("Failed to download message attachments from discord", "err", "main", "SetUserAvatar")
+                                            resolve(true);
+                                        } else {
+                                            sharp(Buffer.from(body))
+                                                .extract({
+                                                    top: parseInt(MessageContents.imageCrop[0].toString()),
+                                                    left: parseInt(MessageContents.imageCrop[1].toString()),
+                                                    height: parseInt(MessageContents.imageCrop[2].toString()),
+                                                    width: parseInt(MessageContents.imageCrop[3].toString())
+                                                })
+                                                .toBuffer((err, buffer) => {
+                                                    if (err) {
+                                                        SendMessage("Failed to crop new banenr with sharp", "err", "main", "SetUserAvatar", err)
+                                                        resolve(true)
+                                                    } else {
+                                                        discordClient.createMessage(moveTo, {content: `${messagecontent}`}, {
+                                                            file: buffer,
+                                                            name: `avatar-${MessageContents.userId}.${MessageContents.imageURL.split('.').pop()}`
+                                                        })
+                                                            .then(async (data) => {
+                                                                if (data.attachments.length > 0) {
+                                                                    const url = data.attachments[0].url.split('/attachments')[1]
+                                                                    db.query(`UPDATE discord_users_extended SET avatar_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
+                                                                    Logger.printLine('SetUserAvatar', `User Avatar for ${MessageContents.userId} set!`, 'debug')
+
+                                                                    const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
+                                                                    if (userCache.length > 0) {
+                                                                        const _data = userCache[0].data;
+                                                                        _data.user.avatar = '/full_attachments' + url
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
+                                                                        Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
+                                                                    }
+                                                                }
+                                                                resolve(true)
+                                                            })
+                                                            .catch((er) => {
+                                                                SendMessage("Failed to send message to discord", "err", message.guildID, "SetUserAvatar", er)
+                                                                if (er.message.includes("empty message") || er.message.includes("to large")) {
+                                                                    resolve(true)
+                                                                } else {
+                                                                    resolve(true)
+                                                                }
+                                                            });
+                                                    }
+                                                })
+                                        }
+                                    })
+                                })
+                                cb((result))
+                                activeTasks.delete(`AVATAR_IMG_${MessageContents.userId}`)
+                            } else {
+                                cb(true);
+                            }
+                            break;
                         default:
-                            SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", ChannelData.guild.id, "warn")
+                            SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", (ChannelData) ? ChannelData.guild.id : "main", "warn")
                             if (MessageContents.messageReturn === true) {
                                 mqClient.sendData(MessageContents.fromClient, failcase, function (ok) {
 
@@ -3672,6 +3850,18 @@ This code is publicly released and is restricted by its project license
                                 } else {
                                     SendMessage("⁉ Missing required information", "system", msg.guildID, "TwitterBlock")
                                 }
+                                break;
+                            case 'pull':
+                                mqClient.sendData(systemglobal.Twitter_In, {
+                                    fromWorker: systemglobal.SystemName,
+                                    messageText: "",
+                                    messageIntent: 'PullTweets',
+                                    messageAction: undefined,
+                                    listID: (args.length > 1) ? args[1] : undefined
+                                }, function (ok) {
+                                    if (ok)
+                                        SendMessage(`Grabbing tweets from ${(args.length > 1) ? 'list ID ' + args[1] : 'lists'}`, "system", msg.guildID, "TwitterUpdate")
+                                })
                                 break;
                             default:
                                 SendMessage("⁉ Unknown Command", "system", msg.guildID, "TwitterMgr")
@@ -6890,7 +7080,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(searchLimit) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
+        const files = (await db.query(`SELECT *, CONVERT(kanmi_records.id,SIGNED) AS num_id FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY num_id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
         if (files && files.length) {
             await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
@@ -7432,7 +7622,8 @@ This code is publicly released and is restricted by its project license
                                             "title": `New Content added to ${channelName}!`
                                         }
                                         if (sqlObject.user !== discordClient) {
-                                            const memberAccount = await db.query(`SELECT * FROM discord_users WHERE id = ? LIMIT 1`, [sqlObject.user])
+
+                                            const memberAccount = await db.query("SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id) WHERE x.id = ? LIMIT 1", [sqlObject.user])
                                             if (memberAccount.error) {
 
                                             } else if (memberAccount.rows.length > 0) {
@@ -7784,7 +7975,6 @@ This code is publicly released and is restricted by its project license
         }
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
-        await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [msg.id])
     }
     async function messageDeleteBulk(msg_array) {
         const dateNow = new Date().valueOf();
@@ -8607,6 +8797,10 @@ This code is publicly released and is restricted by its project license
                 setInterval(async () => { cleanOldMessages(); }, 3600000);
                 setInterval(async () => { verifySpannedFiles(25); }, 14400000);
                 setTimeout(start, 5000);
+                app.listen(sbiPort, (err) => {
+                    if (err) console.log("Error in server setup")
+                    console.log("API listening on port: 31000");
+                });
                 /*setInterval(() => {
                     const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
                     if (ap && ap.length === 0 && activeProccess === true) {
@@ -8631,6 +8825,10 @@ This code is publicly released and is restricted by its project license
                 setTimeout(start, 5000);
                 init = 1
                 Logger.printLine("Discord", "Discord Client is running is upload only mode and will not accept any remote chnages!", "warning")
+                app.listen(sbiPort, (err) => {
+                    if (err) console.log("Error in server setup")
+                    console.log("API listening on port: 31000");
+                });
             }
         }
     });

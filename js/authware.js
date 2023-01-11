@@ -7,7 +7,7 @@
 Developed at Academy City Research
 "Developing a better automated future"
 ======================================================================================
-Kanmi Project - Discord I/O System
+Shutaura Project - Discord I/O System
 Copyright 2020
 ======================================================================================
 This code is under a strict NON-DISCLOSURE AGREEMENT, If you have the rights
@@ -19,7 +19,6 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
-
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -33,7 +32,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
-    const fs = require('fs');
+    const md5 = require("md5");
+    // SBI
+    const express = require('express');
+    const bodyParser = require('body-parser');
+    const multer = require('multer');
+    const upload = multer();
+    const app = express();
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
+    app.use(upload.array());
+    const sbiPort = 31001;
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
@@ -43,7 +52,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     let discordperms;
     let discordservers;
+    let discordreactionsroles;
+    let reactionmessages
     let staticChID = {};
+    let pendingRequests = new Map();
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
@@ -53,7 +65,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Discord AuthWare", "info")
 
-    // Load Enviorment Varibles
+    // Load Environment Variables
     if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
         systemglobal.MQServer = process.env.MQ_HOST.trim()
     if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
@@ -113,6 +125,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
             }
+            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+            if (_seq_config.length > 0 && _seq_config[0].param_data) {
+                if (_seq_config[0].param_data.user_card_membership)
+                    systemglobal.user_card_membership = _seq_config[0].param_data.user_card_membership;
+                if (_seq_config[0].param_data.web_applications)
+                    systemglobal.web_applications = _seq_config[0].param_data.web_applications;
+            }
         }
 
         Logger.printLine("SQL", "Getting Discord Servers", "debug")
@@ -124,6 +143,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const _discordperms = await db.query(`SELECT * FROM discord_permissons WHERE name = 'sysbot' OR name = 'system_admin' OR name = 'system_interact'`)
         if (_discordperms.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordperms.error); return false }
         discordperms = _discordperms.rows;
+
+        Logger.printLine("SQL", "Getting Discord Reaction Map", "debug")
+        const _discordreactionsroles = await db.query(`SELECT * FROM discord_permissons_reactions`)
+        if (_discordreactionsroles.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordreactionsroles.error); return false }
+        discordreactionsroles = _discordreactionsroles.rows;
+        reactionmessages = discordreactionsroles.map(e => e.message)
 
         await Promise.all(discordservers.map(server => {
             const ch = {
@@ -549,9 +574,109 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }))
     }
+    async function reactionAdded(msg, emoji, user) {
+        const userID = (user.id) ? user.id : user
+        if (userID !== discordClient.user.id) {
+            if (reactionmessages.indexOf(msg.id) !== -1) {
+                const data = discordreactionsroles.filter(e => e.message === msg.id && e.emoji === emoji.name).pop()
+                if (data) {
+                    try {
+                        const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
+                        if (member.roles.indexOf(data.role) === -1) {
+                            if (data.approval === 1) {
+                                try {
+                                    const reqMsg = await discordClient.createMessage(staticChID.homeGuild.AlrmNotif, `🛎 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} is requesting permission "${(data.name) ? data.name : data.role}"`);
+                                    if (reqMsg && reqMsg.id) {
+                                        pendingRequests.set(reqMsg.id, {
+                                            data,
+                                            server: member.guild.id,
+                                            user: userID
+                                        })
+                                        await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '✅');
+                                        await discordClient.addMessageReaction(reqMsg.channel.id, reqMsg.id, '❌');
+                                    }
+                                } catch (err) {
+                                    Logger.printLine("UserRightsMgr", `Error when trying to send notification message for user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", err)
+                                }
+                            } else {
+                                let _roles = member.roles.slice();
+                                _roles.push(data.role);
+                                discordClient.editGuildMember(member.guild.id, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
+                                    .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr") })
+                                    .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
+                            }
+                        }
+                    } catch (e) {
+                        Logger.printLine("UserRightsMgr", `Error when trying to get user data for ${userID}`, "error", e)
+                    }
+                }
+            } else if (pendingRequests.has(msg.id)) {
+                const req = pendingRequests.get(msg.id);
+                const data = req.data;
+                if (emoji.name === '✅') {
+                    const member = await discordClient.getRESTGuildMember(req.server, req.user);
+                    if (member.roles.indexOf(data.role) === -1) {
+                        let _roles = member.roles.slice();
+                        _roles.push(data.role);
+                        discordClient.editGuildMember(req.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
+                            .then(async () => {
+                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr");
+                                await discordClient.deleteMessage(msg.channel.id, msg.id, "Approved Request")
+                                const userDirect = await discordClient.getRESTUser(member.id)
+                                if (userDirect) {
+                                    userDirect.getDMChannel().then(channel => {
+                                        channel.createMessage(`Your request for ${(data.name) ? data.name : data.role} permission was granted!`)
+                                            .catch((er) => {
+                                                Logger.printLine("UserRightsMgr", `Not able to send direct message to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er)
+                                            });
+                                    });
+                                }
+
+                            })
+                            .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
+                    }
+                } else if (emoji.name === '❌') {
+                    await discordClient.deleteMessage(msg.channel.id, msg.id, "Declined Request")
+                }
+                pendingRequests.delete(msg.id)
+            }
+        }
+    }
+    async function reactionRemoved(msg, emoji, user) {
+        const userID = (user.id) ? user.id : user
+        if (userID !== discordClient.user.id) {
+            if (reactionmessages.indexOf(msg.id) !== -1) {
+                const data = discordreactionsroles.filter(e => e.message === msg.id && e.emoji === emoji.name).pop()
+                if (data) {
+                    const member = await discordClient.getRESTGuildMember(msg.guildID, userID);
+                    if (member.roles.indexOf(data.role) !== -1) {
+                        let _roles = removeItemAll(member.roles, [data.role]);
+                        discordClient.editGuildMember(member.guild.id, member.id, {roles: _roles,}, "User Removed Permission (Open Access)")
+                            .then(() => {
+                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} revoked ${(data.text) ? data.text : data.role} permission`, "info", 'main', "UserRightsMgr")
+                            })
+                            .catch((er) => {
+                                Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er)
+                            })
+                    }
+                }
+            }
+        }
+    }
 
     // Discord Event Processor
-    async function memberRoleGeneration(guild, member) {
+    const stuTimerRegister = new Map();
+    async function stuTimer(guild, member) {
+        if (!stuTimerRegister.has('updateAccount-' + member.id + guild.id)) {
+            stuTimerRegister.set('updateAccount-' + member.id + guild.id, setTimeout(async () => {
+                await memberRoleGeneration(guild, member);
+                clearTimeout(stuTimerRegister.get('updateAccount-' + member.id + guild.id))
+                stuTimerRegister.delete('updateAccount-' + member.id + guild.id);
+                Logger.printLine("stuAccountUpdate", `User ${member.id} account was updated`, "info")
+            }, 15000))
+        }
+    }
+    async function memberRoleGeneration(guild, member, dontUpdateAccount) {
         const serverPermissions = await db.query(`SELECT discord_permissons.* FROM discord_servers, discord_permissons WHERE discord_servers.authware_enabled = 1 AND discord_servers.serverid = ? AND discord_servers.serverid = discord_permissons.server`, [guild.id]);
         const userExits = await db.query(`SELECT * FROM discord_users WHERE discord_users.serveruserid = ?`, [member.user.id + guild.id]);
         if (serverPermissions && serverPermissions.rows.length > 0) {
@@ -561,6 +686,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             for (const role of serverPermissions.rows.filter(e => e.name && member.roles.indexOf(e.role) !== -1 && ignoredPermissions.indexOf(e.name) === -1)) {
                 let type = null;
                 let roleName = role.name.trim();
+                let roleText = role.text.trim();
+                let color = null;
+                if (role.color !== null && role.color !== "0") {
+                    color = "#" + Number(parseInt(role.color)).toString(16).padStart(2, '0')
+                }
                 if (role.name.includes('_read')) {
                     type = 1
                 } else if (role.name.includes('_write')) {
@@ -573,7 +703,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     type = 0
                 }
-                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, role = ?, type = ?`, [member.user.id, guild.id, roleName, type]);
+                await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleText, roleName, type]);
+                if (roleName === 'user') {
+                    await db.query(`INSERT INTO discord_users_permissons SET userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ?`, [member.user.id, guild.id, color, roleText, `${roleName}-${guild.id}`, type]);
+                }
             }
         }
         const userRole = serverPermissions.rows.filter(e => e.name && e.name === 'system_user').map(e => e.role)
@@ -602,10 +735,29 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 memberTokenGeneration();
             }
         }
+        if (!dontUpdateAccount)
+            await sequenziaUserCacheGenerator(member.id);
     }
+    app.get('/refresh/roles', async (req, res) => {
+        await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
+            const guild = discordClient.guilds.get(guildID)
+
+            await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
+                const role = guild.roles.get(roleID)
+                await guildRoleCreate(guild, role);
+            }))
+            await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
+                const member = guild.members.get(memberID)
+                await memberRoleGeneration(guild, member, true);
+            }))
+        }));
+        res.status(200).send("OK");
+    });
     async function memberRemoval(guild, member) {
         const userexsists = await db.query(`SELECT * FROM discord_users WHERE serveruserid = ?`,[member.user.id + guild.id])
         if (userexsists.rows.length > 0) {
+            if (userexsists.rows.length === 1)
+                await db.query(`DELETE FROM discord_users_extended WHERE id = ?`, [member.user.id])
             const userresults = await db.query(`DELETE FROM discord_users WHERE serveruserid = ?`, [member.user.id + guild.id])
             if (userresults.error) {
                 SendMessage("SQL Error occurred when deleting a server user", "err", 'main', "SQL", userresults.error)
@@ -615,19 +767,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function memberTokenGeneration() {
-        const users = await db.query(`SELECT * FROM discord_users`)
+        const userIds = await db.query(`SELECT DISTINCT id FROM discord_users`)
+        const users = await db.query(`SELECT * FROM discord_users_extended`)
         if (users.error) {
             SendMessage("SQL Error occurred when retrieving the users table", "err", 'main', "SQL", users.error)
         } else {
-            await Promise.all(users.rows.map(async user => {
-                let expires = new Date(user.token_expires)
+            await Promise.all(userIds.rows.map(async userId => {
+                const user = users.rows.filter(e => e.id === userId.id)[0]
+                let expires = new Date((user) ? user.token_expires : undefined)
                 let now = new Date()
                 let next_expires = moment(new Date()).add(20, 'days').format('YYYY-MM-DD HH:mm:ss');
                 let token1 = crypto.randomBytes(512).toString("hex");
                 let token2 = crypto.randomBytes(128).toString("hex");
 
-                if (expires <= now) {
-                    const updatedUser = await db.query('UPDATE discord_users SET token = ?, blind_token = ?, token_expires = ? WHERE id = ?', [token1, token2, next_expires, user.id])
+                if (expires <= now || !user) {
+                    const updatedUser = await db.query('INSERT INTO discord_users_extended SET id = ?, token = ?, blind_token = ?, token_expires = ? ON DUPLICATE KEY UPDATE token = ?, blind_token = ?, token_expires = ?', [userId.id, token1, token2, next_expires, token1, token2, next_expires])
                     if (updatedUser.error)
                         SendMessage("SQL Error occurred when updating user token", "err", 'main', "SQL", updatedUser.error)
                 }
@@ -635,17 +789,517 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function guildRoleCreate(guild, role) {
-        if (discordperms.filter(e => e.role === role.id).length === 0) {
-            const addedRole = await db.query('INSERT INTO discord_permissons SET role = ?, server = ?, name = NULL', [role.id, guild.id])
-            if (addedRole.error)
-                SendMessage("SQL Error occurred when saving new role", "err", 'main', "SQL", addedRole.error)
-        }
+        const addedRole = await db.query('INSERT INTO discord_permissons SET ? ON DUPLICATE KEY UPDATE ?', [{
+            role: role.id,
+            server: guild.id,
+            color: role.color,
+            text: role.name,
+            name: null
+        }, {
+            color: role.color,
+            text: role.name
+        }])
+        if (addedRole.error)
+            SendMessage("SQL Error occurred when saving new role", "err", 'main', "SQL", addedRole.error)
     }
     async function guildRoleDelete(role) {
         const deletedRole = await db.query('DELETE FROM discord_permissons WHERE role = ?', [role.id])
         if (deletedRole.error)
             SendMessage("SQL Error occurred when deleting role", "err", 'main', "SQL", deletedRole.error)
     }
+
+    let sequenziaAccountUpdateTimer = null;
+    async function sequenziaUserCacheGenerator(thisUser) {
+        if (sequenziaAccountUpdateTimer) {
+            clearTimeout(sequenziaAccountUpdateTimer);
+            sequenziaAccountUpdateTimer = null;
+        }
+
+        const authViewsqlFields = [
+            'kanmi_channels.channelid',
+            'kanmi_channels.cid AS channel_eid',
+            'kanmi_channels.virtual_cid AS virtual_channel_eid',
+            'discord_servers.serverid',
+            'kanmi_channels.position',
+            'discord_servers.short_name AS server_short_name',
+            'discord_servers.avatar AS server_avatar',
+            'kanmi_channels.name AS channel_name',
+            'kanmi_channels.image_hash AS channel_image',
+            'kanmi_channels.nice_title AS channel_title',
+            'kanmi_channels.short_name AS channel_short_name',
+            'kanmi_channels.nice_name AS channel_nice',
+            'kanmi_channels.description AS channel_description',
+            'kanmi_channels.nsfw AS channel_nsfw',
+            'kanmi_channels.uri AS channel_uri',
+            'kanmi_channels.role',
+            'kanmi_channels.role_write',
+            'kanmi_channels.role_manage',
+            'kanmi_channels.classification',
+            'kanmi_channels.media_group',
+            'sequenzia_class.name AS class_name',
+            'sequenzia_class.icon AS class_icon',
+        ].join(', ');
+        const authViewsqlTables = [
+            'kanmi_channels',
+            'discord_servers',
+            'sequenzia_class'
+        ].join(', ');
+        const authViewsqlWhere = [
+            "(kanmi_channels.parent IS NOT NULL AND kanmi_channels.parent != 'isparent' || kanmi_channels.parent IS NULL)",
+            'kanmi_channels.classification = sequenzia_class.class',
+            'kanmi_channels.serverid = discord_servers.serverid'
+        ].join(' AND ');
+        const sidebarViewsqlOrderBy = [
+            'x.super_position',
+            'x.class_position',
+            `x.server_position`,
+            `x.virtual_channel_eid`,
+            `x.position`,
+        ].join(', ');
+
+
+        const allUsers = (await db.query("SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id")).rows
+        const allUserIds = [...new Set(allUsers.filter(e => !!e.id).map(e => e.id))];
+        const extraLinks = (await db.query(`SELECT * FROM sequenzia_homelinks ORDER BY position`)).rows
+        const allUserPermissions = (await db.query("SELECT DISTINCT role, type, userid, color, text, serverid FROM discord_users_permissons")).rows
+        const allChannels = (await db.query("SELECT x.*, y.chid_download FROM ( SELECT DISTINCT kanmi_channels.channelid, kanmi_channels.serverid, kanmi_channels.role, kanmi_channels.role_write, kanmi_channels.role_manage FROM kanmi_channels, sequenzia_class WHERE kanmi_channels.role IS NOT NULL AND kanmi_channels.classification = sequenzia_class.class) x LEFT OUTER JOIN (SELECT chid_download, serverid FROM discord_servers) y ON (x.serverid = y.serverid AND x.channelid = y.chid_download)")).rows;
+        const allDisabledChannels = (await db.query(`SELECT DISTINCT user, cid FROM sequenzia_hidden_channels`)).rows
+        const allServers = (await db.query(`SELECT x.total_data, total_count, y.* FROM (SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count, server FROM kanmi_records WHERE fileid is not null OR attachment_hash is not null GROUP BY server) x LEFT JOIN (SELECT DISTINCT * FROM discord_servers) y ON x.server = y.serverid  ORDER BY position`)).rows;
+
+
+        let _server_list = allServers.map(e => {
+            return {
+                serverid: e.serverid,
+                name: e.name,
+                nice_name: e.nice_name,
+                short_name: e.short_name,
+                icon: `https://cdn.discordapp.com/icons/${e.serverid}/${e.avatar}.png?size=4096`,
+                login: (e.authware_enabled),
+                usage: e.total_data,
+                count: e.total_count
+            }
+        });
+        let homeLinks = extraLinks.map(link => {
+            return {
+                title: link.name,
+                icon: (link.icon !== url) ? link.icon : undefined,
+                url: link.url
+            }
+        })
+
+        allUserIds.filter(f => !thisUser || (thisUser && f === thisUser)).map(async userId => {
+            const sidebarViewsqlFields = [
+                `kanmi_auth_${userId}.channelid`,
+                `kanmi_auth_${userId}.channel_eid`,
+                `kanmi_auth_${userId}.virtual_channel_eid`,
+                'discord_servers.serverid',
+                `kanmi_auth_${userId}.position`,
+                'sequenzia_superclass.position AS super_position',
+                'sequenzia_superclass.super',
+                'sequenzia_superclass.name AS super_name',
+                'sequenzia_superclass.icon AS super_icon',
+                'sequenzia_superclass.uri AS super_uri',
+                'sequenzia_class.uri AS class_uri',
+                'sequenzia_class.position AS class_position',
+                'sequenzia_class.class',
+                'sequenzia_class.name AS class_name',
+                'sequenzia_class.icon AS class_icon',
+                `kanmi_auth_${userId}.channel_nsfw`,
+                `kanmi_auth_${userId}.channel_name`,
+                `kanmi_auth_${userId}.channel_image`,
+                `kanmi_auth_${userId}.channel_title`,
+                `kanmi_auth_${userId}.channel_short_name`,
+                `kanmi_auth_${userId}.channel_nice`,
+                `kanmi_auth_${userId}.channel_description`,
+                `kanmi_auth_${userId}.channel_uri`,
+                `discord_servers.position AS server_position`,
+                'discord_servers.name AS server_name',
+                'discord_servers.nice_name AS server_nice',
+                'discord_servers.short_name AS server_short',
+                'discord_servers.avatar AS server_avatar',
+                `kanmi_auth_${userId}.role_write`,
+                `kanmi_auth_${userId}.role_manage`,
+            ].join(', ');
+            const sidebarViewsqlTables = [
+                'discord_servers',
+                'sequenzia_superclass',
+                'sequenzia_class',
+                `kanmi_auth_${userId}`,
+            ].join(', ');
+            const sidebarViewsqlWhere = [
+                `kanmi_auth_${userId}.classification IS NOT NULL`,
+                `kanmi_auth_${userId}.classification = sequenzia_class.class`,
+                `kanmi_auth_${userId}.serverid = discord_servers.serverid`,
+                'sequenzia_class.class IS NOT NULL',
+                'sequenzia_class.super = sequenzia_superclass.super',
+            ].join(' AND ');
+
+            const users = allUsers.filter(e => userId === e.id);
+            const userPermissions = allUserPermissions.filter(e => e.userid === userId);
+            const disabledChannels = allDisabledChannels.filter(e => e.user === userId);
+
+            const readPermissionsRows = userPermissions.filter(e => e.type === 1);
+            const writePermissionsRows = userPermissions.filter(e => e.type === 2);
+            const managePermissionsRows = userPermissions.filter(e => e.type === 3);
+            const specialPermissionsRows = userPermissions.filter(e => e.type === 4);
+
+            const readPermissions = readPermissionsRows.map(e => e.role);
+            const writePermissions = writePermissionsRows.map(e => e.role);
+            const managePermissions = managePermissionsRows.map(e => e.role);
+            const specialPermissions = specialPermissionsRows.map(e => e.role);
+
+            let userAccount = {
+                discord: {
+                    user: {
+                        id: userId,
+                        server: _server_list.filter(e => e.serverid === users[0].server),
+                        name: users[0].nice_name,
+                        username: users[0].username,
+                        avatar: users[0].avatar,
+                        banner: users[0].banner,
+                        known: true,
+                        membership: {
+                            text: 'Member'
+                        },
+                        auth_token: null,
+                        token: users[0].token,
+                        token_login: users[0].blind_token,
+                        token_static: users[0].token_static,
+                        token_rotation: users[0].token_expires
+                    },
+                    permissions: {
+                        read: readPermissions,
+                        write: writePermissions,
+                        manage: managePermissions,
+                        specialPermissions: specialPermissions
+                    },
+                    channels: {
+                        read: [],
+                        write: [],
+                        manage: [],
+                    },
+                    servers: {
+                        download: [],
+                        list: _server_list
+                    },
+                    links: homeLinks
+                },
+                user: {
+                    id: userId,
+                    username: (users[0].nice_name) ? users[0].nice_name : users[0].username,
+                    avatar: (users[0].avatar_custom) ? `/full_attachments${users[0].avatar_custom}` : (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
+                    banner: (users[0].banner_custom) ? `/full_attachments${users[0].banner_custom}` : (users[0].banner) ? `https://cdn.discordapp.com/banners/${userId}/${users[0].banner}.${(users[0].banner && users[0].banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
+                },
+                server_list: [],
+                cache: {
+                    channels_view: `kanmi_auth_${userId}`,
+                    sidebar_view: `kanmi_sidebar_${userId}`
+                },
+                sidebar: [],
+                albums: [],
+                artists: [],
+                media_groups: [],
+                applications_list: [],
+                kongou_next_episode: {},
+                disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
+                time_generated: (new Date().valueOf()).toString(),
+            };
+
+            await new Promise(async (resolve) => {
+                if (systemglobal.user_card_membership) {
+                    const _ms = await systemglobal.user_card_membership.filter(m => (readPermissions.indexOf(m.role) !== -1 || writePermissions.indexOf(m.role) !== -1 || specialPermissions.indexOf(m.role) !== -1)).map(e => {
+                        return {
+                            text: (e.text) ? e.text : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].text) ? readPermissionsRows[readPermissions.indexOf(e.role)].text : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].text) ? writePermissionsRows[writePermissions.indexOf(e.role)].text : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].text) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].text : undefined,
+                            background: (e.background) ? e.background : (readPermissions.indexOf(e.role) !== -1 && readPermissionsRows[readPermissions.indexOf(e.role)].color) ? readPermissionsRows[readPermissions.indexOf(e.role)].color : (writePermissions.indexOf(e.role) !== -1 && writePermissionsRows[writePermissions.indexOf(e.role)].color) ? writePermissionsRows[writePermissions.indexOf(e.role)].color : (specialPermissions.indexOf(e.role) !== -1 && specialPermissionsRows[specialPermissions.indexOf(e.role)].color) ? specialPermissionsRows[specialPermissions.indexOf(e.role)].color : undefined,
+                            ...e
+                        }
+                    })
+                    if (_ms.length > 0) {
+                        userAccount.discord.user.membership = {
+                            ...userAccount.discord.user.membership,
+                            ..._ms.pop()
+                        }
+                    }
+                }
+
+                allChannels.map(u => {
+                    if (readPermissions.indexOf(u.role) !== -1 || specialPermissions.indexOf(u.role) !== -1)
+                        userAccount.discord.channels.read.push(u.channelid)
+                    if (writePermissions.indexOf(u.role_write) !== -1 || managePermissions.indexOf(u.role_write) !== -1 || specialPermissions.indexOf(u.role_write) !== -1) {
+                        userAccount.discord.channels.write.push(u.channelid)
+                        if (u.chid_download !== null) {
+                            userAccount.discord.servers.download.push({
+                                serverid: u.serverid,
+                                channelid: u.chid_download
+                            });
+                        }
+                    }
+                    if (managePermissions.indexOf(u.role_manage) !== -1 || specialPermissions.indexOf(u.role_manage) !== -1)
+                        userAccount.discord.channels.manage.push(u.channelid);
+                })
+
+
+                await db.query(`CREATE OR REPLACE VIEW kanmi_auth_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_description, y.virtual_channel_uri FROM (SELECT x.* FROM (SELECT DISTINCT role FROM discord_users_permissons WHERE userid = '${userId}') z LEFT JOIN (SELECT DISTINCT ${authViewsqlFields} FROM ${authViewsqlTables} WHERE (${authViewsqlWhere}) ) x ON (x.role = z.role)) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, description AS virtual_channel_description, uri AS virtual_channel_uri FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY x.position`)
+                await db.query(`CREATE OR REPLACE VIEW kanmi_sidebar_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_uri, y.virtual_channel_description FROM (SELECT ${sidebarViewsqlFields} FROM ${sidebarViewsqlTables} WHERE ${sidebarViewsqlWhere}) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, uri AS virtual_channel_uri, description AS virtual_channel_description FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY ${sidebarViewsqlOrderBy}`);
+                const tempLastEpisode = await db.query(`SELECT Max(y.eid) AS eid, MAX(y.show_id) AS show_id FROM (SELECT * FROM kanmi_system.kongou_watch_history WHERE user = '${userId}' ORDER BY date DESC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_episodes) y ON (x.eid = y.eid);`)
+
+                if (tempLastEpisode.rows.length > 0) {
+                    const nextEpisodeView = await db.query(`SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id);`)
+                    userAccount.kongou_next_episode = nextEpisodeView.rows[0];
+                }
+
+                const serverResults = await db.query(`SELECT DISTINCT kanmi_sidebar_${userId}.serverid, kanmi_sidebar_${userId}.server_nice, kanmi_sidebar_${userId}.server_name, kanmi_sidebar_${userId}.server_short, discord_servers.position, discord_servers.authware_enabled FROM kanmi_sidebar_${userId}, discord_servers WHERE kanmi_sidebar_${userId}.serverid = discord_servers.serverid ORDER BY discord_servers.position`);
+                userAccount.server_list = serverResults.rows.map((e) => ({
+                    id: e.serverid,
+                    name: (e.server_nice) ? e.server_nice : e.server_name,
+                    short_name: e.server_short.toUpperCase(),
+                    login: (e.authware_enabled)
+                }));
+
+                if (systemglobal.web_applications) {
+                    const perms = [
+                        ...readPermissions,
+                        ...writePermissions,
+                        ...managePermissions,
+                        ...specialPermissions
+                    ]
+                    userAccount.applications_list.push(...Object.keys(systemglobal.web_applications).filter(k =>
+                        perms.filter(p => systemglobal.web_applications[k].read_roles.indexOf(p) !== -1).length > 0
+                    ).map(k => {
+                        const app = systemglobal.web_applications[k];
+                        if (app.embedded) {
+                            let images = {}
+                            if (app.images) {
+                                const keys = Object.keys(app.images);
+                                keys.map(j => {
+                                    images[j] = `/app/web/${k}/${app.images[j]}`
+                                })
+                            } else {
+                                images = undefined
+                            }
+                            return {
+                                type: 1,
+                                id: k,
+                                icon: app.icon,
+                                name: app.name,
+                                images
+                            }
+                        } else {
+                            return {
+                                type: 0,
+                                id: k,
+                                icon: app.icon,
+                                name: app.name,
+                                url: app.url
+                            }
+                        }
+                    }))
+                }
+
+                let SidebarArray = [];
+                const sidebarObject = await db.query(`SELECT * FROM kanmi_sidebar_${userId}`)
+                const customChannelObject = await db.query(`SELECT * FROM sequenzia_custom_channels`)
+                const userAlbums = await db.query('SELECT x.aid, x.name, x.uri, x.owner, x.privacy, y.* FROM (SELECT x.*, y.eid FROM (SELECT DISTINCT * FROM sequenzia_albums WHERE owner = ? ORDER BY name ASC) AS x LEFT JOIN (SELECT *, ROW_NUMBER() OVER(PARTITION BY aid ORDER BY RAND()) AS RowNo FROM sequenzia_album_items) AS y ON x.aid = y.aid AND y.RowNo=1) x LEFT JOIN (SELECT eid, channel, attachment_hash, attachment_name, cache_proxy FROM kanmi_records) y ON y.eid = x.eid ORDER BY name ASC', [userId])
+                const userArtists = await db.query(`SELECT * FROM (SELECT kanmi_records.attachment_hash, kanmi_records.attachment_name, kanmi_records.cache_proxy, kanmi_records.sizeH, kanmi_records.sizeW, kanmi_records.sizeR, kanmi_records.colorR, kanmi_records.colorG, kanmi_records.colorB, sequenzia_index_artists.id AS artist_id, sequenzia_index_artists.artist, sequenzia_index_artists.name AS artist_full_name, sequenzia_index_artists.url AS artist_url, sequenzia_index_artists.search AS artist_search, sequenzia_index_artists.count AS artist_count, sequenzia_index_artists.last AS artist_last, sequenzia_index_artists.source AS artist_source, sequenzia_index_artists.confidence AS artist_confidence, sequenzia_index_artists.rating AS artist_rating, kanmi_auth_${userId}.* FROM kanmi_records,kanmi_auth_${userId}, sequenzia_index_artists  WHERE (sequenzia_index_artists.channelid = kanmi_auth_${userId}.channelid AND kanmi_records.eid = sequenzia_index_artists.last AND kanmi_records.channel = kanmi_auth_${userId}.channelid)) x INNER JOIN (SELECT id AS fav_id, date AS fav_date FROM sequenzia_artists_favorites WHERE userid = "${userId}") y ON x.artist_id = y.fav_id ORDER BY x.artist_last DESC`)
+
+                const libraryLists = await db.query(`SELECT g.* FROM (SELECT * FROM kongou_media_groups) g INNER JOIN (SELECT media_group FROM kanmi_auth_${userId}) a ON (g.media_group = a.media_group) GROUP BY g.media_group`)
+
+                if (sidebarObject && sidebarObject.rows.length > 0) {
+                    const superClasses = (e => {
+                        let unique = [];
+                        let distinct = [];
+                        for( let i = 0; i < e.length; i++ ){
+                            if( !unique[e[i].super]){
+                                distinct.push({
+                                    super: e[i].super,
+                                    super_name: e[i].super_name,
+                                    super_icon: e[i].super_icon,
+                                    super_uri: e[i].super_uri
+                                });
+                                unique[e[i].super] = 1;
+                            }
+                        }
+                        return distinct
+                    })(sidebarObject.rows)
+                    const classes = (e => {
+                        let unique = [];
+                        let distinct = [];
+                        for( let i = 0; i < e.length; i++ ){
+                            if( !unique[e[i].class]){
+                                distinct.push({
+                                    class: e[i].class,
+                                    super: e[i].super,
+                                    class_name: e[i].class_name,
+                                    class_icon: e[i].class_icon,
+                                    class_uri: e[i].class_uri,
+                                });
+                                unique[e[i].class] = 1;
+                            }
+                        }
+                        return distinct
+                    })(sidebarObject.rows)
+                    const virtualChannels = (e => {
+                        let unique = [];
+                        let distinct = [];
+                        for( let i = 0; i < e.length; i++ ){
+                            if( e[i].virtual_channel_eid !== null && !unique[e[i].virtual_channel_eid] && e[i].virtual_channel_name !== null){
+                                distinct.push({
+                                    id: e[i].virtual_channel_eid,
+                                    class: e[i].class,
+                                    super: e[i].super,
+                                    name: e[i].virtual_channel_name,
+                                    uri: e[i].virtual_channel_uri,
+                                    description: e[i].virtual_channel_description,
+                                });
+                                unique[e[i].virtual_channel_eid] = 1;
+                            }
+                        }
+                        return distinct
+                    })(sidebarObject.rows)
+
+                    superClasses.map((thisSuper) => {
+                        let _items = []
+                        classes.filter(e => e.super === thisSuper.super ).map((thisClass) => {
+                            const _channels = sidebarObject.rows.filter(e => e.class === thisClass.class && e.virtual_channel_eid === null).map((thisChannel) => {
+                                let channelName = ''
+                                if (thisChannel.channel_nice === null) {
+                                    thisChannel.channel_name.split('-').map((wd, i, a) => {
+                                        channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
+                                        if (i + 1 < a.length) {
+                                            channelName += ' '
+                                        }
+                                    })
+                                } else { channelName = thisChannel.channel_nice }
+
+                                return ({
+                                    type: 0,
+                                    id: thisChannel.channelid,
+                                    eid: thisChannel.channel_eid,
+                                    name: channelName,
+                                    image: (thisChannel.channel_image) ? (thisChannel.channel_image.startsWith('http')) ? thisChannel.channel_image : `https://media.discordapp.net/attachments/${thisChannel.channel_image}`: null,
+                                    channel_title: thisChannel.channel_title,
+                                    short_name: thisChannel.channel_short_name.split('-').join(' '),
+                                    server: thisChannel.serverid,
+                                    server_short_name: thisChannel.server_short.toUpperCase(),
+                                    nsfw: (thisChannel.channel_nsfw === 1),
+                                    uri: thisChannel.channel_uri,
+                                    description: thisChannel.channel_description,
+                                })
+                            })
+                            let _mergedChannels = [];
+                            virtualChannels.map((vcid) => {
+                                let _vc_entities = [];
+                                let _vc_nsfw = false;
+                                sidebarObject.rows.filter(e => e.class === thisClass.class && vcid.class === thisClass.class && e.virtual_channel_eid !== null && e.virtual_channel_eid === vcid.id).map((thisChannel) => {
+                                    let channelName = ''
+                                    if (thisChannel.channel_nice === null) {
+                                        thisChannel.channel_name.split('-').map((wd, i, a) => {
+                                            channelName += wd.substring(0, 1).toUpperCase() + wd.substring(1, wd.length)
+                                            if (i + 1 < a.length) {
+                                                channelName += ' '
+                                            }
+                                        })
+                                    } else {
+                                        channelName = thisChannel.channel_nice
+                                    }
+                                    if (thisChannel.channel_nsfw === 1) { _vc_nsfw = true; }
+
+                                    _vc_entities.push({
+                                        id: thisChannel.channelid,
+                                        eid: thisChannel.channel_eid,
+                                        name: channelName,
+                                        short_name: thisChannel.channel_short_name.split('-').join(' '),
+                                        server: thisChannel.serverid,
+                                        server_short_name: thisChannel.server_short.toUpperCase(),
+                                        uri: thisChannel.channel_uri,
+                                        nsfw: (thisChannel.channel_nsfw === 1),
+                                        description: thisChannel.channel_description,
+                                    })
+                                })
+                                if (_vc_entities.length > 0) {
+                                    _mergedChannels.push({
+                                        type: 2,
+                                        id: vcid.id,
+                                        name: vcid.name,
+                                        description: vcid.description,
+                                        uri: vcid.uri,
+                                        nsfw: _vc_nsfw,
+                                        entities: _vc_entities
+                                    })
+                                }
+                            })
+                            const _customs = customChannelObject.rows.filter((e) => e.class === thisClass.class).map((thisChannel) => {
+                                const channelName = thisChannel.name;
+                                const urlSearch = thisChannel.search + `&title=${channelName}`;
+                                return ({
+                                    type: 1,
+                                    id: md5(urlSearch),
+                                    url: urlSearch,
+                                    name: channelName,
+                                    nsfw: urlSearch.includes('nsfw=true'),
+                                })
+                            })
+
+                            if (_channels.length > 0) {
+                                _items.push({
+                                    id: thisClass.class,
+                                    name: thisClass.class_name,
+                                    icon: thisClass.class_icon,
+                                    uri: thisClass.class_uri,
+                                    entities: [..._channels, ..._mergedChannels, ..._customs]
+                                })
+                            }
+                        })
+                        if (_items.length > 0) {
+                            SidebarArray.push({
+                                id: thisSuper.super,
+                                name: thisSuper.super_name,
+                                icon: thisSuper.super_icon,
+                                uri: thisSuper.super_uri,
+                                entities: _items
+                            })
+                        }
+                    })
+
+                    userAccount.sidebar = SidebarArray;
+
+                    if (userAlbums && userAlbums.rows.length > 0) {
+                        userAccount.albums = userAlbums.rows.map(e => {
+                            let ranImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                            return {
+                                ...e,
+                                image: ranImage
+                            }
+                        });
+                    }
+                    if (userArtists && userArtists.rows.length > 0) {
+                        userAccount.artists = userArtists.rows.map(e => {
+                            let latestImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                            return {
+                                ...e,
+                                image: latestImage
+                            }
+                        });
+                    }
+                    if (libraryLists && libraryLists.rows.length > 0)
+                        userAccount.media_groups = libraryLists.rows
+                }
+                resolve();
+            })
+
+            await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
+                { userid: userId, data: JSON.stringify(userAccount) }, { data: JSON.stringify(userAccount) }
+            ])
+        });
+
+        if (!thisUser) {
+            sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, 300000);
+        }
+    }
+    app.get('/refresh/sequenzia', async (req, res) => {
+        await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
+        res.status(200).send("OK");
+    });
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
@@ -696,15 +1350,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 botsRole: _br,
                 sudoRole: _ad,
             })
-        }))
+        }));
+        app.listen(sbiPort, (err) => {
+            if (err) console.log("Error in server setup")
+            console.log("API listening on port: 31000");
+        });
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
+
+            await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
+                const role = guild.roles.get(roleID)
+                await guildRoleCreate(guild, role);
+            }))
             await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
                 const member = guild.members.get(memberID)
-                await memberRoleGeneration(guild, member);
+                await memberRoleGeneration(guild, member, true);
             }))
         }))
         await updateLocalCache();
+        await sequenziaUserCacheGenerator();
     });
     discordClient.on("error", (err) => {
         Logger.printLine("Discord", "Shard Error, Rebooting...", "error", err);
@@ -712,8 +1376,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         discordClient.connect();
     });
 
-    discordClient.on("guildMemberAdd", async (guild, member) => { await memberRoleGeneration(guild, member) })
-    discordClient.on("guildMemberUpdate", async (guild, member) => { await memberRoleGeneration(guild, member) })
+    discordClient.on("messageReactionAdd", (msg, emoji, user) => reactionAdded(msg, emoji, user));
+    discordClient.on("messageReactionRemove", (msg, emoji, user) => reactionRemoved(msg, emoji, (user.id) ? user.id : user));
+
+    discordClient.on("guildMemberAdd", async (guild, member) => { await stuTimer(guild, member) })
+    discordClient.on("guildMemberUpdate", async (guild, member) => { await stuTimer(guild, member) })
     discordClient.on("guildMemberRemove", async (guild, member) => { await memberRemoval(guild, member) })
 
     discordClient.on('guildRoleUpdate', async (guild, role) => { await guildRoleCreate(guild, role) })

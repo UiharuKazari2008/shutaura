@@ -236,7 +236,7 @@ const systemglobal = require("../config.json");
         const allApps = activeProc.filter(e => (e.name !== "Updater" || args.install))
         const appNeedToRestart = activeProc.filter(e => (e.name !== "Updater" || args.install) && (systemglobal.AlwaysRestart && systemglobal.AlwaysRestart.indexOf(e.name) !== -1 || filesToUpdate.filter(f => (f === e.pm2_env.pm_exec_path.replace(e.pm2_env.pm_cwd + '/', '') || f.startsWith('js/utils/'))).length > 0) && e.pm2_env.status === "online")
         const dontRestart = appNeedToRestart.filter(e => systemglobal.DontRestart && systemglobal.DontRestart.indexOf(e.name) !== -1)
-        const appToRestart = appNeedToRestart.filter(e => dontRestart.filter(f => f.name === e.name).length === 0)
+        const appToRestart = [...new Set(appNeedToRestart.filter(e => dontRestart.filter(f => f.name === e.name).length === 0))]
         const isNpmUpdatesNeeded = (filesToUpdate.filter(e => e === 'package.json').length > 0)
         const isUpdateSelf = (filesToUpdate.filter(e => e === 'js/updater.js').length > 0)
         const applyPatch = (commits.filter(e => e.includes('APPLYPATCH')).length > 0)

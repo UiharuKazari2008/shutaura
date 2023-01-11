@@ -7,7 +7,7 @@
 Developed at Academy City Research
 "Developing a better automated future"
 ======================================================================================
-Kanmi Project - RSS Feed Watcher and Parser
+Shutaura Project - RSS Feed Watcher and Parser
 Copyright 2020
 ======================================================================================
 This code is under a strict NON-DISCLOSURE AGREEMENT, If you have the rights

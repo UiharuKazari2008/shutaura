@@ -9,7 +9,7 @@
 Developed at Academy City Research
 "Developing a better automated future"
 ======================================================================================
-Kanmi Project - Twitter I/O System
+Shutaura Project - Twitter I/O System
 Copyright 2020
 ======================================================================================
 This code is under a strict NON-DISCLOSURE AGREEMENT, If you have the rights
@@ -160,6 +160,8 @@ const systemglobal = require("../config.json");
 	// Twitter Timeline Checkins
 	const limiter1 = new RateLimiter(1, (systemglobal.Twitter_Timeline_Pull) ? parseInt(systemglobal.Twitter_Timeline_Pull.toString()) * 1000 : 1000);
 	const limiter5 = new RateLimiter(75, 15 * 60 * 1000);
+	// Twitter User Timeline Pulls
+	const limiter6 = new RateLimiter(895, 15 * 60 * 1000);
 	// RabbitMQ
 	const limiter3 = new RateLimiter(10, 1000);
 	// Twitter Media Upload
@@ -1534,21 +1536,21 @@ const systemglobal = require("../config.json");
 					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str]);
 					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
 						const competedTweet = await sendTweetToDiscordv2({
-							channelid: `${(message.messageChannelID) ? message.messageChannelID : discordaccount[0].chid_download}`,
-							saveid: discordaccount[0].chid_download,
-							nsfw: 0,
-							txtallowed: 0,
-							fromname: "Manual Download",
+							channelid: message.messageChannelID || message.messageDestinationID || discordaccount[0].chid_download,
+							saveid: message.messageDestinationID || discordaccount[0].chid_download,
+							nsfw: message.listNsfw || 0,
+							txtallowed: message.listTxtallowed || 0,
+							fromname: message.listName || "Manual Download",
 							tweet,
-							redirect: 0,
-							bypasscds: 0,
-							autolike: 0,
-							replyenabled: 0,
-							mergelike: 0,
-							listusers: false,
-							disablelike: 0,
-							list_num: 0,
-							list_id: 0,
+							redirect: message.listRedirect_taccount || 0,
+							bypasscds: message.listBypasscds || 0,
+							autolike: message.listAutolike || 0,
+							replyenabled: message.listReplyenabled || 0,
+							mergelike: message.listMergelike || 0,
+							listusers: message.listUsers || 0,
+							disablelike: message.listDisablelike || 0,
+							list_num: message.listNum || 0,
+							list_id: message.listId || 0,
 							accountid: twitterUser,
 						})
 						if (competedTweet && competedTweet.length > 0) {
@@ -1559,7 +1561,7 @@ const systemglobal = require("../config.json");
 									sent = false;
 							}
 							if (lasttweet.rows.length === 0 && sent)
-								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, null, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str])
+								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str, message.listId || null])
 						}
 					}
 					tweetResolve(true);
@@ -1829,6 +1831,72 @@ const systemglobal = require("../config.json");
 			});
 		}
 	}
+	async function downloadMissingTweets(listID) {
+		Array.from(twitterAccounts.entries()).forEach(async e => {
+			const id = e[0];
+			const twit = e[1];
+
+			const twitterlist = await db.query(`SELECT * FROM twitter_list WHERE taccount = ?${(listID) ? " AND listid = '" + listID + "'" : "" }`, [id]);
+			if (twitterlist.error) { console.error(twitterlist.error) }
+
+			let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
+				return promiseChain.then(() => new Promise((listResolve) => {
+					limiter1.removeTokens(1, function () {
+						let params = {
+							list_id: '' + list.listid,
+							count: 5000,
+							skip_status: true,
+							include_entities: false
+						}
+						twit.client.get('lists/members', params, function (err, listMembers) {
+							if (err) {
+								Logger.printLine("TwitterImport", `Error retrieving twitter ${list.name} (${list.listid})!`, "error", err)
+								listResolve(false);
+							} else {
+								let tweetRequests = listMembers.users.reduce((promiseChain1, memeber) => {
+									return promiseChain1.then(() => new Promise(async (tweetResolve) => {
+										limiter6.removeTokens(1, function () {
+											downloadUser({
+												accountID: id,
+												userID: memeber.screen_name,
+												excludeRT: true,
+												excludeReplys: true,
+												allowDuplicates: false,
+
+												messageChannelID: list.channelid,
+												listNsfw: (list.nsfw === 1) ? (list.redirect_taccount !== list.taccount) ? 0 : list.nsfw : list.nsfw,
+												listTxtallowed: list.textallowed,
+												messageDestinationID: list.saveid,
+												listName: list.name,
+												listRedirect_taccount: list.redirect_taccount,
+												listBypasscds: list.bypasscds,
+												listAutolike: list.autolike,
+												listReplyenabled: list.replyenabled,
+												listMergelike: list.mergelike,
+												listUsers: listMembers.users,
+												listDisablelike: list.disablelike,
+												listNum: list.id,
+												listId: list.listid,
+											},(state) => {
+												tweetResolve(state);
+											})
+										})
+									}));
+								}, Promise.resolve());
+								tweetRequests.then((ok) => {
+									console.log(`Account ${id}: List Complete - ${list.listid}`)
+									listResolve(true);
+								});
+							}
+						})
+					});
+				}))
+			}, Promise.resolve());
+			listRequests.then(async (ok) => {
+				console.log(`Account ${id}: Completed Pass`);
+			})
+		})
+	}
 	function listManagment(message, cb) {
 		const accountID = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
 		const twit = twitterAccounts.get(accountID);
@@ -1988,6 +2056,10 @@ const systemglobal = require("../config.json");
 				case "DownloadUser":
 					downloadUser(message, cb);
 					break;
+				case "PullTweets":
+					downloadMissingTweets(message.listID);
+					cb(true);
+					break;
 				case "SendTweet":
 					sendTweet((message.accountID) ? message.accountID : 1, message, (ok) => {
 						cb(true);
@@ -2062,13 +2134,13 @@ const systemglobal = require("../config.json");
 							}
 						}
 					} else {
-						mqClient.sendMessage(`Error retrieving tweet`, "err", "TwitterMentions", err)
+						Logger.printLine("TwitterMentions", `Error retrieving tweet`, "error", err)
 					}
 				})
 			})
 		})
 	}
-	async function getTweets(getRt) {
+	async function getTweets(countLimit) {
 		Array.from(twitterAccounts.entries()).forEach(async e => {
 			const id = e[0];
 			const twit = e[1];
@@ -2088,12 +2160,12 @@ const systemglobal = require("../config.json");
 					limiter1.removeTokens(1, function () {
 						let params = {
 							list_id: '' + list.listid,
-							count: 500,
+							count: countLimit || 500,
 							include_rts: '' + list.getretweets
 						}
 					twit.client.get('lists/statuses', params, function (err, tweets) {
 						if (err) {
-							mqClient.sendMessage(`Error retrieving twitter ${list.name} (${list.listid})!`, "err", "TwitterInbound", err)
+							Logger.printLine("TwitterInbound", `Error retrieving twitter ${list.name} (${list.listid})!`, "error", err)
 							listResolve(false);
 						} else {
 					twit.client.get('lists/members', { list_id: '' + list.listid, count: 1000 }, function (err, listUsers) {

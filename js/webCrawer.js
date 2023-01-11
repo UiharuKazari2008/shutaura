@@ -7,7 +7,7 @@
 Developed at Academy City Research
 "Developing a better automated future"
 ======================================================================================
-Kanmi Project - Web Crawler System
+Shutaura Project - Web Crawler System
 Copyright 2020
 ======================================================================================
 This code is publicly released and is restricted by its project license
