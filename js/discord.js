@@ -1929,7 +1929,7 @@ This code is publicly released and is restricted by its project license
                                                                     if (userCache.length > 0) {
                                                                         const _data = userCache[0].data;
                                                                         _data.user.banner = '/full_attachments' + url
-                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [MessageContents.userId])
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
                                                                         Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
                                                                     }
                                                                 }
@@ -2011,7 +2011,7 @@ This code is publicly released and is restricted by its project license
                                                                     if (userCache.length > 0) {
                                                                         const _data = userCache[0].data;
                                                                         _data.user.avatar = '/full_attachments' + url
-                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [MessageContents.userId])
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
                                                                         Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
                                                                     }
                                                                 }
