@@ -7080,7 +7080,7 @@ This code is publicly released and is restricted by its project license
         })
     }
     async function verifySpannedFiles(searchLimit) {
-        const files = (await db.query(`SELECT * FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
+        const files = (await db.query(`SELECT *, CONVERT(kanmi_records.id,SIGNED) AS num_id FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY num_id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
         if (files && files.length) {
             await activeTasks.set('VERIFY_SFPARTS', { started: Date.now().valueOf() });
             Logger.printLine("MPFValidator", `Validating ${files.length}`, "debug")
@@ -8792,7 +8792,7 @@ This code is publicly released and is restricted by its project license
                 });
                 cycleThreads(true);
                 init = 1
-                //verifySpannedFiles(5);
+                verifySpannedFiles(5);
                 cleanOldMessages();
                 setInterval(async () => { cleanOldMessages(); }, 3600000);
                 setInterval(async () => { verifySpannedFiles(25); }, 14400000);
