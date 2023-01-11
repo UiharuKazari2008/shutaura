@@ -1,10 +1,5 @@
-<img src="https://user-images.githubusercontent.com/15165770/176505424-2e88c783-7294-48d9-bb0d-ce8da8ae0302.png" width="512" /><br/>
-
----
-
-# Shutaura Framework
-
-The base framework for Sequenzia
+<img src="https://user-images.githubusercontent.com/15165770/211883603-5ef8d08d-d403-488b-a6f7-becf864c3ac4.png" width="1024" /><br/>
+The framework for Sequenzia
 
 Includes the following systems:
 * Discord I/O
