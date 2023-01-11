@@ -33,6 +33,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let args = minimist(process.argv.slice(2));
     let tfa = require('2fa');
     const md5 = require("md5");
+    // SBI
+    const express = require('express');
+    const bodyParser = require('body-parser');
+    const multer = require('multer');
+    const upload = multer();
+    const app = express();
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
+    app.use(upload.array());
+    const sbiPort = 31001;
 
     let authorizedUsers = new Map();
     let sudoUsers = new Map();
@@ -55,7 +65,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     Logger.printLine("Init", "Discord AuthWare", "info")
 
-    // Load Enviorment Varibles
+    // Load Environment Variables
     if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
         systemglobal.MQServer = process.env.MQ_HOST.trim()
     if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
@@ -728,6 +738,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (!dontUpdateAccount)
             await sequenziaUserCacheGenerator(member.id);
     }
+    app.get('/refresh/roles', async (req, res) => {
+        await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
+            const guild = discordClient.guilds.get(guildID)
+
+            await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
+                const role = guild.roles.get(roleID)
+                await guildRoleCreate(guild, role);
+            }))
+            await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
+                const member = guild.members.get(memberID)
+                await memberRoleGeneration(guild, member, true);
+            }))
+        }));
+        res.status(200).send("OK");
+    });
     async function memberRemoval(guild, member) {
         const userexsists = await db.query(`SELECT * FROM discord_users WHERE serveruserid = ?`,[member.user.id + guild.id])
         if (userexsists.rows.length > 0) {
@@ -1271,6 +1296,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, 300000);
         }
     }
+    app.get('/refresh/sequenzia', async (req, res) => {
+        await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
+        res.status(200).send("OK");
+    });
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
@@ -1321,7 +1350,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 botsRole: _br,
                 sudoRole: _ad,
             })
-        }))
+        }));
+        app.listen(sbiPort, (err) => {
+            if (err) console.log("Error in server setup")
+            console.log("API listening on port: 31000");
+        });
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
 

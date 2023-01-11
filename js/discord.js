@@ -40,8 +40,18 @@ This code is publicly released and is restricted by its project license
     const sharp = require("sharp");
     const sizeOf = require('image-size');
     const minimist = require("minimist");
-    let args = minimist(process.argv.slice(2));
+    // SBI
+    const express = require('express');
+    const bodyParser = require('body-parser');
+    const multer = require('multer');
+    const upload = multer();
+    const app = express();
+    app.use(bodyParser.json());
+    app.use(bodyParser.urlencoded({ extended: true }));
+    app.use(upload.array());
+    const sbiPort = 31000;
 
+    const args = minimist(process.argv.slice(2));
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const {spawn} = require("child_process");
@@ -1914,6 +1924,14 @@ This code is publicly released and is restricted by its project license
                                                                     const url = data.attachments[0].url.split('/attachments')[1]
                                                                     db.query(`UPDATE discord_users_extended SET banner_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                     Logger.printLine('SetUserBanner', `User Banner for ${MessageContents.userId} set!`, 'debug')
+
+                                                                    const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
+                                                                    if (userCache.length > 0) {
+                                                                        const _data = userCache[0].data;
+                                                                        _data.user.banner = '/full_attachments' + url
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [MessageContents.userId])
+                                                                        Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
+                                                                    }
                                                                 }
                                                                 resolve(true)
                                                             })
@@ -1988,6 +2006,14 @@ This code is publicly released and is restricted by its project license
                                                                     const url = data.attachments[0].url.split('/attachments')[1]
                                                                     db.query(`UPDATE discord_users_extended SET avatar_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                     Logger.printLine('SetUserAvatar', `User Avatar for ${MessageContents.userId} set!`, 'debug')
+
+                                                                    const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
+                                                                    if (userCache.length > 0) {
+                                                                        const _data = userCache[0].data;
+                                                                        _data.user.avatar = '/full_attachments' + url
+                                                                        await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [MessageContents.userId])
+                                                                        Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
+                                                                    }
                                                                 }
                                                                 resolve(true)
                                                             })
@@ -8771,6 +8797,10 @@ This code is publicly released and is restricted by its project license
                 setInterval(async () => { cleanOldMessages(); }, 3600000);
                 setInterval(async () => { verifySpannedFiles(25); }, 14400000);
                 setTimeout(start, 5000);
+                app.listen(sbiPort, (err) => {
+                    if (err) console.log("Error in server setup")
+                    console.log("API listening on port: 31000");
+                });
                 /*setInterval(() => {
                     const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
                     if (ap && ap.length === 0 && activeProccess === true) {
@@ -8795,6 +8825,10 @@ This code is publicly released and is restricted by its project license
                 setTimeout(start, 5000);
                 init = 1
                 Logger.printLine("Discord", "Discord Client is running is upload only mode and will not accept any remote chnages!", "warning")
+                app.listen(sbiPort, (err) => {
+                    if (err) console.log("Error in server setup")
+                    console.log("API listening on port: 31000");
+                });
             }
         }
     });
