@@ -5481,7 +5481,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
 
-            /*try {
+            try {
                 console.log(`Getting Sequenzia counts...`)
                 const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
                 const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
@@ -5498,9 +5498,7 @@ This code is publicly released and is restricted by its project license
                         "color": 16755712,
                         "fields": []
                     }
-                    console.log(seqLatestLogins.rows)
                     seqLatestLogins.rows.map(f => {
-                        console.log(f)
                         const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
                         const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0,5).map(g => {
                             const type = (() => {
@@ -5517,7 +5515,7 @@ This code is publicly released and is restricted by its project license
                                         return '️️‼️'
                                 }
                             })()
-                            return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((geo.regionName !== '') ? geo.regionName : 'Unknown') + ', ' + ((geo.countryCode !== '') ? geo.countryCode : '??') + ')' : '❓'}`
+                            return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
                         });
                         seqLoginembed.fields.push({
                             "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name} (${f.session_count})`,
@@ -5526,11 +5524,10 @@ This code is publicly released and is restricted by its project license
                     })
                     if (seqLoginembed.fields.length > 0)
                         embdedArray.push(seqLoginembed);
-                    console.log(seqLoginembed)
                 }
             } catch (e) {
                 console.error(e)
-            }*/
+            }
         }
         // Active Tasks
         let _ioT = []
