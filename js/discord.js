@@ -5487,6 +5487,7 @@ This code is publicly released and is restricted by its project license
                 const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
                 const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
                 const seqLoginInfo = await db.query(`SELECT id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC`);
+
                 if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
                     (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
                     (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
@@ -5497,6 +5498,7 @@ This code is publicly released and is restricted by its project license
                         "color": 16755712,
                         "fields": []
                     }
+                    console.log(seqLatestLogins.rows)
                     seqLatestLogins.rows.map(f => {
                         console.log(f)
                         const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
@@ -5518,7 +5520,7 @@ This code is publicly released and is restricted by its project license
                             return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((geo.regionName !== '') ? geo.regionName : 'Unknown') + ', ' + ((geo.countryCode !== '') ? geo.countryCode : '??') + ')' : '❓'}`
                         });
                         seqLoginembed.fields.push({
-                            "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name}`,
+                            "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name} (${f.session_count})`,
                             "value": sessions.join('\n').substring(0,1024)
                         });
                     })
