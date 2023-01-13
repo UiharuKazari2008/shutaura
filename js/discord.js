@@ -5498,7 +5498,7 @@ This code is publicly released and is restricted by its project license
                         "fields": []
                     }
                     seqLatestLogins.rows.map(f => {
-                        const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.findIndex(f.id)];
+                        const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
                         const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).map(g => {
                             const type = (() => {
                                 switch (g.meathod) {
