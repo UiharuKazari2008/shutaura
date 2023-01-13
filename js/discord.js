@@ -5514,6 +5514,7 @@ This code is publicly released and is restricted by its project license
             })
             if (seqLoginembed.fields.length > 0)
                 embdedArray.push(seqLoginembed);
+            console.log(seqLoginembed)
         }
         // Active Tasks
         let _ioT = []
@@ -5756,7 +5757,7 @@ This code is publicly released and is restricted by its project license
                 diffData = finalEmbeds.map((e,i) => (haveSameData(e, lastEmbeds[i])) ).filter(e => e === false)
             }
 
-            if (forceUpdate || !lastEmbeds || diffData.length > 0) {
+            if (forceUpdate || !lastEmbeds || finalEmbeds.length !== lastEmbeds.length || diffData.length > 0) {
                 discordClient.editMessage(channel, data.message, {
                     embeds: finalEmbeds
                 })
