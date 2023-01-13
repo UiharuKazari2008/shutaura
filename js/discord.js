@@ -5519,7 +5519,7 @@ This code is publicly released and is restricted by its project license
                         });
                         seqLoginembed.fields.push({
                             "name": `🔑 ${userInfo.username} @ ${userInfo.name} (${f.session_count})`,
-                            "value": sessions.join('\n').substring(0,1024)
+                            "value": [...new Set(sessions)].join('\n').substring(0,1024)
                         });
                     })
                     if (seqLoginembed.fields.length > 0)
