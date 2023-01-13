@@ -4868,6 +4868,7 @@ This code is publicly released and is restricted by its project license
         }
     }
     async function generateStatus(forceUpdate, guildID, channelID) {
+        console.log(`Generating status for "${guildID}"...`)
         let data
         try {
             data = await localParameters.getItem('statusgen-' + guildID)
@@ -5098,6 +5099,7 @@ This code is publicly released and is restricted by its project license
         } catch (e) {
             console.error(e);
         }
+        console.log(`Getting RabbitMQ Stats...`)
         if (!systemglobal.Discord_Upload_Only) {
             embed.fields.push({
                 "name": "🏘 Servers",
@@ -5232,6 +5234,7 @@ This code is publicly released and is restricted by its project license
                 ].join(' AND ') + ')',
             ].join(' OR ')})`
 
+            console.log(`Getting Counts...`)
             const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
                                           FROM kanmi_records
                                           WHERE ${imageWhereQuery}`);
@@ -5289,6 +5292,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
 
+            console.log(`Getting Backup counts...`)
             // Backup and Sync System
             _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
                 const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
@@ -5477,6 +5481,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
 
+            console.log(`Getting Sequenzia counts...`)
             const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL ${systemglobal.Discord_Insights_SeqLogin_Num_Hours || 12} HOUR GROUP BY id`);
             const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
             const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
@@ -5758,6 +5763,7 @@ This code is publicly released and is restricted by its project license
             }
 
             if (forceUpdate || !lastEmbeds || finalEmbeds.length !== lastEmbeds.length || diffData.length > 0) {
+                console.log(`Updating data...`);
                 discordClient.editMessage(channel, data.message, {
                     embeds: finalEmbeds
                 })
@@ -5804,6 +5810,8 @@ This code is publicly released and is restricted by its project license
                     .catch(e => {
                         console.error(e)
                     });
+            } else {
+                console.log(`Update skipped ${forceUpdate} || ${!lastEmbeds} || ${finalEmbeds.length !== lastEmbeds.length} || ${diffData.length > 0}`);
             }
         } else {
             discordClient.createMessage(channel, {
