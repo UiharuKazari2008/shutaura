@@ -5498,8 +5498,9 @@ This code is publicly released and is restricted by its project license
                         "fields": []
                     }
                     seqLatestLogins.rows.map(f => {
+                        console.log(f)
                         const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
-                        const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).map(g => {
+                        const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0,5).map(g => {
                             const type = (() => {
                                 switch (g.meathod) {
                                     case 100:
@@ -5518,7 +5519,7 @@ This code is publicly released and is restricted by its project license
                         });
                         seqLoginembed.fields.push({
                             "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name}`,
-                            "value": sessions.join('\n')
+                            "value": sessions.join('\n').substring(0,1024)
                         });
                     })
                     if (seqLoginembed.fields.length > 0)
