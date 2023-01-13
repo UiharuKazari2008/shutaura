@@ -5181,7 +5181,7 @@ This code is publicly released and is restricted by its project license
         let _bt = '❔ Unknown'
         let _bc = null;
 
-
+        let embdedArray = [];
         if (!systemglobal.Discord_Upload_Only) {
             // File Count and Usage
             const imageWhereQuery = `(${[
@@ -5476,6 +5476,44 @@ This code is publicly released and is restricted by its project license
                     "inline": true
                 })
             }
+
+            const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL ${systemglobal.Discord_Insights_SeqLogin_Num_Hours || 12} HOUR GROUP BY id`);
+            const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
+            const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
+            const seqLoginInfo = await db.query(`SELECT id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL ${systemglobal.Discord_Insights_SeqLogin_Num_Hours || 12} HOUR ORDER BY reauth_time DESC`);
+            let seqLoginembed = {
+                "footer": {
+                    "title": "Sequenzia ESM Activity"
+                },
+                "color": 16755712,
+                "fields": []
+            }
+            seqLatestLogins.rows.map(f => {
+                const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.find(f.id)];
+                const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).map(g => {
+                    const type = (() => {
+                        switch (g.meathod) {
+                            case 100:
+                                return '✅️';
+                            case 101:
+                                return '❇️';
+                            case 102:
+                                return '🔷';
+                            case 900:
+                                return '🔶';
+                            default:
+                                return '️️‼️'
+                        }
+                    })()
+                    return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((geo.regionName !== '') ? geo.regionName : 'Unknown') + ', ' + ((geo.countryCode !== '') ? geo.countryCode : '??') + ')' : '❓'}`
+                });
+                seqLoginembed.fields.push({
+                    "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name}`,
+                    "value": sessions.join('\n')
+                });
+            })
+            if (seqLoginembed.fields.length > 0)
+                embdedArray.push(seqLoginembed);
         }
         // Active Tasks
         let _ioT = []
@@ -5658,7 +5696,6 @@ This code is publicly released and is restricted by its project license
                     };
                 }))
         }
-        let embdedArray = [];
         if (discordMQ.fields.length > 0){
             embdedArray.push(discordMQ)
         }
