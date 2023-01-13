@@ -1543,7 +1543,7 @@ const systemglobal = require("../config.json");
 							fromname: message.listName || "Manual Download",
 							tweet,
 							redirect: message.listRedirect_taccount || 0,
-							bypasscds: message.listBypasscds || 0,
+							bypasscds: message.listBypasscds || 1,
 							autolike: message.listAutolike || 0,
 							replyenabled: message.listReplyenabled || 0,
 							mergelike: message.listMergelike || 0,
