@@ -5481,7 +5481,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
 
-            try {
+            /*try {
                 console.log(`Getting Sequenzia counts...`)
                 const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
                 const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
@@ -5530,7 +5530,7 @@ This code is publicly released and is restricted by its project license
                 }
             } catch (e) {
                 console.error(e)
-            }
+            }*/
         }
         // Active Tasks
         let _ioT = []
