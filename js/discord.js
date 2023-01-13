@@ -5518,7 +5518,7 @@ This code is publicly released and is restricted by its project license
                             return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
                         });
                         seqLoginembed.fields.push({
-                            "name": `🔑 ${userInfo[0].username} @ ${userInfo[0].name} (${f.session_count})`,
+                            "name": `🔑 ${userInfo.username} @ ${userInfo.name} (${f.session_count})`,
                             "value": sessions.join('\n').substring(0,1024)
                         });
                     })
@@ -8846,7 +8846,7 @@ This code is publicly released and is restricted by its project license
                 });
                 cycleThreads(true);
                 init = 1
-                verifySpannedFiles(5);
+                verifySpannedFiles(1);
                 cleanOldMessages();
                 setInterval(async () => { cleanOldMessages(); }, 3600000);
                 setInterval(async () => { verifySpannedFiles(25); }, 14400000);
