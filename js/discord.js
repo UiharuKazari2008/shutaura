@@ -4862,9 +4862,9 @@ This code is publicly released and is restricted by its project license
                             Timers.set(`StatusReport${guild.id}`, setInterval(() => {
                                 generateStatus(true, guild.id)
                             }, 300000))
-                            Timers.set(`StatusReportCheck${guild.id}`, cron.schedule('* 0-2,9-23 * * *', () => {
+                            /*Timers.set(`StatusReportCheck${guild.id}`, cron.schedule('* 0-2,9-23 * * *', () => {
                                 generateStatus(false, guild.id)
-                            }))
+                            }))*/
                         }
                     })
                 })
@@ -4874,992 +4874,994 @@ This code is publicly released and is restricted by its project license
             musicFolders = fs.readdirSync(systemglobal.RadioFolder);
         }
     }
+    let activeRefresh = false;
     async function generateStatus(forceUpdate, guildID, channelID) {
-        console.log(`Generating status for "${guildID}"...`)
-        let data
-        try {
-            data = await localParameters.getItem('statusgen-' + guildID)
-        } catch (e) {
-            console.error("Failed to get guild local parameters")
-        }
-        let channel = null
-        let systemWarning = false;
-        let UndeliveredMQ = 0;
-        let bannerWarnings = [];
-        let systemFault = false;
-        let bannerFault = [];
-        if (channelID) {
-            channel = channelID
-        }
-        else if (data && data.channel) {
-            channel = data.channel
-        }
-        else {
-            return false;
-        }
-
-        const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
-        const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
-        const statusData = Array.from(statusValues.entries()).map(e => {
-            return {
-                name: e[0],
-                data: e[1]
-            }
-        })
-
-        let embed = {
-            "footer": {
-                "text": `${(systemglobal.Discord_Upload_Only) ? "Publisher Status (" + systemglobal.SystemName + ")" : "System Status"}`,
-                "icon_url": discordClient.guilds.get(guildID).iconURL
-            },
-            "timestamp": (new Date().toISOString()) + "",
-            "color": 65366,
-            "thumbnail" : {
-                "url": null
-            },
-            "image" : {
-                "url": null
-            },
-            "fields": [
-                {
-                    "name": "🕓 Uptime",
-                    "value": `${msConversion(process.uptime() * 1000)} (${msConversion(discordClient.uptime)})`.substring(0,1024),
-                    "inline": true
-                },
-            ]
-        }
-
-        // Get MQ Statics
-        let discordMQMessages = 0;
-        let discordMQ = {
-            "footer" : {
-                "title": "Discord I/O Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
-        }
-        let fileworkerMQ = {
-            "footer": {
-                "title": "FileWorker Queue Status"
-            },
-            "color": 1473771,
-            "fields": []
-        }
-        try {
-            const promisifiedRequest = function(options) {
-                return new Promise((resolve,reject) => {
-                    request(options, (error, response, body) => {
-                        if (response) {
-                            return resolve(response);
-                        }
-                        if (error) {
-                            return reject(error);
-                        }
-                    });
-                });
-            };
-            const ampqResponse = await promisifiedRequest({
-                url: `http://${systemglobal.MQServer}:15672/api/queues`,
-                headers: {
-                    'content-type': "application/json",
-                    "Authorization" : "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
-                }
-            })
-            let ampqJSON = [];
-            if (!ampqResponse.err && ampqResponse.body) {
-                ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
-            } else if (ampqResponse.err) {
-                console.error(ampqResponse.err)
-            }
-            await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => { UndeliveredMQ = e.messages; })
-            await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
-                discordMQMessages = discordMQMessages + e.messages
-                let _name = ''
-                let _return = '';
-                let id = 0;
-                switch (e.name.split('.')[0].toLowerCase()) {
-                    case 'inbox':
-                        _name += '📥'
-                        id = id + 10
-                        break;
-                    case 'outbox':
-                        _name += '📤'
-                        break;
-                    default:
-                        break;
-                }
-                switch (e.name.split('.discord').pop().toLowerCase()) {
-                    case '':
-                        _name += '⭐ Standard'
-                        id = id + 1
-                        break;
-                    case '.priority':
-                        _name += '💨 Priority'
-                        break;
-                    case '.package.priority':
-                        _name += '💨 Packaged Priority'
-                        break;
-                    case '.package':
-                        _name += '💨 Packaged'
-                        break;
-                    case '.backlog':
-                        _name += '☃ Backlog'
-                        id = id + 2
-                        break;
-                    default:
-                        _name = e.name
-                        break;
-                }
-                if (e.messages > 0) {
-                    _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                }
-                if (e.message_bytes >= 1000000000) {
-                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                } else if (e.message_bytes >= 1000000) {
-                    _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                } else if (e.message_bytes >= 1000) {
-                    _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                } else if (e.message_bytes > 100) {
-                    _return += `📦: ${e.message_bytes}B\n`
-                }
-                if (e.message_stats) {
-                    if (e.message_stats.publish > 1000000) {
-                        _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                    } else if (e.message_stats.publish > 1000) {
-                        _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                    } else if (e.message_stats.publish > 0) {
-                        _return += `📈: ▶${e.message_stats.publish}`
-                    } else {
-                        _return += `Never Activated`
-                    }
-                    if (e.message_stats.publish > 0) {
-                        _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                    }
-                }
-                if (e.messages > 2) {
-                    return [id, {
-                        "name": _name,
-                        "value": _return.substring(0,1024),
-                    }]
-                }
-                return null
-            }).filter(e => e !== null).sort((a, b) => a[0]-b[0]).forEach(e => {
-                discordMQ.fields.push(e[1])
-            })
-            await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
-                let _name = ''
-                let _return = '';
-                let id = 0;
-                switch (e.name.split('.').pop().toLowerCase()) {
-                    case 'fileworker':
-                        _name += '⚙ Remote Requests'
-                        break;
-                    case 'backlog':
-                        _name += '⚙ Backlog Requests'
-                        id = id + 1
-                        break;
-                    case 'local':
-                        const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
-                        _name += '💽 ' + hostname + ' File Uploads'
-                        id = hostname
-                        break;
-                    default:
-                        _name += e.name
-                        break;
-                }
-                if (e.messages > 0) {
-                    _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                }
-                if (e.message_bytes >= 1000000000) {
-                    _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                } else if (e.message_bytes >= 1000000) {
-                    _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                } else if (e.message_bytes >= 1000) {
-                    _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                } else if (e.message_bytes > 100) {
-                    _return += `📦: ${e.message_bytes}B\n`
-                }
-                if (e.message_stats) {
-                    if (e.message_stats.publish > 1000000) {
-                        _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                    } else if (e.message_stats.publish > 1000) {
-                        _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                    } else if (e.message_stats.publish > 0) {
-                        _return += `📈: ▶${e.message_stats.publish}`
-                    } else {
-                        _return += `Never Activated`
-                    }
-                    if (e.message_stats.publish > 0) {
-                        _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                    }
-                }
-                if (e.messages > 2) {
-                    return [id, {
-                        "name": _name,
-                        "value": _return.substring(0,1024),
-                    }]
-                }
-                return null
-            }).filter(e => e !== null).sort((a, b) => a[0]-b[0]).forEach(e => {
-                fileworkerMQ.fields.push(e[1])
-            })
-        } catch (e) {
-            console.error(e);
-        }
-        console.log(`Getting RabbitMQ Stats...`)
-        if (!systemglobal.Discord_Upload_Only) {
-            embed.fields.push({
-                "name": "🏘 Servers",
-                "value": `${discordClient.guilds.size}`.substring(0,1024),
-                "inline": true
-            })
-        } else {
-            embed.fields.push({
-                "name": "📤 Outbox",
-                "value": `${discordMQMessages}`.substring(0,1024),
-                "inline": true
-            })
-        }
-        if (discordClient.unavailableGuilds.size > 0) {
-            systemFault = true;
-            bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
-        }
-        if (gracefulShutdown) {
-            systemFault = true;
-            bannerFault.unshift('🛑 System is shutting down!')
-        }
-        let _ud = [];
-        // Get Insight Footer Image
-        if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL[guildID] !== undefined) {
-            embed.image = {
-                "url": systemglobal.Discord_Insights_Custom_Image_URL[guildID]
-            }
-        }
-        else if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL.default !== undefined) {
-            embed.image = {
-                "url": systemglobal.Discord_Insights_Custom_Image_URL.default
-            }
-        }
-        else {
-            embed.image = undefined;
-        }
-        // Get Insight Icon Image
-        if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon[guildID] === true) {
-            embed.thumbnail = {
-                "url": discordClient.guilds.get(guildID).iconURL
-            }
-        }
-        else if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon.default === true) {
-            embed.thumbnail = {
-                "url": discordClient.guilds.get(guildID).iconURL
-            }
-        }
-        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL[guildID] !== undefined) {
-            embed.thumbnail = {
-                "url": systemglobal.Discord_Insights_Custom_Icon_URL[guildID]
-            }
-        }
-        else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL.default !== undefined) {
-            embed.thumbnail = {
-                "url": systemglobal.Discord_Insights_Custom_Icon_URL.default
-            }
-        }
-        else {
-            embed.thumbnail = undefined;
-        }
-        // Undelivered Messages Counts
-        if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && !systemglobal.Discord_Upload_Only) {
-            const binChannel = await cacheData.get(systemglobal.Discord_Recycling_Bin);
-            if (binChannel >= 5) { systemFault = true; }
-            if (binChannel > 0)
-                _ud.push("🅰 " + (`${(binChannel < 5) ? "🆕" : "🚨"} ${(binChannel < 5) ? binChannel : "5+"} Items Waiting`))
-            if (UndeliveredMQ > 0)
-                _ud.push("🅱 " + (`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`));
-        }
-        else {
-            if (UndeliveredMQ >= 5) { systemFault = true; }
-            if (UndeliveredMQ > 0)
-                _ud.push(`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`);
-        }
-        embed.fields.push({
-            "name": "✉ Undelivered",
-            "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`.substring(0,1024),
-            "inline": true
-        })
-
-        let _bt = '❔ Unknown'
-        let _bc = null;
-
-        let embdedArray = [];
-        if (!systemglobal.Discord_Upload_Only) {
-            // File Count and Usage
-            const imageWhereQuery = `(${[
-                "attachment_name LIKE '%.jp%_'",
-                "attachment_name LIKE '%.jfif'",
-                "attachment_name LIKE '%.png'",
-                "attachment_name LIKE '%.gif'",
-                "attachment_name LIKE '%.web%_'",
-            ].join(' OR ')})`
-            const musicWhereQuery = `(${[
-                '(' + [
-                    '(' + [
-                        "real_filename LIKE '%.mp3'",
-                        "real_filename LIKE '%.m4a'",
-                        "real_filename LIKE '%.wav'",
-                        "real_filename LIKE '%.flac'",
-                        "real_filename LIKE '%.ogg'",
-                    ].join(' OR ') + ')',
-                    "attachment_extra IS NULL"
-                ].join(' AND ') + ')',
-                '(' + [
-                    '(' + [
-                        "attachment_name LIKE '%.mp3'",
-                        "attachment_name LIKE '%.m4a'",
-                        "attachment_name LIKE '%.wav'",
-                        "attachment_name LIKE '%.flac'",
-                        "attachment_name LIKE '%.ogg'",
-                    ].join(' OR ') + ')',
-                    "attachment_extra IS NULL"
-                ].join(' AND ') + ')',
-            ].join(' OR ')})`
-            const videoWhereQuery = `(${[
-                '(' + [
-                    '(' + [
-                        "real_filename LIKE '%.mp4'",
-                        "real_filename LIKE '%.mov'",
-                        "real_filename LIKE '%.m4v'",
-                    ].join(' OR ') + ')',
-                    "attachment_extra IS NULL"
-                ].join(' AND ') + ')',
-                '(' + [
-                    '(' + [
-                        "attachment_name LIKE '%.mp4'",
-                        "attachment_name LIKE '%.mov'",
-                        "attachment_name LIKE '%.m4v'",
-                    ].join(' OR ') + ')',
-                    "attachment_extra IS NULL"
-                ].join(' AND ') + ')',
-            ].join(' OR ')})`
-
-            console.log(`Getting Counts...`)
-            const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
-                                          FROM kanmi_records
-                                          WHERE ${imageWhereQuery}`);
-            const musicCount = await db.query(`SELECT COUNT(eid) AS total_count
-                                          FROM kanmi_records
-                                          WHERE ${musicWhereQuery}`);
-            const videoCount = await db.query(`SELECT COUNT(eid) AS total_count
-                                          FROM kanmi_records
-                                          WHERE ${videoWhereQuery}`);
-            const totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(eid) AS total_count
-                                          FROM kanmi_records
-                                          WHERE (attachment_hash IS NOT NULL OR fileid IS NOT NULL)`);
-            if (!imageCount.error && imageCount.rows.length > 0) {
-                embed.fields.push({
-                    "name": "🖼 Images",
-                    "value": `${imageCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
-                    "inline": true
-                })
-            }
-            if (!videoCount.error && videoCount.rows.length > 0) {
-                embed.fields.push({
-                    "name": "🎞 Videos",
-                    "value": `${videoCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
-                    "inline": true
-                })
-            }
-            if (!musicCount.error && musicCount.rows.length > 0) {
-                embed.fields.push({
-                    "name": "💿 Audio",
-                    "value": `${musicCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
-                    "inline": true
-                })
-            }
-            if (!totalCounts.error && totalCounts.rows.length > 0) {
-                // File Count
-                embed.fields.push({
-                    "name": "📁 Files",
-                    "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
-                    "inline": true
-                })
-                const totalData = parseInt(totalCounts.rows[0].total_data.toString());
-                // File Usage
-                let totalText = ''
-                if (totalData > 1024000) {
-                    totalText += `${(totalData / 1024000).toFixed(2)} TB`
-                } else if (totalData > 1024) {
-                    totalText += `${(totalData / 1024).toFixed(2)} GB`
-                } else {
-                    totalText += `${totalData} MB`
-                }
-                embed.fields.push({
-                    "name": "💾 Usage",
-                    "value": totalText.substring(0, 1024),
-                    "inline": true
-                })
-            }
-
-            console.log(`Getting Backup counts...`)
-            // Backup and Sync System
-            _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
-                const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
-                let partsDisabled = false;
-                let cdsAccess = false;
-                let backupInterval = 3600000;
-                let ignoreQuery = [];
-                if (configForHost.rows.length > 0) {
-                    const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
-                    if (_backup_config.length > 0 && _backup_config[0].param_data) {
-                        if (_backup_config[0].param_data.backup_parts)
-                            partsDisabled = !(_backup_config[0].param_data.backup_parts);
-                        if (_backup_config[0].param_data.interval_min)
-                            backupInterval = parseInt(_backup_config[0].param_data.interval_min.toString()) * 60000
-                        if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
-                            cdsAccess = true;
-                    }
-                    const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
-                    if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
-                        if (_backup_ignore[0].param_data.channels)
-                            ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
-                        if (_backup_ignore[0].param_data.servers)
-                            ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
-                    }
-                }
-
-
-
-                const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
-                let partCounts = { rows: [] }
-                if (!partsDisabled) {
-                    partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
-                }
-                return {
-                    hostname: row.system_name,
-                    files: (fileCounts.rows.length > 0) ? parseInt(fileCounts.rows[0].backup_needed.toString()) : 0,
-                    parts: (!partsDisabled) ? (fileCounts.rows.length > 0) ? parseInt(partCounts.rows[0].backup_needed.toString()) : 0 : 0,
-                    interval: backupInterval
-                }
-            }))
-
-            let extraText= [];
-            function getPrefix(index, length) {
-                let _bcP = ''
-                if (length > 1) {
-                    switch (index + 1) {
-                        case 1:
-                            _bcP += (length < 3) ? '🅰' : '1️⃣'
-                            break;
-                        case 2:
-                            _bcP += (length < 3) ? '🅱' : '2️⃣'
-                            break;
-                        case 3:
-                            _bcP += '3️⃣'
-                            break;
-                        case 4:
-                            _bcP += '4️⃣'
-                            break;
-                        case 5:
-                            _bcP += '5️⃣'
-                            break;
-                        case 6:
-                            _bcP += '6️⃣'
-                            break;
-                        case 7:
-                            _bcP += '7️⃣'
-                            break;
-                        case 8:
-                            _bcP += '8️⃣'
-                            break;
-                        case 9:
-                            _bcP += '9️⃣'
-                            break;
-                        case 10:
-                            _bcP += '🔟'
-                            break;
-                        default:
-                            _bcP += '*️⃣'
-                            break;
-                    }
-                    _bcP += ' '
-                }
-                return _bcP
-            }
-            const backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
-                .map((e,i,a) => {
-                    const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
-                    if (_bcF.length > 0) {
-                        if (e.data.active && e.data.total > 25) {
-                            const _si = e.data;
-                            let lns = [];
-                            if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
-                            } else {
-                                if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
-                                    systemWarning = true;
-                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
-                                } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
-                                    systemWarning = true;
-                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
-                                }
-
-
-                                if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
-                                    lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                                } else if (_bcF.length > 0 && _bcF[0].files > 0) {
-                                    lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                                }
-                                if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
-                                    lns.push(`🔄🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
-                                } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
-                                    lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                                } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
-                                    lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                                }
-                            }
-                            if (lns.length > 0) {
-                                return {
-                                    "name": `🗄 ${getPrefix(i, a.length)}${_si.hostname} Sync Status`,
-                                    "value": `${lns.join('\n')}`.substring(0,1024)
-                                };
-                            } else {
-                                if (_bcF[0].files > 0) {
-                                    extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                                }
-                                if (_bcF[0].parts > 0) {
-                                    extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                                }
-                            }
-                        } else {
-                            if (e.data.cleanup) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is cleaning up the filesystem`)
-                            }
-                            if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
-                            }
-                            if (_bcF[0].files > 25) {
-                                extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                            }
-                            if (_bcF[0].parts > 50) {
-                                extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                            }
-                        }
-                    }
-                    return false
-                }).filter(e => !(!e))
-            if (backupValues.length > 0) {
-                embed.fields.push({
-                    "name": "🗃 Backup",
-                    "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0,1024),
-                    "inline": true
-                })
-                embed.fields.push(...backupValues)
-            }
-            else {
-                const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50 )
-                if (_bcF.length > 0) {
-                    const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
-                    _bt = [];
-                    await _bcF.forEach((e,i) => {
-                        if (e.files > 0) {
-                            _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        }
-                        if (e.parts > 0) {
-                            _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                        }
-                        if (e.files >= 500 || e.parts >= 500) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
-                        } else if (e.files >= 100 || e.parts >= 250) {
-                            systemWarning = true;
-                            bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
-                        }
-                    })
-                    _bt = _bt.join('\n')
-                } else {
-                    _bt = '✅ Complete'
-                }
-                embed.fields.push({
-                    "name": "🗃 Backup",
-                    "value": _bt.substring(0,1024),
-                    "inline": true
-                })
-            }
-
+        if (!activeRefresh) {
+            activeRefresh = true
+            console.log(`Generating status for "${guildID}"...`)
+            let data
             try {
-                console.log(`Getting Sequenzia counts...`)
-                const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
-                const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
-                const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
-                const seqLoginInfo = await db.query(`SELECT id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC`);
-
-                if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
-                    (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
-                    (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
-                    let seqLoginembed = {
-                        "footer": {
-                            "title": "Sequenzia ESM Activity"
-                        },
-                        "color": 16755712,
-                        "fields": []
-                    }
-                    seqLatestLogins.rows.map(f => {
-                        const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
-                        const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0,5).map(g => {
-                            const type = (() => {
-                                switch (g.meathod) {
-                                    case 100:
-                                        return '✅️';
-                                    case 101:
-                                        return '❇️';
-                                    case 102:
-                                        return '🔷';
-                                    case 900:
-                                        return '🔶';
-                                    default:
-                                        return '️️‼️'
-                                }
-                            })()
-                            return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
-                        });
-                        seqLoginembed.fields.push({
-                            "name": `🔑 ${(userInfo) ? userInfo.username + ' @ ' + userInfo.name : 'Unknown User'} (${f.session_count})`,
-                            "value": [...new Set(sessions)].join('\n').substring(0,1024)
-                        });
-                    })
-                    if (seqLoginembed.fields.length > 0)
-                        embdedArray.push(seqLoginembed);
-                }
+                data = await localParameters.getItem('statusgen-' + guildID)
             } catch (e) {
-                console.error(e)
+                console.error("Failed to get guild local parameters")
             }
-        }
-        // Active Tasks
-        let _ioT = []
-        if (activeProccessing.length > 0) {
-            _ioT.push('**🔄 ' + activeProccessing.length + ' Requests Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() + '**')
-        }
-        else {
-            _ioT.push('🟢 No Active Requests')
-        }
-        if (activeTasks.size > 0) {
-            let _ioOA = [];
-            await activeTasks.forEach(async (v,k) => {
-                let _it = `${k}`
-                if (v.started) {
-                    if (Date.now().valueOf() >= v.started + 300000) {
-                        _it = `⚠${k}`
-                        systemWarning = true;
-                        bannerWarnings.push(`⚙ Active Job "${k}" is taking a long time to complete`)
-                    } else if (Date.now().valueOf() >= v.started + 60000) {
-                        _it = `⏳${k}`
-                    }
-                }
-                if (v.details) {
-                    _it += `[${v.details}]`
-                }
-                _ioOA.push(`*${_it}*`)
-            })
-            _ioT.push(`⚙ ${activeTasks.size} Active Jobs`)
-            _ioT.push(..._ioOA)
-        } else {
-            _ioT.push(`💤 No Active Jobs`)
-        }
-        if (discordMQMessages > 0) {
-            if (!systemglobal.Discord_Upload_Only) {
-                _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-            }
-            if ((systemglobal.Discord_Upload_Only && discordMQMessages > 1000) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 250)) {
-                systemFault = true;
-                bannerFault.unshift('📨 Message Queue is actively backlogged!')
-            } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 500) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 100)) {
-                systemWarning = true;
-                bannerWarnings.unshift('📨 Message Queue is getting congested')
-            }
-        }
-        embed.fields.push({
-            "name": "⚡ I/O Engine",
-            "value": _ioT.join('\n').substring(0,1024)
-        })
-        if (activeProccessing.length > 10) { systemWarning = true; }
-        fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000))
-        if (fileTicker.length > 0) {
-            embed.fields.push({
-                "name": `📂 Recent Uploads (${fileTicker.length})`,
-                "value": `${fileTicker.slice(0,5).map(e => e.name).join('\n')}`.substring(0, 1024)
-            })
-        }
-        let diskValues = [];
-        let watchdogValues = [];
-        if (!systemglobal.Discord_Upload_Only) {
-            // Extended Entity Statistics
-            function convertMBtoText(value, noUnit) {
-                const diskValue = parseFloat(value.toString());
-                if (diskValue >= 1000000) {
-                    return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
-                } else if (diskValue >= 1000) {
-                    return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
-                } else {
-                    return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
-                }
-            }
-
-            diskValues = statusData.filter(e => e.name.endsWith('_disk'))
-                .map(statusRecord => {
-                    const _si = statusRecord.data;
-                    let _sL = [
-                        `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 0) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
-                    ];
-                    if (_si.diskFault) {
-                        bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
-                    }
-                    if (_si.preferUsed) {
-                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
-                    } else {
-                        _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
-                    }
-                    // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
-
-                    if (_si.diskShow || _si.diskFault || (!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true))) {
-                        return `${_sL.join(' - ')}`.substring(0, 1024)
-                    } else {
-                        return false
-                    }
-                }).filter(e => !!e)
-            if (diskValues.length > 0) {
-                embed.fields.push({
-                    "name": "💽 Local Storage",
-                    "value": `${diskValues.join('\n')}`.substring(0, 1024)
-                })
-            }
-            watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
-                .map(statusRecord => {
-                    const _si = statusRecord.data;
-                    bannerWarnings.push(..._si.wdWarnings.map(e => '️♻️ ' + e));
-                    bannerFault.push(..._si.wdFaults.map(e => '🔌 ' + e));
-
-                    return `${_si.header}${_si.name}: ${_si.statusIcons}`;
-                })
-            if (watchdogValues.length > 0) {
-                embed.fields.push({
-                    "name": `🚥 Service Watchdog`,
-                    "value": `${watchdogValues.join('\n')}`.substring(0, 1024)
-                })
-            }
-            // Twitter Flow Control Statistics
-            embed.fields.push(...statusData.filter(e => e.name.startsWith('tflow_'))
-                .map(statusRecord => {
-                    let statusItems = [];
-                    const _si = statusRecord.data;
-                    if (_si.flowVolume) {
-                        if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) {
-                            if (_si.flowMode !== 0) {
-                                systemFault = true;
-                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                            }
-                            statusItems.push(`**🛑 Queue Empty!**`);
-                            if (_si.flowMinAlert) {
-                                systemWarning = true;
-                                bannerFault.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is empty!`)
-                            }
-                        } else if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) {
-                            if (_si.flowMode !== 0) {
-                                systemFault = true;
-                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                            }
-                            statusItems.push(`**🔻 Queue Underflow!**`);
-                            if (_si.flowMinAlert) {
-                                systemWarning = true;
-                                bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is running out of items!`)
-                            }
-                        } else if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) {
-                            if (_si.flowMode !== 2) {
-                                systemFault = true;
-                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                            }
-                            statusItems.push(`**🌊 Queue Overflow!**`);
-                            if (_si.flowMaxAlert) {
-                                systemWarning = true;
-                                bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is overflowing!, Rectifying`)
-                            }
-                        } else if (_si.statusIcon) {
-                            if (_si.flowMode !== 1) {
-                                systemFault = true;
-                                bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
-                            }
-                        }
-                    }
-                    if (_si.flowCountTotal > 1) {
-                        let _siT = [];
-                        if (_si.flowCountSend > 0) {
-                            _siT.push(`📨 ${_si.flowCountSend}`)
-                        }
-                        if (_si.flowCountLikeRt > 0) {
-                            _siT.push(`❤ ${_si.flowCountLikeRt}`)
-                        }
-                        if (_si.flowCountLike > 0) {
-                            _siT.push(`💙 ${_si.flowCountLike}`)
-                        }
-                        if (_si.flowCountRt > 0) {
-                            _siT.push(`🔄 ${_si.flowCountRt}`)
-                        }
-                        if (_siT.length > 0) {
-                            statusItems.push(_siT.join(' / '))
-                        }
-                    }
-
-                    return {
-                        "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} (FCQ)`,
-                        "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0, 1024),
-                        "inline": true
-                    };
-                }))
-        }
-        if (discordMQ.fields.length > 0){
-            embdedArray.push(discordMQ)
-        }
-        if (fileworkerMQ.fields.length > 0){
-            embdedArray.push(fileworkerMQ)
-        }
-        if (systemFault || bannerFault.length > 0) {
-            embed.color = 16711680
-        }
-        else if (systemWarning) {
-            embed.color = 16771840
-        }
-        if (!systemglobal.Discord_Upload_Only) {
-            const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
-                return `*${(e.startsWith(`alarmExpires-`)) ? '*⏰' : '💤'} ${Timers.get(e).text}${(e.startsWith(`alarmExpires-`)) ? '*' : ''}*`
-            })
-            if (activeAlarmClocks.length > 0) {
-                embed.fields.unshift({
-                    "name": `🔔 Reminders`,
-                    "value": activeAlarmClocks.join('\n').substring(0,1024)
-                })
-            }
-        }
-        if (bannerWarnings.length > 0) {
-            embed.fields.unshift({
-                "name": `⚠ Active Warnings`,
-                "value": bannerWarnings.join('\n').substring(0,1024)
-            })
-        }
-        if (bannerFault.length > 0) {
-            embed.fields.unshift({
-                "name": `⛔ Active Faults`,
-                "value": bannerFault.join('\n').substring(0,1024)
-            })
-        }
-
-        // Check if embed has changed
-        if (data && data.message && !channelID) {
-            function haveSameData(o1, o2) {
-                if (!o1 || !o1.fields)
-                    return false;
-                if (!o2 || !o2.fields)
-                    return false;
-                const fo1 = clone(o1.fields.filter(e => !e.name.includes('Uptime')));
-                const fo2 = clone(o2.fields.filter(e => !e.name.includes('Uptime')));
-
-                if (fo1.length === fo2.length) {
-                    //console.log(fo1.map((e,i) => `${e.value === fo2[i].value} / ${e.value} / ${fo2[i].value }`))
-                    return (fo1.map((e,i) => `${e.value}` === `${fo2[i].value}`).filter(e => e !== true).length === 0) && o1.color === o2.color
-                }
+            let channel = null
+            let systemWarning = false;
+            let UndeliveredMQ = 0;
+            let bannerWarnings = [];
+            let systemFault = false;
+            let bannerFault = [];
+            if (channelID) {
+                channel = channelID
+            } else if (data && data.channel) {
+                channel = data.channel
+            } else {
                 return false;
             }
 
-            const lastEmbeds = (previousStatusObjects.has(guildID)) ? previousStatusObjects.get(guildID) : false
-            const finalEmbeds = [embed, ...embdedArray];
-            let diffData = [];
-            if (lastEmbeds) {
-                diffData = finalEmbeds.map((e,i) => (haveSameData(e, lastEmbeds[i])) ).filter(e => e === false)
+            const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
+            const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
+            const statusData = Array.from(statusValues.entries()).map(e => {
+                return {
+                    name: e[0],
+                    data: e[1]
+                }
+            })
+
+            let embed = {
+                "footer": {
+                    "text": `${(systemglobal.Discord_Upload_Only) ? "Publisher Status (" + systemglobal.SystemName + ")" : "System Status"}`,
+                    "icon_url": discordClient.guilds.get(guildID).iconURL
+                },
+                "timestamp": (new Date().toISOString()) + "",
+                "color": 65366,
+                "thumbnail": {
+                    "url": null
+                },
+                "image": {
+                    "url": null
+                },
+                "fields": [
+                    {
+                        "name": "🕓 Uptime",
+                        "value": `${msConversion(process.uptime() * 1000)} (${msConversion(discordClient.uptime)})`.substring(0, 1024),
+                        "inline": true
+                    },
+                ]
             }
 
-            if (forceUpdate || !lastEmbeds || finalEmbeds.length !== lastEmbeds.length || diffData.length > 0) {
-                console.log(`Updating data...`);
-                discordClient.editMessage(channel, data.message, {
-                    embeds: finalEmbeds
+            // Get MQ Statics
+            let discordMQMessages = 0;
+            let discordMQ = {
+                "footer": {
+                    "title": "Discord I/O Queue Status"
+                },
+                "color": 1473771,
+                "fields": []
+            }
+            let fileworkerMQ = {
+                "footer": {
+                    "title": "FileWorker Queue Status"
+                },
+                "color": 1473771,
+                "fields": []
+            }
+            try {
+                const promisifiedRequest = function (options) {
+                    return new Promise((resolve, reject) => {
+                        request(options, (error, response, body) => {
+                            if (response) {
+                                return resolve(response);
+                            }
+                            if (error) {
+                                return reject(error);
+                            }
+                        });
+                    });
+                };
+                const ampqResponse = await promisifiedRequest({
+                    url: `http://${systemglobal.MQServer}:15672/api/queues`,
+                    headers: {
+                        'content-type': "application/json",
+                        "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
+                    }
                 })
-                    .then(msg => {
-                        localParameters.setItem('statusgen-' + guildID, {
+                let ampqJSON = [];
+                if (!ampqResponse.err && ampqResponse.body) {
+                    ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
+                } else if (ampqResponse.err) {
+                    console.error(ampqResponse.err)
+                }
+                await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
+                    UndeliveredMQ = e.messages;
+                })
+                await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
+                    discordMQMessages = discordMQMessages + e.messages
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.')[0].toLowerCase()) {
+                        case 'inbox':
+                            _name += '📥'
+                            id = id + 10
+                            break;
+                        case 'outbox':
+                            _name += '📤'
+                            break;
+                        default:
+                            break;
+                    }
+                    switch (e.name.split('.discord').pop().toLowerCase()) {
+                        case '':
+                            _name += '⭐ Standard'
+                            id = id + 1
+                            break;
+                        case '.priority':
+                            _name += '💨 Priority'
+                            break;
+                        case '.package.priority':
+                            _name += '💨 Packaged Priority'
+                            break;
+                        case '.package':
+                            _name += '💨 Packaged'
+                            break;
+                        case '.backlog':
+                            _name += '☃ Backlog'
+                            id = id + 2
+                            break;
+                        default:
+                            _name = e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    discordMQ.fields.push(e[1])
+                })
+                await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.').pop().toLowerCase()) {
+                        case 'fileworker':
+                            _name += '⚙ Remote Requests'
+                            break;
+                        case 'backlog':
+                            _name += '⚙ Backlog Requests'
+                            id = id + 1
+                            break;
+                        case 'local':
+                            const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
+                            _name += '💽 ' + hostname + ' File Uploads'
+                            id = hostname
+                            break;
+                        default:
+                            _name += e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    fileworkerMQ.fields.push(e[1])
+                })
+            } catch (e) {
+                console.error(e);
+            }
+            console.log(`Getting RabbitMQ Stats...`)
+            if (!systemglobal.Discord_Upload_Only) {
+                embed.fields.push({
+                    "name": "🏘 Servers",
+                    "value": `${discordClient.guilds.size}`.substring(0, 1024),
+                    "inline": true
+                })
+            } else {
+                embed.fields.push({
+                    "name": "📤 Outbox",
+                    "value": `${discordMQMessages}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
+            if (discordClient.unavailableGuilds.size > 0) {
+                systemFault = true;
+                bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
+            }
+            if (gracefulShutdown) {
+                systemFault = true;
+                bannerFault.unshift('🛑 System is shutting down!')
+            }
+            let _ud = [];
+            // Get Insight Footer Image
+            if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL[guildID] !== undefined) {
+                embed.image = {
+                    "url": systemglobal.Discord_Insights_Custom_Image_URL[guildID]
+                }
+            } else if (systemglobal.Discord_Insights_Custom_Image_URL && systemglobal.Discord_Insights_Custom_Image_URL.default !== undefined) {
+                embed.image = {
+                    "url": systemglobal.Discord_Insights_Custom_Image_URL.default
+                }
+            } else {
+                embed.image = undefined;
+            }
+            // Get Insight Icon Image
+            if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon[guildID] === true) {
+                embed.thumbnail = {
+                    "url": discordClient.guilds.get(guildID).iconURL
+                }
+            } else if (systemglobal.Discord_Insights_Use_Server_Icon && systemglobal.Discord_Insights_Use_Server_Icon.default === true) {
+                embed.thumbnail = {
+                    "url": discordClient.guilds.get(guildID).iconURL
+                }
+            } else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL[guildID] !== undefined) {
+                embed.thumbnail = {
+                    "url": systemglobal.Discord_Insights_Custom_Icon_URL[guildID]
+                }
+            } else if (systemglobal.Discord_Insights_Custom_Icon_URL && systemglobal.Discord_Insights_Custom_Icon_URL.default !== undefined) {
+                embed.thumbnail = {
+                    "url": systemglobal.Discord_Insights_Custom_Icon_URL.default
+                }
+            } else {
+                embed.thumbnail = undefined;
+            }
+            // Undelivered Messages Counts
+            if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && !systemglobal.Discord_Upload_Only) {
+                const binChannel = await cacheData.get(systemglobal.Discord_Recycling_Bin);
+                if (binChannel >= 5) {
+                    systemFault = true;
+                }
+                if (binChannel > 0)
+                    _ud.push("🅰 " + (`${(binChannel < 5) ? "🆕" : "🚨"} ${(binChannel < 5) ? binChannel : "5+"} Items Waiting`))
+                if (UndeliveredMQ > 0)
+                    _ud.push("🅱 " + (`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`));
+            } else {
+                if (UndeliveredMQ >= 5) {
+                    systemFault = true;
+                }
+                if (UndeliveredMQ > 0)
+                    _ud.push(`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`);
+            }
+            embed.fields.push({
+                "name": "✉ Undelivered",
+                "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`.substring(0, 1024),
+                "inline": true
+            })
+
+            let _bt = '❔ Unknown'
+            let _bc = null;
+
+            let embdedArray = [];
+            if (!systemglobal.Discord_Upload_Only) {
+                // File Count and Usage
+                const imageWhereQuery = `(${[
+                    "attachment_name LIKE '%.jp%_'",
+                    "attachment_name LIKE '%.jfif'",
+                    "attachment_name LIKE '%.png'",
+                    "attachment_name LIKE '%.gif'",
+                    "attachment_name LIKE '%.web%_'",
+                ].join(' OR ')})`
+                const musicWhereQuery = `(${[
+                    '(' + [
+                        '(' + [
+                            "real_filename LIKE '%.mp3'",
+                            "real_filename LIKE '%.m4a'",
+                            "real_filename LIKE '%.wav'",
+                            "real_filename LIKE '%.flac'",
+                            "real_filename LIKE '%.ogg'",
+                        ].join(' OR ') + ')',
+                        "attachment_extra IS NULL"
+                    ].join(' AND ') + ')',
+                    '(' + [
+                        '(' + [
+                            "attachment_name LIKE '%.mp3'",
+                            "attachment_name LIKE '%.m4a'",
+                            "attachment_name LIKE '%.wav'",
+                            "attachment_name LIKE '%.flac'",
+                            "attachment_name LIKE '%.ogg'",
+                        ].join(' OR ') + ')',
+                        "attachment_extra IS NULL"
+                    ].join(' AND ') + ')',
+                ].join(' OR ')})`
+                const videoWhereQuery = `(${[
+                    '(' + [
+                        '(' + [
+                            "real_filename LIKE '%.mp4'",
+                            "real_filename LIKE '%.mov'",
+                            "real_filename LIKE '%.m4v'",
+                        ].join(' OR ') + ')',
+                        "attachment_extra IS NULL"
+                    ].join(' AND ') + ')',
+                    '(' + [
+                        '(' + [
+                            "attachment_name LIKE '%.mp4'",
+                            "attachment_name LIKE '%.mov'",
+                            "attachment_name LIKE '%.m4v'",
+                        ].join(' OR ') + ')',
+                        "attachment_extra IS NULL"
+                    ].join(' AND ') + ')',
+                ].join(' OR ')})`
+
+                console.log(`Getting Counts...`)
+                const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${imageWhereQuery}`);
+                const musicCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${musicWhereQuery}`);
+                const videoCount = await db.query(`SELECT COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE ${videoWhereQuery}`);
+                const totalCounts = await db.query(`SELECT SUM(filesize) AS total_data, COUNT(eid) AS total_count
+                                          FROM kanmi_records
+                                          WHERE (attachment_hash IS NOT NULL OR fileid IS NOT NULL)`);
+                if (!imageCount.error && imageCount.rows.length > 0) {
+                    embed.fields.push({
+                        "name": "🖼 Images",
+                        "value": `${imageCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                        "inline": true
+                    })
+                }
+                if (!videoCount.error && videoCount.rows.length > 0) {
+                    embed.fields.push({
+                        "name": "🎞 Videos",
+                        "value": `${videoCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                        "inline": true
+                    })
+                }
+                if (!musicCount.error && musicCount.rows.length > 0) {
+                    embed.fields.push({
+                        "name": "💿 Audio",
+                        "value": `${musicCount.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                        "inline": true
+                    })
+                }
+                if (!totalCounts.error && totalCounts.rows.length > 0) {
+                    // File Count
+                    embed.fields.push({
+                        "name": "📁 Files",
+                        "value": `${totalCounts.rows[0].total_count.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`.substring(0, 1024),
+                        "inline": true
+                    })
+                    const totalData = parseInt(totalCounts.rows[0].total_data.toString());
+                    // File Usage
+                    let totalText = ''
+                    if (totalData > 1024000) {
+                        totalText += `${(totalData / 1024000).toFixed(2)} TB`
+                    } else if (totalData > 1024) {
+                        totalText += `${(totalData / 1024).toFixed(2)} GB`
+                    } else {
+                        totalText += `${totalData} MB`
+                    }
+                    embed.fields.push({
+                        "name": "💾 Usage",
+                        "value": totalText.substring(0, 1024),
+                        "inline": true
+                    })
+                }
+
+                console.log(`Getting Backup counts...`)
+                // Backup and Sync System
+                _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
+                    const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
+                    let partsDisabled = false;
+                    let cdsAccess = false;
+                    let backupInterval = 3600000;
+                    let ignoreQuery = [];
+                    if (configForHost.rows.length > 0) {
+                        const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
+                        if (_backup_config.length > 0 && _backup_config[0].param_data) {
+                            if (_backup_config[0].param_data.backup_parts)
+                                partsDisabled = !(_backup_config[0].param_data.backup_parts);
+                            if (_backup_config[0].param_data.interval_min)
+                                backupInterval = parseInt(_backup_config[0].param_data.interval_min.toString()) * 60000
+                            if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
+                                cdsAccess = true;
+                        }
+                        const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
+                        if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
+                            if (_backup_ignore[0].param_data.channels)
+                                ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
+                            if (_backup_ignore[0].param_data.servers)
+                                ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
+                        }
+                    }
+
+
+                    const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
+                    let partCounts = {rows: []}
+                    if (!partsDisabled) {
+                        partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
+                    }
+                    return {
+                        hostname: row.system_name,
+                        files: (fileCounts.rows.length > 0) ? parseInt(fileCounts.rows[0].backup_needed.toString()) : 0,
+                        parts: (!partsDisabled) ? (fileCounts.rows.length > 0) ? parseInt(partCounts.rows[0].backup_needed.toString()) : 0 : 0,
+                        interval: backupInterval
+                    }
+                }))
+
+                let extraText = [];
+
+                function getPrefix(index, length) {
+                    let _bcP = ''
+                    if (length > 1) {
+                        switch (index + 1) {
+                            case 1:
+                                _bcP += (length < 3) ? '🅰' : '1️⃣'
+                                break;
+                            case 2:
+                                _bcP += (length < 3) ? '🅱' : '2️⃣'
+                                break;
+                            case 3:
+                                _bcP += '3️⃣'
+                                break;
+                            case 4:
+                                _bcP += '4️⃣'
+                                break;
+                            case 5:
+                                _bcP += '5️⃣'
+                                break;
+                            case 6:
+                                _bcP += '6️⃣'
+                                break;
+                            case 7:
+                                _bcP += '7️⃣'
+                                break;
+                            case 8:
+                                _bcP += '8️⃣'
+                                break;
+                            case 9:
+                                _bcP += '9️⃣'
+                                break;
+                            case 10:
+                                _bcP += '🔟'
+                                break;
+                            default:
+                                _bcP += '*️⃣'
+                                break;
+                        }
+                        _bcP += ' '
+                    }
+                    return _bcP
+                }
+
+                const backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
+                    .map((e, i, a) => {
+                        const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
+                        if (_bcF.length > 0) {
+                            if (e.data.active && e.data.total > 25) {
+                                const _si = e.data;
+                                let lns = [];
+                                if (((e.data.timestamp) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
+                                } else {
+                                    if (_bcF[0].files >= 500 || _bcF[0].parts >= 500) {
+                                        systemWarning = true;
+                                        bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is degraded!`)
+                                    } else if (_bcF[0].files >= 100 || _bcF[0].parts >= 250) {
+                                        systemWarning = true;
+                                        bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" may be degrading!`)
+                                    }
+
+
+                                    if (_bcF.length > 0 && _bcF[0].files > 0 && _si.proccess === 'files') {
+                                        lns.push(`🔄💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                                    } else if (_bcF.length > 0 && _bcF[0].files > 0) {
+                                        lns.push(`✅💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                    }
+                                    if (_bcF.length > 0 && _bcF[0].parts > 0 && _si.proccess === 'parts') {
+                                        lns.push(`🔄🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")} - 📥${_si.percent}% (${_si.left.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")})`)
+                                    } else if (lns.length > 0 && _bcF.length > 0 && _bcF[0].parts > 0) {
+                                        lns.push(`🟦🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                    } else if (_bcF.length > 0 && _bcF[0].parts > 0) {
+                                        lns.push(`✅🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                    }
+                                }
+                                if (lns.length > 0) {
+                                    return {
+                                        "name": `🗄 ${getPrefix(i, a.length)}${_si.hostname} Sync Status`,
+                                        "value": `${lns.join('\n')}`.substring(0, 1024)
+                                    };
+                                } else {
+                                    if (_bcF[0].files > 0) {
+                                        extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                    }
+                                    if (_bcF[0].parts > 0) {
+                                        extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                    }
+                                }
+                            } else {
+                                if (e.data.cleanup) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" is cleaning up the filesystem`)
+                                }
+                                if (((e.data.timestamp && _bcF[0]) ? ((Date.now().valueOf() - e.data.timestamp) >= (_bcF[0].interval * 2)) : false)) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`🗄 Sync System ${getPrefix(i, a.length)}"${_bcF[0].hostname}" has not responded sense <t:${(e.data.timestamp / 1000).toFixed(0)}:R>`)
+                                }
+                                if (_bcF[0].files > 25) {
+                                    extraText.push(`${getPrefix(i, a.length)}💾 ${_bcF[0].files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
+                                if (_bcF[0].parts > 50) {
+                                    extraText.push(`${getPrefix(i, a.length)}🧩 ${_bcF[0].parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                }
+                            }
+                        }
+                        return false
+                    }).filter(e => !(!e))
+                if (backupValues.length > 0) {
+                    embed.fields.push({
+                        "name": "🗃 Backup",
+                        "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0, 1024),
+                        "inline": true
+                    })
+                    embed.fields.push(...backupValues)
+                } else {
+                    const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50)
+                    if (_bcF.length > 0) {
+                        const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
+                        _bt = [];
+                        await _bcF.forEach((e, i) => {
+                            if (e.files > 0) {
+                                _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            }
+                            if (e.parts > 0) {
+                                _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            }
+                            if (e.files >= 500 || e.parts >= 500) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
+                            } else if (e.files >= 100 || e.parts >= 250) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
+                            }
+                        })
+                        _bt = _bt.join('\n')
+                    } else {
+                        _bt = '✅ Complete'
+                    }
+                    embed.fields.push({
+                        "name": "🗃 Backup",
+                        "value": _bt.substring(0, 1024),
+                        "inline": true
+                    })
+                }
+
+                try {
+                    console.log(`Getting Sequenzia counts...`)
+                    const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
+                    const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
+                    const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
+                    const seqLoginInfo = await db.query(`SELECT id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC`);
+
+                    if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
+                        (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
+                        (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
+                        let seqLoginembed = {
+                            "footer": {
+                                "title": "Sequenzia ESM Activity"
+                            },
+                            "color": 16755712,
+                            "fields": []
+                        }
+                        seqLatestLogins.rows.map(f => {
+                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
+                            const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
+                                const type = (() => {
+                                    switch (g.meathod) {
+                                        case 100:
+                                            return '✅️';
+                                        case 101:
+                                            return '❇️';
+                                        case 102:
+                                            return '🔷';
+                                        case 900:
+                                            return '🔶';
+                                        default:
+                                            return '️️‼️'
+                                    }
+                                })()
+                                return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
+                            });
+                            seqLoginembed.fields.push({
+                                "name": `🔑 ${(userInfo) ? userInfo.username + ' @ ' + userInfo.name : 'Unknown User'} (${f.session_count})`,
+                                "value": [...new Set(sessions)].join('\n').substring(0, 1024)
+                            });
+                        })
+                        if (seqLoginembed.fields.length > 0)
+                            embdedArray.push(seqLoginembed);
+                    }
+                } catch (e) {
+                    console.error(e)
+                }
+            }
+            // Active Tasks
+            let _ioT = []
+            if (activeProccessing.length > 0) {
+                _ioT.push('**🔄 ' + activeProccessing.length + ' Requests Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() + '**')
+            } else {
+                _ioT.push('🟢 No Active Requests')
+            }
+            if (activeTasks.size > 0) {
+                let _ioOA = [];
+                await activeTasks.forEach(async (v, k) => {
+                    let _it = `${k}`
+                    if (v.started) {
+                        if (Date.now().valueOf() >= v.started + 300000) {
+                            _it = `⚠${k}`
+                            systemWarning = true;
+                            bannerWarnings.push(`⚙ Active Job "${k}" is taking a long time to complete`)
+                        } else if (Date.now().valueOf() >= v.started + 60000) {
+                            _it = `⏳${k}`
+                        }
+                    }
+                    if (v.details) {
+                        _it += `[${v.details}]`
+                    }
+                    _ioOA.push(`*${_it}*`)
+                })
+                _ioT.push(`⚙ ${activeTasks.size} Active Jobs`)
+                _ioT.push(..._ioOA)
+            } else {
+                _ioT.push(`💤 No Active Jobs`)
+            }
+            if (discordMQMessages > 0) {
+                if (!systemglobal.Discord_Upload_Only) {
+                    _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
+                }
+                if ((systemglobal.Discord_Upload_Only && discordMQMessages > 1000) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 250)) {
+                    systemFault = true;
+                    bannerFault.unshift('📨 Message Queue is actively backlogged!')
+                } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 500) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 100)) {
+                    systemWarning = true;
+                    bannerWarnings.unshift('📨 Message Queue is getting congested')
+                }
+            }
+            embed.fields.push({
+                "name": "⚡ I/O Engine",
+                "value": _ioT.join('\n').substring(0, 1024)
+            })
+            if (activeProccessing.length > 10) {
+                systemWarning = true;
+            }
+            fileTicker = fileTicker.filter(e => !e.date || (e.date && (Date.now() - e.date) <= 1800000))
+            if (fileTicker.length > 0) {
+                embed.fields.push({
+                    "name": `📂 Recent Uploads (${fileTicker.length})`,
+                    "value": `${fileTicker.slice(0, 5).map(e => e.name).join('\n')}`.substring(0, 1024)
+                })
+            }
+            let diskValues = [];
+            let watchdogValues = [];
+            if (!systemglobal.Discord_Upload_Only) {
+                // Extended Entity Statistics
+                function convertMBtoText(value, noUnit) {
+                    const diskValue = parseFloat(value.toString());
+                    if (diskValue >= 1000000) {
+                        return `${(diskValue / (1024 * 1024)).toFixed(1)}${(noUnit) ? '' : ' TB'}`
+                    } else if (diskValue >= 1000) {
+                        return `${(diskValue / 1024).toFixed(1)}${(noUnit) ? '' : ' GB'}`
+                    } else {
+                        return `${diskValue.toFixed(1)}${(noUnit) ? '' : ' MB'}`
+                    }
+                }
+
+                diskValues = statusData.filter(e => e.name.endsWith('_disk'))
+                    .map(statusRecord => {
+                        const _si = statusRecord.data;
+                        let _sL = [
+                            `${(!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true)) ? '🔌' : _si.statusIcon}${(_si.diskIcon && _si.diskIcon.length > 0) ? ' ' + _si.diskIcon : ''}${(_si.diskName && _si.diskName.length > 1) ? ' ' + _si.diskName : ''}`
+                        ];
+                        if (_si.diskFault) {
+                            bannerFault.push(`📀 Disk "${_si.diskName}" free space is low!`);
+                        }
+                        if (_si.preferUsed) {
+                            _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskUsed, true)}U / ${convertMBtoText(_si.diskTotal)})`)
+                        } else {
+                            _sL.push(`${_si.diskPercent}% (${convertMBtoText(_si.diskFree, true)}F / ${convertMBtoText(_si.diskTotal)})`)
+                        }
+                        // ✅🆘 Backup END 389.5 GB (62%) [634.0 / 1.0 TB]
+
+                        if (_si.diskShow || _si.diskFault || (!((_si.timestamp) ? ((Date.now().valueOf() - _si.timestamp) < (4 * 60 * 60000)) : true))) {
+                            return `${_sL.join(' - ')}`.substring(0, 1024)
+                        } else {
+                            return false
+                        }
+                    }).filter(e => !!e)
+                if (diskValues.length > 0) {
+                    embed.fields.push({
+                        "name": "💽 Local Storage",
+                        "value": `${diskValues.join('\n')}`.substring(0, 1024)
+                    })
+                }
+                watchdogValues = statusData.filter(e => e.name.startsWith('watchdog_'))
+                    .map(statusRecord => {
+                        const _si = statusRecord.data;
+                        bannerWarnings.push(..._si.wdWarnings.map(e => '️♻️ ' + e));
+                        bannerFault.push(..._si.wdFaults.map(e => '🔌 ' + e));
+
+                        return `${_si.header}${_si.name}: ${_si.statusIcons}`;
+                    })
+                if (watchdogValues.length > 0) {
+                    embed.fields.push({
+                        "name": `🚥 Service Watchdog`,
+                        "value": `${watchdogValues.join('\n')}`.substring(0, 1024)
+                    })
+                }
+                // Twitter Flow Control Statistics
+                embed.fields.push(...statusData.filter(e => e.name.startsWith('tflow_'))
+                    .map(statusRecord => {
+                        let statusItems = [];
+                        const _si = statusRecord.data;
+                        if (_si.flowVolume) {
+                            if (_si.flowCountTotal <= ((_si.flowVolume.empty) ? _si.flowVolume.empty : 4)) {
+                                if (_si.flowMode !== 0) {
+                                    systemFault = true;
+                                    bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                                }
+                                statusItems.push(`**🛑 Queue Empty!**`);
+                                if (_si.flowMinAlert) {
+                                    systemWarning = true;
+                                    bannerFault.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is empty!`)
+                                }
+                            } else if (_si.flowCountTotal <= ((_si.flowVolume.min) ? _si.flowVolume.min : 64)) {
+                                if (_si.flowMode !== 0) {
+                                    systemFault = true;
+                                    bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                                }
+                                statusItems.push(`**🔻 Queue Underflow!**`);
+                                if (_si.flowMinAlert) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is running out of items!`)
+                                }
+                            } else if (_si.flowCountTotal >= ((_si.flowVolume.max) ? _si.flowVolume.max : 1500)) {
+                                if (_si.flowMode !== 2) {
+                                    systemFault = true;
+                                    bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                                }
+                                statusItems.push(`**🌊 Queue Overflow!**`);
+                                if (_si.flowMaxAlert) {
+                                    systemWarning = true;
+                                    bannerWarnings.push(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account Flow is overflowing!, Rectifying`)
+                                }
+                            } else if (_si.statusIcon) {
+                                if (_si.flowMode !== 1) {
+                                    systemFault = true;
+                                    bannerFault.unshift(`${_si.accountShortName} ${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} Account's Flow control operator mode mismatches`)
+                                }
+                            }
+                        }
+                        if (_si.flowCountTotal > 1) {
+                            let _siT = [];
+                            if (_si.flowCountSend > 0) {
+                                _siT.push(`📨 ${_si.flowCountSend}`)
+                            }
+                            if (_si.flowCountLikeRt > 0) {
+                                _siT.push(`❤ ${_si.flowCountLikeRt}`)
+                            }
+                            if (_si.flowCountLike > 0) {
+                                _siT.push(`💙 ${_si.flowCountLike}`)
+                            }
+                            if (_si.flowCountRt > 0) {
+                                _siT.push(`🔄 ${_si.flowCountRt}`)
+                            }
+                            if (_siT.length > 0) {
+                                statusItems.push(_siT.join(' / '))
+                            }
+                        }
+
+                        return {
+                            "name": `${_si.accountShortName}${(_si.accountName && _si.accountName.length > 1) ? ' ' + _si.accountName : ''} (FCQ)`,
+                            "value": `${(statusItems.length > 0) ? statusItems.join('\n') : '❓ No Data'}`.substring(0, 1024),
+                            "inline": true
+                        };
+                    }))
+            }
+            if (discordMQ.fields.length > 0) {
+                embdedArray.push(discordMQ)
+            }
+            if (fileworkerMQ.fields.length > 0) {
+                embdedArray.push(fileworkerMQ)
+            }
+            if (systemFault || bannerFault.length > 0) {
+                embed.color = 16711680
+            } else if (systemWarning) {
+                embed.color = 16771840
+            }
+            if (!systemglobal.Discord_Upload_Only) {
+                const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
+                    return `*${(e.startsWith(`alarmExpires-`)) ? '*⏰' : '💤'} ${Timers.get(e).text}${(e.startsWith(`alarmExpires-`)) ? '*' : ''}*`
+                })
+                if (activeAlarmClocks.length > 0) {
+                    embed.fields.unshift({
+                        "name": `🔔 Reminders`,
+                        "value": activeAlarmClocks.join('\n').substring(0, 1024)
+                    })
+                }
+            }
+            if (bannerWarnings.length > 0) {
+                embed.fields.unshift({
+                    "name": `⚠ Active Warnings`,
+                    "value": bannerWarnings.join('\n').substring(0, 1024)
+                })
+            }
+            if (bannerFault.length > 0) {
+                embed.fields.unshift({
+                    "name": `⛔ Active Faults`,
+                    "value": bannerFault.join('\n').substring(0, 1024)
+                })
+            }
+
+            // Check if embed has changed
+            if (data && data.message && !channelID) {
+                function haveSameData(o1, o2) {
+                    if (!o1 || !o1.fields)
+                        return false;
+                    if (!o2 || !o2.fields)
+                        return false;
+                    const fo1 = clone(o1.fields.filter(e => !e.name.includes('Uptime')));
+                    const fo2 = clone(o2.fields.filter(e => !e.name.includes('Uptime')));
+
+                    if (fo1.length === fo2.length) {
+                        //console.log(fo1.map((e,i) => `${e.value === fo2[i].value} / ${e.value} / ${fo2[i].value }`))
+                        return (fo1.map((e, i) => `${e.value}` === `${fo2[i].value}`).filter(e => e !== true).length === 0) && o1.color === o2.color
+                    }
+                    return false;
+                }
+
+                const lastEmbeds = (previousStatusObjects.has(guildID)) ? previousStatusObjects.get(guildID) : false
+                const finalEmbeds = [embed, ...embdedArray];
+                let diffData = [];
+                if (lastEmbeds) {
+                    diffData = finalEmbeds.map((e, i) => (haveSameData(e, lastEmbeds[i]))).filter(e => e === false)
+                }
+
+                if (forceUpdate || !lastEmbeds || finalEmbeds.length !== lastEmbeds.length || diffData.length > 0) {
+                    console.log(`Updating data...`);
+                    discordClient.editMessage(channel, data.message, {
+                        embeds: finalEmbeds
+                    })
+                        .then(msg => {
+                            localParameters.setItem('statusgen-' + guildID, {
+                                channel: msg.channel.id,
+                                message: msg.id,
+                            })
+                            previousStatusObjects.set(guildID, msg.embeds);
+                            if (Object.keys(msg.reactions).length === 0) {
+                                (async () => {
+                                    const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
+                                    if (reactionNeeded.rows.length > 0) {
+                                        let emoji = reactionNeeded.rows[0].reaction_emoji
+                                        if (reactionNeeded.rows[0].reaction_custom !== null) {
+                                            emoji = reactionNeeded.rows[0].reaction_custom
+                                        }
+                                        await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
+                                            .catch(err => {
+                                                console.error(err);
+                                            })
+                                    }
+                                })()
+                            } else if (Object.keys(msg.reactions).length !== 0 && Object.values(msg.reactions).filter(e => e.count > 1).length > 0) {
+                                discordClient.removeMessageReactions(msg.channel.id, msg.id)
+                                    .then(() => {
+                                        (async () => {
+                                            const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
+                                            if (reactionNeeded.rows.length > 0) {
+                                                let emoji = reactionNeeded.rows[0].reaction_emoji
+                                                if (reactionNeeded.rows[0].reaction_custom !== null) {
+                                                    emoji = reactionNeeded.rows[0].reaction_custom
+                                                }
+                                                await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
+                                                    .catch(err => {
+                                                        console.error(err);
+                                                    })
+                                            }
+                                        })()
+                                    })
+                                    .catch(err => console.error(err))
+                            }
+                        })
+                        .catch(e => {
+                            console.error(e)
+                        });
+                } else {
+                    console.log(`Update skipped ${forceUpdate} || ${!lastEmbeds} || ${finalEmbeds.length !== lastEmbeds.length} || ${diffData.length > 0}`);
+                }
+            } else {
+                discordClient.createMessage(channel, {
+                    embeds: [embed, ...embdedArray]
+                })
+                    .then(async msg => {
+                        await localParameters.setItem('statusgen-' + guildID, {
                             channel: msg.channel.id,
                             message: msg.id,
                         })
-                        previousStatusObjects.set(guildID, msg.embeds);
-                        if (Object.keys(msg.reactions).length === 0) {
-                            (async () => {
-                                const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                                if (reactionNeeded.rows.length > 0) {
-                                    let emoji = reactionNeeded.rows[0].reaction_emoji
-                                    if (reactionNeeded.rows[0].reaction_custom !== null) {
-                                        emoji = reactionNeeded.rows[0].reaction_custom
-                                    }
-                                    await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
-                                        .catch(err => {
-                                            console.error(err);
-                                        })
-                                }
-                            })()
-                        } else if (Object.keys(msg.reactions).length !== 0 && Object.values(msg.reactions).filter(e => e.count > 1).length > 0) {
-                            discordClient.removeMessageReactions(msg.channel.id, msg.id)
-                                .then(() => {
-                                    (async () => {
-                                        const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                                        if (reactionNeeded.rows.length > 0) {
-                                            let emoji = reactionNeeded.rows[0].reaction_emoji
-                                            if (reactionNeeded.rows[0].reaction_custom !== null) {
-                                                emoji = reactionNeeded.rows[0].reaction_custom
-                                            }
-                                            await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
-                                                .catch(err => {
-                                                    console.error(err);
-                                                })
-                                        }
-                                    })()
+                        const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
+                        if (reactionNeeded.rows.length > 0 && !systemglobal.Discord_Upload_Only) {
+                            let emoji = reactionNeeded.rows[0].reaction_emoji
+                            if (reactionNeeded.rows[0].reaction_custom !== null) {
+                                emoji = reactionNeeded.rows[0].reaction_custom
+                            }
+                            await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
+                                .catch(err => {
+                                    console.error(err);
                                 })
-                                .catch(err => console.error(err))
                         }
                     })
                     .catch(e => {
                         console.error(e)
                     });
-            } else {
-                console.log(`Update skipped ${forceUpdate} || ${!lastEmbeds} || ${finalEmbeds.length !== lastEmbeds.length} || ${diffData.length > 0}`);
             }
-        } else {
-            discordClient.createMessage(channel, {
-                embeds: [embed, ...embdedArray]
-            })
-                .then(async msg => {
-                    await localParameters.setItem('statusgen-' + guildID, {
-                        channel: msg.channel.id,
-                        message: msg.id,
-                    })
-                    const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                    if (reactionNeeded.rows.length > 0 && !systemglobal.Discord_Upload_Only) {
-                        let emoji = reactionNeeded.rows[0].reaction_emoji
-                        if (reactionNeeded.rows[0].reaction_custom !== null) {
-                            emoji = reactionNeeded.rows[0].reaction_custom
-                        }
-                        await discordClient.addMessageReaction(msg.channel.id, msg.id, emoji)
-                            .catch(err => {
-                                console.error(err);
-                            })
-                    }
-                })
-                .catch(e => {
-                    console.error(e)
-                });
-        }
 
-        // if (!Timers.get(`StatusReport${guildID}`)) {
-        //     console.log('Started new status timer');
-        //     Timers.set(`StatusReport${guildID}`, setInterval(() => {
-        //         generateStatus(false, guildID)
-        //     }, 300000))
-        // }
+            if (!Timers.get(`StatusReport${guildID}`)) {
+                console.log('Started new status timer');
+                Timers.set(`StatusReport${guildID}`, setInterval(() => {
+                    generateStatus(false, guildID)
+                }, 300000))
+            }
+            activeRefresh = false;
+        }
     }
     async function revalidateFiles() {
         activeTasks.set('VALIDATE_PARTS' ,{ started: Date.now().valueOf() });
