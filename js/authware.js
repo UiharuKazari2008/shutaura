@@ -1351,10 +1351,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 sudoRole: _ad,
             })
         }));
-        app.listen(sbiPort, (err) => {
-            if (err) console.log("Error in server setup")
-            console.log("API listening on port: 31000");
-        });
+        if (init === 0) {
+            app.listen(sbiPort, (err) => {
+                if (err) console.log("Error in server setup")
+                console.log("API listening on port: 31000");
+            });
+        }
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
 
