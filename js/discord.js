@@ -2285,8 +2285,10 @@ This code is publicly released and is restricted by its project license
                         userID: (MessageContents.messageUserID) ? MessageContents.messageUserID : undefined,
                         color: _color,
                         size: (MessageContents.itemSize) ? MessageContents.itemSize : undefined,
-                        logLine: `Send Message: (${level}) Type: [${typeText}], From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
+                        logLine: `Send Message: (${level}) Type: [${typeText}],${(MessageContents.fromDPS) ? ' PDP: ' + MessageContents.fromDPS : ''} From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
                         fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
+                        tags: (MessageContents.messageTags) ? MessageContents.messageTags : undefined,
+                        dps_host: (MessageContents.fromDPS) ? MessageContents.fromDPS: undefined,
                         extendedData: (MessageContents.extendedContent) ? MessageContents.extendedContent : undefined,
                         extendedAttachments: (MessageContents.extendedAttachments) ? MessageContents.extendedAttachments : undefined
                     })
@@ -7645,6 +7647,9 @@ This code is publicly released and is restricted by its project license
                                     return 81
                                 return 0;
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
+                            if (options && options.tags) {
+                                sqlObject.tags = options.tags;
+                            }
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
