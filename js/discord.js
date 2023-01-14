@@ -900,7 +900,6 @@ This code is publicly released and is restricted by its project license
         amqp.connect(MQServer, function(err, conn) {
             if (err) {
                 Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
-                conn.close();
                 return setTimeout(start, 1000);
             }
             conn.on("error", function(err) {
