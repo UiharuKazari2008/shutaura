@@ -41,6 +41,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const splitFile = require('split-file');
 	const crypto = require("crypto");
 	const slash = require('slash');
+	const { DiscordSnowflake } = require('@sapphire/snowflake');
 	const globalRunKey = crypto.randomBytes(5).toString("hex");
 	let globalItemNumber = 0;
 	const FileType = require('file-type');
@@ -1662,7 +1663,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			// Generate a MultiPart File
 			function sendMultiPartFile(cb) {
-				const filepartsid = crypto.randomBytes(16).toString("hex");
+				//const filepartsid = crypto.randomBytes(16).toString("hex");
+				const filepartsid = itemID + '-' + DiscordSnowflake.generate();
 				const flesize = Math.ceil(fileSize(object.FilePath.toString()));
 				const txtMessage = parameters.messageText
 
