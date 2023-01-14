@@ -900,6 +900,7 @@ This code is publicly released and is restricted by its project license
         amqp.connect(MQServer, function(err, conn) {
             if (err) {
                 Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
+                conn.close();
                 return setTimeout(start, 1000);
             }
             conn.on("error", function(err) {
@@ -911,6 +912,12 @@ This code is publicly released and is restricted by its project license
             conn.on("close", function() {
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "error")
                 return setTimeout(start, 15000);
+            });
+            conn.on('end', function() {
+                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "error")
+                setTimeout(function() {
+                    conn.reconnect();
+                }, 1000);
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
@@ -8931,7 +8938,7 @@ This code is publicly released and is restricted by its project license
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
-        setInterval(() => {
+        setTimeout(() => {
             shutdownSystem((ok) => {
                 process.exit(1)
             })
