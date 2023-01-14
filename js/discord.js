@@ -5525,7 +5525,7 @@ This code is publicly released and is restricted by its project license
                                 return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
                             });
                             seqLoginembed.fields.push({
-                                "name": `🔑 ${(userInfo) ? userInfo.username + ' @ ' + userInfo.name : 'Unknown User'} (${f.session_count})`,
+                                "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : 'Unknown User'} (${f.session_count})`,
                                 "value": [...new Set(sessions)].join('\n').substring(0, 1024)
                             });
                         })
