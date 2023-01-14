@@ -754,7 +754,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         res.status(200).send("OK");
     });
     async function memberRemoval(guild, member) {
-        const userexsists = await db.query(`SELECT * FROM discord_users WHERE serveruserid = ?`,[member.user.id + guild.id])
+        const userexsists = await db.query(`SELECT * FROM discord_users WHERE id = ?`,[member.user.id])
         if (userexsists.rows.length > 0) {
             if (userexsists.rows.length === 1)
                 await db.query(`DELETE FROM discord_users_extended WHERE id = ?`, [member.user.id])
