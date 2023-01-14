@@ -5854,12 +5854,12 @@ This code is publicly released and is restricted by its project license
                 });
         }
 
-        if (!Timers.get(`StatusReport${guildID}`)) {
-            console.log('Started new status timer');
-            Timers.set(`StatusReport${guildID}`, setInterval(() => {
-                generateStatus(false, guildID)
-            }, 300000))
-        }
+        // if (!Timers.get(`StatusReport${guildID}`)) {
+        //     console.log('Started new status timer');
+        //     Timers.set(`StatusReport${guildID}`, setInterval(() => {
+        //         generateStatus(false, guildID)
+        //     }, 300000))
+        // }
     }
     async function revalidateFiles() {
         activeTasks.set('VALIDATE_PARTS' ,{ started: Date.now().valueOf() });
