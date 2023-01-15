@@ -2276,7 +2276,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets WHERE decision IS NULL`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid) !== -1)
 					tweetsDB.forEach(tweet => {
 						const list = twitterlistRows[twitterlist.indexOf(tweet.listid)]
-						if (list.bypasscds && list.remote_saveid) {
+						if (list && list.bypasscds && list.remote_saveid) {
 							mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
 								fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
 								messageAction: 'MovePost',
@@ -2292,7 +2292,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									})
 								}
 							})
-						} else if (!list.bypasscds) {
+						} else if (!list || (list && !list.bypasscds)) {
 							mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
 								fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
 								messageAction: 'ActionPost',
