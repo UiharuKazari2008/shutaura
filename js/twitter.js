@@ -2263,8 +2263,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	}
 	async function getLikes() {
-		const twitterlistRows = await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])
-		const twitterlist = twitterlistRows.rows.map(e => e.listid);
+		const twitterlistRows = await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, []).rows
+		const twitterlist = twitterlistRows.map(e => e.listid);
 		limiter5.removeTokens(1, function () {
 			let params = { count: 200 }
 			const twit = twitterAccounts.get(1)
