@@ -2263,8 +2263,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	}
 	async function getLikes() {
-		const twitterlistRows = (await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])).rows
-		const twitterlist = twitterlistRows.map(e => e.listid);
+		const twitterlistRows = await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, []))
+		const twitterlist = twitterlistRows.rows.map(e => e.listid);
 		limiter5.removeTokens(1, function () {
 			let params = { count: 200 }
 			const twit = twitterAccounts.get(1)
@@ -2275,7 +2275,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const tweetIDs = Array.from(tweets).map(e => (e.retweeted_status && e.retweeted_status.id_str) ? e.retweeted_status.id_str : e.id_str)
 					const tweetsDB = (await db.query(`SELECT * FROM twitter_tweets WHERE decision IS NULL`)).rows.filter(e => twitterlist.indexOf(e.listid) !== -1 && tweetIDs.indexOf(e.tweetid) !== -1)
 					tweetsDB.forEach(tweet => {
-						const list = twitterlistRows.filter(f => f.listid.toString() === tweet.listid.toString())[0]
+						const list = twitterlistRows.rows.filter(f => f.listid.toString() === tweet.listid.toString())[0]
 						console.log(tweet)
 						console.log(list)
 						/*if (list && list.bypasscds && list.remote_saveid) {
