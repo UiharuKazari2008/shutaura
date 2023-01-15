@@ -864,7 +864,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const allUserPermissions = (await db.query("SELECT DISTINCT role, type, userid, color, text, serverid FROM discord_users_permissons")).rows
         const allChannels = (await db.query("SELECT x.*, y.chid_download FROM ( SELECT DISTINCT kanmi_channels.channelid, kanmi_channels.serverid, kanmi_channels.role, kanmi_channels.role_write, kanmi_channels.role_manage FROM kanmi_channels, sequenzia_class WHERE kanmi_channels.role IS NOT NULL AND kanmi_channels.classification = sequenzia_class.class) x LEFT OUTER JOIN (SELECT chid_download, serverid FROM discord_servers) y ON (x.serverid = y.serverid AND x.channelid = y.chid_download)")).rows;
         const allDisabledChannels = (await db.query(`SELECT DISTINCT user, cid FROM sequenzia_hidden_channels`)).rows
-        const allServers = (await db.query(`SELECT x.total_data, total_count, y.* FROM (SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count, server FROM kanmi_records WHERE fileid is not null OR attachment_hash is not null GROUP BY server) x LEFT JOIN (SELECT DISTINCT * FROM discord_servers) y ON x.server = y.serverid  ORDER BY position`)).rows;
+        const allServers = (await db.query(`SELECT x.total_data, total_count, y.* FROM (SELECT SUM(filesize) AS total_data, COUNT(filesize) AS total_count, server FROM kanmi_records WHERE fileid is not null OR attachment_hash is not null GROUP BY server) x RIGHT JOIN (SELECT DISTINCT * FROM discord_servers) y ON x.server = y.serverid  ORDER BY position`)).rows;
 
 
         let _server_list = allServers.map(e => {
