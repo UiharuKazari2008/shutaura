@@ -69,6 +69,10 @@ const systemglobal = require("../config.json");
             if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
                 systemglobal.Discord_Out = _mq_discord_out[0].param_value;
             }
+            const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+            if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
+                systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
+            }
             const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
             const _mq_fw_in_disc = systemparams_sql.filter(e => e.param_key === 'feed.mq.fileworker.in');
             if (_mq_fw_in_disc.length > 0 && _mq_fw_in_disc[0].param_value) {
@@ -188,9 +192,9 @@ const systemglobal = require("../config.json");
     }
 
     function sendImagetoDiscord(post, backlog, passed) {
-        let sentTo = `${systemglobal.Discord_Out}`
+        let sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}`
         if (backlog) {
-            sentTo = `${systemglobal.Discord_Out}` + '.backlog'
+            sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}` + '.backlog'
         }
         mqClient.sendData( sentTo, {
             fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
@@ -212,7 +216,7 @@ const systemglobal = require("../config.json");
         });
     }
     function sendFiguretoDiscord(post, passed) {
-        const sentTo = `${systemglobal.Discord_Out}.priority`
+        const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`
         mqClient.sendData( sentTo, {
             fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
             messageType : 'stext',

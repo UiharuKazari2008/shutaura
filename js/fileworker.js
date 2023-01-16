@@ -131,6 +131,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
 				systemglobal.Discord_Out = _mq_discord_out[0].param_value;
 			}
+			const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+			if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
+				systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
+			}
 			const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
 			if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
 				systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
@@ -1696,9 +1700,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.addButtons = ["ReqFile", "Pin", "RemoveFile", "Archive", "MoveMessage"];
 					parameters.itemFileData = '' + b64Data;
 					parameters.itemFileName = filepartsid + previewSuffix;
-					mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+					const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
+					mqClient.sendData(sendTo, parameters, function (callback) {
 						if (callback) {
-							Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+							Logger.printLine("KanmiMQ", `Sent to ${sendTo}`, "debug")
 							if (object.Type.toString() === "Local") {
 								deleteFile(object.FilePath.toString(), function (ready) {
 									if (ready === false) {
@@ -1708,7 +1713,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							cb(true);
 						} else {
-							Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error");
+							Logger.printLine("KanmiMQ", `Failed to send to ${sendTo}`, "error");
 							cb(false);
 						}
 					});
@@ -2061,6 +2066,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
+			const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
 			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 12 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {
@@ -2081,16 +2087,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										cb(true)
 									} else {
 										parameters.itemFileData = data
-										mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+										mqClient.sendData(sendTo, parameters, function (callback) {
 											if (callback) {
-												Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+												Logger.printLine("KanmiMQ", `Sent to ${sendTo}`, "debug")
 												if (object.Type.toString() === "Remote") {
 													deleteFile(object.FilePath.toString(), function (ready) {
 														// Do Nothing
 													})
 												}
 											} else {
-												Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+												Logger.printLine("KanmiMQ", `Failed to send to ${sendTo}`, "error")
 											}
 										});
 										cb(true)
@@ -2204,9 +2210,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 						sendFile(function (ready) {
 							if (ready) {
-								mqClient.sendData(parameters.sendTo, parameters, function (callback) {
+								mqClient.sendData(sendTo, parameters, function (callback) {
 									if (callback) {
-										Logger.printLine("KanmiMQ", `Sent to ${parameters.sendTo}`, "debug")
+										Logger.printLine("KanmiMQ", `Sent to ${sendTo}`, "debug")
 										if (object.Type.toString() === "Remote") {
 											deleteFile(object.FilePath.toString(), function (ready) {
 												// Do Nothing
@@ -2214,7 +2220,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										}
 										cb(true)
 									} else {
-										Logger.printLine("KanmiMQ", `Failed to send to ${parameters.sendTo}`, "error")
+										Logger.printLine("KanmiMQ", `Failed to send to ${sendTo}`, "error")
 										cb(false)
 									}
 								});

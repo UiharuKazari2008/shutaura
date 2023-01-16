@@ -100,6 +100,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
 				systemglobal.Discord_Out = _mq_discord_out[0].param_value;
 			}
+			const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+			if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
+				systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
+			}
 			const _mq_seq_in = systemparams_sql.filter(e => e.param_key === 'mq.sequenzia.in');
 			if (_mq_seq_in.length > 0 && _mq_seq_in[0].param_value) {
 				systemglobal.Sequenzia_In = _mq_seq_in[0].param_value;
@@ -1555,7 +1559,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (competedTweet && competedTweet.length > 0) {
 							let sent = true
 							for (let i in competedTweet) {
-								const _sent = await mqClient.publishData(`${systemglobal.Discord_Out}`, competedTweet[i])
+								const _sent = await mqClient.publishData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
 								if (!_sent)
 									sent = false;
 							}
@@ -1670,7 +1674,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (err) {
 										mqClient.sendMessage(`Error when trying to download tweet ${TweetID} media`, "err", "DownloadTweet", err)
 									} else {
-										mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+										mqClient.sendData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
 											fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
 											messageReturn: false,
 											messageType: 'sfile',
@@ -1708,7 +1712,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 								});
 							} else {
-								mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+								mqClient.sendData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
 									fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
 									messageType: 'sfile',
 									messageReturn: false,
@@ -1798,7 +1802,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								if(err){
 									mqClient.sendMessage(`Error when trying to download tweet ${TweetID} media`, "err", "DownloadTweet", err)
 								} else {
-									mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+									mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
 										fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
 										messageType : 'sfile',
 										messageReturn: false,
@@ -2218,7 +2222,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (competedTweet && competedTweet.length > 0) {
 										let sent = true
 										for (let i in competedTweet) {
-											const _sent = await mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, competedTweet[i])
+											const _sent = await mqClient.publishData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, competedTweet[i])
 											if (!_sent)
 												sent = false;
 										}
@@ -2250,7 +2254,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			listRequests.then(async (ok) => {
 				if (messageArray.length > 0) {
 					await messageArray.forEach(async (message) => {
-						await mqClient.sendData( `${systemglobal.Discord_Out}`, message, function (ok) {
+						await mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, message, function (ok) {
 							if (!ok) {
 								Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
 							}

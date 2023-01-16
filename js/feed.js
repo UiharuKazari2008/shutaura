@@ -76,6 +76,10 @@ const systemglobal = require("../config.json");
             if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
                 systemglobal.Discord_Out = _mq_discord_out[0].param_value;
             }
+            const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+            if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
+                systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
+            }
             const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
             if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
                 systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
@@ -116,7 +120,7 @@ const systemglobal = require("../config.json");
             `${article.link}\n` +
             `*${dateFormat(article.published, "dddd, mmmm dS, yyyy (h:MM)")}*`
         const reactions = ["WatchLaterYT", "Check", "Pin", "Download", "Archive", "MoveMessage"]
-        mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+        mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
             fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
             messageReturn: false,
             messageType : 'stext',
@@ -339,7 +343,7 @@ const systemglobal = require("../config.json");
                                     })
                                 } else {
                                     let messageBody = `https://www.flickr.com/photos/${list.username}/${image.id}/`
-                                    mqClient.sendData( `${systemglobal.Discord_Out}.priority`, {
+                                    mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
                                         fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
                                         messageReturn: false,
                                         messageType : 'stext',

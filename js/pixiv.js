@@ -95,6 +95,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
                 systemglobal.Discord_Out = _mq_discord_out[0].param_value;
             }
+            const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+            if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
+                systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
+            }
             const _mq_pixiv_in = systemparams_sql.filter(e => e.param_key === 'mq.pixiv.in');
             if (_mq_pixiv_in.length > 0 && _mq_pixiv_in[0].param_value)
                 systemglobal.Pixiv_In = _mq_pixiv_in[0].param_value;
@@ -333,7 +337,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function parseItems(list, channel, level, message, duplicates) {
         return new Promise(async (completedPage) => {
-            const sentTo = `${systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
+            const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
             const _pconfig = await db.query(`SELECT * FROM pixiv_accounts WHERE paccount = ?`, [systemglobal.PixivUser]);
             function sendEmbed(post, level, addUser, objectMode, last, download_channelid) {
                 let messageObject = {
