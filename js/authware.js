@@ -1290,6 +1290,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
                 { userid: userId, data: JSON.stringify(userAccount) }, { data: JSON.stringify(userAccount) }
             ])
+            await db.query(`DELETE FROM sequenzia_user_cache WHERE userid NOT IN (SELECT id AS userid FROM discord_users)`)
+            await db.query(`DELETE FROM sequenzia_user_config WHERE id NOT IN (SELECT id FROM discord_users)`)
         });
 
         if (!thisUser) {
