@@ -4935,14 +4935,14 @@ This code is publicly released and is restricted by its project license
             let discordMQMessages = 0;
             let discordMQ = {
                 "footer": {
-                    "title": "Discord I/O Queue Status"
+                    "text": "Discord I/O Queue Status"
                 },
                 "color": 1473771,
                 "fields": []
             }
             let fileworkerMQ = {
                 "footer": {
-                    "title": "FileWorker Queue Status"
+                    "text": "FileWorker Queue Status"
                 },
                 "color": 1473771,
                 "fields": []
@@ -5126,7 +5126,7 @@ This code is publicly released and is restricted by its project license
             }
             if (discordClient.unavailableGuilds.size > 0) {
                 systemFault = true;
-                bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ Server ${e} is unavailable!`))
+                bannerFault.push(...discordClient.unavailableGuilds.keys.map(e => `🚧️ ${e} is unaccessible!`))
             }
             if (gracefulShutdown) {
                 systemFault = true;
@@ -5501,13 +5501,14 @@ This code is publicly released and is restricted by its project license
                         (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
                         let seqLoginembed = {
                             "footer": {
-                                "title": "Sequenzia ESM Activity"
+                                "text": "Sequenzia Login Activity"
                             },
                             "color": 16755712,
                             "fields": []
                         }
                         seqLatestLogins.rows.map(f => {
                             const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
+                            const lastSessions = seqLoginInfo.rows.filter(g => g.id === f.id)[0]
                             const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
                                 const type = (() => {
                                     switch (g.meathod) {
@@ -5523,11 +5524,11 @@ This code is publicly released and is restricted by its project license
                                             return '️️‼️'
                                     }
                                 })()
-                                return `${type} ||${g.ip_address}|| ${(g.geo) ? '(' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')' : '❓'}`
+                                return `${type} ||${g.ip_address}${(g.geo) ? ' (' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')||' : '|| ❓'}`
                             });
                             seqLoginembed.fields.push({
-                                "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : 'Unknown User'} (${f.session_count})`,
-                                "value": [...new Set(sessions)].join('\n').substring(0, 1024)
+                                "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} (${f.session_count})`,
+                                "value": [`Last login: <t:${(Date(lastSessions.reauth_time).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
                             });
                         })
                         if (seqLoginembed.fields.length > 0)
