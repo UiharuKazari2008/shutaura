@@ -5509,6 +5509,7 @@ This code is publicly released and is restricted by its project license
                         seqLatestLogins.rows.map(f => {
                             const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
                             const lastSessions = seqLoginInfo.rows.filter(g => g.id === f.id)[0]
+                            console.log(lastSessions.reauth_time)
                             const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
                                 const type = (() => {
                                     switch (g.meathod) {
@@ -5528,7 +5529,7 @@ This code is publicly released and is restricted by its project license
                             });
                             seqLoginembed.fields.push({
                                 "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} (${f.session_count})`,
-                                "value": [`Last login: <t:${(Date(lastSessions.reauth_time).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
+                                "value": [`Last login: <t:${((new Date(lastSessions.reauth_time)).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
                             });
                         })
                         if (seqLoginembed.fields.length > 0)
