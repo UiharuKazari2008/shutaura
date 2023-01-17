@@ -822,6 +822,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             'discord_servers.serverid',
             'kanmi_channels.position',
             'discord_servers.short_name AS server_short_name',
+            'discord_servers.name AS server_name',
+            'discord_servers.nice_name AS server_nice_name',
             'discord_servers.avatar AS server_avatar',
             'kanmi_channels.name AS channel_name',
             'kanmi_channels.image_hash AS channel_image',
