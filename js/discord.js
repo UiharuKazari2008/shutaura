@@ -5495,7 +5495,7 @@ This code is publicly released and is restricted by its project license
                     const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
                     const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id);
                     const seqLoginInfo = await db.query('SELECT `key`, id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC');
-                    const seqCDSAccess = await db.query(`SELECT x.esm_id, x.time, y.* FROM (SELECT * FROM sequenzia_cds_audit) x INNER JOIN (SELECT eid, fileid, real_filename, filesize FROM kanmi_records WHERE fileid IN (SELECT fileid FROM sequenzia_cds_audit)) y ON x.fileid = y.fileid ORDER BY x.time DESC LIMIT 20`);
+                    const seqCDSAccess = await db.query('SELECT * FROM (SELECT x.esm_id, x.time, y.* FROM (SELECT * FROM sequenzia_cds_audit) x INNER JOIN (SELECT eid, fileid, real_filename, filesize FROM kanmi_records WHERE fileid IN (SELECT fileid FROM sequenzia_cds_audit)) y ON x.fileid = y.fileid) x INNER JOIN (SELECT `key`, id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history) y ON `key` = x.esm_id  ORDER BY x.time DESC LIMIT 20');
 
                     if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
                         (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
@@ -5547,9 +5547,7 @@ This code is publicly released and is restricted by its project license
                             "fields": []
                         }
                         seqAuditembed.fields.push(...(seqCDSAccess.rows.map(f => {
-                            const loginSession = seqLoginInfo.rows.filter(g => g.key === f.esm_id)[0];
-                            console.log(loginSession)
-                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(loginSession.id)];
+                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
                             const type = (() => {
                                 switch (loginSession.meathod) {
                                     case 100:
@@ -5565,7 +5563,7 @@ This code is publicly released and is restricted by its project license
                                 }
                             })()
                             return {
-                                "name": `${type} ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : loginSession.id} <t:${((new Date(f.time)).valueOf() / 1000)}:R>`,
+                                "name": `${type} ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} <t:${((new Date(f.time)).valueOf() / 1000)}:R>`,
                                 "value": `${f.eid} ${f.real_filename} (${f.filesize})`
                             }
                         })))
