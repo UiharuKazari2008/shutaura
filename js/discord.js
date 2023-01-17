@@ -5493,8 +5493,9 @@ This code is publicly released and is restricted by its project license
                     console.log(`Getting Sequenzia counts...`)
                     const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
                     const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
-                    const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id)
-                    const seqLoginInfo = await db.query(`SELECT id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC`);
+                    const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id);
+                    const seqLoginInfo = await db.query('SELECT `key`, id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC');
+                    const seqCDSAccess = await db.query(`SELECT x.esm_id, x.time, y.* FROM (SELECT * FROM sequenzia_cds_audit) x INNER JOIN (SELECT eid, fileid, real_filename, filesize FROM kanmi_records WHERE fileid IN (SELECT fileid FROM sequenzia_cds_audit)) y ON x.fileid = y.fileid ORDER BY x.time DESC LIMIT 20`);
 
                     if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
                         (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
@@ -5534,6 +5535,44 @@ This code is publicly released and is restricted by its project license
                         if (seqLoginembed.fields.length > 0)
                             embdedArray.push(seqLoginembed);
                     }
+                    if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
+                        (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
+                        (!seqCDSAccess.error && seqCDSAccess.rows.length > 0) &&
+                        (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
+                        let seqAuditembed = {
+                            "footer": {
+                                "text": "Sequenzia Audit Activity"
+                            },
+                            "color": 16755712,
+                            "fields": []
+                        }
+                        seqAuditembed.fields.push(...(seqCDSAccess.rows.map(f => {
+                            const loginSession = seqLoginInfo.rows.filter(g => g.key === f.esm_id)[0];
+                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(loginSession.id)];
+                            const type = (() => {
+                                switch (loginSession.meathod) {
+                                    case 100:
+                                        return '✅️';
+                                    case 101:
+                                        return '❇️';
+                                    case 102:
+                                        return '🔷';
+                                    case 900:
+                                        return '🔶';
+                                    default:
+                                        return '️️‼️'
+                                }
+                            })()
+                            return {
+                                "name": `${type} ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : loginSession.id} <t:${((new Date(f.time)).valueOf() / 1000)}:R>`,
+                                "value": `${f.eid} ${f.real_filename} (${f.filesize})`
+                            }
+                        })))
+
+                        if (seqAuditembed.fields.length > 0)
+                            embdedArray.push(seqAuditembed);
+                    }
+
                 } catch (e) {
                     console.error(e)
                 }
