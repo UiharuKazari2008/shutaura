@@ -5562,9 +5562,19 @@ This code is publicly released and is restricted by its project license
                                         return '️️‼️'
                                 }
                             })()
+                            const size = (() => {
+                                if (f.filesize > 100000) {
+                                    return (f.filesize / 100000).toFixed(2) + ' TB'
+                                } else if (f.filesize > 1000) {
+                                    return (f.filesize / 1000).toFixed(2) + ' GB'
+                                } else if (f.filesize > 1) {
+                                    return f.filesize + ' MB'
+                                }
+                                return '< 1 MB'
+                            })()
                             return {
                                 "name": `${type} ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} <t:${((new Date(f.time)).valueOf() / 1000)}:R>`,
-                                "value": `${f.eid} ${f.real_filename} (${f.filesize})`
+                                "value": `${f.eid} ${f.real_filename} (${size})`
                             }
                         })))
 
