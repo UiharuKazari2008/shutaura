@@ -5548,6 +5548,7 @@ This code is publicly released and is restricted by its project license
                         }
                         seqAuditembed.fields.push(...(seqCDSAccess.rows.map(f => {
                             const loginSession = seqLoginInfo.rows.filter(g => g.key === f.esm_id)[0];
+                            console.log(loginSession)
                             const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(loginSession.id)];
                             const type = (() => {
                                 switch (loginSession.meathod) {
