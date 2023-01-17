@@ -5499,44 +5499,6 @@ This code is publicly released and is restricted by its project license
 
                     if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
                         (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
-                        (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
-                        let seqLoginembed = {
-                            "footer": {
-                                "text": "Sequenzia Login Activity"
-                            },
-                            "color": 16755712,
-                            "fields": []
-                        }
-                        seqLatestLogins.rows.map(f => {
-                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
-                            const lastSessions = seqLoginInfo.rows.filter(g => g.id === f.id)[0]
-                            const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
-                                const type = (() => {
-                                    switch (g.meathod) {
-                                        case 100:
-                                            return '✅️';
-                                        case 101:
-                                            return '❇️';
-                                        case 102:
-                                            return '🔷';
-                                        case 900:
-                                            return '🔶';
-                                        default:
-                                            return '️️‼️'
-                                    }
-                                })()
-                                return `${type} ||${g.ip_address}${(g.geo) ? ' (' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')||' : '|| ❓'}`
-                            });
-                            seqLoginembed.fields.push({
-                                "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} (${f.session_count})`,
-                                "value": [`Last login: <t:${((new Date(lastSessions.reauth_time)).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
-                            });
-                        })
-                        if (seqLoginembed.fields.length > 0)
-                            embdedArray.push(seqLoginembed);
-                    }
-                    if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
-                        (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
                         (!seqCDSAccess.error && seqCDSAccess.rows.length > 0) &&
                         (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
                         let seqAuditembed = {
@@ -5581,6 +5543,45 @@ This code is publicly released and is restricted by its project license
                         if (seqAuditembed.fields.length > 0)
                             embdedArray.push(seqAuditembed);
                     }
+                    if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
+                        (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
+                        (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
+                        let seqLoginembed = {
+                            "footer": {
+                                "text": "Sequenzia Login Activity"
+                            },
+                            "color": 16755712,
+                            "fields": []
+                        }
+                        seqLatestLogins.rows.map(f => {
+                            const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
+                            const lastSessions = seqLoginInfo.rows.filter(g => g.id === f.id)[0]
+                            const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
+                                const type = (() => {
+                                    switch (g.meathod) {
+                                        case 100:
+                                            return '✅️';
+                                        case 101:
+                                            return '❇️';
+                                        case 102:
+                                            return '🔷';
+                                        case 900:
+                                            return '🔶';
+                                        default:
+                                            return '️️‼️'
+                                    }
+                                })()
+                                return `${type} ||${g.ip_address}${(g.geo) ? ' (' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')||' : '|| ❓'}`
+                            });
+                            seqLoginembed.fields.push({
+                                "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} (${f.session_count})`,
+                                "value": [`Last login: <t:${((new Date(lastSessions.reauth_time)).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
+                            });
+                        })
+                        if (seqLoginembed.fields.length > 0)
+                            embdedArray.push(seqLoginembed);
+                    }
+
 
                 } catch (e) {
                     console.error(e)
