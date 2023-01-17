@@ -5549,7 +5549,7 @@ This code is publicly released and is restricted by its project license
                         seqAuditembed.fields.push(...(seqCDSAccess.rows.map(f => {
                             const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
                             const type = (() => {
-                                switch (loginSession.meathod) {
+                                switch (f.meathod) {
                                     case 100:
                                         return '✅️';
                                     case 101:
