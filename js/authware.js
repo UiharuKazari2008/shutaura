@@ -1304,6 +1304,32 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
         res.status(200).send("OK");
     });
+    app.post('/cross-instance/exchange', async (req, res) => {
+        if (req.body && req.body.key && req.body.id && req.body.users) {
+            if (systemglobal.Authorized_Exchange && systemglobal.Authorized_Exchange[req.body.id] && systemglobal.Authorized_Exchange[req.body.id]['key'] === req.body.key) {
+                const users = (await db.query(`SELECT * FROM sequenzia_user_cache`)).rows.filter(r => req.body.users.indexOf(r.userid) !== -1);
+                res.status(200).json({
+                    success: true,
+                    users: users,
+                    config: {
+                        exchange: systemglobal.This_Exchange || undefined
+                    }
+                })
+            } else {
+                res.status(401).json({
+                    success: false,
+                    error: 'Unknown Exchange ID?'
+                })
+            }
+        } else {
+            res.status(400).json({
+                success: false,
+                error: 'Invalid Request'
+            })
+        }
+        await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
+        res.status(200).send("OK");
+    });
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
