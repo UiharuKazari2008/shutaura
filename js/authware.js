@@ -1306,7 +1306,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.Connected_Exchanges) {
                 Object.keys(crossExchangeCache).map(exh => {
                     if (crossExchangeCache[exh] && crossExchangeCache[exh].users.length > 0) {
-                        const remoteAccount = crossExchangeCache[exh].users.filter(h => h.userid === userId).map(h => d.data.master);
+                        const remoteAccount = crossExchangeCache[exh].users.filter(h => h.userid === userId).map(h => h.data.master);
                         if (remoteAccount.length > 0) {
                             allAccounts[exh] = remoteAccount[0]
                         }
