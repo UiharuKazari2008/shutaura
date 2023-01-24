@@ -1380,7 +1380,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 users: allUserIds
                             }
                         }, async (err, res, body) => {
-                            if (err || res && res.statusCode && res.statusCode !== 200 || !body) {
+                            if (err || res && res.statusCode && res.statusCode !== 200) {
                                 Logger.printLine("Exchange", `Failed to contact exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                 json(null)
                             } else {
