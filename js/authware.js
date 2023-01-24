@@ -1394,7 +1394,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         json(null)
                                     }
                                 } catch (e) {
-                                    Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                    Logger.printLine("Exchange", `Failed to parse response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                    console.error(err)
                                     json(null)
                                 }
                             }
