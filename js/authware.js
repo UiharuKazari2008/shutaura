@@ -1367,23 +1367,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let requests = Object.keys(systemglobal.Connected_Exchanges).reduce((promiseChain, id, i, a) => {
                 return promiseChain.then(() => new Promise(async(resolve) => {
                     const thisExchange = systemglobal.Connected_Exchanges[id];
-                    try {
-                        await new Promise(json => {
-                            request.post({
-                                url: thisExchange.sbi_url + '/cross-instance/exchange',
-                                headers: { 'User-Agent': 'Sequenzia AuthWare v20.2' },
-                                timeout: 30000,
-                                body: {
-                                    id: systemglobal.This_Exchange.id,
-                                    prefix: systemglobal.This_Exchange.prefix,
-                                    key: thisExchange.key,
-                                    users: allUserIds
-                                }
-                            }, async (err, res, body) => {
-                                if (err || res && res.statusCode && res.statusCode !== 200 || !body) {
-                                    Logger.printLine("Exchange", `Failed to contact exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                    json(null)
-                                } else {
+                    const returnedUsers = await new Promise(json => {
+                        request.post({
+                            url: thisExchange.sbi_url + '/cross-instance/exchange',
+                            headers: { 'User-Agent': 'Sequenzia AuthWare v20.2' },
+                            timeout: 30000,
+                            body: JSON.stringify({
+                                id: systemglobal.This_Exchange.id,
+                                prefix: systemglobal.This_Exchange.prefix,
+                                key: thisExchange.key,
+                                users: allUserIds
+                            })
+                        }, async (err, res, body) => {
+                            if (err || res && res.statusCode && res.statusCode !== 200 || !body) {
+                                Logger.printLine("Exchange", `Failed to contact exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                json(null)
+                            } else {
+                                try {
                                     const responseJson = JSON.parse(body);
                                     if (responseJson && responseJson.success && responseJson.version === '1') {
                                         crossExchangeCache[id] = responseJson;
@@ -1392,12 +1392,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                         json(null)
                                     }
+                                } catch (e) {
+                                    Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                    json(null)
                                 }
-                            })
+                            }
                         })
-                    } catch (e) {
-                        Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                    }
+                    })
                     resolve();
                 }))
             }, Promise.resolve());
