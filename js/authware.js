@@ -1372,12 +1372,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             url: thisExchange.sbi_url + '/cross-instance/exchange',
                             headers: { 'User-Agent': 'Sequenzia AuthWare v20.2' },
                             timeout: 30000,
-                            body: JSON.stringify({
+                            json: true,
+                            body: {
                                 id: systemglobal.This_Exchange.id,
                                 prefix: systemglobal.This_Exchange.prefix,
                                 key: thisExchange.key,
                                 users: allUserIds
-                            })
+                            }
                         }, async (err, res, body) => {
                             if (err || res && res.statusCode && res.statusCode !== 200 || !body) {
                                 Logger.printLine("Exchange", `Failed to contact exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
