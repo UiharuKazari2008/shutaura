@@ -1362,6 +1362,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             memberTokenGeneration();
             init = 1
             setInterval(() => { updateLocalCache() }, 300000)
+            app.listen(sbiPort, (err) => {
+                if (err) console.log("Error in server setup")
+                console.log("API listening on port: " + sbiPort);
+            });
         }
         setInterval(memberTokenGeneration, 3600000);
         setTimeout(() => {
@@ -1381,12 +1385,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 sudoRole: _ad,
             })
         }));
-        if (init === 0) {
-            app.listen(sbiPort, (err) => {
-                if (err) console.log("Error in server setup")
-                console.log("API listening on port: 31000");
-            });
-        }
         await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
 
