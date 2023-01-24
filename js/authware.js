@@ -1379,8 +1379,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 users: allUserIds
                             }
                         }, async (err, res, body) => {
-                            if (err || res && res.statusCode && res.statusCode !== 200) {
-                                Logger.printLine("Exchange", `Failed to contact exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                            if (err || res && res.statusCode && res.statusCode !== 200 || !body) {
+                                Logger.printLine("Exchange", `Failed to contact exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                 json(null)
                             } else {
                                 try {
@@ -1389,11 +1389,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         crossExchangeCache[id] = responseJson;
                                         json(responseJson)
                                     } else {
-                                        Logger.printLine("Exchange", `Failed to handle response from exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                        Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                         json(null)
                                     }
                                 } catch (e) {
-                                    Logger.printLine("Exchange", `Failed to handle response from exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                    Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                     json(null)
                                 }
                             }
