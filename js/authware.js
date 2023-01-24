@@ -19,6 +19,12 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
+import path from "path";
+import systemglobal from "../config.json";
+import fsEx from "fs-extra";
+import fs from "fs";
+import {response} from "express";
+
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -131,6 +137,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.user_card_membership = _seq_config[0].param_data.user_card_membership;
                 if (_seq_config[0].param_data.web_applications)
                     systemglobal.web_applications = _seq_config[0].param_data.web_applications;
+            }
+            const _exchange_config = systemparams_sql.filter(e => e.param_key === 'exchange.local');
+            if (_exchange_config.length > 0 && _exchange_config[0].param_data) {
+                if (_exchange_config[0].param_data.config)
+                    systemglobal.This_Exchange = _exchange_config[0].param_data.config;
+                if (_exchange_config[0].param_data.connections)
+                    systemglobal.Authorized_Exchange = _exchange_config[0].param_data.connections;
+            }
+            const _exchange_remote = systemparams_sql.filter(e => e.param_key === 'exchange.remote');
+            if (_exchange_remote.length > 0 && _exchange_remote[0].param_data) {
+                if (_exchange_remote[0].param_data.connections)
+                    systemglobal.Connected_Exchanges = _exchange_remote[0].param_data.connections;
             }
         }
 
@@ -809,6 +827,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     let sequenziaAccountUpdateTimer = null;
+    let crossExchangeCache = {}
     async function sequenziaUserCacheGenerator(thisUser) {
         if (sequenziaAccountUpdateTimer) {
             clearTimeout(sequenziaAccountUpdateTimer);
@@ -1039,7 +1058,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (managePermissions.indexOf(u.role_manage) !== -1 || specialPermissions.indexOf(u.role_manage) !== -1)
                         userAccount.discord.channels.manage.push(u.channelid);
                 })
-
 
                 await db.query(`CREATE OR REPLACE VIEW kanmi_auth_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_description, y.virtual_channel_uri FROM (SELECT x.* FROM (SELECT DISTINCT role FROM discord_users_permissons WHERE userid = '${userId}') z LEFT JOIN (SELECT DISTINCT ${authViewsqlFields} FROM ${authViewsqlTables} WHERE (${authViewsqlWhere}) ) x ON (x.role = z.role)) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, description AS virtual_channel_description, uri AS virtual_channel_uri FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY x.position`)
                 await db.query(`CREATE OR REPLACE VIEW kanmi_sidebar_${userId} AS SELECT x.*, y.virtual_channel_name, y.virtual_channel_uri, y.virtual_channel_description FROM (SELECT ${sidebarViewsqlFields} FROM ${sidebarViewsqlTables} WHERE ${sidebarViewsqlWhere}) x LEFT OUTER JOIN (SELECT virtual_cid AS virtual_channel_eid, name AS virtual_channel_name, uri AS virtual_channel_uri, description AS virtual_channel_description FROM kanmi_virtual_channels) y ON (x.virtual_channel_eid = y.virtual_channel_eid) ORDER BY ${sidebarViewsqlOrderBy}`);
@@ -1288,9 +1306,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
                 resolve();
             })
+            let allAccounts = {
+                master: userAccount
+            }
+            if (systemglobal.Connected_Exchanges) {
+                Object.keys(crossExchangeCache).map(exh => {
+                    if (crossExchangeCache[exh] && crossExchangeCache[exh].users.length > 0) {
+                        const remoteAccount = crossExchangeCache[exh].users.filter(h => h.userid === userId).map(h => d.data.master);
+                        if (remoteAccount.length > 0) {
+                            allAccounts[exh] = remoteAccount[0]
+                        }
+                    }
+                })
+            }
 
             await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
-                { userid: userId, data: JSON.stringify(userAccount) }, { data: JSON.stringify(userAccount) }
+                { userid: userId, data: JSON.stringify(allAccounts) }, { data: JSON.stringify(allAccounts) }
             ])
             await db.query(`DELETE FROM sequenzia_user_cache WHERE userid NOT IN (SELECT id AS userid FROM discord_users)`)
             await db.query(`DELETE FROM sequenzia_user_config WHERE id NOT IN (SELECT id FROM discord_users)`)
@@ -1304,32 +1335,85 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
         res.status(200).send("OK");
     });
-    app.post('/cross-instance/exchange', async (req, res) => {
-        if (req.body && req.body.key && req.body.id && req.body.users) {
-            if (systemglobal.Authorized_Exchange && systemglobal.Authorized_Exchange[req.body.id] && systemglobal.Authorized_Exchange[req.body.id]['key'] === req.body.key) {
-                const users = (await db.query(`SELECT * FROM sequenzia_user_cache`)).rows.filter(r => req.body.users.indexOf(r.userid) !== -1);
-                res.status(200).json({
-                    success: true,
-                    users: users,
-                    config: {
-                        exchange: systemglobal.This_Exchange || undefined
-                    }
-                })
+    if (systemglobal.This_Exchange && systemglobal.Authorized_Exchange) {
+        app.post('/cross-instance/exchange', async (req, res) => {
+            if (req.body && req.body.key && req.body.id && req.body.users) {
+                if (systemglobal.Authorized_Exchange && systemglobal.Authorized_Exchange[req.body.id] && systemglobal.Authorized_Exchange[req.body.id]['key'] === req.body.key) {
+                    const users = (await db.query(`SELECT * FROM sequenzia_user_cache`)).rows.filter(r => req.body.users.indexOf(r.userid) !== -1);
+                    res.status(200).json({
+                        success: true,
+                        users: users,
+                        exchange: systemglobal.This_Exchange || undefined,
+                        config: {
+
+                        },
+                        version: '1'
+                    })
+                } else {
+                    res.status(401).json({
+                        success: false,
+                        error: 'Unknown Exchange ID?'
+                    })
+                }
             } else {
-                res.status(401).json({
+                res.status(400).json({
                     success: false,
-                    error: 'Unknown Exchange ID?'
+                    error: 'Invalid Request'
                 })
             }
-        } else {
-            res.status(400).json({
-                success: false,
-                error: 'Invalid Request'
+            await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
+            res.status(200).send("OK");
+        });
+    }
+    async function refreshRemoteExchanges() {
+        if (systemglobal.This_Exchange && systemglobal.Connected_Exchanges) {
+            const allUsers = (await db.query("SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id")).rows
+            const allUserIds = [...new Set(allUsers.filter(e => !!e.id).map(e => e.id))];
+            
+            let requests = Object.keys(systemglobal.Connected_Exchanges).reduce((promiseChain, id, i, a) => {
+                return promiseChain.then(() => new Promise(async(resolve) => {
+                    const thisExchange = systemglobal.Connected_Exchanges[id];
+                    const returnedUsers = await new Promise(json => {
+                        request.post({
+                            url: thisExchange.sbi_url + '/cross-instance/exchange',
+                            headers: { 'User-Agent': 'Sequenzia AuthWare v20.2' },
+                            timeout: 30000,
+                            body: {
+                                id: systemglobal.This_Exchange.id,
+                                prefix: systemglobal.This_Exchange.prefix,
+                                key: thisExchange.key,
+                                users: allUserIds
+                            }
+                        }, async (err, res, body) => {
+                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                Logger.printLine("Exchange", `Failed to contact exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                json(null)
+                            } else {
+                                try {
+                                    const responseJson = JSON.parse(body);
+                                    if (responseJson && responseJson.success && responseJson.version === '1') {
+                                        crossExchangeCache[id] = responseJson;
+                                        json(responseJson)
+                                    } else {
+                                        Logger.printLine("Exchange", `Failed to handle response from exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                        json(null)
+                                    }
+                                } catch (e) {
+                                    Logger.printLine("Exchange", `Failed to handle response from exchange "${thisExchange.id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                    json(null)
+                                }
+                            }
+                        })
+                    })
+                    resolve();
+                }))
+            }, Promise.resolve());
+            requests.then(() => {
+                Logger.printLine("Exchange", `Successfully updated remote exchanges`, "info")
             })
         }
-        await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
-        res.status(200).send("OK");
-    });
+    }
+
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
@@ -1398,6 +1482,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }))
         }))
         await updateLocalCache();
+        if (systemglobal.Connected_Exchanges) {
+            await refreshRemoteExchanges();
+            setInterval(refreshRemoteExchanges, 300000);
+        }
         await sequenziaUserCacheGenerator();
     });
     discordClient.on("error", (err) => {
