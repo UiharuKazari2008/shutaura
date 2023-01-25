@@ -1942,7 +1942,7 @@ This code is publicly released and is restricted by its project license
                                                                 resolve(true)
                                                             })
                                                             .catch((er) => {
-                                                                SendMessage("Failed to send message to discord", "err", message.guildID, "SetUserBanner", er)
+                                                                SendMessage("Failed to send message to discord", "err", "SetUserBanner", er)
                                                                 if (er.message.includes("empty message") || er.message.includes("to large")) {
                                                                     resolve(true)
                                                                 } else {
