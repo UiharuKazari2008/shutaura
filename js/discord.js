@@ -1933,7 +1933,7 @@ This code is publicly released and is restricted by its project license
 
                                                                     const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
                                                                     if (userCache.length > 0) {
-                                                                        const _data = userCache[0].data;
+                                                                        const _data = userCache[0].data.master;
                                                                         _data.user.banner = '/full_attachments' + url
                                                                         await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
                                                                         Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
@@ -2015,7 +2015,7 @@ This code is publicly released and is restricted by its project license
 
                                                                     const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
                                                                     if (userCache.length > 0) {
-                                                                        const _data = userCache[0].data;
+                                                                        const _data = userCache[0].data.master;
                                                                         _data.user.avatar = '/full_attachments' + url
                                                                         await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
                                                                         Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
