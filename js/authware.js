@@ -1326,7 +1326,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     app.get('/refresh/sequenzia', async (req, res) => {
-        await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
+        await sequenziaUserCacheGenerator((req.query && req.query.userid) ? req.query.userid : undefined);
         res.status(200).send("OK");
     });
     if (systemglobal.This_Exchange && systemglobal.Authorized_Exchange) {
@@ -1355,7 +1355,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     error: 'Invalid Request'
                 })
             }
-            await sequenziaAccountUpdateTimer((req.query && req.query.userid) ? req.query.userid : undefined);
             res.status(200).send("OK");
         });
     }
