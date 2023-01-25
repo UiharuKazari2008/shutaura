@@ -1339,7 +1339,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         users: users,
                         exchange: systemglobal.This_Exchange || undefined,
                         config: {
-                            base_url: systemglobal.base_url
+                            base_url: systemglobal.This_Exchange.base_url || systemglobal.base_url,
+                            access_url: systemglobal.This_Exchange.access_url || systemglobal.This_Exchange.base_url || systemglobal.base_url
                         },
                         version: '1'
                     })
