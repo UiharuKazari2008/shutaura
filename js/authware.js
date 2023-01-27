@@ -1410,6 +1410,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(() => {
                 Logger.printLine("Exchange", `Successfully updated remote exchanges`, "info")
+                setTimeout(refreshRemoteExchanges, 300000);
             })
         }
     }
@@ -1484,7 +1485,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await updateLocalCache();
         if (systemglobal.Connected_Exchanges) {
             await refreshRemoteExchanges();
-            setInterval(refreshRemoteExchanges, 300000);
         }
         await sequenziaUserCacheGenerator();
     });
