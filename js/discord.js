@@ -3738,6 +3738,20 @@ This code is publicly released and is restricted by its project license
                                     SendMessage("⁉ Missing required information", "system", msg.guildID, "LayoutManager")
                                 }
                                 break;
+                            case 'enable-dashboard':
+                                generateSeqStatus(true, msg.guildID, args[1].replace("<#", "").replace(">", ""));
+                                return `Added a sequenzia insights to <#${args[1].replace("<#", "").replace(">", "")}>`
+                            case 'disable-dashboard':
+                                if (Timers.has(`StatusReportSeq${msg.guildID}`)) {
+                                    clearInterval(Timers.get(`StatusReportSeq${msg.guildID}`))
+                                    clearInterval(Timers.get(`StatusReportSeqCheck${msg.guildID}`))
+                                    Timers.delete(`StatusReportSeq${msg.guildID}`)
+                                    Timers.delete(`StatusReportSeqCheck${msg.guildID}`)
+                                    await localParameters.del(`statusseqgen-${msg.guildID}`)
+                                    return "Disabled Sequenzia Insights Display for this guild, Please delete the message"
+                                } else {
+                                    return `Sequenzia Insights Display is not enabled for this guild`
+                                }
                             default:
                                 SendMessage("⁉ Unknown Command", "system", msg.guildID, "SequenziaManager")
                                 break;
@@ -4867,6 +4881,12 @@ This code is publicly released and is restricted by its project license
                                 generateStatus(false, guild.id)
                             }))*/
                         }
+                        if (localKeys.indexOf("statusseqgen-" + guild.id) !== -1 ) {
+                            Logger.printLine(`StatusGenerator`, `Initialized Timer for seq status update for "${guild.name}"`, `info`)
+                            Timers.set(`StatusReportSeq${guild.id}`, setInterval(() => {
+                                generateSeqStatus(true, guild.id)
+                            }, 300000))
+                        }
                     })
                 })
         });
@@ -4876,6 +4896,7 @@ This code is publicly released and is restricted by its project license
         }
     }
     let activeRefresh = false;
+    let activeSeqRefresh = false;
     async function generateStatus(forceUpdate, guildID, channelID) {
         if (!activeRefresh) {
             activeRefresh = true
@@ -5912,6 +5933,181 @@ This code is publicly released and is restricted by its project license
                 }, 300000))
             }
             activeRefresh = false;
+        }
+    }
+    async function generateSeqStatus(forceUpdate, guildID, channelID) {
+        if (!activeSeqRefresh) {
+            activeSeqRefresh = true
+            let data
+            try {
+                data = await localParameters.getItem('statusseqgen-' + guildID)
+            } catch (e) {
+                console.error("Failed to get guild local parameters")
+            }
+            let channel = null
+            let systemWarning = false;
+            let bannerWarnings = [];
+            let systemFault = false;
+            let bannerFault = [];
+            if (channelID) {
+                channel = channelID
+            } else if (data && data.channel) {
+                channel = data.channel
+            } else {
+                return false;
+            }
+
+            let embdedArray = [];
+            try {
+                const seqLatestLogins = await db.query(`SELECT id, COUNT(session) AS session_count, SUM(reauth_count) AS reauth_count FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR GROUP BY id`);
+                const seqAvalibleUsers = await db.query(`SELECT x.id, x.username, y.name FROM (SELECT id, server, username FROM discord_users) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id`);
+                const seqAvalibleUsersIds = seqAvalibleUsers.rows.map(e => e.id);
+                const seqLoginInfo = await db.query('SELECT `key`, id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history WHERE reauth_time >= NOW() - INTERVAL 8 HOUR ORDER BY reauth_time DESC');
+                const seqCDSAccess = await db.query('SELECT * FROM (SELECT x.esm_id, x.time, y.* FROM (SELECT * FROM sequenzia_cds_audit) x INNER JOIN (SELECT eid, fileid, real_filename, filesize FROM kanmi_records WHERE fileid IN (SELECT fileid FROM sequenzia_cds_audit)) y ON x.fileid = y.fileid) x INNER JOIN (SELECT `key`, id, ip_address, geo, meathod, user_agent, reauth_time FROM sequenzia_login_history) y ON `key` = x.esm_id  ORDER BY x.time DESC LIMIT 20');
+
+                if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
+                    (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
+                    (!seqCDSAccess.error && seqCDSAccess.rows.length > 0) &&
+                    (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
+                    let seqAuditembed = {
+                        "footer": {
+                            "text": "Sequenzia Audit Activity"
+                        },
+                        "color": 16755712,
+                        "fields": []
+                    }
+                    seqAuditembed.fields.push(...(seqCDSAccess.rows.map(f => {
+                        const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
+                        const type = (() => {
+                            switch (f.meathod) {
+                                case 100:
+                                    return '✅️';
+                                case 101:
+                                    return '❇️';
+                                case 102:
+                                    return '🔷';
+                                case 900:
+                                    return '🔶';
+                                default:
+                                    return '️️‼️'
+                            }
+                        })()
+                        const size = (() => {
+                            if (f.filesize > 100000) {
+                                return (f.filesize / 100000).toFixed(2) + ' TB'
+                            } else if (f.filesize > 1000) {
+                                return (f.filesize / 1000).toFixed(2) + ' GB'
+                            } else if (f.filesize > 1) {
+                                return f.filesize + ' MB'
+                            }
+                            return '< 1 MB'
+                        })()
+                        return {
+                            "name": `${type} ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} <t:${((new Date(f.time)).valueOf() / 1000)}:R>`,
+                            "value": `${f.eid} ${f.real_filename} (${size})`
+                        }
+                    })))
+
+                    if (seqAuditembed.fields.length > 0)
+                        embdedArray.push(seqAuditembed);
+                }
+                if ((!seqLatestLogins.error && seqLatestLogins.rows.length > 0) &&
+                    (!seqAvalibleUsers.error && seqAvalibleUsers.rows.length > 0) &&
+                    (!seqLoginInfo.error && seqLoginInfo.rows.length > 0)) {
+                    let seqLoginembed = {
+                        "footer": {
+                            "text": "Sequenzia Login Activity"
+                        },
+                        "color": 16755712,
+                        "fields": []
+                    }
+                    seqLatestLogins.rows.map(f => {
+                        const userInfo = seqAvalibleUsers.rows[seqAvalibleUsersIds.indexOf(f.id)];
+                        const lastSessions = seqLoginInfo.rows.filter(g => g.id === f.id)[0]
+                        const sessions = seqLoginInfo.rows.filter(g => g.id === f.id).slice(0, 5).map(g => {
+                            const type = (() => {
+                                switch (g.meathod) {
+                                    case 100:
+                                        return '✅️';
+                                    case 101:
+                                        return '❇️';
+                                    case 102:
+                                        return '🔷';
+                                    case 900:
+                                        return '🔶';
+                                    default:
+                                        return '️️‼️'
+                                }
+                            })()
+                            return `${type} ||${g.ip_address}${(g.geo) ? ' (' + ((g.geo.regionName !== '') ? g.geo.regionName : 'Unknown') + ', ' + ((g.geo.countryCode !== '') ? g.geo.countryCode : '??') + ')||' : '|| ❓'}`
+                        });
+                        seqLoginembed.fields.push({
+                            "name": `🔑 ${(userInfo && userInfo.username && userInfo.name) ? userInfo.username + ' @ ' + userInfo.name : f.id} (${f.session_count})`,
+                            "value": [`Last login: <t:${((new Date(lastSessions.reauth_time)).valueOf() / 1000)}:R>`, ...new Set(sessions)].join('\n').substring(0, 1024)
+                        });
+                    })
+                    if (seqLoginembed.fields.length > 0)
+                        embdedArray.push(seqLoginembed);
+                }
+
+
+            } catch (e) {
+                console.error(e)
+            }
+            /*if (systemFault || bannerFault.length > 0) {
+                embed.color = 16711680
+            } else if (systemWarning) {
+                embed.color = 16771840
+            }
+            if (bannerWarnings.length > 0) {
+                embed.fields.unshift({
+                    "name": `⚠ Active Warnings`,
+                    "value": bannerWarnings.join('\n').substring(0, 1024)
+                })
+            }
+            if (bannerFault.length > 0) {
+                embed.fields.unshift({
+                    "name": `⛔ Active Faults`,
+                    "value": bannerFault.join('\n').substring(0, 1024)
+                })
+            }*/
+
+            // Check if embed has changed
+            if (data && data.message && !channelID) {
+                discordClient.editMessage(channel, data.message, {
+                    embeds: embdedArray
+                })
+                    .then(msg => {
+                        localParameters.setItem('statusseqgen-' + guildID, {
+                            channel: msg.channel.id,
+                            message: msg.id,
+                        })
+                    })
+                    .catch(e => {
+                        console.error(e)
+                    });
+            } else {
+                discordClient.createMessage(channel, {
+                    embeds: embdedArray
+                })
+                    .then(async msg => {
+                        await localParameters.setItem('statusseqgen-' + guildID, {
+                            channel: msg.channel.id,
+                            message: msg.id,
+                        })
+                    })
+                    .catch(e => {
+                        console.error(e)
+                    });
+            }
+
+            if (!Timers.get(`StatusReportSeq${guildID}`)) {
+                console.log('Started new status timer');
+                Timers.set(`StatusReportSeq${guildID}`, setInterval(() => {
+                    generateSeqStatus(false, guildID)
+                }, 300000))
+            }
+            activeSeqRefresh = false;
         }
     }
     async function revalidateFiles() {
