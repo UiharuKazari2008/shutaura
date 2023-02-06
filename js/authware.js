@@ -1483,7 +1483,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }))
         }))
         await updateLocalCache();
-        if (systemglobal.Connected_Exchanges) {
+        if (init === 0 && systemglobal.Connected_Exchanges) {
             await refreshRemoteExchanges();
         }
         await sequenziaUserCacheGenerator();
