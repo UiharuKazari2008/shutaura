@@ -282,6 +282,13 @@ This code is publicly released and is restricted by its project license
             // Pixiv Inbox MQ - Required - Dynamic
             // Pixiv_In = "inbox.pixiv"
             // mq.pixiv.in = "inbox.pixiv"
+            const _mq_pdp_in = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
+            if (_mq_pdp_in.length > 0 && _mq_pdp_in[0].param_value) {
+                systemglobal.Mugino_In = _mq_pdp_in[0].param_value;
+            }
+            // Mugino Inbox MQ - Dynamic
+            // Mugino_In = "inbox.mugino"
+            // mq.pdp.out = "inbox.mugino"
             const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
             if (_seq_config.length > 0 && _seq_config[0].param_data) {
                if (_seq_config[0].param_data.base_url)
@@ -685,6 +692,7 @@ This code is publicly released and is restricted by its project license
     const MQWorker1 = systemglobal.Discord_Out + '.priority';
     const MQWorker2 = systemglobal.Discord_Out;
     const MQWorker3 = systemglobal.Discord_Out + '.backlog';
+    const MQWorkerMugino = systemglobal.Mugino_In
 
     const limiter1 = new RateLimiter((systemglobal.Limiter_1_Tokens) ? systemglobal.Limiter_1_Tokens : 15, (systemglobal.Limiter_1_Interval) ? systemglobal.Limiter_1_Interval : 60000);
     const limiter2 = new RateLimiter((systemglobal.Limiter_2_Tokens) ? systemglobal.Limiter_2_Tokens : 10, (systemglobal.Limiter_2_Interval) ? systemglobal.Limiter_2_Interval : 60000);
@@ -5071,6 +5079,65 @@ This code is publicly released and is restricted by its project license
                 }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
                     discordMQ.fields.push(e[1])
                 })
+                if (MQWorkerMugino) {
+                    await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
+                        discordMQMessages = discordMQMessages + e.messages
+                        let _name = '🛃'
+                        let _return = '';
+                        let id = 0;
+                        switch (e.name.split('.mugino').pop().toLowerCase()) {
+                            case '':
+                                _name += '⭐ Standard'
+                                id = id + 1
+                                break;
+                            case '.priority':
+                                _name += '💨 Priority'
+                                break;
+                            case '.backlog':
+                                _name += '☃ Backlog'
+                                id = id + 2
+                                break;
+                            default:
+                                _name = e.name
+                                break;
+                        }
+                        if (e.messages > 0) {
+                            _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                        }
+                        if (e.message_bytes >= 1000000000) {
+                            _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                        } else if (e.message_bytes >= 1000000) {
+                            _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                        } else if (e.message_bytes >= 1000) {
+                            _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                        } else if (e.message_bytes > 100) {
+                            _return += `📦: ${e.message_bytes}B\n`
+                        }
+                        if (e.message_stats) {
+                            if (e.message_stats.publish > 1000000) {
+                                _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                            } else if (e.message_stats.publish > 1000) {
+                                _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                            } else if (e.message_stats.publish > 0) {
+                                _return += `📈: ▶${e.message_stats.publish}`
+                            } else {
+                                _return += `Never Activated`
+                            }
+                            if (e.message_stats.publish > 0) {
+                                _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                            }
+                        }
+                        if (e.messages > 2) {
+                            return [id, {
+                                "name": _name,
+                                "value": _return.substring(0, 1024),
+                            }]
+                        }
+                        return null
+                    }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                        discordMQ.fields.push(e[1])
+                    })
+                }
                 await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
                     let _name = ''
                     let _return = '';
