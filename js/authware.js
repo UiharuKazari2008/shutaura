@@ -1368,7 +1368,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (systemglobal.This_Exchange && systemglobal.Connected_Exchanges) {
             const allUsers = (await db.query("SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id")).rows
             const allUserIds = [...new Set(allUsers.filter(e => !!e.id).map(e => e.id))];
-            
+
             let requests = Object.keys(systemglobal.Connected_Exchanges).reduce((promiseChain, id, i, a) => {
                 return promiseChain.then(() => new Promise(async(resolve) => {
                     const thisExchange = systemglobal.Connected_Exchanges[id];
@@ -1485,6 +1485,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await updateLocalCache();
         if (init === 0 && systemglobal.Connected_Exchanges) {
             await refreshRemoteExchanges();
+        } else {
+            Logger.printLine("Discord", "No Remote Exchnages to Sync", "debug");
         }
         await sequenziaUserCacheGenerator();
     });
