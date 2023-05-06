@@ -1445,7 +1445,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("Discord", "Registering Commands", "debug")
             registerCommands();
             memberTokenGeneration();
-            init = 1
             setInterval(() => { updateLocalCache() }, 300000)
             app.listen(sbiPort, (err) => {
                 if (err) console.log("Error in server setup")
@@ -1489,6 +1488,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("Discord", "No Remote Exchnages to Sync", "debug");
         }
         await sequenziaUserCacheGenerator();
+        init = 1;
     });
     discordClient.on("error", (err) => {
         Logger.printLine("Discord", "Shard Error, Rebooting...", "error", err);
