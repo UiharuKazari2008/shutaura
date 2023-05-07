@@ -190,7 +190,81 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (args.wid) {
         systemglobal.Watchdog_ID = args.wid
     }
+    if (args.cid) {
+        systemglobal.Cluster_ID = args.cid
+    }
+    if (args.ceid) {
+        systemglobal.Cluster_Entity = args.ceid
+    }
     console.log(systemglobal)
+
+    if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID && systemglobal.Cluster_Entity) {
+        const isBootable = new Promise(ok => {
+            request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${systemglobal.Cluster_Entity}`, async (err, res, body) => {
+                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${systemglobal.Cluster_Entity}:${systemglobal.Cluster_ID}`);
+                    ok(systemglobal.Cluster_Global_Master || false);
+                } else {
+                    const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                    if (jsonResponse.error) {
+                        console.error(jsonResponse.error);
+                        ok(false);
+                    } else {
+                        if (!jsonResponse.active) {
+                            Logger.printLine("ClusterIO", "System is not active, Standing by...", "warn");
+                        }
+                        ok(jsonResponse.active);
+                    }
+                }
+            })
+        })
+        if (!isBootable) {
+            while (true) {
+                await new Promise(st => setTimeout(st, 60000))
+                const response = await new Promise(ok => {
+                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${systemglobal.Cluster_Entity}`, async (err, res, body) => {
+                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${systemglobal.Cluster_Entity}:${systemglobal.Cluster_ID}`);
+                            ok(true);
+                        } else {
+                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                            if (jsonResponse.error) {
+                                console.error(jsonResponse.error);
+                                ok(true);
+                            } else {
+                                if (jsonResponse.active) {
+                                    Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
+                                }
+                                ok(!jsonResponse.active);
+                            }
+                        }
+                    })
+                })
+                if (response)
+                    break;
+            }
+            process.exit(1);
+        } else {
+            Logger.printLine("ClusterIO", "System active master", "info");
+            setInterval(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${systemglobal.Cluster_Entity}`, async (err, res, body) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${systemglobal.Cluster_Entity}:${systemglobal.Cluster_ID}`);
+                    } else {
+                        const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                        if (jsonResponse.error) {
+                            console.error(jsonResponse.error);
+                        } else {
+                            if (!jsonResponse.active) {
+                                Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+                                process.exit(1);
+                            }
+                        }
+                    }
+                })
+            }, 60000)
+        }
+    }
 
     Logger.printLine("Discord", "Settings up Discord bot", "debug")
     const discordClient = new eris.CommandClient(systemglobal.Authware_Key, {
@@ -1417,7 +1491,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
 
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
             if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
                 console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
