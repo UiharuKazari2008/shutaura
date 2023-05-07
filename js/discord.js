@@ -227,6 +227,10 @@ This code is publicly released and is restricted by its project license
             if (_cluster_entity.length > 0 && _cluster_entity[0].param_value) {
                 systemglobal.Cluster_Entity = _cluster_entity[0].param_value;
             }
+            const _cluster_fail = systemparams_sql.filter(e => e.param_key === 'cluster.fail_time');
+            if (_cluster_fail.length > 0 && _cluster_fail[0].param_value) {
+                systemglobal.Cluster_Comm_Loss_Time = parseFloat(_cluster_fail[0].param_value.toString());
+            }
             const _ffmpeg_config = systemparams_sql.filter(e => e.param_key === 'ffmpeg.preview');
             if (_ffmpeg_config.length > 0 && _ffmpeg_config[0].param_data) {
                 EncoderConf = {
@@ -9039,7 +9043,7 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("ClusterIO", "System active master", "info");
                 }
                 setInterval(() => {
-                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
+                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= (systemglobal.Cluster_Comm_Loss_Time || 4.5)) {
                         Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
                         shutdownSystem((ok) => {
                             process.exit(1)
