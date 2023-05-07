@@ -207,71 +207,74 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     console.log(systemglobal)
 
     if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID) {
-        const isBootable = new Promise(ok => {
-            request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
-                    ok(systemglobal.Cluster_Global_Master || false);
-                } else {
-                    const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                    if (jsonResponse.error) {
-                        console.error(jsonResponse.error);
-                        ok(false);
-                    } else {
-                        if (!jsonResponse.active) {
-                            Logger.printLine("ClusterIO", "System is not active, Standing by...", "warn");
-                        }
-                        ok(jsonResponse.active);
-                    }
-                }
-            })
-        })
-        if (!isBootable) {
-            while (true) {
-                await new Promise(st => setTimeout(st, 60000))
-                const response = await new Promise(ok => {
-                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
-                            ok(true);
-                        } else {
-                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                            if (jsonResponse.error) {
-                                console.error(jsonResponse.error);
-                                ok(true);
-                            } else {
-                                if (jsonResponse.active) {
-                                    Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
-                                }
-                                ok(!jsonResponse.active);
-                            }
-                        }
-                    })
-                })
-                if (response)
-                    break;
-            }
-            process.exit(1);
-        } else {
-            Logger.printLine("ClusterIO", "System active master", "info");
-            setInterval(() => {
-                request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+        await new Promise(async (cont) => {
+            const isBootable = await new Promise(ok => {
+                request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        ok(systemglobal.Cluster_Global_Master || false);
                     } else {
                         const jsonResponse = JSON.parse(Buffer.from(body).toString());
                         if (jsonResponse.error) {
                             console.error(jsonResponse.error);
+                            ok(false);
                         } else {
                             if (!jsonResponse.active) {
-                                Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                process.exit(1);
+                                Logger.printLine("ClusterIO", "System is not active, Standing by...", "warn");
                             }
+                            ok(jsonResponse.active);
                         }
                     }
                 })
-            }, 60000)
-        }
+            })
+            if (!isBootable) {
+                while (true) {
+                    await new Promise(st => setTimeout(st, 60000))
+                    const response = await new Promise(ok => {
+                        request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                                console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                                ok(true);
+                            } else {
+                                const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                                if (jsonResponse.error) {
+                                    console.error(jsonResponse.error);
+                                    ok(true);
+                                } else {
+                                    if (jsonResponse.active) {
+                                        Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
+                                    }
+                                    ok(!jsonResponse.active);
+                                }
+                            }
+                        })
+                    })
+                    if (response)
+                        break;
+                }
+                process.exit(1);
+            } else {
+                Logger.printLine("ClusterIO", "System active master", "info");
+                setInterval(() => {
+                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        } else {
+                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                            if (jsonResponse.error) {
+                                console.error(jsonResponse.error);
+                            } else {
+                                if (!jsonResponse.active) {
+                                    Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+                                    process.exit(1);
+                                }
+                            }
+                        }
+                    })
+                }, 60000)
+                cont(true)
+            }
+        })
     }
 
     Logger.printLine("Discord", "Settings up Discord bot", "debug")
