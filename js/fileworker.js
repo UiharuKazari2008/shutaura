@@ -170,7 +170,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
 
 		Logger.printLine("SQL", "Getting Folder Pair Configuration", "debug")
-		const _folderpairs = await db.query(`SELECT x.source, x.channelid,x.serverid, x.watch_folder, y.chid_filedata AS discord_filedata, z.chid_filedata AS telegram_filedata FROM kanmi_channels x LEFT OUTER JOIN discord_servers y ON (x.serverid = y.serverid AND x.source = 0) LEFT OUTER JOIN telegram_groups z ON (x.serverid = z.serverid AND x.source = 1) WHERE x.watch_folder IS NOT NULL`)
+		const _folderpairs = await db.query(`SELECT x.source, x.channelid,x.serverid, x.watch_folder, y.chid_filedata AS discord_filedata FROM kanmi_channels x LEFT OUTER JOIN discord_servers y ON (x.serverid = y.serverid AND x.source = 0) WHERE x.watch_folder IS NOT NULL`)
 		if (_folderpairs.error) { Logger.printLine("SQL", "Error getting folder pair records!", "emergency", _folderpairs.error); return false }
 		await Promise.all(_folderpairs.rows.map(folder => {
 			FolderPairs.set("" + folder.watch_folder, {
@@ -178,7 +178,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				source: folder.source,
 				server: folder.serverid,
 				name: folder.watch_folder,
-				parts: (folder.discord_filedata) ? folder.discord_filedata : (folder.telegram_filedata) ? folder.telegram_filedata : null
+				parts: (folder.discord_filedata) ? folder.discord_filedata : null
 			})
 		}))
 
