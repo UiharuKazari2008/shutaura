@@ -228,6 +228,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })
             })
             if (!isBootable) {
+                if (process.send && typeof process.send === 'function') {
+                    process.send('ready');
+                }
                 while (true) {
                     await new Promise(st => setTimeout(st, 60000))
                     const response = await new Promise(ok => {
