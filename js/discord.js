@@ -9054,7 +9054,7 @@ This code is publicly released and is restricted by its project license
                                 console.error(jsonResponse.error);
                             } else {
                                 lastClusterCheckin = (new Date().getTime())
-                                if (!jsonResponse.active) {
+                                if (!jsonResponse.active && !systemglobal.Discord_Upload_Only) {
                                     Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
                                     shutdownSystem((ok) => {
                                         process.exit(1)
