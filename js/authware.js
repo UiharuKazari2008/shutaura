@@ -206,6 +206,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     console.log(systemglobal)
 
+    let lastClusterCheckin = (new Date().getTime());
     if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID) {
         await new Promise(async (cont) => {
             const isBootable = await new Promise(ok => {
@@ -259,6 +260,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             } else {
                 Logger.printLine("ClusterIO", "System active master", "info");
                 setInterval(() => {
+                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
+                        Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
+                        process.exit(1);
+                    }
                     request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                         if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
                             console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
@@ -267,6 +272,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (jsonResponse.error) {
                                 console.error(jsonResponse.error);
                             } else {
+                                lastClusterCheckin = (new Date().getTime())
                                 if (!jsonResponse.active) {
                                     Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
                                     process.exit(1);

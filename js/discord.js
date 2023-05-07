@@ -8964,6 +8964,97 @@ This code is publicly released and is restricted by its project license
         });
     }
 
+    let lastClusterCheckin = (new Date().getTime());
+    if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID) {
+        await new Promise(async (cont) => {
+            const isBootable = await new Promise(ok => {
+                request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        ok(systemglobal.Cluster_Global_Master || false);
+                    } else {
+                        const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                        if (jsonResponse.error) {
+                            console.error(jsonResponse.error);
+                            ok(false);
+                        } else {
+                            if (!jsonResponse.active) {
+                                Logger.printLine("ClusterIO", "System is not active, Standing by...", "warn");
+                            }
+                            ok(jsonResponse.active);
+                        }
+                    }
+                })
+            })
+            if (!isBootable && !systemglobal.Discord_Upload_Only) {
+                if (process.send && typeof process.send === 'function') {
+                    process.send('ready');
+                }
+                while (true) {
+                    await new Promise(st => setTimeout(st, 60000))
+                    const response = await new Promise(ok => {
+                        request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                                console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                                ok(true);
+                            } else {
+                                const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                                if (jsonResponse.error) {
+                                    console.error(jsonResponse.error);
+                                    ok(true);
+                                } else {
+                                    if (jsonResponse.active) {
+                                        Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
+                                    }
+                                    ok(!jsonResponse.active);
+                                }
+                            }
+                        })
+                    })
+                    if (!response)
+                        break;
+                }
+                process.exit(1);
+            } else {
+                if (isBootable && systemglobal.Discord_Upload_Only) {
+                    Logger.printLine("ClusterIO", "System active master, Starting full access mode", "info");
+                    systemglobal.Discord_Upload_Only = false;
+                } else if (systemglobal.Discord_Upload_Only) {
+                    Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "info");
+                } else {
+                    Logger.printLine("ClusterIO", "System active master", "info");
+                }
+                setInterval(() => {
+                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
+                        Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
+                        shutdownSystem((ok) => {
+                            process.exit(1)
+                        })
+                    }
+                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        } else {
+                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                            if (jsonResponse.error) {
+                                console.error(jsonResponse.error);
+                            } else {
+                                lastClusterCheckin = (new Date().getTime())
+                                if (!jsonResponse.active) {
+                                    Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+                                    shutdownSystem((ok) => {
+                                        process.exit(1)
+                                    })
+                                }
+                            }
+                        }
+                    })
+                }, 60000)
+                cont(true)
+            }
+        })
+    }
+
 
     Logger.printLine("Discord", "Settings up Discord Client...", "debug")
     const discordClient = new eris.CommandClient(systemglobal.Discord_Key, {
