@@ -219,6 +219,14 @@ This code is publicly released and is restricted by its project license
             // Watchdog Check-in Group ID
             // Watchdog_ID = "main"
             // watchdog.id = "main"
+            const _cluster_id = systemparams_sql.filter(e => e.param_key === 'cluster.id');
+            if (_cluster_id.length > 0 && _cluster_id[0].param_value) {
+                systemglobal.Cluster_ID = _cluster_id[0].param_value;
+            }
+            const _cluster_entity = systemparams_sql.filter(e => e.param_key === 'cluster.entity');
+            if (_cluster_entity.length > 0 && _cluster_entity[0].param_value) {
+                systemglobal.Cluster_Entity = _cluster_entity[0].param_value;
+            }
             const _ffmpeg_config = systemparams_sql.filter(e => e.param_key === 'ffmpeg.preview');
             if (_ffmpeg_config.length > 0 && _ffmpeg_config[0].param_data) {
                 EncoderConf = {
@@ -685,6 +693,12 @@ This code is publicly released and is restricted by its project license
     }
     if (args.wid) {
         systemglobal.Watchdog_ID = args.wid
+    }
+    if (args.cid) {
+        systemglobal.Cluster_ID = args.cid
+    }
+    if (args.ceid) {
+        systemglobal.Cluster_Entity = args.ceid
     }
     await loadDatabaseCache();
 
