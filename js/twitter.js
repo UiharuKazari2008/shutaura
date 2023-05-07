@@ -218,6 +218,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		console.error(e);
 	}
 
+	let lastClusterCheckin = (new Date().getTime());
 	if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID) {
 		await new Promise(async (cont) => {
 			const isBootable = await new Promise(ok => {
