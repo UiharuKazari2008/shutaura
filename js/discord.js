@@ -9113,7 +9113,7 @@ This code is publicly released and is restricted by its project license
         // Reset states to last values
         resetStates();
         if (init === 0) {
-            if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+            if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
                 setTimeout(() => {
                     request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                         if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
