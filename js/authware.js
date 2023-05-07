@@ -715,9 +715,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     type = 0
                 }
-                await db.query(`INSERT INTO discord_users_permissons SET uid = ?, userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ? ON DUPLICATE KEY UPDATE color = ?, text = ?, role = ?, type = ?`, [md5(guild.id + member.user.id + roleText + role), member.user.id, guild.id, color, roleText, roleName, type, color, roleText, roleName, type]);
+                await db.query(`INSERT INTO discord_users_permissons SET uid = ?, userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ? ON DUPLICATE KEY UPDATE color = ?, text = ?, role = ?, type = ?`, [md5(guild.id + member.user.id + type + role), member.user.id, guild.id, color, roleText, roleName, type, color, roleText, roleName, type]);
                 if (roleName === 'user') {
-                    await db.query(`INSERT INTO discord_users_permissons SET uid = ?, userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ? ON DUPLICATE KEY UPDATE color = ?, text = ?, role = ?, type = ?`, [md5(guild.id + member.user.id + roleText + role), member.user.id, guild.id, color, roleText, `${roleName}-${guild.id}`, type, color, roleText, `${roleName}-${guild.id}`, type]);
+                    await db.query(`INSERT INTO discord_users_permissons SET uid = ?, userid = ?, serverid = ?, color = ?, text = ?, role = ?, type = ? ON DUPLICATE KEY UPDATE color = ?, text = ?, role = ?, type = ?`, [md5(guild.id + member.user.id + type + role), member.user.id, guild.id, color, roleText, `${roleName}-${guild.id}`, type, color, roleText, `${roleName}-${guild.id}`, type]);
                 }
             }
         }
