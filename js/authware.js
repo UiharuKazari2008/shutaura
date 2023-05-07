@@ -771,6 +771,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (userexsists.rows.length === 1)
                 await db.query(`DELETE FROM discord_users_extended WHERE id = ?`, [member.user.id])
             const userresults = await db.query(`DELETE FROM discord_users WHERE serveruserid = ?`, [member.user.id + guild.id])
+            await db.query(`DELETE FROM discord_users_permissons WHERE userid = ? AND serverid = ?`, [member.user.id, guild.id]);
             if (userresults.error) {
                 SendMessage("SQL Error occurred when deleting a server user", "err", 'main', "SQL", userresults.error)
             } else {
