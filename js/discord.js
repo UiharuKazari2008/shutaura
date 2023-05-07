@@ -4934,7 +4934,7 @@ This code is publicly released and is restricted by its project license
 
             let embed = {
                 "footer": {
-                    "text": `${(systemglobal.Discord_Upload_Only) ? "Publisher Status (" + systemglobal.SystemName + ")" : "System Status"}`,
+                    "text": `${(systemglobal.Discord_Upload_Only) ? "Worker Status (" + systemglobal.SystemName + ")" : "System Status"}`,
                     "icon_url": discordClient.guilds.get(guildID).iconURL
                 },
                 "timestamp": (new Date().toISOString()) + "",

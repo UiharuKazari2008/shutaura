@@ -252,7 +252,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                         })
                     })
-                    if (response)
+                    if (!response)
                         break;
                 }
                 process.exit(1);
