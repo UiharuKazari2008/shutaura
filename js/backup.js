@@ -135,7 +135,7 @@ const systemglobal = require("../config.json");
         } else if (message.attachment_hash) {
             destName += '-' + message.attachment_hash.split('/').pop()
         }
-        
+
         async function backupCompleted() {
             const saveBackupSQL = await db.query(`REPLACE INTO kanmi_backups SET system_name = ?, bid = ?, eid = ?`, [backupSystemName, `${backupSystemName}-${message.eid}`, message.eid])
             if (saveBackupSQL.error) {
@@ -277,7 +277,7 @@ const systemglobal = require("../config.json");
                                 try {
                                     await fsEx.ensureDirSync(destPath);
                                     await fs.writeFileSync(path.join(destPath, partName), body)
-                                    const saveBackupPartSQL = await db.query(`INSERT INTO discord_multipart_backups SET system_name = ?, bid = ?, messageid = ? ON DUPLICATE KEY UPDATE messageid = ?`, [backupSystemName, `${backupSystemName}-${part.messageid}`, part.messageid, part.messageid])
+                                    const saveBackupPartSQL = await db.query(`REPLACE INTO discord_multipart_backups SET system_name = ?, bid = ?, messageid = ?`, [backupSystemName, `${backupSystemName}-${part.messageid}`, part.messageid, part.messageid])
                                     if (saveBackupPartSQL.error) {
                                         Logger.printLine("SQL", `Failed to mark ${message.id} as backup complete`, "err", saveBackupPartSQL.error)
                                         resolve()
