@@ -1609,9 +1609,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 	}
 	async function downloadUser(message, cb) {
+		const twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
+		const twit = twitterAccounts.get(twitterUser);
 		try {
-			const twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
-			const twit = twitterAccounts.get(twitterUser);
 			const tweets = await new Promise((resolve, reject) => {
 				twit.client.get('statuses/user_timeline', {
 					screen_name: message.userID,
@@ -1668,7 +1668,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				cb(true);
 			})
 		} catch (err) {
-			Logger.printLine("Twitter", `Failed to get users tweets - ${err.message}`, "error", err)
+			Logger.printLine("Twitter", `Failed to get users tweets using account ${twitterUser} - ${err.message}`, "error", err)
 			console.error(err);
 		}
 	}
@@ -2231,7 +2231,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}
 					} else {
-						Logger.printLine("TwitterMentions", `Error retrieving tweet`, "error", err)
+						Logger.printLine("TwitterMentions", `Error retrieving tweet using account ${id}`, "error", err)
 					}
 				})
 			})
