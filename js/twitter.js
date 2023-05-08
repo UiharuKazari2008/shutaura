@@ -246,6 +246,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				enablePullData = false;
 			} else {
 				Logger.printLine("ClusterIO", "System active master", "info");
+				enablePullData = true;
 			}
 			setInterval(() => {
 				if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
@@ -261,14 +262,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							console.error(jsonResponse.error);
 						} else {
 							lastClusterCheckin = (new Date().getTime())
-							if (enablePullData) {
-								if (!jsonResponse.active) {
-									Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-									process.exit(1)
+							if (!jsonResponse.active) {
+								if (enablePullData) {
+									Logger.printLine("ClusterIO", "System is not the active master!", "warn");
+									enablePullData = false;
 								}
-							} else if (jsonResponse.active) {
-								Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-								process.exit(1)
+							} else if (!enablePullData) {
+								Logger.printLine("ClusterIO", "System is now active master", "warn");
+								enablePullData = true;
 							}
 						}
 					}
@@ -535,13 +536,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			verifyQueue();
 			if (enablePullData) {
 				updateStats();
-				cron.schedule('*/5 * * * *', () => {
+			}
+			cron.schedule('*/5 * * * *', () => {
+				if (enablePullData) {
 					updateStats();
 					getTweets();
 					getMentions();
 					getLikes();
-				});
-			}
+				}
+			});
 			cron.schedule('4,34 * * * *', verifyQueue);
 		})
 		if (process.send && typeof process.send === 'function') {
