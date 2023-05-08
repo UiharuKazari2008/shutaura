@@ -976,7 +976,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     start();
 
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
         setInterval(() => {
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
