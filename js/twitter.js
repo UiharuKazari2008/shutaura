@@ -60,6 +60,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
+	let enablePullData = true;
 
 	if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
 		systemglobal.MQServer = process.env.MQ_HOST.trim()
@@ -241,60 +242,34 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				})
 			})
 			if (!isBootable) {
-				if (process.send && typeof process.send === 'function') {
-					process.send('ready');
-				}
-				while (true) {
-					await new Promise(st => setTimeout(st, 60000))
-					const response = await new Promise(ok => {
-						request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-							if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-								console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
-								ok(true);
-							} else {
-								const jsonResponse = JSON.parse(Buffer.from(body).toString());
-								if (jsonResponse.error) {
-									console.error(jsonResponse.error);
-									ok(true);
-								} else {
-									if (jsonResponse.active) {
-										Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
-									}
-									ok(!jsonResponse.active);
-								}
-							}
-						})
-					})
-					if (!response)
-						break;
-				}
-				process.exit(1);
+				Logger.printLine("ClusterIO", "System is not active master, will not pull any data", "warn");
+				enablePullData = false;
 			} else {
 				Logger.printLine("ClusterIO", "System active master", "info");
-				setInterval(() => {
-					if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
-						Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-						process.exit(1);
-					}
-					request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-						if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-							console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+			}
+			setInterval(() => {
+				if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
+					Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
+					process.exit(1);
+				}
+				request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+					if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+						console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+					} else {
+						const jsonResponse = JSON.parse(Buffer.from(body).toString());
+						if (jsonResponse.error) {
+							console.error(jsonResponse.error);
 						} else {
-							const jsonResponse = JSON.parse(Buffer.from(body).toString());
-							if (jsonResponse.error) {
-								console.error(jsonResponse.error);
-							} else {
-								lastClusterCheckin = (new Date().getTime())
-								if (!jsonResponse.active) {
-									Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-									process.exit(1);
-								}
+							lastClusterCheckin = (new Date().getTime())
+							if (!(jsonResponse.active && enablePullData)) {
+								Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+								process.exit(1)
 							}
 						}
-					})
-				}, 60000)
-				cont(true)
-			}
+					}
+				})
+			}, 60000)
+			cont(true)
 		})
 	}
 
@@ -553,14 +528,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			})
 			verifyQueue(); updateStats();
-			cron.schedule('* * * * *', () => {
-
-			});
 			cron.schedule('*/5 * * * *', () => {
 				updateStats();
-				getTweets();
-				getMentions();
-				getLikes();
+				if (enablePullData) {
+					getTweets();
+					getMentions();
+					getLikes();
+				}
 			});
 			cron.schedule('4,34 * * * *', verifyQueue);
 		})
@@ -1062,7 +1036,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 				if (message.messageIntent === 'SendTweet') {
 					const json = JSON.stringify(message);
-					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?, data = ?`, [twitterUser, actionID, message.messageFileData, json], (err, savedResult) => {
+					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?, data = ?, system_id = ?`, [twitterUser, actionID, message.messageFileData, json, systemglobal.SystemName], (err, savedResult) => {
 						if (err) {
 							Logger.printLine(`Collector`, `Failed to save send tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
 							cb(true);
@@ -1075,7 +1049,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					})
 				} else if (tweetID && actionID) {
-					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?`, [twitterUser, actionID, tweetID], (err, savedResult) => {
+					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?, system_id = ?`, [twitterUser, actionID, tweetID, systemglobal.SystemName], (err, savedResult) => {
 						if (err) {
 							Logger.printLine(`Collector`, `Failed to save tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
 							cb(true);
@@ -1152,7 +1126,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const twit = twitterAccounts.get(twitterUser)
 		for (let i = 0; i <= overFlowValuse; i +=1) {
 			setTimeout(() => {
-				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ? ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
+				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
 					if (err) {
 						Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
 					} else if (tweetQueue && tweetQueue.length > 0) {
