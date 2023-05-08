@@ -50,6 +50,7 @@ This code is publicly released and is restricted by its project license
     app.use(bodyParser.urlencoded({ extended: true }));
     app.use(upload.array());
     const sbiPort = 31000;
+    let enableListening = (!systemglobal.Discord_Upload_Only);
 
     const args = minimist(process.argv.slice(2));
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
@@ -1067,7 +1068,7 @@ This code is publicly released and is restricted by its project license
             } else {
                 switch (MessageContents.messageAction) {
                     case 'RequestDownload':
-                        if (!systemglobal.Discord_Upload_Only) {
+                        if (enableListening) {
                             console.log(MessageContents)
                             cb(true);
                             db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0 LIMIT 1`, [MessageContents.itemFileUUID], function (err, filestatus) {
@@ -2440,7 +2441,7 @@ This code is publicly released and is restricted by its project license
     }
     function registerCommands() {
         discordClient.registerCommand("jfs", async (msg, args) => {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     function collector() {
                         switch (args[1].toLowerCase()) {
@@ -3113,7 +3114,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("seq", async function (msg, args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     console.log(args)
                     switch (args[0].toLowerCase()) {
@@ -3789,7 +3790,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("clr", function (msg, args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     if (args[1] === "Confirm") {
                         const channelToClear = args[0].replace("<#", "").replace(">", "");
@@ -3820,7 +3821,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("twit", function (msg, args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'add':
@@ -3924,7 +3925,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("yt", function (msg, args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'add':
@@ -3979,7 +3980,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("pixiv", function (msg, args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'recom':
@@ -4056,7 +4057,7 @@ This code is publicly released and is restricted by its project license
 
         if (systemglobal.RadioFolder) {
             discordClient.registerCommand("music", function (msg, args) {
-                if (!systemglobal.Discord_Upload_Only && discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
+                if (enableListening && discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
                     if (args.length > 0) {
                         switch (args[0].toLowerCase()) {
                             case 'ls':
@@ -4253,7 +4254,7 @@ This code is publicly released and is restricted by its project license
         }
 
         discordClient.registerCommand("status", async function (msg,args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0]) {
                         case 'tasks':
@@ -4366,7 +4367,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("restart", async function (msg,args) {
-            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 shutdownSystem((ok) => {
                     setTimeout(() => { process.exit(0) }, 5000)
                     return "Goodbye! Please restart from server shell!"
@@ -5020,7 +5021,7 @@ This code is publicly released and is restricted by its project license
 
             let embed = {
                 "footer": {
-                    "text": `${(systemglobal.Discord_Upload_Only) ? "Worker Status (" + systemglobal.SystemName + ")" : "System Status"}`,
+                    "text": `${(!enableListening) ? "Worker Status (" + systemglobal.SystemName + ")" : "System Status"}`,
                     "icon_url": discordClient.guilds.get(guildID).iconURL
                 },
                 "timestamp": (new Date().toISOString()) + "",
@@ -5279,7 +5280,7 @@ This code is publicly released and is restricted by its project license
                 console.error(e);
             }
             console.log(`Getting RabbitMQ Stats...`)
-            if (!systemglobal.Discord_Upload_Only) {
+            if (enableListening) {
                 embed.fields.push({
                     "name": "🏘 Servers",
                     "value": `${discordClient.guilds.size}`.substring(0, 1024),
@@ -5334,7 +5335,7 @@ This code is publicly released and is restricted by its project license
                 embed.thumbnail = undefined;
             }
             // Undelivered Messages Counts
-            if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && !systemglobal.Discord_Upload_Only) {
+            if (systemglobal.Discord_Recycling_Bin && cacheData.has(systemglobal.Discord_Recycling_Bin) && enableListening) {
                 const binChannel = await cacheData.get(systemglobal.Discord_Recycling_Bin);
                 if (binChannel >= 5) {
                     systemFault = true;
@@ -5360,7 +5361,7 @@ This code is publicly released and is restricted by its project license
             let _bc = null;
 
             let embdedArray = [];
-            if (!systemglobal.Discord_Upload_Only) {
+            if (enableListening) {
                 // File Count and Usage
                 const imageWhereQuery = `(${[
                     "attachment_name LIKE '%.jp%_'",
@@ -5689,10 +5690,10 @@ This code is publicly released and is restricted by its project license
             }
             if (discordMQMessages > 0) {
                 _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-                if ((systemglobal.Discord_Upload_Only && discordMQMessages > 1000) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 250)) {
+                if ((!enableListening && discordMQMessages > 1000) || (enableListening && discordMQMessages > 250)) {
                     systemFault = true;
                     bannerFault.unshift('📨 Message Queue is actively backlogged!')
-                } else if ((systemglobal.Discord_Upload_Only && discordMQMessages > 500) || (!systemglobal.Discord_Upload_Only && discordMQMessages > 100)) {
+                } else if ((!enableListening && discordMQMessages > 500) || (enableListening && discordMQMessages > 100)) {
                     systemWarning = true;
                     bannerWarnings.unshift('📨 Message Queue is getting congested')
                 }
@@ -5713,7 +5714,7 @@ This code is publicly released and is restricted by its project license
             }
             let diskValues = [];
             let watchdogValues = [];
-            if (!systemglobal.Discord_Upload_Only) {
+            if (enableListening) {
                 // Extended Entity Statistics
                 function convertMBtoText(value, noUnit) {
                     const diskValue = parseFloat(value.toString());
@@ -5848,7 +5849,7 @@ This code is publicly released and is restricted by its project license
             } else if (systemWarning) {
                 embed.color = 16771840
             }
-            if (!systemglobal.Discord_Upload_Only) {
+            if (enableListening) {
                 const activeAlarmClocks = Array.from(Timers.keys()).filter(e => e.startsWith(`alarmSnoozed-`) || e.startsWith(`alarmExpires-`)).map(e => {
                     return `*${(e.startsWith(`alarmExpires-`)) ? '*⏰' : '💤'} ${Timers.get(e).text}${(e.startsWith(`alarmExpires-`)) ? '*' : ''}*`
                 })
@@ -5957,7 +5958,7 @@ This code is publicly released and is restricted by its project license
                             message: msg.id,
                         })
                         const reactionNeeded = await db.query(`SELECT reaction_emoji, reaction_custom, reaction_name FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = 'RefreshStatus' LIMIT 1`, [msg.guildID]);
-                        if (reactionNeeded.rows.length > 0 && !systemglobal.Discord_Upload_Only) {
+                        if (reactionNeeded.rows.length > 0 && enableListening) {
                             let emoji = reactionNeeded.rows[0].reaction_emoji
                             if (reactionNeeded.rows[0].reaction_custom !== null) {
                                 emoji = reactionNeeded.rows[0].reaction_custom
@@ -6218,7 +6219,7 @@ This code is publicly released and is restricted by its project license
         setTimeout(revalidateFiles, 14400000)
     }
     async function triggerAlarm(id) {
-        if (!systemglobal.Discord_Upload_Only) {
+        if (enableListening) {
             const _snoozedAlm = (Timers.has(`alarmSnoozed-${id}`)) ? Timers.get(`alarmSnoozed-${id}`) : false;
             if (_snoozedAlm) {
                 clearTimeout(_snoozedAlm.snoozeTimer);
@@ -9084,15 +9085,15 @@ This code is publicly released and is restricted by its project license
             })
             if (!isBootable) {
                 Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "warn");
-                systemglobal.Discord_Upload_Only = true;
+                enableListening = false;
             } else {
                 Logger.printLine("ClusterIO", "System active master", "info");
-                systemglobal.Discord_Upload_Only = false;
+                enableListening = true;
             }
             setInterval(() => {
                 if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= (systemglobal.Cluster_Comm_Loss_Time || 4.5)) {
                     Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, No longer listening!", "critical");
-                    systemglobal.Discord_Upload_Only = false;
+                    enableListening = false;
                 }
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -9104,13 +9105,13 @@ This code is publicly released and is restricted by its project license
                         } else {
                             lastClusterCheckin = (new Date().getTime())
                             if (!jsonResponse.active) {
-                                if (!systemglobal.Discord_Upload_Only) {
+                                if (enableListening) {
                                     Logger.printLine("ClusterIO", "System is not active, No longer listening!", "warn");
-                                    systemglobal.Discord_Upload_Only = true;
+                                    enableListening = false;
                                 }
-                            } else if (systemglobal.Discord_Upload_Only) {
+                            } else if (!enableListening) {
                                 Logger.printLine("ClusterIO", "System is now active master", "warn");
-                                systemglobal.Discord_Upload_Only = false;
+                                enableListening = true;
                             }
                         }
                     }
@@ -9174,7 +9175,7 @@ This code is publicly released and is restricted by its project license
                 }, 5000)
                 setTimeout(sendWatchdogPing, 60000);
             }
-            if (!systemglobal.Discord_Upload_Only) {
+            if (enableListening) {
                 discordClient.editStatus( "dnd",{
                     name: 'Initializing System',
                     type: 0
@@ -9210,38 +9211,38 @@ This code is publicly released and is restricted by its project license
                 cycleThreads(false);
             });
             cron.schedule((systemglobal.Discord_Cron_Thread_Peak) ? systemglobal.Discord_Cron_Thread_Peak : '50 2 * * *', () => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     addTimecodeMessage("Peak");
                 }
             });
             cron.schedule((systemglobal.Discord_Cron_Thread_Offpeak) ? systemglobal.Discord_Cron_Thread_Offpeak : '0 12 * * *', () => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     addTimecodeMessage("Off Peak");
                 }
             });
             cron.schedule('3 * * * *', () => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     cycleThreads(true);
                 }
             });
             setInterval(() => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     syncStatusValues();
                 }
             }, 90000)
             setInterval(() => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     refreshCounts();
                 }
             }, (systemglobal.Discord_Timer_Counts) ? systemglobal.Discord_Timer_Counts : 900000)
 
             setInterval(async () => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     cleanOldMessages();
                 }
             }, 3600000);
             setInterval(async () => {
-                if (!systemglobal.Discord_Upload_Only) {
+                if (enableListening) {
                     verifySpannedFiles(25);
                 }
             }, 14400000);
@@ -9264,54 +9265,54 @@ This code is publicly released and is restricted by its project license
     });
 
     discordClient.on("messageReactionAdd", (msg, emoji, user) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageReactionAdd(msg, emoji, user)
     });
     discordClient.on("messageReactionRemove", (msg, emoji, user) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageReactionRemove(msg, emoji, (user.id) ? user.id : user)
     });
     discordClient.on("messageReactionRemoveAll", (msg) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageReactionRemoveAll(msg)
     });
 
     discordClient.on("messageCreate", (msg) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageCreate(msg)
     });
     discordClient.on('messageUpdate', (msg) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageUpdate(msg)
     });
     discordClient.on("messageDelete", (msg) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageDelete(msg)
     });
     discordClient.on("messageDeleteBulk", (msg_array) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             messageDeleteBulk(msg_array)
     });
 
     discordClient.on("channelCreate", (channel) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             channelCreate(channel)
     });
     discordClient.on("channelDelete", (channel) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             channelDelete(channel)
     });
     discordClient.on("channelUpdate", (channel) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             channelUpdate(channel)
     });
     discordClient.on("threadUpdate", (channel) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             threadUpdate(channel)
     });
 
     discordClient.on("guildEmojisUpdate", (guild, emojiArray) => {
-        if (!systemglobal.Discord_Upload_Only)
+        if (enableListening)
             guildEmojiUpdate(guild, emojiArray)
     });
     await discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
