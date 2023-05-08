@@ -2440,7 +2440,7 @@ This code is publicly released and is restricted by its project license
     }
     function registerCommands() {
         discordClient.registerCommand("jfs", async (msg, args) => {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     function collector() {
                         switch (args[1].toLowerCase()) {
@@ -3113,7 +3113,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("seq", async function (msg, args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     console.log(args)
                     switch (args[0].toLowerCase()) {
@@ -3789,7 +3789,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("clr", function (msg, args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id) || isAuthorizedUser('commandPub', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     if (args[1] === "Confirm") {
                         const channelToClear = args[0].replace("<#", "").replace(">", "");
@@ -3820,7 +3820,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("twit", function (msg, args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'add':
@@ -3924,7 +3924,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("yt", function (msg, args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'add':
@@ -3979,7 +3979,7 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("pixiv", function (msg, args) {
-            if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0].toLowerCase()) {
                         case 'recom':
@@ -4056,7 +4056,7 @@ This code is publicly released and is restricted by its project license
 
         if (systemglobal.RadioFolder) {
             discordClient.registerCommand("music", function (msg, args) {
-                if (discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
+                if (!systemglobal.Discord_Upload_Only && discordServers.get(msg.guildID).chid_system.toString() === msg.channel.id.toString()) {
                     if (args.length > 0) {
                         switch (args[0].toLowerCase()) {
                             case 'ls':
@@ -4253,6 +4253,62 @@ This code is publicly released and is restricted by its project license
         }
 
         discordClient.registerCommand("status", async function (msg,args) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                if (args.length > 0) {
+                    switch (args[0]) {
+                        case 'tasks':
+                            const activeProccessing = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
+                            const taskNames = activeProccessing.filter(e => !e[0].startsWith('/')).map(e => e[0].split('/')[0])
+                            return `${(activeProccessing.length > 0) ? '⏳ ' + activeProccessing.length + ' Tasks Enqueued' + ((taskNames.length > 0) ? ' (' + taskNames.join('/') + ')' : '').toString() : '💤 No Active Tasks'}`
+                        case 'enable':
+                            generateStatus(true, msg.guildID, args[1].replace("<#", "").replace(">", ""));
+                            return `Added a insights display to <#${args[1].replace("<#", "").replace(">", "")}>`
+                        case 'disable':
+                            if (Timers.has(`StatusReport${msg.guildID}`)) {
+                                clearInterval(Timers.get(`StatusReport${msg.guildID}`))
+                                clearInterval(Timers.get(`StatusReportCheck${msg.guildID}`))
+                                Timers.delete(`StatusReport${msg.guildID}`)
+                                Timers.delete(`StatusReportCheck${msg.guildID}`)
+                                await localParameters.del(`statusgen-${msg.guildID}`)
+                                return "Disabled Insights Display for this guild, Please delete the message"
+                            } else {
+                                return `Insights Display is not enabled for this guild`
+                            }
+                        case 'delete':
+                            if (args.length > 1) {
+                                const statusData = (await db.query(`SELECT * FROM discord_status_records WHERE name = ?`, [args[1]])).rows;
+                                const statusCache = statusValues.has(args[1])
+                                if (statusData.length > 0 || statusCache) {
+                                    statusValues.delete(args[1]);
+                                    await db.query(`DELETE FROM discord_status_records WHERE name = ?`, [args[1]])
+                                    return `Status value ${args[1]} was deleted successfully`
+                                } else {
+                                    return "Status value was not found!"
+                                }
+                            } else {
+                                return "Missing the name of a status value to delete"
+                            }
+                        case 'list':
+                            const statusCache = Array.from(statusValues.keys())
+                            return 'Status Names:\n' + [...statusValues.keys(), ...(await db.query(`SELECT * FROM discord_status_records`, [args[1]])).rows.filter(e => statusCache.indexOf(e.name) === -1).map(e => e.name)].join('\n');
+                        default:
+                            return "Invalid Command"
+                    }
+                } else {
+                    return `Missing command, use "help status"`
+                }
+            }
+        }, {
+            argsRequired: false,
+            caseInsensitive: false,
+            description: "Status Controls",
+            fullDescription: "Enable/Disable Insights Display and Manage Stored Values\n" +
+                "   **tasks** - Prints current request queue\n   **enable** - Add an insights display to this server\n      channel\n**disable** - Removes an insights display for this server\n      [system]\n"+
+                "   **delete** - Deletes a stored status record from the cache/database\n      name\n   **list** - Lists all stored status records in the cache/database",
+            usage: "command [arguments]",
+            guildOnly: true
+        })
+        discordClient.registerCommand(`${systemglobal.SystemName} status`, async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0]) {
@@ -4310,6 +4366,20 @@ This code is publicly released and is restricted by its project license
         })
 
         discordClient.registerCommand("restart", async function (msg,args) {
+            if (!systemglobal.Discord_Upload_Only && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
+                shutdownSystem((ok) => {
+                    setTimeout(() => { process.exit(0) }, 5000)
+                    return "Goodbye! Please restart from server shell!"
+                });
+            }
+        }, {
+            argsRequired: false,
+            caseInsensitive: false,
+            description: "Graceful Restart",
+            fullDescription: "Safely and Gracefully restarts Discord I/O while ensuring all jobs and requests are completed",
+            guildOnly: true
+        })
+        discordClient.registerCommand(`${systemglobal.SystemName} restart`, async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 shutdownSystem((ok) => {
                     setTimeout(() => { process.exit(0) }, 5000)
@@ -4731,7 +4801,7 @@ This code is publicly released and is restricted by its project license
         }
         await activeTasks.delete('REFRESH_LOCAL_CACHE');
     }
-    async function syncStatusValues (){
+    async function syncStatusValues () {
         const statusData = await db.query(`SELECT * FROM discord_status_records`);
         const statusKeys = statusData.rows.map(e => e.name)
 
