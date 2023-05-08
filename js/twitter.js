@@ -250,8 +250,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			setInterval(() => {
 				if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
-					Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-					process.exit(1);
+					Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Standby Mode", "critical");
+					enablePullData = false;
 				}
 				request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
 					if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {

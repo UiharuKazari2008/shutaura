@@ -178,8 +178,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             setInterval(() => {
                 if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
-                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-                    process.exit(1);
+                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Standby Mode", "critical");
+                    enablePullData = false;
                 }
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -190,14 +190,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             console.error(jsonResponse.error);
                         } else {
                             lastClusterCheckin = (new Date().getTime())
-                            if (enablePullData) {
-                                if (!jsonResponse.active) {
-                                    Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                    process.exit(1)
+                            if (!jsonResponse.active) {
+                                if (enablePullData) {
+                                    Logger.printLine("ClusterIO", "System is not the active master!", "warn");
+                                    enablePullData = false;
                                 }
-                            } else if (jsonResponse.active) {
-                                Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                process.exit(1)
+                            } else if (!enablePullData) {
+                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                enablePullData = true;
                             }
                         }
                     }
@@ -293,19 +293,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         process.send('ready');
                     }
                     Logger.printLine("Init", "Pixiv Client is ready!", "info")
-                    if (auth && enablePullData) {
-                        getNewIllust();
-                        postRecommPost();
-                        cron.schedule('*/5 * * * *', () => {
+                    if (auth) {
+                        if (enablePullData) {
                             getNewIllust();
+                            postRecommPost();
+                        }
+                        cron.schedule('*/5 * * * *', () => {
+                            if (enablePullData) {
+                                getNewIllust();
+                            }
                         });
                         if (systemglobal.Pixiv_Cron_Recommended && cron.validate(systemglobal.Pixiv_Cron_Recommended.toString())) {
                             cron.schedule(systemglobal.Pixiv_Cron_Recommended.toString(), () => {
-                                postRecommPost();
+                                if (enablePullData) {
+                                    postRecommPost();
+                                }
                             });
                         } else {
                             cron.schedule('*/10 * * * *', () => {
-                                postRecommPost();
+                                if (enablePullData) {
+                                    postRecommPost();
+                                }
                             });
                         }
                     }
