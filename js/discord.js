@@ -4308,7 +4308,7 @@ This code is publicly released and is restricted by its project license
             usage: "command [arguments]",
             guildOnly: true
         })
-        discordClient.registerCommand(`${systemglobal.SystemName} status`, async function (msg,args) {
+        discordClient.registerCommand(`${systemglobal.SystemName}-status`, async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
                     switch (args[0]) {
@@ -4379,7 +4379,7 @@ This code is publicly released and is restricted by its project license
             fullDescription: "Safely and Gracefully restarts Discord I/O while ensuring all jobs and requests are completed",
             guildOnly: true
         })
-        discordClient.registerCommand(`${systemglobal.SystemName} restart`, async function (msg,args) {
+        discordClient.registerCommand(`${systemglobal.SystemName}-restart`, async function (msg,args) {
             if (isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 shutdownSystem((ok) => {
                     setTimeout(() => { process.exit(0) }, 5000)
