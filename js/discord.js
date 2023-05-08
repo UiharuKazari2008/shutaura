@@ -9038,7 +9038,7 @@ This code is publicly released and is restricted by its project license
                         }
                     }
                 })
-            }, 60000)
+            }, 30000)
             cont(true)
         })
     }
