@@ -861,6 +861,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         })
                         .catch(function (err) {
                             mqClient.sendMessage(`Error adding post ${message.postID} to bookmarks`, "warn", "PixivAction", err)
+                            console.error(err);
                         })
                 } else if (message.messageAction === "remove") {
                     pixivClient.unbookmarkIllust(message.postID)
