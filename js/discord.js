@@ -574,47 +574,45 @@ This code is publicly released and is restricted by its project license
         const _alarmclock = await db.query(`SELECT * FROM discord_alarms`)
         if (_alarmclock.error) { Logger.printLine("SQL", "Error getting master discord static channels records!", "emergency", _alarmclock.error); return false }
 
-        if (!systemglobal.Discord_Upload_Only) {
-            await Promise.all(_alarmclock.rows.map(alm => {
-                if (!cron.validate(alm.schedule)) {
-                    Logger.printLine("AlarmClock", `Alarm Clock #${alm.id} Schedule value is invalid: "${alm.schedule}"`, 'error');
-                } else {
-                    const _curAlm = (Timers.has(`alarmClock-${alm.id}`)) ? Timers.get(`alarmClock-${alm.id}`) : false;
-                    const _snoozedAlm = (Timers.has(`alarmSnoozed-${alm.id}`)) ? Timers.get(`alarmSnoozed-${alm.id}`) : false;
-                    if (!_curAlm || (_curAlm && (
-                        _curAlm.schedule !== alm.schedule ||
-                        _curAlm.channel !== alm.channel ||
-                        _curAlm.text !== alm.text ||
-                        _curAlm.mention !== alm.mention ||
-                        _curAlm.snooze !== alm.snooze ||
-                        _curAlm.expires !== alm.expires))) {
-                        Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'info');
-                        if (_curAlm) {
-                            _curAlm.cronjob.stop();
-                            Timers.delete(`alarmClock-${alm.id}`);
-                        }
-                        if (_snoozedAlm) {
-                            clearTimeout(_snoozedAlm.snoozeTimer);
-                            Timers.delete(`alarmSnoozed-${alm.id}`);
-                        }
-                        Timers.set(`alarmClock-${alm.id}`, {
-                            ...alm,
-                            cronjob: cron.schedule(alm.schedule, () => {
-                                triggerAlarm(alm.id)
-                            })
-                        })
+        await Promise.all(_alarmclock.rows.map(alm => {
+            if (!cron.validate(alm.schedule)) {
+                Logger.printLine("AlarmClock", `Alarm Clock #${alm.id} Schedule value is invalid: "${alm.schedule}"`, 'error');
+            } else {
+                const _curAlm = (Timers.has(`alarmClock-${alm.id}`)) ? Timers.get(`alarmClock-${alm.id}`) : false;
+                const _snoozedAlm = (Timers.has(`alarmSnoozed-${alm.id}`)) ? Timers.get(`alarmSnoozed-${alm.id}`) : false;
+                if (!_curAlm || (_curAlm && (
+                    _curAlm.schedule !== alm.schedule ||
+                    _curAlm.channel !== alm.channel ||
+                    _curAlm.text !== alm.text ||
+                    _curAlm.mention !== alm.mention ||
+                    _curAlm.snooze !== alm.snooze ||
+                    _curAlm.expires !== alm.expires))) {
+                    Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'info');
+                    if (_curAlm) {
+                        _curAlm.cronjob.stop();
+                        Timers.delete(`alarmClock-${alm.id}`);
                     }
+                    if (_snoozedAlm) {
+                        clearTimeout(_snoozedAlm.snoozeTimer);
+                        Timers.delete(`alarmSnoozed-${alm.id}`);
+                    }
+                    Timers.set(`alarmClock-${alm.id}`, {
+                        ...alm,
+                        cronjob: cron.schedule(alm.schedule, () => {
+                            triggerAlarm(alm.id)
+                        })
+                    })
                 }
-            }))
-            await Promise.all(Array.from(Timers.keys()).filter(e => e.startsWith('alarmClock-') && _alarmclock.rows.filter(f => f.id.toString() === e.split('-').pop()).length === 0).map(alm => {
-                const _curAlm = (Timers.has(`alarmClock-${alm}`)) ? Timers.get(`alarmClock-${alm}`) : false;
-                if (_curAlm) {
-                    _curAlm.cronjob.stop();
-                    Timers.delete(`alarmClock-${alm}`);
-                    Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'info');
-                }
-            }))
-        }
+            }
+        }))
+        await Promise.all(Array.from(Timers.keys()).filter(e => e.startsWith('alarmClock-') && _alarmclock.rows.filter(f => f.id.toString() === e.split('-').pop()).length === 0).map(alm => {
+            const _curAlm = (Timers.has(`alarmClock-${alm}`)) ? Timers.get(`alarmClock-${alm}`) : false;
+            if (_curAlm) {
+                _curAlm.cronjob.stop();
+                Timers.delete(`alarmClock-${alm}`);
+                Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'info');
+            }
+        }))
 
         await Promise.all(twitterlist.map(item =>{
             TwitterLists.set(item.channelid, item.listid);
@@ -6150,42 +6148,52 @@ This code is publicly released and is restricted by its project license
         setTimeout(revalidateFiles, 14400000)
     }
     async function triggerAlarm(id) {
-        const _snoozedAlm = (Timers.has(`alarmSnoozed-${id}`)) ? Timers.get(`alarmSnoozed-${id}`) : false;
-        if (_snoozedAlm) {
-            clearTimeout(_snoozedAlm.snoozeTimer);
-            Timers.delete(`alarmSnoozed-${id}`);
-        }
-        const alarm = Timers.get(`alarmClock-${id}`);
-        try {
-            const alarmMessage = await discordClient.createMessage((alarm.channel) ? alarm.channel : staticChID['homeGuild'].AlrmNotif, { tts: true, content: '**⏰ ' + alarm.text + `${(alarm.mention) ? '**\n<@' + alarm.mention + '>' : '**'}` })
-            Logger.printLine("AlarmClock", `Alarm Clock #${alarm.id} was triggered! Expires in ${(alarm.expires && alarm.expires >= 1) ? alarm.expires : 30} Minutes`, 'info')
-            await Timers.set(`alarmExpires-${alarmMessage.id}`, {
-                id: alarm.id,
-                text: alarm.text,
-                expirationTimer: setTimeout(async () => {
-                    try {
-                        await discordClient.deleteMessage(alarmMessage.channel.id, alarmMessage.id, 'Expired Alarm')
-                    } catch (err) {
-                        Logger.printLine("AlarmClock", `Failed to delete expired notification for alarm #${alarm.id}`, 'error', err)
-                    }
-                    await clearTimeout(Timers.get(`alarmExpires-${alarmMessage.id}`).expirationTimer);
-                    Timers.delete(`alarmExpires-${alarmMessage.id}`)
-                }, (alarm.expires && alarm.expires >= 1) ? alarm.expires * 60 * 1000 : 30 * 60 * 1000)
-            })
-            if (alarm.snooze !== null) {
-                const snoozeBtn = await db.query(`SELECT * FROM discord_reactions WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = ? OR reaction_name = ? ORDER BY position LIMIT 2`, [alarmMessage.guildID, 'AlarmSnooze', 'Check'])
-                if (snoozeBtn.rows.length > 0) {
-                    await Promise.all(snoozeBtn.rows.map(async e => {
-                        try {
-                            await discordClient.addMessageReaction(alarmMessage.channel.id, alarmMessage.id, (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
-                        } catch (err) {
-                            Logger.printLine("AlarmClock", `Failed to add extra buttons for alarm #${alarm.id}`, 'error', err)
-                        }
-                    }))
-                }
+        if (!systemglobal.Discord_Upload_Only) {
+            const _snoozedAlm = (Timers.has(`alarmSnoozed-${id}`)) ? Timers.get(`alarmSnoozed-${id}`) : false;
+            if (_snoozedAlm) {
+                clearTimeout(_snoozedAlm.snoozeTimer);
+                Timers.delete(`alarmSnoozed-${id}`);
             }
-        } catch (err) {
-            Logger.printLine("AlarmClock", `Failed to send alarm notification for alarm #${alarm.id}`, 'error', err)
+            const alarm = Timers.get(`alarmClock-${id}`);
+            try {
+                const alarmMessage = await discordClient.createMessage((alarm.channel) ? alarm.channel : staticChID['homeGuild'].AlrmNotif, {
+                    tts: true,
+                    content: '**⏰ ' + alarm.text + `${(alarm.mention) ? '**\n<@' + alarm.mention + '>' : '**'}`
+                })
+                Logger.printLine("AlarmClock", `Alarm Clock #${alarm.id} was triggered! Expires in ${(alarm.expires && alarm.expires >= 1) ? alarm.expires : 30} Minutes`, 'info')
+                await Timers.set(`alarmExpires-${alarmMessage.id}`, {
+                    id: alarm.id,
+                    text: alarm.text,
+                    expirationTimer: setTimeout(async () => {
+                        try {
+                            await discordClient.deleteMessage(alarmMessage.channel.id, alarmMessage.id, 'Expired Alarm')
+                        } catch (err) {
+                            Logger.printLine("AlarmClock", `Failed to delete expired notification for alarm #${alarm.id}`, 'error', err)
+                        }
+                        await clearTimeout(Timers.get(`alarmExpires-${alarmMessage.id}`).expirationTimer);
+                        Timers.delete(`alarmExpires-${alarmMessage.id}`)
+                    }, (alarm.expires && alarm.expires >= 1) ? alarm.expires * 60 * 1000 : 30 * 60 * 1000)
+                })
+                if (alarm.snooze !== null) {
+                    const snoozeBtn = await db.query(`SELECT *
+                                                      FROM discord_reactions
+                                                      WHERE (serverid = ? OR serverid IS NULL) AND reaction_name = ?
+                                                         OR reaction_name = ?
+                                                      ORDER BY position
+                                                      LIMIT 2`, [alarmMessage.guildID, 'AlarmSnooze', 'Check'])
+                    if (snoozeBtn.rows.length > 0) {
+                        await Promise.all(snoozeBtn.rows.map(async e => {
+                            try {
+                                await discordClient.addMessageReaction(alarmMessage.channel.id, alarmMessage.id, (e.reaction_custom !== null) ? e.reaction_custom.toString() : e.reaction_emoji.toString())
+                            } catch (err) {
+                                Logger.printLine("AlarmClock", `Failed to add extra buttons for alarm #${alarm.id}`, 'error', err)
+                            }
+                        }))
+                    }
+                }
+            } catch (err) {
+                Logger.printLine("AlarmClock", `Failed to send alarm notification for alarm #${alarm.id}`, 'error', err)
+            }
         }
     }
     // Discord Framework - Remote Management
@@ -9004,21 +9012,17 @@ This code is publicly released and is restricted by its project license
                     }
                 })
             })
-            if (!isBootable && systemglobal.Discord_Upload_Only) {
+            if (!isBootable) {
                 Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "warn");
                 systemglobal.Discord_Upload_Only = true;
-            } else if (isBootable && systemglobal.Discord_Upload_Only) {
-                Logger.printLine("ClusterIO", "System active master, Starting full access mode", "info");
-                systemglobal.Discord_Upload_Only = false;
             } else {
                 Logger.printLine("ClusterIO", "System active master", "info");
+                systemglobal.Discord_Upload_Only = false;
             }
             setInterval(() => {
                 if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= (systemglobal.Cluster_Comm_Loss_Time || 4.5)) {
-                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-                    shutdownSystem((ok) => {
-                        process.exit(1)
-                    })
+                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, No longer listening!", "critical");
+                    systemglobal.Discord_Upload_Only = false;
                 }
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -9029,11 +9033,14 @@ This code is publicly released and is restricted by its project license
                             console.error(jsonResponse.error);
                         } else {
                             lastClusterCheckin = (new Date().getTime())
-                            if (!jsonResponse.active && !systemglobal.Discord_Upload_Only) {
-                                Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                shutdownSystem((ok) => {
-                                    process.exit(1)
-                                })
+                            if (!jsonResponse.active) {
+                                if (!systemglobal.Discord_Upload_Only) {
+                                    Logger.printLine("ClusterIO", "System is not active, No longer listening!", "warn");
+                                    systemglobal.Discord_Upload_Only = true;
+                                }
+                            } else if (systemglobal.Discord_Upload_Only) {
+                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                systemglobal.Discord_Upload_Only = false;
                             }
                         }
                     }
@@ -9065,7 +9072,7 @@ This code is publicly released and is restricted by its project license
         name: "Kanmi Framework with JuneFS/JuzoFS",
         description: (systemglobal.DiscordDescription) ? systemglobal.DiscordDescription : "Multi-Purpose Discord Framework and Filesystem",
         owner: (systemglobal.DiscordOwner) ?  systemglobal.DiscordOwner : "Yukimi Kazari",
-        prefix: `${(systemglobal.DiscordPrefix) ? systemglobal.DiscordPrefix : "juzo"} ${(systemglobal.Discord_Upload_Only) ? systemglobal.SystemName : ''}`,
+        prefix: `${(systemglobal.DiscordPrefix) ? systemglobal.DiscordPrefix : "juzo"} `,
         ignoreSelf: true,
         restMode: true,
     });
@@ -9121,69 +9128,64 @@ This code is publicly released and is restricted by its project license
                         SendMessage("Unable to get discord server list", "error", 'main', "RefreshUser", e);
                         console.log(e);
                     })
-                Logger.printLine("Discord", "Registering Commands", "debug")
-                registerCommands();
-                await reloadLocalCache();
-                setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
                 await syncStatusValues();
-                setInterval(syncStatusValues, 90000)
-                resetInitStates();
-                Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
                 refreshCounts();
-                setInterval(refreshCounts, (systemglobal.Discord_Timer_Counts) ? systemglobal.Discord_Timer_Counts : 900000)
                 setTimeout(revalidateFiles, 60000)
-                cron.schedule((systemglobal.Discord_Cron_Thread_Rollover) ? systemglobal.Discord_Cron_Thread_Rollover : '55 23 * * *', () => {
-                    cycleThreads(false);
-                });
-                cron.schedule('3 * * * *', () => {
-                    cycleThreads(true);
-                });
-                cron.schedule((systemglobal.Discord_Cron_Thread_Peak) ? systemglobal.Discord_Cron_Thread_Peak : '50 2 * * *', () => {
-                    addTimecodeMessage("Peak");
-                });
-                cron.schedule((systemglobal.Discord_Cron_Thread_Offpeak) ? systemglobal.Discord_Cron_Thread_Offpeak : '0 12 * * *', () => {
-                    addTimecodeMessage("Off Peak");
-                });
                 cycleThreads(true);
-                init = 1
                 verifySpannedFiles(1);
                 cleanOldMessages();
-                setInterval(async () => { cleanOldMessages(); }, 3600000);
-                setInterval(async () => { verifySpannedFiles(25); }, 14400000);
-                setTimeout(start, 5000);
-                app.listen(sbiPort, (err) => {
-                    if (err) console.log("Error in server setup")
-                    console.log("API listening on port: 31000");
-                });
-                /*setInterval(() => {
-                    const ap = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds')
-                    if (ap && ap.length === 0 && activeProccess === true) {
-                        discordClient.editStatus( "idle",{
-                            name: 'requests',
-                            type: 2
-                        });
-                        activeProccess = false;
-                    } else if (activeProccess === true) {
-                        discordClient.editStatus( "online", {
-                            name: `${ap.length} requests`,
-                            type: 0
-                        });
-                    }
-                }, 30000);*/
-            } else {
-                Logger.printLine("Discord", "Registering Commands", "debug")
-                registerCommands();
-                await reloadLocalCache();
-                resetInitStates();
-                setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
-                setTimeout(start, 5000);
-                init = 1
-                Logger.printLine("Discord", "Discord Client is running is upload only mode and will not accept any remote chnages!", "warning")
-                app.listen(sbiPort, (err) => {
-                    if (err) console.log("Error in server setup")
-                    console.log("API listening on port: 31000");
-                });
             }
+            Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
+            cron.schedule((systemglobal.Discord_Cron_Thread_Rollover) ? systemglobal.Discord_Cron_Thread_Rollover : '55 23 * * *', () => {
+                cycleThreads(false);
+            });
+            cron.schedule((systemglobal.Discord_Cron_Thread_Peak) ? systemglobal.Discord_Cron_Thread_Peak : '50 2 * * *', () => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    addTimecodeMessage("Peak");
+                }
+            });
+            cron.schedule((systemglobal.Discord_Cron_Thread_Offpeak) ? systemglobal.Discord_Cron_Thread_Offpeak : '0 12 * * *', () => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    addTimecodeMessage("Off Peak");
+                }
+            });
+            cron.schedule('3 * * * *', () => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    cycleThreads(true);
+                }
+            });
+            setInterval(() => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    syncStatusValues();
+                }
+            }, 90000)
+            setInterval(() => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    refreshCounts();
+                }
+            }, (systemglobal.Discord_Timer_Counts) ? systemglobal.Discord_Timer_Counts : 900000)
+
+            setInterval(async () => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    cleanOldMessages();
+                }
+            }, 3600000);
+            setInterval(async () => {
+                if (!systemglobal.Discord_Upload_Only) {
+                    verifySpannedFiles(25);
+                }
+            }, 14400000);
+            Logger.printLine("Discord", "Registering Commands", "debug")
+            registerCommands();
+            await reloadLocalCache();
+            resetInitStates();
+            setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
+            setTimeout(start, 5000);
+            app.listen(sbiPort, (err) => {
+                if (err) console.log("Error in server setup")
+                console.log("API listening on port: 31000");
+            });
+            init = 1
         }
     });
     discordClient.on("error", (err) => {
@@ -9191,25 +9193,57 @@ This code is publicly released and is restricted by its project license
         discordClient.connect()
     });
 
-    if (!systemglobal.Discord_Upload_Only) {
-        discordClient.on("messageReactionAdd", (msg, emoji, user) => messageReactionAdd(msg, emoji, user));
-        discordClient.on("messageReactionRemove", (msg, emoji, user) => messageReactionRemove(msg, emoji, (user.id) ? user.id : user));
-        discordClient.on("messageReactionRemoveAll", (msg) => messageReactionRemoveAll(msg));
+    discordClient.on("messageReactionAdd", (msg, emoji, user) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageReactionAdd(msg, emoji, user)
+    });
+    discordClient.on("messageReactionRemove", (msg, emoji, user) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageReactionRemove(msg, emoji, (user.id) ? user.id : user)
+    });
+    discordClient.on("messageReactionRemoveAll", (msg) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageReactionRemoveAll(msg)
+    });
 
-        discordClient.on("messageCreate", (msg) => messageCreate(msg));
-        discordClient.on('messageUpdate', (msg) => messageUpdate(msg));
-        discordClient.on("messageDelete", (msg) => {
+    discordClient.on("messageCreate", (msg) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageCreate(msg)
+    });
+    discordClient.on('messageUpdate', (msg) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageUpdate(msg)
+    });
+    discordClient.on("messageDelete", (msg) => {
+        if (!systemglobal.Discord_Upload_Only)
             messageDelete(msg)
-        });
-        discordClient.on("messageDeleteBulk", (msg_array) => messageDeleteBulk(msg_array));
+    });
+    discordClient.on("messageDeleteBulk", (msg_array) => {
+        if (!systemglobal.Discord_Upload_Only)
+            messageDeleteBulk(msg_array)
+    });
 
-        discordClient.on("channelCreate", (channel) => channelCreate(channel));
-        discordClient.on("channelDelete", (channel) => channelDelete(channel));
-        discordClient.on("channelUpdate", (channel) => channelUpdate(channel));
-        discordClient.on("threadUpdate", (channel) => threadUpdate(channel));
+    discordClient.on("channelCreate", (channel) => {
+        if (!systemglobal.Discord_Upload_Only)
+            channelCreate(channel)
+    });
+    discordClient.on("channelDelete", (channel) => {
+        if (!systemglobal.Discord_Upload_Only)
+            channelDelete(channel)
+    });
+    discordClient.on("channelUpdate", (channel) => {
+        if (!systemglobal.Discord_Upload_Only)
+            channelUpdate(channel)
+    });
+    discordClient.on("threadUpdate", (channel) => {
+        if (!systemglobal.Discord_Upload_Only)
+            threadUpdate(channel)
+    });
 
-        discordClient.on("guildEmojisUpdate", (guild, emojiArray) => guildEmojiUpdate(guild, emojiArray));
-    }
+    discordClient.on("guildEmojisUpdate", (guild, emojiArray) => {
+        if (!systemglobal.Discord_Upload_Only)
+            guildEmojiUpdate(guild, emojiArray)
+    });
     await discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 
     tx2.action('halt', async (reply) => {
