@@ -40,6 +40,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const cron = require('node-cron');
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
+    let enablePullData = true;
 
     const { getIDfromText } = require('./utils/tools');
     const Logger = require('./utils/logSystem')(facilityName);
@@ -170,60 +171,39 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })
             })
             if (!isBootable) {
-                if (process.send && typeof process.send === 'function') {
-                    process.send('ready');
-                }
-                while (true) {
-                    await new Promise(st => setTimeout(st, 60000))
-                    const response = await new Promise(ok => {
-                        request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                                console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
-                                ok(true);
-                            } else {
-                                const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                                if (jsonResponse.error) {
-                                    console.error(jsonResponse.error);
-                                    ok(true);
-                                } else {
-                                    if (jsonResponse.active) {
-                                        Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
-                                    }
-                                    ok(!jsonResponse.active);
-                                }
-                            }
-                        })
-                    })
-                    if (!response)
-                        break;
-                }
-                process.exit(1);
+                Logger.printLine("ClusterIO", "System is not active master, will not pull any data", "warn");
+                enablePullData = false;
             } else {
                 Logger.printLine("ClusterIO", "System active master", "info");
-                setInterval(() => {
-                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
-                        Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-                        process.exit(1);
-                    }
-                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+            }
+            setInterval(() => {
+                if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
+                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
+                    process.exit(1);
+                }
+                request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                    } else {
+                        const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                        if (jsonResponse.error) {
+                            console.error(jsonResponse.error);
                         } else {
-                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                            if (jsonResponse.error) {
-                                console.error(jsonResponse.error);
-                            } else {
-                                lastClusterCheckin = (new Date().getTime())
+                            lastClusterCheckin = (new Date().getTime())
+                            if (enablePullData) {
                                 if (!jsonResponse.active) {
                                     Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                    process.exit(1);
+                                    process.exit(1)
                                 }
+                            } else if (jsonResponse.active) {
+                                Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+                                process.exit(1)
                             }
                         }
-                    })
-                }, 60000)
-                cont(true)
-            }
+                    }
+                })
+            }, 60000)
+            cont(true)
         })
     }
 
@@ -313,7 +293,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         process.send('ready');
                     }
                     Logger.printLine("Init", "Pixiv Client is ready!", "info")
-                    if (auth) {
+                    if (auth && enablePullData) {
                         getNewIllust();
                         postRecommPost();
                         cron.schedule('*/5 * * * *', () => {
@@ -367,7 +347,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     cb(false);
                 })
         }
-
     }
     function resizeImage(fileBuffer) {
         return new Promise(callback => {
@@ -913,16 +892,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 break;
             case 'DownloadRecommended' :
                 Logger.printLine("getllust", `Remote Request to get recommended to post: ${message.postID}`, "debug", message)
-                await getRecommended(message.postID, message.messageChannelID, 5)
+                if (enablePullData)
+                    await getRecommended(message.postID, message.messageChannelID, 5)
                 complete(true)
                 break;
             case 'GetRecommended' :
                 Logger.printLine("ExpandSearch", `Remote Request to get new recommended images`, "debug", message)
-                postRecommPost()
+                if (enablePullData)
+                    postRecommPost()
                 complete(true)
                 break;
             case 'ClearRecommended' :
-                clearRecomIllus()
+                if (enablePullData)
+                    clearRecomIllus()
                 complete(true)
                 break;
             case 'Follow' :
