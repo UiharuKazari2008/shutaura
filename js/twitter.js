@@ -967,7 +967,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	}
 	async function verifyQueue() {
-		const _tweetQueue = await db.query(`SELECT * FROM twitter_tweet_queue ORDER BY RAND() LIMIT 100`)
+		const _tweetQueue = await db.query(`SELECT * FROM twitter_tweet_queue WHERE (system_id = ? OR system_id IS NULL) ORDER BY RAND() LIMIT 100`, [systemglobal.SystemName])
 		if (_tweetQueue.errors) {
 			Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, _tweetQueue.errors);
 		} else {
