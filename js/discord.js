@@ -4543,7 +4543,7 @@ This code is publicly released and is restricted by its project license
             message = "🆗 " + message
         } else if (channel === "warn") {
             loglevel = 'warning'
-            message = "⚠ " + message
+            message = "⚠️ " + message
         } else if (channel === "err") {
             loglevel = 'error'
             message = "❌ " + message
@@ -5862,7 +5862,7 @@ This code is publicly released and is restricted by its project license
             }
             if (bannerWarnings.length > 0) {
                 embed.fields.unshift({
-                    "name": `⚠ Active Warnings`,
+                    "name": `⚠️ Active Warnings`,
                     "value": bannerWarnings.join('\n').substring(0, 1024)
                 })
             }
@@ -6110,7 +6110,7 @@ This code is publicly released and is restricted by its project license
             }
             if (bannerWarnings.length > 0) {
                 embed.fields.unshift({
-                    "name": `⚠ Active Warnings`,
+                    "name": `⚠️ Active Warnings`,
                     "value": bannerWarnings.join('\n').substring(0, 1024)
                 })
             }
