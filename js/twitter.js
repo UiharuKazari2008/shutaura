@@ -261,7 +261,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							console.error(jsonResponse.error);
 						} else {
 							lastClusterCheckin = (new Date().getTime())
-							if (!(jsonResponse.active && enablePullData)) {
+							if (enablePullData) {
+								if (!jsonResponse.active) {
+									Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
+									process.exit(1)
+								}
+							} else if (jsonResponse.active) {
 								Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
 								process.exit(1)
 							}
