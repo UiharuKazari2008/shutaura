@@ -82,6 +82,7 @@ This code is publicly released and is restricted by its project license
     let discordperms = [];
     let discordreact = [];
     let discordautoreact = [];
+    let discordautodownload = [];
     let musicFolders = [];
     let addClearButton = [];
     let fileTicker = [];
@@ -565,6 +566,11 @@ This code is publicly released and is restricted by its project license
         const _discordautoreactions = await db.query(`SELECT * FROM discord_reactions_autoadd`)
         if (_discordautoreactions.error) { Logger.printLine("SQL", "Error getting discord reactions records!", "emergency", _discordautoreactions.error); return false }
         discordautoreact = _discordautoreactions.rows;
+
+        Logger.printLine("SQL", "Getting Discord Auto Download", "debug")
+        const _discorddownload = await db.query(`SELECT * FROM discord_download`)
+        if (_discorddownload.error) { Logger.printLine("SQL", "Error getting discord automatic download records!", "emergency", _discorddownload.error); return false }
+        discordautodownload = _discorddownload.rows;
 
         Logger.printLine("SQL", "Getting Clear Button Reactions", "debug")
         const _add_clear_btn = await db.query(`SELECT DISTINCT channelid FROM discord_autoclean WHERE clearbtn = 1 UNION SELECT DISTINCT lastthread AS channelid FROM discord_autothread WHERE pinbutton = 1`)
@@ -8181,11 +8187,13 @@ This code is publicly released and is restricted by its project license
                             try {
                                 if (msg.channel.id === serverdata.chid_download && msg.content.includes("REQUEST")) {
                                     downloadRemoteFile(msg, serverdata);
+                                } else if (discordautodownload.indexOf(msg.channel.id) !== -1) {
+                                    downloadMessageFile(msg);
                                 }
                             } catch (e) {
                                 console.error(e)
                             }
-                        }, 5000)
+                        }, 10000)
                     }
                     break;
             }
