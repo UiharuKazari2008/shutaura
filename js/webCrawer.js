@@ -378,12 +378,17 @@ const systemglobal = require("../config.json");
             try {
                 const pulledPage = await got(pageURL)
                 const $ = cheerio.load(pulledPage.body); // Parse Response
-                await Promise.all($('div[class="picture-icons medium"] > span[class="picture-icon tbx-tooltip"] > a').each((thisPostIndex, thisPost) => {
+                const filter = [
+                    'div[class="picture-icons medium"] > span[class="picture-icon tbx-tooltip"] > a.picture-category-1',
+                    'div[class="picture-icons medium"] > span[class="picture-icon tbx-tooltip"] > a.picture-category-5',
+                    'div[class="picture-icons medium"] > span[class="picture-icon tbx-tooltip"] > a.picture-category-8',
+                ].join(', ')
+                await Promise.all($(filter).each((thisPostIndex, thisPost) => {
                     const figureURL = thisPost.attribs.href
                     if (!history.error && history.rows.filter(e => e.url === figureURL).length === 0) {
                         sendFiguretoDiscord({
                             channelID: c,
-                            text: `${figureURL}`
+                            text: `https://myfigurecollection.net${figureURL}`
                         }, async (ok) => {
                             if (ok) {
                                 await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [figureURL])
