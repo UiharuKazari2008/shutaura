@@ -266,7 +266,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })
                 .catch((err) => {
                     Logger.printLine("TokenSystem", "Failed to refresh token for pixiv!", "emergency", err);
-                    mqClient.sendMessage(`Pixiv Refresh Token is no longer valid, please generate a new token now!`, "crit", "TokenSystem");
                     console.error(err);
                     setTimeout(refreshToken, 60000)
                     auth = false;
