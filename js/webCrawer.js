@@ -14,6 +14,9 @@ This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
 const systemglobal = require("../config.json");
+const got = require("got");
+const cheerio = require("cheerio");
+const fs = require("fs");
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -30,6 +33,7 @@ const systemglobal = require("../config.json");
     const podcastFeedParser = require("podcast-feed-parser")
     const RateLimiter = require('limiter').RateLimiter;
     const blogPageLimit = new RateLimiter(1, 90000);
+    const blogItemLimit = new RateLimiter(1, 3000);
     const backlogPageLimit = new RateLimiter(1, 90000);
     const postPageLimit = new RateLimiter(1, 5000);
     const postImageLimit = new RateLimiter(1, 500);
@@ -38,6 +42,7 @@ const systemglobal = require("../config.json");
     const db = require('./utils/shutauraSQL')(facilityName);
 
     let pullDeepMPZPage = 0;
+    let pullDeepMFCPage = 0;
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
 
@@ -216,22 +221,77 @@ const systemglobal = require("../config.json");
         });
     }
     function sendFiguretoDiscord(post, passed) {
-        const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`
-        mqClient.sendData( sentTo, {
-            fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-            messageType : 'stext',
-            messageReturn: false,
-            messageChannelID : post.channelID,
-            messageText : post.text,
-            addButtons : ["Pin", "Download", "Archive", "MoveMessage"]
-        }, function (ok) {
-            if (ok) {
-                passed(true)
-            } else {
-                passed(false)
-                Logger.printLine("BlogImageSender", `Failed to send the image ${post.file.name} to Discord`, "error")
+        blogItemLimit.removeTokens(1, async () => {
+            try {
+                const pulledItemPage = await got(post.url)
+                const $ = cheerio.load(pulledItemPage.body); // Parse Response
+
+                const postName = $('span[itemprop="headline"]')[0].attribs.title
+                const userName = $('div[class="picture-object"] > div[class="object-meta"] > a')[0].children[1].data
+                const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].attribs.title
+                const description = $('div[class="user-expression"] > div[class="expression"] > div[class="content"] > div[class="bbcode"]')
+                const descri_meta = $('div[class="user-expression"] > a[class="avatar"]')
+                let text = []
+                if (description[0] && descri_meta[0] && descri_meta[0].attribs.href.split('/').pop().toLowerCase() === userName.toLowerCase()) {
+                    description[0].children.map(e => {
+                        switch (e.type) {
+                            case 'tag':
+                                switch (e.name) {
+                                    case 'br':
+                                        break;
+                                    case 'a':
+                                        text.push(e.attribs.href);
+                                        break;
+                                    default:
+                                        text.push(e.data);
+                                        break;
+                                }
+                            case 'text':
+                            default:
+                                text.push(e.data);
+                                break;
+                        }
+                    })
+                }
+                const image = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].attribs.src
+                let postText = `**🌠 ${userName}**`
+                if (postName)
+                    postText += ' - ***' + postName + '***'
+                if (text.length > 0)
+                    postText += '\n' + text.join('')
+                postText += '\n`' + post.url + '`'
+
+                getImagetoB64(image, post.url, function (image) {
+                    if (image !== null) {
+                        const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`
+                        mqClient.sendData( sentTo, {
+                            fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
+                            messageType : 'sfile',
+                            messageReturn: false,
+                            messageChannelID : post.channelID,
+                            messageText : postText ,
+                            itemFileData : image,
+                            itemFileName : image.split('/').pop(),
+                            itemDateTime: date.replace(',', ''),
+                            addButtons : ["Pin", "Download", "Archive", "MoveMessage"]
+                        }, function (ok) {
+                            if (ok) {
+                                passed(true)
+                            } else {
+                                passed(false)
+                                Logger.printLine("BlogImageSender", `Failed to send the image ${post.file.name} to Discord`, "error")
+                            }
+                        });
+                    } else {
+                        Logger.printLine('BlogImageSender', `Failed to pull the MFC post image "${image}"`, 'error');
+                    }
+                })
+
+            } catch (err) {
+                Logger.printLine('MFCPODPull', `Failed to pull the MFC POD page - ${err.message}`, 'error', err);
+                console.log(err);
             }
-        });
+        })
     }
     async function sendMixToDiscord(channelid, track, download, backlog, cb) {
         const filename = track.name + '.' + download.split('.').pop().split('?')[0];
@@ -359,7 +419,24 @@ const systemglobal = require("../config.json");
             if (timer) { clearInterval(timer); Timers.delete(`MPZDEEP${systemglobal.MPZero_Channel}`) }
         }
     }
-    async function getFiguresOTD(c) {
+    async function pullDeepMFC(channel) {
+        if (pullDeepMFCPage < 1000) {
+            Logger.printLine('MFC', `Starting at page ${pullDeepMFCPage}`, 'info');
+            await getFiguresOTD(channel, (pullDeepMFCPage * -1));
+            pullDeepMFCPage += 1;
+            Logger.printLine('MFC', `Saving next pages are ${pullDeepMFCPage}`, 'info');
+            fs.writeFileSync('./mfc-backlog', pullDeepMFCPage.toString() , 'utf-8');
+            Timers.set(`MFCDEEP${channel}`, setTimeout(() => {
+                pullDeepMFC(channel);
+            }, 600000));
+        } else {
+            let timer = Timers.get(`MFCDEEP${channel}`);
+            Logger.printLine('MFC', `MAXIMUM PAGE LIMIT`, 'info');
+            fs.writeFileSync('./mfc-backlog', "20000" , 'utf-8');
+            if (timer) { clearInterval(timer); Timers.delete(`MFCDEEP${channel}`) }
+        }
+    }
+    async function getFiguresOTD(c, subtract) {
         const currDate = new Date(Date.now())
         const day = new Date()
         day.setUTCDate(currDate.getUTCDate())
@@ -370,7 +447,7 @@ const systemglobal = require("../config.json");
         day.setUTCSeconds(0)
 
         const dayOffset = (86400)
-        const actualDay = (day.getTime() / 1000).toFixed(0) - dayOffset
+        const actualDay = (day.getTime() / 1000).toFixed(0) - (dayOffset * (subtract || 1))
 
         const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%myfigurecollection%'`)
         blogPageLimit.removeTokens(1, async () => {
@@ -384,11 +461,11 @@ const systemglobal = require("../config.json");
                     'div[class="picture-icons medium"] > span[class="picture-icon tbx-tooltip"] > a.picture-category-8',
                 ].join(', ')
                 await Promise.all($(filter).each((thisPostIndex, thisPost) => {
-                    const figureURL = thisPost.attribs.href
+                    const figureURL = `https://myfigurecollection.net${thisPost.attribs.href}`
                     if (!history.error && history.rows.filter(e => e.url === figureURL).length === 0) {
                         sendFiguretoDiscord({
                             channelID: c,
-                            text: `https://myfigurecollection.net${figureURL}`
+                            url: figureURL
                         }, async (ok) => {
                             if (ok) {
                                 await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [figureURL])
@@ -624,6 +701,17 @@ const systemglobal = require("../config.json");
     }
     // MyFigureCollection
     if (systemglobal.MFC_Interval && systemglobal.MFC_Channel) {
+        if (systemglobal.MFC_Deep_Crawl) {
+            const pageNum = (fs.existsSync('./mfc-backlog')) ? fs.readFileSync('./mfc-backlog', "utf-8") : '1'
+            if (pageNum && !isNaN(parseInt(pageNum))) {
+                pullDeepMFCPage = parseInt(pageNum);
+                if (pullDeepMFCPage < 1001) {
+                    await pullDeepMFC(systemglobal.MFC_Channel);
+                }
+            } else {
+                Logger.printLine('MPZero', `Failed to read page number`, 'error');
+            }
+        }
         getFiguresOTD(systemglobal.MFC_Channel);
         Timers.set(`MFC${systemglobal.MFC_Channel}`, setInterval(() => {
             getFiguresOTD(systemglobal.MFC_Channel);
@@ -633,7 +721,7 @@ const systemglobal = require("../config.json");
     // MPZero Cosplay
     if (systemglobal.MPZero_Channel && systemglobal.MPZero_Interval) {
         if (systemglobal.MPZero_Deep_Crawl) {
-            const pageNum = fs.readFileSync('./mpz-backlog', "utf-8");
+            const pageNum = (fs.existsSync('./mpz-backlog')) ? fs.readFileSync('./mpz-backlog', "utf-8") : '0';
             if (pageNum && !isNaN(parseInt(pageNum))) {
                 pullDeepMPZPage = parseInt(pageNum);
                 if (pullDeepMPZPage < 1001) {
