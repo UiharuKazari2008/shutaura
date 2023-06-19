@@ -428,7 +428,7 @@ const fs = require("fs");
             fs.writeFileSync('./mfc-backlog', pullDeepMFCPage.toString() , 'utf-8');
             Timers.set(`MFCDEEP${channel}`, setTimeout(() => {
                 pullDeepMFC(channel);
-            }, 600000));
+            }, 300000));
         } else {
             let timer = Timers.get(`MFCDEEP${channel}`);
             Logger.printLine('MFC', `MAXIMUM PAGE LIMIT`, 'info');
