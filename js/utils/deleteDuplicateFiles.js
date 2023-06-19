@@ -110,7 +110,7 @@
         console.log("Starting Search...")
         const results = await db.query(`SELECT DISTINCT * 
 FROM kanmi_records 
-WHERE (channel = '966235278534660146' OR channel = '886245623425278072' OR channel = '1119797334537142342') and content_full LIKE '%**🎆%' AND content_full NOT LIKE '%FANBOX [0]%' AND attachment_name IS NOT NULL
+WHERE (channel = '966235278534660146' OR channel = '968621147644121098' OR channel = '886245623425278072' OR channel = '1119797334537142342') and content_full LIKE '%**🎆%' AND content_full NOT LIKE '%FANBOX [0]%' AND attachment_name IS NOT NULL AND hidden != 1
 ORDER BY eid DESC;`)
         //
         console.log('Parseing...')
@@ -125,7 +125,8 @@ ORDER BY eid DESC;`)
                     const last = duplicates.pop();
                     let duplicateMatches = duplicates.reduce((promiseChain, msg, index) => {
                         return promiseChain.then(() => new Promise(async (deleteSent) => {
-                            mqClient.sendData(systemglobal.Discord_Out + '.priority', {
+                            await db.query(`UPDATE kanmi_records SET hidden = 1 WHERE eid = ?`, [msg.eid]);
+                            mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
                                 fromClient: `return.CacheHandler`,
                                 messageReturn: false,
                                 messageID: msg.id,
@@ -133,9 +134,7 @@ ORDER BY eid DESC;`)
                                 messageServerID: msg.server,
                                 messageType: 'command',
                                 messageAction: 'RemovePost'
-                            }, function (ok) {
-                                deleteSent(ok);
-                            })
+                            }, function (ok) { deleteSent(ok) });
                         }));
                     }, Promise.resolve());
                     duplicateMatches.then(async () => {

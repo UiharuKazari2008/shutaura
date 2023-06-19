@@ -710,7 +710,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine(`PostRecomIllt`, `Failed to get recommended illustration records`, `error`, recommIllust.error);
         } else if (recommIllust.rows.length > 0) {
             const previousItem = (systemglobal.Pixiv_No_History) ? false : post_history.indexOf(recommIllust.rows[0].id) !== -1
-            if (previousItem.rows.length !== 0) {
+            if (!previousItem) {
                 Logger.printLine("PostRecomIllt", `Recommended Illustration ${recommIllust.rows[0].id} is in history, Try Again...`, "warn")
                 postRecommPost();
             } else if (recommIllust.rows[0].data) {
