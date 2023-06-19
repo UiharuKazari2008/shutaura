@@ -41,6 +41,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
     let enablePullData = true;
+    let post_history = [];
 
     const { getIDfromText } = require('./utils/tools');
     const Logger = require('./utils/logSystem')(facilityName);
@@ -111,6 +112,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const _mq_pixiv_in = systemparams_sql.filter(e => e.param_key === 'mq.pixiv.in');
             if (_mq_pixiv_in.length > 0 && _mq_pixiv_in[0].param_value)
                 systemglobal.Pixiv_In = _mq_pixiv_in[0].param_value;
+        }
+
+        const _illuhistory = await db.query(`SELECT illu_id FROM pixiv_history_illu`);
+        if (_illuhistory.error) {
+            console.error(`Unable to get post history!`)
+        } else {
+            post_history = _illuhistory.rows.map(e => e.illu_id);
+            console.log(`Loaded ${post_history.length} post history`)
         }
     }
     await loadDatabaseCache();
@@ -550,12 +559,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) ? { rows: [ true ] } : { rows: [] } : await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [post.postID]);
+                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(post.postID) !== -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
-                        if (foundillu.error) {
-                            mqClient.sendMessage(`SQL Error when getting to the illustration history records`, "err", foundillu.error)
-                            resolve()
-                        } else if (duplicates || foundillu.rows.length === 0) {
+                        if (duplicates || !foundillu) {
                             let followUser = (!item.user.is_followed);
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
@@ -648,6 +654,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             if (!ok) {
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
                                             } else if (parseInt(index) + 1 === images.length && !duplicates && (!systemglobal.Pixiv_No_History || channel === "new")) {
+                                                post_history.push(post.postID);
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
                                             sentImage(ok);
@@ -679,8 +686,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function saveRecomIllus(list) {
         // noinspection ES6MissingAwait
         await list.forEach(async e => {
-            const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) ? { rows: [ true ] } : { rows: [] } : await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [e.id])
-            if (previousItem.rows.length === 0) {
+            const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) : post_history.indexOf(e.id) !== -1;
+            if (!previousItem) {
                 const addResponse = await db.query(`INSERT INTO pixiv_recomm_illu SET ? ON DUPLICATE KEY UPDATE data = ?`, [{
                     paccount: systemglobal.PixivUser,
                     id: e.id,
@@ -702,7 +709,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (recommIllust.error) {
             Logger.printLine(`PostRecomIllt`, `Failed to get recommended illustration records`, `error`, recommIllust.error);
         } else if (recommIllust.rows.length > 0) {
-            const previousItem = (systemglobal.Pixiv_No_History) ? { rows: [] } : await db.query(`SELECT illu_id FROM pixiv_history_illu WHERE illu_id = ?`, [recommIllust.rows[0].id])
+            const previousItem = (systemglobal.Pixiv_No_History) ? false : post_history.indexOf(recommIllust.rows[0].id) !== -1
             if (previousItem.rows.length !== 0) {
                 Logger.printLine("PostRecomIllt", `Recommended Illustration ${recommIllust.rows[0].id} is in history, Try Again...`, "warn")
                 postRecommPost();
