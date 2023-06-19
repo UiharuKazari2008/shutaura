@@ -253,7 +253,7 @@ const fs = require("fs");
                         }
                     })
                 }
-                const image = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].attribs.src
+                const imageUrl = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].attribs.src
                 let postText = `**🌠 ${userName}**`
                 if (postName)
                     postText += ' - ***' + postName + '***'
@@ -261,7 +261,7 @@ const fs = require("fs");
                     postText += '\n' + text.join('')
                 postText += '\n`' + post.url + '`'
 
-                getImagetoB64(image, post.url, function (image) {
+                getImagetoB64(imageUrl, post.url, function (image) {
                     if (image !== null) {
                         const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`
                         mqClient.sendData( sentTo, {
@@ -269,9 +269,9 @@ const fs = require("fs");
                             messageType : 'sfile',
                             messageReturn: false,
                             messageChannelID : post.channelID,
-                            messageText : postText ,
+                            messageText : postText,
                             itemFileData : image,
-                            itemFileName : image.split('/').pop(),
+                            itemFileName : imageUrl.split('/').pop(),
                             itemDateTime: date.replace(',', ''),
                             addButtons : ["Pin", "Download", "Archive", "MoveMessage"]
                         }, function (ok) {
@@ -422,7 +422,7 @@ const fs = require("fs");
     async function pullDeepMFC(channel) {
         if (pullDeepMFCPage < 1000) {
             Logger.printLine('MFC', `Starting at page ${pullDeepMFCPage}`, 'info');
-            await getFiguresOTD(channel, (pullDeepMFCPage * -1));
+            await getFiguresOTD(channel, pullDeepMFCPage);
             pullDeepMFCPage += 1;
             Logger.printLine('MFC', `Saving next pages are ${pullDeepMFCPage}`, 'info');
             fs.writeFileSync('./mfc-backlog', pullDeepMFCPage.toString() , 'utf-8');
@@ -446,8 +446,8 @@ const fs = require("fs");
         day.setUTCMinutes(0)
         day.setUTCSeconds(0)
 
-        const dayOffset = (86400)
-        const actualDay = (day.getTime() / 1000).toFixed(0) - (dayOffset * (subtract || 1))
+        const dayOffset = (86400) * (subtract || 1)
+        const actualDay = (day.getTime() / 1000).toFixed(0) - dayOffset
 
         const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%myfigurecollection%'`)
         blogPageLimit.removeTokens(1, async () => {
