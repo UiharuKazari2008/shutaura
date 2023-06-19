@@ -118,8 +118,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (_illuhistory.error) {
             console.error(`Unable to get post history!`)
         } else {
-            post_history = _illuhistory.rows.map(e => e.illu_id);
-            console.log(`Loaded ${post_history.length} post history`)
+            post_history = [..._illuhistory.rows.map(e => e.illu_id)];
+            console.log(`Loaded ${post_history.length} post history`, post_history[0]);
         }
     }
     await loadDatabaseCache();
@@ -559,7 +559,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(post.postID) !== -1;
+                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(post.postID.toString()) !== -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
                         if (duplicates || !foundillu) {
                             let followUser = (!item.user.is_followed);
@@ -654,7 +654,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             if (!ok) {
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
                                             } else if (parseInt(index) + 1 === images.length && !duplicates && (!systemglobal.Pixiv_No_History || channel === "new")) {
-                                                post_history.push(post.postID);
+                                                post_history.push(post.postID.toString());
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
                                             sentImage(ok);
@@ -686,7 +686,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function saveRecomIllus(list) {
         // noinspection ES6MissingAwait
         await list.forEach(async e => {
-            const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) : post_history.indexOf(e.id) !== -1;
+            const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) : post_history.indexOf(e.id.toString()) !== -1;
             if (!previousItem) {
                 const addResponse = await db.query(`INSERT INTO pixiv_recomm_illu SET ? ON DUPLICATE KEY UPDATE data = ?`, [{
                     paccount: systemglobal.PixivUser,
@@ -709,7 +709,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (recommIllust.error) {
             Logger.printLine(`PostRecomIllt`, `Failed to get recommended illustration records`, `error`, recommIllust.error);
         } else if (recommIllust.rows.length > 0) {
-            const previousItem = (systemglobal.Pixiv_No_History) ? false : post_history.indexOf(recommIllust.rows[0].id) !== -1
+            const previousItem = (systemglobal.Pixiv_No_History) ? false : post_history.indexOf(recommIllust.rows[0].id.toString()) !== -1
             if (!previousItem) {
                 Logger.printLine("PostRecomIllt", `Recommended Illustration ${recommIllust.rows[0].id} is in history, Try Again...`, "warn")
                 postRecommPost();
