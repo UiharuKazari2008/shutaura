@@ -561,7 +561,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                         const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(post.postID.toString()) !== -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
-                        if (duplicates || foundillu) {
+                        if (duplicates || !foundillu) {
                             let followUser = (!item.user.is_followed);
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
@@ -687,7 +687,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         // noinspection ES6MissingAwait
         await list.forEach(async e => {
             const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) : post_history.indexOf(e.id.toString()) !== -1;
-            if (previousItem) {
+            if (!previousItem) {
                 const addResponse = await db.query(`INSERT INTO pixiv_recomm_illu SET ? ON DUPLICATE KEY UPDATE data = ?`, [{
                     paccount: systemglobal.PixivUser,
                     id: e.id,
