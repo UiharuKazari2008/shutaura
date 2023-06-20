@@ -160,7 +160,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		Logger.printLine("SQL", "Getting Twitter Notifications", "debug")
 		const _twitternotify = await db.query(`SELECT * FROM twitter_notify`);
 		if (_twitternotify.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitternotify.error); return false }
-		const _tni = _twitternotify.rows.map(e => e.username);
+		const _tni = _twitternotify.rows.map(e => e.username.toLowerCase());
 		_twitternotify.rows.map(e => {
 			twitterNotify.set(e.username.toLowerCase(), e.channel)
 		});
