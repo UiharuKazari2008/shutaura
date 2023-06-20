@@ -110,7 +110,7 @@
         console.log("Starting Search...")
         const results = await db.query(`SELECT DISTINCT * 
 FROM kanmi_records 
-WHERE (channel = '966235278534660146' OR channel = '968621147644121098' OR channel = '886245623425278072' OR channel = '1119797334537142342') and content_full LIKE '%**🎆%' AND content_full NOT LIKE '%FANBOX [0]%' AND attachment_name IS NOT NULL AND hidden != 1
+WHERE (channel = '727768197108858890' OR channel = '966235278534660146' OR channel = '968621147644121098' OR channel = '886245623425278072' OR channel = '1119797334537142342') and content_full LIKE '%**🎆%' AND content_full NOT LIKE '%FANBOX [0]%' AND attachment_name IS NOT NULL AND hidden != 1
 ORDER BY eid DESC;`)
         //
         console.log('Parseing...')
