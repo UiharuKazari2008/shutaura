@@ -490,7 +490,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         ],
                         addButtons: reactions
                     }
-                } else if (objectMode && post.channelID) {
+                } else if (objectMode) {
                     return {
                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                         messageType: 'sfileext',
@@ -669,7 +669,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 post_history.push(post.postID.toString());
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
-                                            if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && parseInt(index.toString()) === 0) {
+                                            if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new' && parseInt(index.toString()) === 0) {
                                                 const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
                                                 const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
                                                 mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
