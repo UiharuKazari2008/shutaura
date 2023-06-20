@@ -60,6 +60,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
+	let twitterNotify = new Map();
 	let enablePullData = true;
 
 	if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
@@ -155,6 +156,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const _twitteraccount = await db.query(`SELECT * FROM twitter_accounts`)
 		if (_twitteraccount.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitteraccount.error); return false }
 		twitteraccount = _twitteraccount.rows;
+
+		Logger.printLine("SQL", "Getting Twitter Notifications", "debug")
+		const _twitternotify = await db.query(`SELECT * FROM twitter_notify`)
+		if (_twitternotify.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitternotify.error); return false }
+		const _tni = _twitternotify.rows.map(e => e.username)
+		_twitternotify.rows.map(e => twitterNotify.set(e.username.toLowerCase(), e.channel))
+		(twitterNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => twitterNotify.delete(e));
+		console.log(`Notification enabled for ${twitterNotify.size} users`);
 	}
 	await loadDatabaseCache();
 	if (args.whost) {
@@ -753,6 +762,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											resolve();
 										} else {
 											resolve();
+										}
+										if (index === 0 && twitterNotify.has((((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name).toLowerCase())) {
+											const notifyChannel = twitterNotify.get((((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name).toLowerCase())
+											mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+												messageType : 'sfileext',
+												messageReturn: false,
+												messageChannelID : notifyChannel,
+												itemFileData: image,
+												itemFileName: filename,
+												messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+												messageObject: {...messageObject, title: _title}
+											})
 										}
 									})
 								} else if (obj.channelid !== null) {
