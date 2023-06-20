@@ -118,7 +118,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const _illuhistory = await db.query(`SELECT illu_id FROM pixiv_history_illu`);
         if (_illuhistory.error) {
             console.error(`Unable to get post history!`)
-        } else id (_illuhistory.rows.length > 0) {
+        } else if (_illuhistory.rows.length > 0) {
             post_history = [...new Set(_illuhistory.rows.map(e => e.illu_id.toString()))];
             console.log(`Loaded ${post_history.length} post history`, post_history[0]);
         }
