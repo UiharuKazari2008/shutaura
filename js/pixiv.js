@@ -571,7 +571,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(post.postID.toString()) !== -1;
+                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(item.id.toString()) !== -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
                         if (duplicates || !foundillu) {
                             let followUser = (!item.user.is_followed);
@@ -665,28 +665,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                            } else if (parseInt(index.toString()) === 0 && !systemglobal.Pixiv_No_History) {
-                                                post_history.push(post.postID.toString());
-                                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE timestamp = NOW()`, [post.postID, post.userID])
                                             }
-                                            if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new' && parseInt(index.toString()) === 0) {
-                                                const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
-                                                const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
-                                                mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
-                                                    ...notifMessage,
-                                                    messageChannelID: notifyChan,
-                                                    messageText: `New Illustration from ${item.user.name}`,
-                                                    addButtons: []
-                                                }, async(ok) => {
-                                                    sentImage(ok);
-                                                    _mqMessage = null;
-                                                    post.file = {};
-                                                })
-                                            } else {
-                                                sentImage(ok);
-                                                _mqMessage = null;
-                                                post.file = {};
-                                            }
+                                            sentImage(ok);
+                                            _mqMessage = null;
+                                            post.file = {};
                                         })
                                     } else {
                                         Logger.printLine("PixivDownload", `Failed to downloaded url ${url}! Skipped!`, "debug")
@@ -696,6 +678,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }, Promise.resolve());
                             requests.then(async () => {
                                 Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug');
+                                post_history.push(post.postID.toString());
+                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE timestamp = NOW()`, [post.postID, post.userID])
+                                if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
+                                    const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
+                                    const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
+                                    mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+                                        ...notifMessage,
+                                        messageChannelID: notifyChan,
+                                        messageText: `New Illustration from ${item.user.name}`,
+                                        addButtons: []
+                                    }, async(ok) => {
+                                    })
+                                }
                                 resolve();
                             })
                         } else {
