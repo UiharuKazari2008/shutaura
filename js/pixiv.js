@@ -665,9 +665,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
                                                 Logger.printLine("IlluSender", `Failed to send the illustrations to Discord`, "error")
-                                            } else if (parseInt(index) + 1 === images.length && !duplicates && (!systemglobal.Pixiv_No_History || channel === "new")) {
+                                            } else if (parseInt(index.toString()) + 1 === images.length && !duplicates && (!systemglobal.Pixiv_No_History || channel === "new")) {
                                                 post_history.push(post.postID.toString());
-                                                await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE timestamp = NOW()`, [post.postID, post.userID])
                                             }
                                             if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new' && parseInt(index.toString()) === 0) {
                                                 const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
