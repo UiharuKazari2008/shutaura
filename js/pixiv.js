@@ -649,7 +649,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return promiseChain.then(() => new Promise(async (sentImage) => {
                                     const image = await getImagetoB64(url)
                                     if (image) {
-                                        post.finalText = `${post.postTitle} [${post.postID}]` + ((images.length > 1) ? ` (${parseInt(index) + 1}/${images.length})` : '');
+                                        post.finalText = `${post.postTitle} [${post.postID}]` + ((images.length > 1) ? ` (${parseInt(index.toString()) + 1}/${images.length})` : '');
                                         post.file = {
                                             data: image,
                                             avatar: (avatar) ? avatar : undefined,
@@ -658,9 +658,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                                         let _mqMessage = {};
                                         if (autoDownload.rows.length > 0) {
-                                            _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                            _mqMessage = await sendImage(post, followUser, (images.length === parseInt(index.toString()) + 1), _pconfig.rows[0].download_channelid);
                                         } else {
-                                            _mqMessage = await sendEmbed(post, level, followUser, false, (images.length === parseInt(index) + 1), _pconfig.rows[0].download_channelid);
+                                            _mqMessage = await sendEmbed(post, level, followUser, false, (images.length === parseInt(index.toString()) + 1), _pconfig.rows[0].download_channelid);
                                         }
                                         mqClient.sendData(sentTo, _mqMessage, async(ok) => {
                                             if (!ok) {
@@ -669,7 +669,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 post_history.push(post.postID.toString());
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
-                                            if ((pixivNotify.has(item.user.id) || pixivNotify.has(item.user.account)) && parseInt(index) === 0) {
+                                            if ((pixivNotify.has(item.user.id) || pixivNotify.has(item.user.account)) && parseInt(index.toString()) === 0) {
                                                 const notifyChan = pixivNotify.get(item.user.id) || pixivNotify.get(item.user.account)
                                                 const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
                                                 mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
