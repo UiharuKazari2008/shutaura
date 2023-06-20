@@ -679,7 +679,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             requests.then(async () => {
                                 Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug');
                                 post_history.push(post.postID.toString());
-                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW()) ON DUPLICATE KEY UPDATE timestamp = NOW()`, [post.postID, post.userID])
+                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                 if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
                                     const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
                                     const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
