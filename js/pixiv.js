@@ -118,8 +118,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const _illuhistory = await db.query(`SELECT illu_id FROM pixiv_history_illu`);
         if (_illuhistory.error) {
             console.error(`Unable to get post history!`)
-        } else {
-            post_history = [..._illuhistory.rows.map(e => e.illu_id)];
+        } else id (_illuhistory.rows.length > 0) {
+            post_history = [...new Set(_illuhistory.rows.map(e => e.illu_id.toString()))];
             console.log(`Loaded ${post_history.length} post history`, post_history[0]);
         }
         const _pixivnotify = await db.query(`SELECT * FROM pixiv_notify`);
@@ -571,7 +571,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = (systemglobal.Pixiv_No_History && channel !== "new") ? (item.isBookmarked) : post_history.indexOf(item.id.toString()) !== -1;
+                        const foundillu = post_history.indexOf(item.id.toString()) !== -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
                         if (duplicates || !foundillu) {
                             let followUser = (!item.user.is_followed);
@@ -708,7 +708,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function saveRecomIllus(list) {
         // noinspection ES6MissingAwait
         await list.forEach(async e => {
-            const previousItem = (systemglobal.Pixiv_No_History) ? (e.isBookmarked) : post_history.indexOf(e.id.toString()) !== -1;
+            const previousItem = post_history.indexOf(e.id.toString()) !== -1;
             if (!previousItem) {
                 const addResponse = await db.query(`INSERT INTO pixiv_recomm_illu SET ? ON DUPLICATE KEY UPDATE data = ?`, [{
                     paccount: systemglobal.PixivUser,
