@@ -42,6 +42,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let args = minimist(process.argv.slice(2));
     let enablePullData = true;
     let post_history = [];
+    let pixivNotify = new Map();
 
     const { getIDfromText } = require('./utils/tools');
     const Logger = require('./utils/logSystem')(facilityName);
@@ -120,6 +121,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         } else {
             post_history = [..._illuhistory.rows.map(e => e.illu_id)];
             console.log(`Loaded ${post_history.length} post history`, post_history[0]);
+        }
+        const _pixivnotify = await db.query(`SELECT * FROM pixiv_notify`);
+        if (_pixivnotify.error) {
+            console.error(`Unable to get pixiv notifications!`)
+        } else {
+            const _tni = _pixivnotify.rows.map(e => e.id.toLowerCase());
+            _pixivnotify.rows.map(e => {
+                pixivNotify.set(e.id.toLowerCase(), e.channel)
+            });
+            Array.from(pixivNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => pixivNotify.delete(e));
+            console.log(`Notification enabled for ${pixivNotify.size} users`);
         }
     }
     await loadDatabaseCache();
@@ -657,9 +669,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 post_history.push(post.postID.toString());
                                                 await db.query(`INSERT IGNORE INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
                                             }
-                                            sentImage(ok);
-                                            _mqMessage = null;
-                                            post.file = {};
+                                            if ((pixivNotify.has(item.user.id) || pixivNotify.has(item.user.account)) && parseInt(index) === 0) {
+                                                const notifyChan = pixivNotify.get(item.user.id) || pixivNotify.get(item.user.account)
+                                                const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
+                                                mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+                                                    ...notifMessage,
+                                                    messageChannelID: notifyChan,
+                                                    messageText: `New Illustration from ${item.user.name}`,
+                                                    addButtons: []
+                                                }, async(ok) => {
+                                                    sentImage(ok);
+                                                    _mqMessage = null;
+                                                    post.file = {};
+                                                })
+                                            } else {
+                                                sentImage(ok);
+                                                _mqMessage = null;
+                                                post.file = {};
+                                            }
                                         })
                                     } else {
                                         Logger.printLine("PixivDownload", `Failed to downloaded url ${url}! Skipped!`, "debug")
