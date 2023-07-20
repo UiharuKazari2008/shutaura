@@ -999,7 +999,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					break;
 				case "Download":
 					downloadTweet(message, cb);
-					cb(true);
 					break;
 				case "DownloadUser":
 					//downloadUser(message, cb);
