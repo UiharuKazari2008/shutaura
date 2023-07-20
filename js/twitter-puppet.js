@@ -22,6 +22,7 @@ about release, "snippets", or to report spillage are to be directed to:
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
 
+const moment = require("moment/moment");
 (async () => {
 	let systemglobal = require('../config.json');
 	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -654,6 +655,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											if (err) {
 												Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
 											}
+											let tweetDate = moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss')
 											messageArray.push({
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfile',
@@ -661,6 +663,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
 												itemFileData: image,
 												itemFileName: filename,
+												itemDateTime: tweetDate,
 												messageText: `**🌁 Twitter Image** - ***${obj.tweet.userName} (@${obj.tweet.screenName})***${(obj.tweet.text && obj.tweet.text.length > 0) ? '\n**' + obj.tweet.text + '**' : ''}`,
 												tweetMetadata: {
 													account: obj.accountid,
@@ -979,25 +982,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
 		const twit = twitterAccounts.get(twitterUser);
 		try {
-			const tweets = await new Promise((resolve, reject) => {
-				twit.client.get('statuses/user_timeline', {
-					screen_name: message.userID,
-					count: (message.tweetCount) ? message.tweetCount : 3200,
-					include_rts: !(message.excludeRT),
-					exclude_replies: !(message.excludeReplys)
-				}, async (err, data, response) => {
-					if (err) {
-						Logger.printLine("Twitter", `Failed to get users tweets - ${err.message}`, "error", err)
-						resolve([]);
-					} else {
-						resolve(data)
-					}
-				})
-			})
+			const tweets = await doomScrollUser(message.userID, twit);
 			Logger.printLine("Twitter", `Account ${twitterUser}: Returning ${tweets.length} tweets for user ${message.userID}`, "info")
-			let listRequests = tweets.filter(e => ((e.extended_entities && e.extended_entities.media) || e.entities.media)).reduce((promiseChain, tweet) => {
+			let listRequests = tweets.reduce((promiseChain, tweet) => {
 				return promiseChain.then(() => new Promise(async (tweetResolve) => {
-					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str]);
+					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [(tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id]);
 					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
 						const competedTweet = await sendTweetToDiscordv2({
 							channelid: message.messageChannelID || message.messageDestinationID || discordaccount[0].chid_download,
@@ -1025,7 +1014,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									sent = false;
 							}
 							if (lasttweet.rows.length === 0 && sent)
-								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str, message.listId || null])
+								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [(tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id, message.listId || null])
 						}
 					}
 					tweetResolve(true);
@@ -1066,8 +1055,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					downloadTweet(message, cb);
 					break;
 				case "DownloadUser":
-					//downloadUser(message, cb);
-					cb(true);
+					downloadUser(message, cb);
 					break;
 				case "PullTweets":
 					//downloadMissingTweets(message.listID);
@@ -1351,12 +1339,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		return returnedTweets;
 	}
-	async function doomScrollSearch(user, account) {
+	async function doomScrollUser(user, account) {
 		const search = `(from:${user}) filter:images -filter:retweets`
 		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
 		const SCROLL_DELAY_MS_MIN = 100;
 		const SCROLL_DELAY_MS_MAX = 2500;
-		const MAX_TWEET_COUNT = 500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
 
@@ -1380,15 +1367,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		let stop = false;
 		let stopCount = 0;
 		while (!stop) {
-			if (parsedIDs.length > MAX_TWEET_COUNT)
-				stop = true;
 			if (previousHeight === currentHeight) {
 				if (stopCount > 10)
 					stop = true;
 				stopCount++;
 			}
 			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
-			//await page.keyboard.press("PageDown");
 			await page.waitForTimeout(1200);
 
 			previousHeight = currentHeight;
