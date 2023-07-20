@@ -133,7 +133,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const _twitter_account = systemparams_sql.filter(e => e.param_key === 'twitter.account' && e.param_data && e.account);
 			if (_twitter_account.length > 0)
 				systemglobal.Twitter_Accounts = _twitter_account.map(e => {
-					console.log(e.param_data)
 					return {
 						id: e.account,
 						...e.param_data
@@ -291,6 +290,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}, 60000)
 			cont(true)
 		})
+	} else {
+		enablePullData = true;
 	}
 
 	// Kanmi MQ Backend
@@ -974,6 +975,70 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 		}
 	}
+	async function downloadUser(message, cb) {
+		const twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
+		const twit = twitterAccounts.get(twitterUser);
+		try {
+			const tweets = await new Promise((resolve, reject) => {
+				twit.client.get('statuses/user_timeline', {
+					screen_name: message.userID,
+					count: (message.tweetCount) ? message.tweetCount : 3200,
+					include_rts: !(message.excludeRT),
+					exclude_replies: !(message.excludeReplys)
+				}, async (err, data, response) => {
+					if (err) {
+						Logger.printLine("Twitter", `Failed to get users tweets - ${err.message}`, "error", err)
+						resolve([]);
+					} else {
+						resolve(data)
+					}
+				})
+			})
+			Logger.printLine("Twitter", `Account ${twitterUser}: Returning ${tweets.length} tweets for user ${message.userID}`, "info")
+			let listRequests = tweets.filter(e => ((e.extended_entities && e.extended_entities.media) || e.entities.media)).reduce((promiseChain, tweet) => {
+				return promiseChain.then(() => new Promise(async (tweetResolve) => {
+					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str]);
+					if (lasttweet.rows.length === 0 || message.allowDuplicates) {
+						const competedTweet = await sendTweetToDiscordv2({
+							channelid: message.messageChannelID || message.messageDestinationID || discordaccount[0].chid_download,
+							saveid: message.messageDestinationID || discordaccount[0].chid_download,
+							nsfw: message.listNsfw || 0,
+							txtallowed: message.listTxtallowed || 0,
+							fromname: message.listName || "Manual Download",
+							tweet,
+							redirect: message.listRedirect_taccount || 0,
+							bypasscds: message.listBypasscds || 1,
+							autolike: message.listAutolike || 0,
+							replyenabled: message.listReplyenabled || 0,
+							mergelike: message.listMergelike || 0,
+							listusers: message.listUsers || 0,
+							disablelike: message.listDisablelike || 0,
+							list_num: message.listNum || 0,
+							list_id: message.listId || 0,
+							accountid: twitterUser,
+						})
+						if (competedTweet && competedTweet.length > 0) {
+							let sent = true
+							for (let i in competedTweet) {
+								const _sent = await mqClient.publishData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
+								if (!_sent)
+									sent = false;
+							}
+							if (lasttweet.rows.length === 0 && sent)
+								await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [((tweet.retweeted_status && tweet.retweeted_status.id_str)) ? tweet.retweeted_status.id_str : tweet.id_str, message.listId || null])
+						}
+					}
+					tweetResolve(true);
+				}))
+			}, Promise.resolve());
+			listRequests.then(async (ok) => {
+				cb(true);
+			})
+		} catch (err) {
+			Logger.printLine("Twitter", `Failed to get users tweets using account ${twitterUser} - ${err.message}`, "error", err)
+			console.error(err);
+		}
+	}
 	function doAction(message, cb) {
 		if (message.messageText !== 'undefined') {
 			switch (message.messageIntent) {
@@ -1227,6 +1292,95 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		let stopCount = 0;
 		while (!stop) {
 			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
+				stop = true;
+			if (previousHeight === currentHeight) {
+				if (stopCount > 10)
+					stop = true;
+				stopCount++;
+			}
+			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
+			//await page.keyboard.press("PageDown");
+			await page.waitForTimeout(1200);
+
+			previousHeight = currentHeight;
+			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+			returnedTweets.push(...(await page.evaluate(() => {
+				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
+				const img_tweets = Array.from(
+					twt
+						.filter(e =>
+							e.querySelector('img[src*="/media/"]') &&
+							e.querySelectorAll('time').length === 1)
+				)
+				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
+				const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
+
+				console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+
+				return [
+					...nom_tweets.map(a => {
+						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+							const url = e.src.split('?');
+							const sq = new URLSearchParams(url[1]);
+							sq.delete('name')
+							sq.set('name', 'large')
+							return {
+								media_url: url[0] + '?' + sq.valueOf(),
+								format: sq.getAll('format')[0],
+								type: "photo"
+							}
+						});
+						const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+						const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
+						const userName = userDiv.filter(e => !e.includes('@')).pop()
+						const text = (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
+						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
+						const id = metadataDiv.href.split('/').pop()
+						const date = metadataDiv.querySelector('time').attributes['datetime'].value
+
+						return { id, date, userName, screenName, text, images, retweeted: false };
+					})
+				]
+				// Add RT support here
+			})).filter(e => parsedIDs.indexOf(e.id) === -1));
+			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
+		}
+		await page.close();
+
+		return returnedTweets;
+	}
+	async function doomScrollSearch(user, account) {
+		const search = `(from:${user}) filter:images -filter:retweets`
+		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
+		const SCROLL_DELAY_MS_MIN = 100;
+		const SCROLL_DELAY_MS_MAX = 2500;
+		const MAX_TWEET_COUNT = 500;
+
+		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
+
+		const page = await account.browser.newPage();
+		await page.setViewport({
+			width: 1080,
+			height: 4096,
+			deviceScaleFactor: 1,
+		});
+		await page.setUserAgent(
+			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
+		);
+		await page.setCookie(...account.cookie);
+		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
+
+		let previousHeight = 0;
+		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+		let returnedTweets = [];
+		let parsedIDs = [];
+
+		let stop = false;
+		let stopCount = 0;
+		while (!stop) {
+			if (parsedIDs.length > MAX_TWEET_COUNT)
 				stop = true;
 			if (previousHeight === currentHeight) {
 				if (stopCount > 10)

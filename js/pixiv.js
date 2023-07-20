@@ -226,6 +226,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, 60000)
             cont(true)
         })
+    } else {
+        enablePullData = true;
     }
 
 // Kanmi MQ Backend
