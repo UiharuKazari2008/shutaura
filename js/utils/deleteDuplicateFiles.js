@@ -146,5 +146,8 @@ ORDER BY eid DESC;`)
                 }
             }));
         }, Promise.resolve());
+        filenameLookup.then(() => {
+            console.log('Completed')
+        })
     }, 2000)
 })()
