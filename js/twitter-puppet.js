@@ -126,6 +126,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_mq_twit_in.length > 0 && _mq_twit_in[0].param_value) {
 				systemglobal.Twitter_In = _mq_twit_in[0].param_value;
 			}
+			const _chrome_path = systemparams_sql.filter(e => e.param_key === 'chrome.exec');
+			if (_chrome_path.length > 0 && _chrome_path[0].param_value) {
+				systemglobal.Chrome_Exec = _chrome_path[0].param_value;
+			}
 			const _twitter_account = systemparams_sql.filter(e => e.param_key === 'twitter.account' && e.param_data && e.account);
 			if (_twitter_account.length > 0)
 				systemglobal.Twitter_Accounts = _twitter_account.map(e => {
@@ -208,6 +212,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				cookie: account.cookies,
 				screenName: account.screenName,
 				browser: await puppeteer.launch({
+					executablePath: systemglobal.Chrome_Exec || undefined,
 					headless: (account.headless !== undefined) ? account.headless : 'new',
 					args: ['--no-sandbox', '--disable-setuid-sandbox', '--inprivate']
 				}),
