@@ -552,8 +552,6 @@ const moment = require("moment/moment");
 			//verifyQueue();
 			if (enablePullData) {
 				//updateStats();
-				await getTweets();
-				await getLikes();
 			}
 			cron.schedule('*/30 * * * *', () => {
 				if (enablePullData) {
