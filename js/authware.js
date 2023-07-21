@@ -1208,7 +1208,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }))
                 }
                 if (systemglobal.review_channels) {
-                    userAccount.review_channels = systemglobal.review_channels.filter(e => managePermissions(e.role) !== -1 || specialPermissions(e.role) !== -1)
+                    userAccount.review_channels = systemglobal.review_channels.filter(e => managePermissions.indexOf(e.role) !== -1 || specialPermissions.indexOf(e.role) !== -1)
                 }
 
                 let SidebarArray = [];
