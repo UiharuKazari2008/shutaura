@@ -438,7 +438,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
 
     }
-    async function parseItems(list, channel, level, message, duplicates) {
+    async function parseItems(list, channel, level, message) {
         return new Promise(async (completedPage) => {
             const sentTo = `${systemglobal.PDP_Out || systemglobal.Discord_Out}${(level) ? '.' + level : ''}`
             const _pconfig = await db.query(`SELECT * FROM pixiv_accounts WHERE paccount = ?`, [systemglobal.PixivUser]);
@@ -573,9 +573,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = post_history.indexOf(item.id.toString()) !== -1;
+                        const foundillu = post_history.indexOf(item.id.toString()) === -1;
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
-                        if (duplicates || !foundillu) {
+                        if (foundillu) {
                             let followUser = (!item.user.is_followed);
                             if (autoDownload.rows.length > 0) {
                                 if (autoDownload.rows[0].channelid) {
@@ -680,8 +680,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }, Promise.resolve());
                             requests.then(async () => {
                                 Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug');
-                                post_history.push(post.postID.toString());
-                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID, post.userID])
+                                post_history.unshift(post.postID.toString());
+                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID.toString(), post.userID])
                                 if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
                                     const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
                                     const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
@@ -710,8 +710,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function saveRecomIllus(list) {
         // noinspection ES6MissingAwait
         await list.forEach(async e => {
-            const previousItem = post_history.indexOf(e.id.toString()) !== -1;
-            if (!previousItem) {
+            const previousItem = post_history.indexOf(e.id.toString()) === -1;
+            if (previousItem) {
                 const addResponse = await db.query(`INSERT INTO pixiv_recomm_illu SET ? ON DUPLICATE KEY UPDATE data = ?`, [{
                     paccount: systemglobal.PixivUser,
                     id: e.id,
@@ -848,11 +848,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("getNewRecomIllust", `Returned no recommended items (Caught err), Canceled`, "error", err)
         }
     }
-    async function getUserllustAll(userID, channelID, duplicates) {
+    async function getUserllustAll(userID, channelID) {
         try {
             let results = await pixivClient.userIllusts(userID);
             if (results && results.illusts && results.illusts.length > 0) {
-                await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
+                await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined)
                 while (true) {
                     try {
                         if (!results.next_url) {
@@ -860,7 +860,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             break;
                         }
                         results = await pixivClient.requestUrl(results.next_url)
-                        await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined, duplicates)
+                        await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined)
                         await sleep(15000)
                     } catch (err) {
                         Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (Caught err)`, "debug")
@@ -876,11 +876,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("getUserllustAll", `Returned no items for ${userID} (Caught err), Canceled`, "error", err)
         }
     }
-    async function getllust(userID, channelID, duplicates) {
+    async function getllust(userID, channelID) {
         try {
             const results = await pixivClient.illustDetail(userID);
             if (results && results.illust) {
-                await parseItems([results.illust], (channelID) ? channelID : "download", "priority", undefined, duplicates);
+                await parseItems([results.illust], (channelID) ? channelID : "download", "priority", undefined);
             } else {
                 Logger.printLine("getllust", `Returned no items for ${userID}, Canceled`, "debug")
             }
@@ -921,12 +921,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 break;
             case 'DownloadUser' :
                 Logger.printLine("getUserllustAll", `Remote Request to get user: ${message.postID}`, "debug", message)
-                await getUserllustAll(message.postID, message.messageChannelID, (message.allowDuplicates))
+                await getUserllustAll(message.postID, message.messageChannelID)
                 complete(true)
                 break;
             case 'DownloadPost' :
                 Logger.printLine("getllust", `Remote Request to get post: ${message.postID}`, "debug", message)
-                await getllust(message.postID, message.messageChannelID, (message.allowDuplicates))
+                await getllust(message.postID, message.messageChannelID)
                 complete(true)
                 break;
             case 'DownloadRecommended' :
