@@ -139,6 +139,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.user_card_membership = _seq_config[0].param_data.user_card_membership;
                 if (_seq_config[0].param_data.web_applications)
                     systemglobal.web_applications = _seq_config[0].param_data.web_applications;
+                if (_seq_config[0].param_data.review_channels)
+                    systemglobal.review_channels = _seq_config[0].param_data.review_channels;
             }
             const _exchange_config = systemparams_sql.filter(e => e.param_key === 'exchange.local');
             if (_exchange_config.length > 0 && _exchange_config[0].param_data) {
@@ -1110,6 +1112,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 artists: [],
                 media_groups: [],
                 applications_list: [],
+                review_channels: [],
                 kongou_next_episode: {},
                 disabled_channels: (disabledChannels) ? disabledChannels.map(e => e.cid) : [],
                 time_generated: (new Date().valueOf()).toString(),
@@ -1203,6 +1206,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                         }
                     }))
+                }
+                if (systemglobal.review_channels) {
+                    userAccount.review_channels = systemglobal.review_channels.filter(e => managePermissions(e.role) !== -1 || specialPermissions(e.role) !== -1)
                 }
 
                 let SidebarArray = [];
