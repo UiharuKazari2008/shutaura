@@ -839,6 +839,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const user = await discordClient.getRESTUser(member.id)
             const updateUser = await db.query("INSERT INTO discord_users SET serveruserid = ?, id = ?, server = ?, username = ?, avatar = ?, banner = ?, color = ? ON DUPLICATE KEY UPDATE username = ?, avatar = ?, banner = ?, color = ?", [member.id + guild.id, member.id, guild.id, `${username}`, member.user.avatar, user.banner, user.accentColor, username, member.user.avatar, user.banner, user.accentColor])
 
+            console.log({
+                ...user,
+                guild: undefined,
+                client: undefined
+            })
+
             if (updateUser && updateUser.rows.length > 0) {
                 memberTokenGeneration();
             }
@@ -1069,6 +1075,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         username: users[0].username,
                         avatar: users[0].avatar,
                         banner: users[0].banner,
+                        accent: users[0].accentColor,
                         known: true,
                         membership: {
                             text: 'Member'

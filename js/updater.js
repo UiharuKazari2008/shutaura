@@ -1,4 +1,3 @@
-const systemglobal = require("../config.json");
 (async () => {
     const facilityName = 'Updater';
     const path = require('path');
@@ -350,7 +349,7 @@ const systemglobal = require("../config.json");
         }
         return true
     }
-    
+
     if (systemglobal.UpdateProjects) {
          await Promise.all(systemglobal.UpdateProjects.map(async project => {
              await updateProject(project.name, (project.branch) ? project.branch : (project.name) ? 'main' : undefined)
