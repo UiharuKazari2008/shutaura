@@ -516,6 +516,9 @@ This code is publicly released and is restricted by its project license
                             systemglobal.Discord_Insights_Use_Server_Icon.default = (e.param_data.use_server_icon)
                         }
                     }
+                    if (e.param_data.omitted_backup_hosts !== undefined) {
+                        systemglobal.Omitted_Backup_Hosts = e.param_data.omitted_backup_hosts;
+                    }
                 }))
             }
             // Discord Insights Panel - Requires Server ID
@@ -5481,7 +5484,7 @@ This code is publicly released and is restricted by its project license
 
                 console.log(`Getting Backup counts...`)
                 // Backup and Sync System
-                _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.map(async (row) => {
+                _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.filter(e => !(systemglobal.Omitted_Backup_Hosts && systemglobal.Omitted_Backup_Hosts.indexOf(e.system_name) !== -1)).map(async (row) => {
                     const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
                     let partsDisabled = false;
                     let cdsAccess = false;

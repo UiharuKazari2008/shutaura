@@ -1,5 +1,4 @@
 // noinspection ES6MissingAwait
-
 /*    ___                  __                        _______ __
      /   | _________ _____/ /__  ____ ___  __  __   / ____(_) /___  __
     / /| |/ ___/ __ `/ __  / _ \/ __ `__ \/ / / /  / /   / / __/ / / /
@@ -21,8 +20,6 @@ about release, "snippets", or to report spillage are to be directed to:
 (Academy City Research Document & Data Control Services)
 docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 ====================================================================================== */
-
-const moment = require("moment/moment");
 (async () => {
 	let systemglobal = require('../config.json');
 	if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
