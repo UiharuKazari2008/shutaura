@@ -31,7 +31,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const amqp = require('amqplib/callback_api');
 	const fs = require('fs');
 	const sharp = require('sharp');
-	const GIFEncoder = require('gifencoder');
 	const colors = require('colors');
 	const probe = require('probe-image-size');
 	const crypto = require('crypto');
@@ -56,7 +55,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitteraccount;
 
 	let overflowControl = new Map();
-	let activeTasks = new Map();
+	let   = new Map();
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
@@ -1349,33 +1348,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				encoding: 'binary',
 				fullPage: false,
 				quality: 50,
-				captureBeyondViewport: false
+				captureBeyondViewport: true
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
 		await page.close();
-
-		(async () => {
-			const width = 720, height = 1280;
-			const encoder = new GIFEncoder(width, height);
-			encoder.createReadStream().pipe(fs.createWriteStream(path.join(systemglobal.TempFolder, `screenshots/${list.listid}.gif`)));
-			encoder.start();
-			encoder.setRepeat(-1);
-			encoder.setDelay(250);
-			encoder.setQuality(100);
-
-			const files = fs.readdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`));
-			for (const file of files) {
-				const imageData = await sharp(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`, file))
-					.resize(width, height)
-					.toBuffer();
-				encoder.addFrame(imageData);
-			}
-
-			encoder.finish();
-		})().then(() => {
-			console.log('Created GIF of interaction')
-		})
 
 		return returnedTweets;
 	}
@@ -1406,6 +1383,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		let stop = false;
 		let stopCount = 0;
+
+		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
+		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
+			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
+		}
+
 		while (!stop) {
 			if (previousHeight === currentHeight) {
 				if (stopCount > 10)
@@ -1458,6 +1441,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				// Add RT support here
 			})).filter(e => parsedIDs.indexOf(e.id) === -1));
 			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+			await page.screenshot({
+				path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
+				type: 'jpeg',
+				encoding: 'binary',
+				fullPage: false,
+				quality: 50,
+				captureBeyondViewport: true
+			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
 		await page.close();
