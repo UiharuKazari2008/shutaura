@@ -1385,9 +1385,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		let stop = false;
 		let stopCount = 0;
 
-		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
-		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
-			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
+		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), { recursive: true, force: true });
+		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`))) {
+			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), { recursive: true });
 		}
 
 		while (!stop) {
@@ -1443,7 +1443,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			})).filter(e => parsedIDs.indexOf(e.id) === -1));
 			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
 			await page.screenshot({
-				path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
+				path: path.join(systemglobal.TempFolder, `screenshots/dl-${user}/${(new Date()).valueOf()}.jpg`),
 				type: 'jpeg',
 				encoding: 'binary',
 				fullPage: false,
