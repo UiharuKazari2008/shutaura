@@ -1345,6 +1345,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			await page.screenshot({
 				path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
 				type: 'jpeg',
+				encoding: 'binary',
 				fullPage: false,
 				quality: 50,
 				captureBeyondViewport: false
