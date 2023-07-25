@@ -1356,7 +1356,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.close();
 
 		(async () => {
-			const width = 1200, height = 630;
+			const width = 720, height = 1280;
 			const encoder = new GIFEncoder(width, height);
 			encoder.createReadStream().pipe(fs.createWriteStream(path.join(systemglobal.TempFolder, `screenshots/${list.listid}.gif`)));
 			encoder.start();
