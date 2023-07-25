@@ -1291,7 +1291,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
 				stop = true;
 			if (previousHeight === currentHeight) {
-				if (stopCount > 10)
+				if (stopCount > 25)
 					stop = true;
 				stopCount++;
 			}
@@ -1392,7 +1392,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		while (!stop) {
 			if (previousHeight === currentHeight) {
-				if (stopCount > 10)
+				if (stopCount > 25)
 					stop = true;
 				stopCount++;
 			}
@@ -1487,7 +1487,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (parsedIDs.length > MAX_TWEET_COUNT )
 				stop = true;
 			if (previousHeight === currentHeight) {
-				if (stopCount > 10)
+				if (stopCount > 25)
 					stop = true;
 				stopCount++;
 			}
