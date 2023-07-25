@@ -55,7 +55,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitteraccount;
 
 	let overflowControl = new Map();
-	let   = new Map();
+	let activeTasks = new Map();
 	let twitterAccounts = new Map();
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
@@ -1158,7 +1158,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												sent = false;
 										}
 										if (sent)
-											await db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
+											await db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid]);
+											db.query(`INSERT IGNORE INTO twitter_list_users SET username = ?, listid = ?`, [tweet.screenName, list.listid]);
 									}
 									tweetResolve(true);
 							/*} else if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length > 0 ) {
