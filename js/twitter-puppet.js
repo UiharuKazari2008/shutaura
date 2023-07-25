@@ -30,9 +30,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const puppeteer = require('puppeteer');
 	const amqp = require('amqplib/callback_api');
 	const fs = require('fs');
+	const sharp = require('sharp');
+	const GIFEncoder = require('gifencoder');
 	const colors = require('colors');
 	const probe = require('probe-image-size');
-	const sharp = require('sharp');
 	const crypto = require('crypto');
 	const moment = require('moment');
 	const minimist = require('minimist');
@@ -211,7 +212,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				browser: await puppeteer.launch({
 					executablePath: systemglobal.Chrome_Exec || undefined,
 					headless: (account.headless !== undefined) ? account.headless : 'new',
-					args: ['--no-sandbox', '--disable-setuid-sandbox', '--inprivate']
+					args: [
+						'--no-sandbox',
+						'--disable-setuid-sandbox',
+						'--inprivate',
+						`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
+						'--remote-debugging-address=0.0.0.0'
+					]
 				}),
 				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
@@ -1091,7 +1098,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 
 	async function getTweets(countLimit) {
-		Array.from(twitterAccounts.entries()).forEach(async e => {
+		for (const e of Array.from(twitterAccounts.entries())) {
 			const id = e[0];
 			const twit = e[1];
 
@@ -1183,7 +1190,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 				console.log(`Account ${id}: Completed Pass`);
 			})
-		})
+		}
 	}
 	async function getLikes() {
 		const twitterlistRows = await db.query(`SELECT * FROM twitter_list WHERE taccount = 1 AND remotecds_onlike = 1`, [])
@@ -1250,7 +1257,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const page = await account.browser.newPage();
 		await page.setViewport({
 			width: 1080,
-			height: 4096,
+			height: 1920,
 			deviceScaleFactor: 1,
 		});
 		await page.setUserAgent(
@@ -1273,6 +1280,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		let stop = false;
 		let stopCount = 0;
+
+		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
+		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
+			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
+		}
+
 		while (!stop) {
 			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
 				stop = true;
@@ -1328,9 +1341,39 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				// Add RT support here
 			})).filter(e => parsedIDs.indexOf(e.id) === -1));
 			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+
+			await page.screenshot({
+				path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
+				type: 'jpeg',
+				fullPage: false,
+				quality: 50,
+				captureBeyondViewport: false
+			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
 		await page.close();
+
+		(async () => {
+			const width = 1200, height = 630;
+			const encoder = new GIFEncoder(width, height);
+			encoder.createReadStream().pipe(fs.createWriteStream(path.join(systemglobal.TempFolder, `screenshots/${list.listid}.gif`)));
+			encoder.start();
+			encoder.setRepeat(-1);
+			encoder.setDelay(250);
+			encoder.setQuality(100);
+
+			const files = fs.readdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`));
+			for (const file of files) {
+				const imageData = await sharp(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`, file))
+					.resize(width, height)
+					.toBuffer();
+				encoder.addFrame(imageData);
+			}
+
+			encoder.finish();
+		})().then(() => {
+			console.log('Created GIF of interaction')
+		})
 
 		return returnedTweets;
 	}
