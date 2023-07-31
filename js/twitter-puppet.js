@@ -202,7 +202,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let Twitter = null;
 
 	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
-		if (account.id !== undefined) {
+		if (account.id && account.cookies) {
 			Logger.printLine("Twitter", "Settings up Twitter Client using account #" + account.id, "debug")
 			if (account.flowcontrol)
 				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
