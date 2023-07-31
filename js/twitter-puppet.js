@@ -133,7 +133,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_twitter_account.length > 0)
 				systemglobal.Twitter_Accounts = _twitter_account.map(e => {
 					return {
-						id: e.account,
+						id: parseInt(e.account.toString()),
 						...e.param_data
 					}
 				})
