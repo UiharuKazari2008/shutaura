@@ -573,7 +573,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
 
-                        const foundillu = post_history.indexOf(item.id.toString()) === -1;
+                        let foundillu = post_history.indexOf(item.id.toString()) === -1;
+                        if (foundillu)
+                            foundillu = (await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID.toString(), post.userID])).error === undefined
                         const autoDownload = await db.query(`SELECT user_id, channelid FROM pixiv_autodownload WHERE user_id = ?`, [item.user.id]);
                         if (foundillu) {
                             let followUser = (!item.user.is_followed);
@@ -681,7 +683,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             requests.then(async () => {
                                 Logger.printLine("IlluParser", `Completed Parsing Illustrations`, 'debug');
                                 post_history.unshift(post.postID.toString());
-                                await db.query(`INSERT INTO pixiv_history_illu VALUES (?, ?, NOW())`, [post.postID.toString(), post.userID])
                                 if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
                                     const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
                                     const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
