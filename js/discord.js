@@ -721,12 +721,13 @@ This code is publicly released and is restricted by its project license
     const MQWorker1 = systemglobal.Discord_Out + '.priority';
     const MQWorker2 = systemglobal.Discord_Out;
     const MQWorker3 = systemglobal.Discord_Out + '.backlog';
+    const MQWorker4 = systemglobal.Discord_Out + '.sequenzia';
     const MQWorkerMugino = systemglobal.Mugino_In
 
     const limiter1 = new RateLimiter((systemglobal.Limiter_1_Tokens) ? systemglobal.Limiter_1_Tokens : 15, (systemglobal.Limiter_1_Interval) ? systemglobal.Limiter_1_Interval : 60000);
     const limiter2 = new RateLimiter((systemglobal.Limiter_2_Tokens) ? systemglobal.Limiter_2_Tokens : 10, (systemglobal.Limiter_2_Interval) ? systemglobal.Limiter_2_Interval : 60000);
     const limiter3 = new RateLimiter((systemglobal.Limiter_3_Tokens) ? systemglobal.Limiter_3_Tokens : 5, (systemglobal.Limiter_3_Interval) ? systemglobal.Limiter_3_Interval : 60000);
-    const limiter4 = new RateLimiter((systemglobal.Limiter_4_Tokens) ? systemglobal.Limiter_4_Tokens : 10, (systemglobal.Limiter_4_Interval) ? systemglobal.Limiter_4_Interval : 60000);
+    const limiter4 = new RateLimiter((systemglobal.Limiter_4_Tokens) ? systemglobal.Limiter_4_Tokens : 15, (systemglobal.Limiter_4_Interval) ? systemglobal.Limiter_4_Interval : 60000);
 
     const MQWorker10 = 'failed.' + systemglobal.Discord_Out;
 
@@ -765,6 +766,7 @@ This code is publicly released and is restricted by its project license
             });
         });
     }
+    // Priority
     function startWorker() {
         amqpConn.createChannel(function(err, ch) {
             if (closeOnErr(err)) return;
@@ -932,6 +934,60 @@ This code is publicly released and is restricted by its project license
             cb(true)
         }
     }
+    // Seq Jobs
+    function startWorker4() {
+        amqpConn.createChannel(function(err, ch) {
+            if (closeOnErr(err)) return;
+            ch.on("error", function(err) {
+                Logger.printLine("KanmiMQ", "Channel 4 Error (Sequenzia)", "error", err)
+            });
+            ch.on("close", function() {
+                Logger.printLine("KanmiMQ", "Channel 4 Closed (Sequenzia)", "critical" )
+                if (!gracefulShutdown)
+                    startWorker4();
+            });
+            ch.prefetch((systemglobal.Prefetch_1_Count) ? parseInt(systemglobal.Prefetch_1_Count.toString()) : 10);
+            ch.assertQueue(MQWorker4, { durable: true }, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.consume(MQWorker4, processMsg, { noAck: false });
+                Logger.printLine("KanmiMQ", "Channel 4 Worker Ready (Sequenzia)", "debug")
+            });
+            ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.bindQueue(MQWorker4, "kanmi.exchange", MQWorker4, [], function(err, _ok) {
+                    if (closeOnErr(err)) return;
+                    Logger.printLine("KanmiMQ", "Channel 4 Worker Bound to Exchange (Sequenzia)", "debug")
+                })
+            });
+            function processMsg(msg) {
+                work4(msg, function(ok) {
+                    try {
+                        if (ok)
+                            ch.ack(msg);
+                        else
+                            ch.reject(msg, true);
+                    } catch (e) {
+                        closeOnErr(e);
+                    }
+                });
+            }
+        });
+    }
+    async function work4(msg, cb) {
+        if (gracefulShutdown) {
+            Logger.printLine("KanmiMQ", "Channel 4 Worker, Graceful Shutdown was activated, not accepting new messages")
+            await sleep(90000000)
+        }
+        let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
+        if (parseInt(MessageContents.messageChannelID).toString() !== 'NaN') {
+            limiter4.removeTokens(1, function() {
+                parseRemoteAction(MessageContents, "Sequenzia", cb)
+            });
+        } else {
+            Logger.printLine("KanmiMQ",`Client ${MessageContents.fromClient} has sent a bad Channel ID of "${MessageContents.messageChannelID}"`, 'critical', MessageContents)
+            cb(true)
+        }
+    }
     // Kanmi MQ Backend
     function start() {
         amqp.connect(MQServer, function(err, conn) {
@@ -975,6 +1031,7 @@ This code is publicly released and is restricted by its project license
         startWorker();
         startWorker2();
         startWorker3();
+        startWorker4();
         if (process.send && typeof process.send === 'function' && init === 0) {
             process.send('ready');
         }
