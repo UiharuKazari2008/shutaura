@@ -1395,7 +1395,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         ...remoteAccount[0],
                         exchange: {
                             ...e.cache.exchange,
-                            ...e.cache.config
+                            ...e.cache.config,
+                            position: e.cache.position || 10
                         }
                     }
                 }
@@ -1473,7 +1474,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             } else {
                                 try {
                                     if (body && body.success && body.version === '1') {
-                                        await db.query(`INSERT INTO sequenzia_cie_cache SET id = ?, cache = ? ON DUPLICATE KEY UPDATE cache = ?, date = NOW()`, [id, JSON.stringify(body), JSON.stringify(body)])
+                                        await db.query(`INSERT INTO sequenzia_cie_cache SET id = ?, cache = ? ON DUPLICATE KEY UPDATE cache = ?, date = NOW()`, [id, JSON.stringify({...body, position: thisExchange.position || 10}), JSON.stringify({...body, position: thisExchange.position || 10})])
                                         json(body)
                                     } else {
                                         Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
