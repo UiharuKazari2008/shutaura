@@ -1473,7 +1473,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             } else {
                                 try {
                                     if (body && body.success && body.version === '1') {
-                                        await db.query(`INSERT INTO sequenzia_cie_cache SET id = ?, cache = ? ON DUPLICATE KEY UPDATE cache = ?, date = NOW()`, [id, body, body])
+                                        await db.query(`INSERT INTO sequenzia_cie_cache SET id = ?, cache = ? ON DUPLICATE KEY UPDATE cache = ?, date = NOW()`, [id, JSON.stringify(body), JSON.stringify(body)])
                                         json(body)
                                     } else {
                                         Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
