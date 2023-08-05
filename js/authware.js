@@ -1395,9 +1395,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         ...remoteAccount[0],
                         exchange: {
                             ...e.cache.exchange,
-                            ...e.cache.config,
-                            position: e.cache.position || 10
-                        }
+                            ...e.cache.config
+                        },
+                        position: e.cache.position || 10
                     }
                 }
             })
