@@ -55,6 +55,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let discordreactionsroles;
     let reactionmessages
     let staticChID = {};
+    let enableListening = true;
     let pendingRequests = new Map();
 
     const Logger = require('./utils/logSystem')(facilityName);
@@ -231,60 +232,40 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 })
             })
             if (!isBootable) {
-                if (process.send && typeof process.send === 'function') {
-                    process.send('ready');
-                }
-                while (true) {
-                    await new Promise(st => setTimeout(st, 60000))
-                    const response = await new Promise(ok => {
-                        request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                                console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
-                                ok(true);
-                            } else {
-                                const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                                if (jsonResponse.error) {
-                                    console.error(jsonResponse.error);
-                                    ok(true);
-                                } else {
-                                    if (jsonResponse.active) {
-                                        Logger.printLine("ClusterIO", "System now elected as active, Restarting...", "info");
-                                    }
-                                    ok(!jsonResponse.active);
-                                }
-                            }
-                        })
-                    })
-                    if (!response)
-                        break;
-                }
-                process.exit(1);
+                Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "warn");
+                enableListening = false;
             } else {
                 Logger.printLine("ClusterIO", "System active master", "info");
-                setInterval(() => {
-                    if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
-                        Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, Restarting...", "critical");
-                        process.exit(1);
-                    }
-                    request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
-                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                enableListening = true;
+            }
+            setInterval(() => {
+                if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= (systemglobal.Cluster_Comm_Loss_Time || 4.5)) {
+                    Logger.printLine("ClusterIO", "Cluster Manager Communication was lost, No longer listening!", "critical");
+                    enableListening = false;
+                }
+                request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                    } else {
+                        const jsonResponse = JSON.parse(Buffer.from(body).toString());
+                        if (jsonResponse.error) {
+                            console.error(jsonResponse.error);
                         } else {
-                            const jsonResponse = JSON.parse(Buffer.from(body).toString());
-                            if (jsonResponse.error) {
-                                console.error(jsonResponse.error);
-                            } else {
-                                lastClusterCheckin = (new Date().getTime())
-                                if (!jsonResponse.active) {
-                                    Logger.printLine("ClusterIO", "System is not active, Shutdown!", "warn");
-                                    process.exit(1);
+                            lastClusterCheckin = (new Date().getTime())
+                            if (!jsonResponse.active) {
+                                if (enableListening) {
+                                    Logger.printLine("ClusterIO", "System is not active, No longer listening!", "warn");
+                                    enableListening = false;
                                 }
+                            } else if (!enableListening) {
+                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                enableListening = true;
                             }
                         }
-                    })
-                }, 60000)
-                cont(true)
-            }
+                    }
+                })
+            }, 30000)
+            cont(true)
         })
     }
 
@@ -518,7 +499,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     function registerCommands() {
         discordClient.registerCommand("sudo", async function (msg,args) {
-            if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
                 const perms = await db.query(`SELECT role, server FROM discord_permissons WHERE name = 'syselevated'`);
                 const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
 
@@ -603,7 +584,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             guildOnly: true
         })
         discordClient.registerCommand("2fa", async function (msg,args) {
-            if (isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
+            if (enableListening && isAuthorizedUser('elevateAllowed', msg.member.id, msg.member.guild.id, msg.channel.id)) {
                 const users = await db.query(`SELECT 2fa_key FROM discord_users WHERE id = ? ORDER BY 2fa_key`, [msg.member.id]);
                 if (users.error) { return "SQL Error occurred when retrieving the user data" }
 
@@ -847,18 +828,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await sequenziaUserCacheGenerator(member.id);
     }
     app.get('/refresh/roles', async (req, res) => {
-        await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
-            const guild = discordClient.guilds.get(guildID)
+        if (enableListening) {
+            await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
+                const guild = discordClient.guilds.get(guildID)
 
-            await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
-                const role = guild.roles.get(roleID)
-                await guildRoleCreate(guild, role);
-            }))
-            await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
-                const member = guild.members.get(memberID)
-                await memberRoleGeneration(guild, member, true);
-            }))
-        }));
+                await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
+                    const role = guild.roles.get(roleID)
+                    await guildRoleCreate(guild, role);
+                }))
+                await Promise.all(Array.from(guild.members.keys()).map(async (memberID) => {
+                    const member = guild.members.get(memberID)
+                    await memberRoleGeneration(guild, member, true);
+                }))
+            }));
+        }
         res.status(200).send("OK");
     });
     async function memberRemoval(guild, member) {
@@ -918,7 +901,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     let sequenziaAccountUpdateTimer = null;
-    let crossExchangeCache = {}
     async function sequenziaUserCacheGenerator(thisUser) {
         if (sequenziaAccountUpdateTimer) {
             clearTimeout(sequenziaAccountUpdateTimer);
@@ -1405,22 +1387,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let allAccounts = {
                 master: userAccount
             }
-            if (systemglobal.Connected_Exchanges) {
-                Object.keys(crossExchangeCache).map(exh => {
-                    if (crossExchangeCache[exh] && crossExchangeCache[exh].users.length > 0) {
-                        const remoteAccount = crossExchangeCache[exh].users.filter(h => h.userid === userId).map(h => h.data.master);
-                        if (remoteAccount.length > 0) {
-                            allAccounts[exh] = {
-                                ...remoteAccount[0],
-                                exchange: {
-                                    ...crossExchangeCache[exh].exchange,
-                                    ...crossExchangeCache[exh].config
-                                }
-                            }
+            const cieCache = await db.query(`SELECT * FROM sequenzia_cie_cache`);
+            cieCache.rows.filter(e => e.cache.users.length > 0).map(e => {
+                const remoteAccount = e.cache.users.filter(h => h.userid === userId).map(h => h.data.master);
+                if (remoteAccount.length > 0) {
+                    allAccounts[e.id] = {
+                        ...remoteAccount[0],
+                        exchange: {
+                            ...e.cache.exchange,
+                            ...e.cache.config
                         }
                     }
-                })
-            }
+                }
+            })
 
             await db.query(`INSERT INTO  sequenzia_user_cache SET ? ON DUPLICATE KEY UPDATE ?`, [
                 { userid: userId, data: JSON.stringify(allAccounts) }, { data: JSON.stringify(allAccounts) }
@@ -1434,7 +1413,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     app.get('/refresh/sequenzia', async (req, res) => {
-        await sequenziaUserCacheGenerator((req.query && req.query.userid) ? req.query.userid : undefined);
+        if (enableListening)
+            await sequenziaUserCacheGenerator((req.query && req.query.userid) ? req.query.userid : undefined);
         res.status(200).send("OK");
     });
     if (systemglobal.This_Exchange && systemglobal.Authorized_Exchange) {
@@ -1493,7 +1473,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             } else {
                                 try {
                                     if (body && body.success && body.version === '1') {
-                                        crossExchangeCache[id] = body;
+                                        await db.query(`INSERT INTO sequenzia_cie_cache SET id = ?, cache = ? ON DUPLICATE KEY UPDATE cache = ?, date = NOW()`, [id, body, body])
                                         json(body)
                                     } else {
                                         Logger.printLine("Exchange", `Failed to handle response from exchange "${id}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
@@ -1517,22 +1497,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
 
-
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
-        request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-            }
-        })
-        setInterval(() => {
-            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                }
-            })
-        }, 60000)
-    }
-
     // Discord Event Listeners
     discordClient.on("ready", async () => {
         Logger.printLine("Discord", "Connected successfully to Discord!", "debug")
@@ -1540,22 +1504,38 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const gatewayURL = new URL(discordClient.gatewayURL);
         Logger.printLine("Discord", `Gateway: ${gatewayURL.host} using v${gatewayURL.searchParams.getAll('v').pop()}`, "debug")
         if (init === 0) {
+            if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+                setInterval(() => {
+                    request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                        if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        }
+                    })
+                }, 60000)
+            }
             discordClient.editStatus( "dnd", {
                 name: 'Initializing System',
                 type: 0
             })
             Logger.printLine("Discord", "Registering Commands", "debug")
             registerCommands();
-            memberTokenGeneration();
+            if (enableListening)
+                memberTokenGeneration();
             setInterval(() => { updateLocalCache() }, 300000)
             app.listen(sbiPort, (err) => {
                 if (err) console.log("Error in server setup")
                 console.log("API listening on port: " + sbiPort);
             });
         }
-        setInterval(memberTokenGeneration, 3600000);
+        if (enableListening)
+            setInterval(memberTokenGeneration, 3600000);
         setTimeout(() => {
-            discordClient.editStatus( "online", null);
+            discordClient.editStatus("online", null);
             if (process.send && typeof process.send === 'function') {
                 process.send('ready');
             }
@@ -1571,7 +1551,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 sudoRole: _ad,
             })
         }));
-        await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
+        if (enableListening)
+            await Promise.all(Array.from(discordClient.guilds.keys()).filter(e => registeredServers.has(e)).map(async (guildID) => {
             const guild = discordClient.guilds.get(guildID)
 
             await Promise.all(Array.from(guild.roles.keys()).map(async (roleID) => {
@@ -1589,7 +1570,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         } else {
             Logger.printLine("Discord", "No Remote Exchnages to Sync", "debug");
         }
-        await sequenziaUserCacheGenerator();
+        if (enableListening)
+            await sequenziaUserCacheGenerator();
         init = 1;
     });
     discordClient.on("error", (err) => {
@@ -1598,15 +1580,36 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         discordClient.connect();
     });
 
-    discordClient.on("messageReactionAdd", (msg, emoji, user) => reactionAdded(msg, emoji, user));
-    discordClient.on("messageReactionRemove", (msg, emoji, user) => reactionRemoved(msg, emoji, (user.id) ? user.id : user));
+    discordClient.on("messageReactionAdd", (msg, emoji, user) => {
+        if (enableListening)
+            reactionAdded(msg, emoji, user)
+    });
+    discordClient.on("messageReactionRemove", (msg, emoji, user) => {
+        if (enableListening)
+            reactionRemoved(msg, emoji, (user.id) ? user.id : user)
+    });
 
-    discordClient.on("guildMemberAdd", async (guild, member) => { await stuTimer(guild, member) })
-    discordClient.on("guildMemberUpdate", async (guild, member) => { await stuTimer(guild, member) })
-    discordClient.on("guildMemberRemove", async (guild, member) => { await memberRemoval(guild, member) })
+    discordClient.on("guildMemberAdd", async (guild, member) => {
+        if (enableListening)
+            await stuTimer(guild, member)
+    })
+    discordClient.on("guildMemberUpdate", async (guild, member) => {
+        if (enableListening)
+            await stuTimer(guild, member)
+    })
+    discordClient.on("guildMemberRemove", async (guild, member) => {
+        if (enableListening)
+            await memberRemoval(guild, member)
+    })
 
-    discordClient.on('guildRoleUpdate', async (guild, role) => { await guildRoleCreate(guild, role) })
-    discordClient.on('guildRoleDelete', async (role) => { await guildRoleDelete(role) })
+    discordClient.on('guildRoleUpdate', async (guild, role) => {
+        if (enableListening)
+            await guildRoleCreate(guild, role)
+    })
+    discordClient.on('guildRoleDelete', async (role) => {
+        if (enableListening)
+            await guildRoleDelete(role)
+    })
 
     discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 

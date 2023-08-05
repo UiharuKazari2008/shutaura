@@ -114,40 +114,30 @@ WHERE (channel = '727768197108858890' OR channel = '966235278534660146' OR chann
 ORDER BY eid DESC;`)
         //
         console.log('Parseing...')
-        const name = results.rows.map(row => row.attachment_name)
-        const eid = results.rows.map(row => row.eid)
-        const filename = [...new Set(name)].filter(n => name.filter(r => r === n).length > 1)
-        console.log(`There are ${filename.length} files that have duplicates`);
-        let filenameLookup = filename.reduce((promiseChain, name, index) => {
-            return promiseChain.then(() => new Promise(async (batchComplete) => {
-                let duplicates = results.rows.filter(row => row.attachment_name === name)
-                if (duplicates.length > 1) {
-                    const last = duplicates.pop();
-                    let duplicateMatches = duplicates.reduce((promiseChain, msg, index) => {
-                        return promiseChain.then(() => new Promise(async (deleteSent) => {
-                            await db.query(`UPDATE kanmi_records SET hidden = 1 WHERE eid = ?`, [msg.eid]);
-                            mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
-                                fromClient: `return.CacheHandler`,
-                                messageReturn: false,
-                                messageID: msg.id,
-                                messageChannelID: msg.channel,
-                                messageServerID: msg.server,
-                                messageType: 'command',
-                                messageAction: 'RemovePost'
-                            }, function (ok) { deleteSent(ok) });
-                        }));
-                    }, Promise.resolve());
-                    duplicateMatches.then(async () => {
-                        console.log(`Deleted ${duplicates.length} duplicates, ${last.eid} is the only copy now`)
-                        batchComplete();
-                    })
-                } else {
-                    batchComplete();
-                }
-            }));
-        }, Promise.resolve());
-        filenameLookup.then(() => {
-            console.log('Completed')
-        })
+        const attachmentMap = new Map();
+        for (const row of results.rows) {
+            if (!attachmentMap.has(row.attachment_name)) {
+                attachmentMap.set(row.attachment_name, []);
+            }
+            attachmentMap.get(row.attachment_name).push(row);
+        }
+        const duplicateFiles = [];
+        for (const [name, rows] of attachmentMap.entries()) {
+            if (rows.length > 1) {
+                const sortedRows = rows.slice().sort((a, b) => a.eid - b.eid); // Sort by eid
+                duplicateFiles.push({
+                    name,
+                    rows: sortedRows.slice(0, -1), // Exclude the row with the lowest eid
+                    oldestRow: sortedRows[0] // Keep the oldest row
+                });
+            }
+        }
+        console.log(`There are ${duplicateFiles.length} files that have duplicates`);
+        for (const { rows, oldestRow } of duplicateFiles) {
+            for (const row of rows) {
+                await db.query(`UPDATE kanmi_records SET hidden = 1 WHERE eid = ?`, [row.eid])
+            }
+            console.log(`Deleted ${rows.length} duplicates, ${oldestRow.eid} is the only copy now`)
+        }
     }, 2000)
 })()
