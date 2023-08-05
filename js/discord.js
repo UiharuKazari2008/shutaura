@@ -2099,14 +2099,6 @@ This code is publicly released and is restricted by its project license
                                                                 const url = data.attachments[0].url.split('/attachments')[1]
                                                                 db.query(`UPDATE discord_users_extended SET avatar_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                 Logger.printLine('SetUserAvatar', `User Avatar for ${MessageContents.userId} set!`, 'debug')
-
-                                                                const userCache = (await db.query(`SELECT * FROM sequenzia_user_cache WHERE userid = ?`, [MessageContents.userId])).rows
-                                                                if (userCache.length > 0) {
-                                                                    const _data = userCache[0].data.master;
-                                                                    _data.user.avatar = '/full_attachments' + url
-                                                                    await db.query(`UPDATE sequenzia_user_cache SET data = ? WHERE userid = ?`, [JSON.stringify(_data), MessageContents.userId])
-                                                                    Logger.printLine('SetUserBanner', `User Cache for ${MessageContents.userId} updated!`, 'debug')
-                                                                }
                                                             }
                                                             resolve(true)
                                                         })
