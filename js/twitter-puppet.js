@@ -1436,9 +1436,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setBypassCSP(true);
 		await page.waitForTimeout(1200);
 
-		const returnedTweets = await page.evaluate((tweet_id) => {
-			function getMediaURL(status_id, json) {
-				let _json = json || fetchJson(status_id);
+		const returnedTweets = await page.evaluate(async (tweet_id) => {
+			async function getMediaURL(status_id, json) {
+				let _json = json || (await fetchJson(status_id));
 				let tweet = _json.legacy;
 				let medias = tweet.extended_entities && tweet.extended_entities.media;
 				if (medias.length > 0) {
@@ -1454,7 +1454,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					return [];
 				}
 			}
-			function fetchJson(status_id) {
+			async function fetchJson(status_id) {
 				let host = location.hostname;
 				let base_url = `https://${host}/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail`;
 				let variables = {
@@ -1498,10 +1498,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					'x-csrf-token': cookies.ct0
 				};
 				if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-				let tweet_detail = async () => {
-					const result = await fetch(url, {headers: headers});
-					return await result.json();
-				}
+				const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
 				let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 				let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 				return tweet_result.tweet || tweet_result;
@@ -1520,9 +1517,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const img_tweets = Array.from(
 				[twt].filter(e => e.querySelectorAll('time').length === 1)
 			)
-			return img_tweets.map(a => {
-				const json = fetchJson(tweet_id)
-				const images = getMediaURL(tweet_id, json);
+			return await Promise.all(img_tweets.map(async a => {
+				const json = await fetchJson(tweet_id)
+				const images = await getMediaURL(tweet_id, json);
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
@@ -1538,7 +1535,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					images,
 					retweeted: false
 				};
-			});
+			}));
 			// Add RT support here
 		}, id)
 
