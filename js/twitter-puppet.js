@@ -1438,7 +1438,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		const returnedTweets = await page.evaluate((tweet_id) => {
 			function getMediaURL(status_id, json) {
-				let _json = json || this.fetchJson(status_id);
+				let _json = json || fetchJson(status_id);
 				let tweet = _json.legacy;
 				let medias = tweet.extended_entities && tweet.extended_entities.media;
 				if (medias.length > 0) {
@@ -1490,7 +1490,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					"responsive_web_enhance_cards_enabled":false
 				};
 				let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-				let cookies = this.getCookie();
+				let cookies = getCookie();
 				let headers = {
 					'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
 					'x-twitter-active-user': 'yes',
