@@ -644,8 +644,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				let messageArray = [];
 				let requests = obj.tweet.images.reduce((promiseChain, media, index, array) => {
 					return promiseChain.then(() => new Promise((resolve) => {
+						const filename = `${obj.tweet.screenName}-${obj.tweet.id}.${media.format}`
 						if (media.type === 'photo') {
-							const filename = `${obj.tweet.screenName}-${obj.tweet.id}.${media.format}`
 							getImagetoB64(media.media_url, null, (image) => {
 								if (image !== null) {
 									Logger.printLine("TweetDownload", `Account ${obj.accountid}: Got ${media.media_url}`, "debug", { url: media.media_url })
@@ -676,8 +676,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 											resolve();
 										})
-										/*if (index === 0 && twitterNotify.has((((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name).toLowerCase())) {
-											const notifyChannel = twitterNotify.get((((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name).toLowerCase())
+										/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
+											const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
 											mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfileext',
@@ -693,6 +693,49 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								} else if (obj.channelid !== null) {
 									resolve();
 								}
+							})
+						} else if (media.type === "video" || media.type === "animated_gif") {
+							Logger.printLine("TweetDownload", `Account ${obj.accountid}: Send ${media.media_url} to FileWorker`, "debug", { url: media.media_url })
+							db.safe(`SELECT * FROM twitter_autodownload WHERE LOWER(username) = ?`, [(obj.tweet.retweeted) ? obj.tweet.retweeted.toLowerCase() : obj.tweet.screenName.toLowerCase()], (err, autodownload) => {
+								if (err) {
+									Logger.printLine("SQL", `Error looking up autodownload for ${(obj.tweet.retweeted) ? obj.tweet.retweeted.toLowerCase() : obj.tweet.screenName.toLowerCase()}!`, "error", err);
+								}
+								db.safe(`SELECT channelid FROM twitter_user_redirect WHERE LOWER(twitter_username) = ?`, [(obj.tweet.retweeted) ? obj.tweet.retweeted.toLowerCase() : obj.tweet.screenName.toLowerCase()], function (err, channelreplacement) {
+									if (err) {
+										Logger.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "error", err)
+									}
+									let tweetDate = moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss')
+									messageArray.push({
+										fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+										messageReturn: false,
+										messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
+										itemFileName: filename,
+										itemDateTime: tweetDate,
+										itemFileURL: media.url,
+										itemReferral: 'https://twitter.com/status/' + ((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id,
+										messageText: `**🎞 Twitter Video** - ***${obj.tweet.userName} (@${obj.tweet.screenName})***${(obj.tweet.text && obj.tweet.text.length > 0) ? '\n**' + obj.tweet.text + '**' : ''}`,
+										tweetMetadata: {
+											account: obj.accountid,
+											list: obj.list_id,
+											id: ((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id,
+											userId: (obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName,
+										}
+									})
+									resolve();
+								})
+								/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
+                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+                                        messageType : 'sfileext',
+                                        messageReturn: false,
+                                        messageChannelID : notifyChannel,
+                                        itemFileData: image,
+                                        itemFileName: filename,
+                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+                                        messageObject: {...messageObject, title: _title}
+                                    })
+                                }*/
 							})
 						} else {
 							Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.screenName} - RT: ${rt_stat}`, "error", {
@@ -734,11 +777,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (listinfo.error) {
 			Logger.printLine("SQL", `SQL Error when getting Twitter Lists records`, "emergency", listinfo.error)
 		}
-		if (listinfo.error) {
+		if (channelreplacement.error) {
 			channelreplacement.printLine("SQL", `SQL Error when getting to the Twitter Redirect records`, "emergency", channelreplacement.error)
 		}
 
-		const command = 'statuses/show'
 		let channelID
 		let channelNsfw
 		if (message.messageChannelOveride) {
@@ -756,228 +798,51 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				channelNsfw = listinfo.rows[0].nsfw
 			}
 		}
-		let buttons = []
-		if (channelNsfw === 0 || (channelNsfw === 1 && listinfo.rows[0].redirect_taccount !== listinfo.rows[0].taccount)) {
-			buttons = ["Pin"]
-			if (message.listID === discordaccount[0].chid_download) {
-				buttons.push("RemoveFile")
-			}
-			buttons.push("Archive", "MoveMessage")
-		} else {
-			buttons = ["Pin", "Archive", "MoveMessage"]
-		}
 		const TweetID = (message.messageEmbeds && message.messageEmbeds.length > 0 && message.messageEmbeds[0].title && (message.messageEmbeds[0].title.includes('📨 Tweet') || message.messageEmbeds[0].title.includes('✳ Retweet'))) ? message.messageEmbeds[0].url.split('/photo')[0].split('/').pop() : getIDfromText(message.messageText);
 		const twit = twitterAccounts.get(1)
-
-		if ( message.messageEmbeds.length > 0 && message.messageEmbeds[0].image ) {
-			const name = message.messageEmbeds[0].author.name.split(" (@")[0]
-			Object.values(message.messageEmbeds).forEach(function (row) {
-				if (row.image) {
-					const FileName = username + "-" + getIDfromText(row.image.url).replace("large", "")
-					let URL
-					if (row.image.url.includes(":large")) {
-						URL = row.image.url
-					} else {
-						URL = row.image.url + ":large"
-					}
-					const description = (message.messageEmbeds[0].description && message.messageEmbeds[0].description.length > 0) ? `\n**${message.messageEmbeds[0].description}**` : ''
-					request.get({
-						url: URL,
-						headers: {
-							'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-							'accept-language': 'en-US,en;q=0.9',
-							'cache-control': 'max-age=0',
-							'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-							'sec-ch-ua-mobile': '?0',
-							'sec-fetch-dest': 'document',
-							'sec-fetch-mode': 'navigate',
-							'sec-fetch-site': 'none',
-							'sec-fetch-user': '?1',
-							'upgrade-insecure-requests': '1',
-							'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-						},
-					}, function (err, res, body) {
-						if (err) {
-							mqClient.sendMessage(`Error when trying to download tweet ${TweetID} media`, "err", "DownloadTweet", err)
-						} else {
-							if (body.length < 1000 ) {
-								Logger.printLine("DownloadTweet", `Error when trying to download tweet ${TweetID} media from Twitter, will try Discord Proxy media now`, "warn", message.messageEmbeds[0])
-								const URL = message.messageEmbeds[0].image.proxy_url;
-								request.get({
-									url: URL,
-									headers: {
-										'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-										'accept-language': 'en-US,en;q=0.9',
-										'cache-control': 'max-age=0',
-										'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-										'sec-ch-ua-mobile': '?0',
-										'sec-fetch-dest': 'document',
-										'sec-fetch-mode': 'navigate',
-										'sec-fetch-site': 'none',
-										'sec-fetch-user': '?1',
-										'upgrade-insecure-requests': '1',
-										'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-									},
-								}, function (err, res, body) {
-									if (err) {
-										mqClient.sendMessage(`Error when trying to download tweet ${TweetID} media`, "err", "DownloadTweet", err)
-									} else {
-										mqClient.sendData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
-											fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-											messageReturn: false,
-											messageType: 'sfile',
-											messageChannelID: channelID,
-											messageText: `**🌁 Twitter Image** - ***${name} (@${username})***${description}`,
-											itemFileData: body.toString('base64'),
-											itemFileSize: body.length,
-											itemFileName: FileName,
-											addButtons: buttons
-										}, function (ok) {
-											if (ok) {
-												Logger.printLine("TweetDownload", `Tweet ${TweetID} was downloaded to ${channelID}`, "debug", {
-													fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageType: 'sfile',
-													messageChannelID: channelID,
-													messageText: `**🌁 Twitter Image** - ***${name} (@${username})***${description}`,
-													itemFileSize: body.length,
-													itemFileName: FileName,
-													addButtons: buttons
-												})
-											} else {
-												Logger.printLine("TweetDownload", `Error when trying to send downloaded tweet ${TweetID} media`, "error", {
-													fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-													messageReturn: false,
-													messageType: 'sfile',
-													messageChannelID: channelID,
-													messageText: `**🌁 Twitter Image** - ***${name} (@${username})***`,
-													itemFileSize: body.length,
-													itemFileName: FileName,
-													addButtons: buttons
-												})
-											}
-										})
-									}
-								});
-							} else {
-								mqClient.sendData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
-									fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-									messageType: 'sfile',
-									messageReturn: false,
-									messageChannelID: channelID,
-									messageText: `**🌁 Twitter Image** - ***${name} (@${username})***${description}`,
-									itemFileData: body.toString('base64'),
-									itemFileSize: body.length,
-									itemFileName: FileName,
-									addButtons: buttons
-								}, function (ok) {
-									if (ok) {
-										Logger.printLine("TwitterDownload", `Tweet ${TweetID} was downloaded to ${channelID}`, "info", {
-											fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-											messageType: 'sfile',
-											messageReturn: false,
-											messageChannelID: channelID,
-											messageText: `**🌁 Twitter Image** - ***${name} (@${username})***`,
-											itemFileSize: body.length,
-											itemFileName: FileName,
-											addButtons: buttons
-										})
-									} else {
-										Logger.printLine("TwitterDownload", `Error when trying to send downloaded tweet ${TweetID} media`, "error", {
-											fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-											messageType: 'sfile',
-											messageReturn: false,
-											messageChannelID: channelID,
-											messageText: `**🌁 Twitter Image** - ***${name} (@${username})***`,
-											itemFileSize: body.length,
-											itemFileName: FileName,
-											addButtons: buttons
-										})
-									}
-								})
-							}
-						}
-					});
-				}
-			})
-			cb(true)
-		} else if ( message.messageEmbeds.length > 0 && message.messageEmbeds[0].video ) {
-			const name = message.messageEmbeds[0].author.name
-			const ID = getIDfromText(message.messageEmbeds[0].url)
-			const FileName = `${username}-${ID}.mp4`
-			mqClient.sendData(systemglobal.FileWorker_In, {
-				messageChannelID: channelID,
-				messageReturn: false,
-				messageText: `**🎞 Twitter Video** - ***${name} (@${username})***`,
-				itemFileName : FileName,
-				itemVideoURL : message.messageEmbeds[0].video.url
-			}, function (ok) {
-				if (ok) {
-					Logger.printLine("TwitterDownload", `Tweet ${TweetID} will be downloaded to ${channelID}, Sent to file worker proxy downloader`, "info", message.messageEmbeds[0], {
-						messageChannelID: channelID,
-						messageReturn: false,
-						messageText: `**🎞 Twitter Video** - ***${name} (@${username})***`,
-						itemFileName : FileName,
-						itemVideoURL : message.messageEmbeds[0].video.url
+		try {
+			const tweets = await getTweet(username, TweetID, twit);
+			Logger.printLine("Twitter", `Account 1: Returning ${tweets.length} tweets for user ${username}`, "info")
+			let listRequests = tweets.reduce((promiseChain, tweet) => {
+				return promiseChain.then(() => new Promise(async (tweetResolve) => {
+					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [(tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id]);
+					const competedTweet = await sendTweetToDiscordv2({
+						channelid: channelID,
+						saveid: channelID,
+						nsfw: channelNsfw,
+						txtallowed: 0,
+						fromname: "Manual Download",
+						tweet,
+						redirect: 0,
+						bypasscds: 1,
+						autolike: 0,
+						replyenabled: 0,
+						mergelike: 0,
+						listusers: 0,
+						disablelike: 0,
+						list_num: 0,
+						list_id: 0,
+						accountid: 1,
 					})
-				}
-			})
-			cb(true);
-		} else {
-			limiter1.removeTokens(1, async function () {
-				const response = await getTweet(username, TweetID, twit);
-				if (response.length > 0) {
-					for (let media of response[0].images) {
-						request.get({
-							url: media.media_url,
-							headers: {
-								'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-								'accept-language': 'en-US,en;q=0.9',
-								'cache-control': 'max-age=0',
-								'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-								'sec-ch-ua-mobile': '?0',
-								'sec-fetch-dest': 'document',
-								'sec-fetch-mode': 'navigate',
-								'sec-fetch-site': 'none',
-								'sec-fetch-user': '?1',
-								'upgrade-insecure-requests': '1',
-								'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-							},
-						}, function (err, res, body) {
-							if(err){
-								mqClient.sendMessage(`Error when trying to download tweet ${TweetID} media`, "err", "DownloadTweet", err)
-							} else {
-								mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}.priority`, {
-									fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-									messageType : 'sfile',
-									messageReturn: false,
-									messageChannelID : channelID,
-									messageText : `**🌁 Twitter Image** - ***${response[0].userName} (@${response[0].screenName})***`,
-									itemFileData : body.toString('base64'),
-									itemFileSize: body.length,
-									itemFileName : `${response[0].screenName}-${response[0].id}.${media.format}`,
-									addButtons: buttons
-								}, function (ok) {
-									if (ok) {
-										Logger.printLine("TwitterDownload", `Tweet ${TweetID} was downloaded to ${channelID}`, "info", {
-											fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-											messageType : 'sfile',
-											messageReturn: false,
-											messageChannelID : channelID,
-											messageText : "",
-											itemFileName : `${response[0].screenName}-${response[0].id}.${media.format}`,
-											addButtons: buttons
-										})
-									}
-								})
-							}
-						});
+					if (competedTweet && competedTweet.length > 0) {
+						let sent = true
+						for (let i in competedTweet) {
+							const _sent = await mqClient.publishData((message.itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
+							if (!_sent)
+								sent = false;
+						}
+						if (lasttweet.rows.length === 0 && sent)
+							await db.query(`INSERT INTO twitter_history_inbound VALUES (?, ?, NOW())`, [(tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id, null])
 					}
-					cb(true);
-				} else {
-					cb(true);
-				}
-			});
+					tweetResolve(true);
+				}))
+			}, Promise.resolve());
+			listRequests.then(async (ok) => {
+				cb(true);
+			})
+		} catch (err) {
+			Logger.printLine("Twitter", `Failed to get users tweets using account 1 - ${err.message}`, "error", err)
+			console.error(err);
 		}
 	}
 	async function downloadUser(message, cb) {
@@ -1011,7 +876,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (competedTweet && competedTweet.length > 0) {
 							let sent = true
 							for (let i in competedTweet) {
-								const _sent = await mqClient.publishData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
+								const _sent = await mqClient.publishData((message.itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
 								if (!_sent)
 									sent = false;
 							}
@@ -1153,7 +1018,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (competedTweet && competedTweet.length > 0) {
 										let sent = true
 										for (let i in competedTweet) {
-											const _sent = await mqClient.publishData(`${systemglobal.PDP_Out || systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, competedTweet[i])
+											const _sent = await mqClient.publishData((message.itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, competedTweet[i])
 											if (!_sent)
 												sent = false;
 										}
@@ -1181,7 +1046,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			listRequests.then(async (ok) => {
 				if (messageArray.length > 0) {
 					await messageArray.forEach(async (message) => {
-						await mqClient.sendData( `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, message, function (ok) {
+						await mqClient.sendData( (message.itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, message, function (ok) {
 							if (!ok) {
 								Logger.printLine("mqClient.sendData", "Failed to send message to endpoint", "error")
 							}
@@ -1567,29 +1432,49 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
 		);
 		await page.setCookie(...account.cookie);
+		await page.addScriptTag({ path: './js/puppet_utils/twitter.js'});
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
+		await page.setRequestInterception(true);
+
+		let networkRequests = [];
+		page.on('request', request => {
+			request_client({
+				uri: request.url(),
+				resolveWithFullResponse: true,
+			}).then(response => {
+				const request_url = request.url();
+				const request_headers = request.headers();
+				const request_post_data = request.postData();
+				const response_headers = response.headers;
+				const response_size = response_headers['content-length'];
+				const response_body = response.body;
+
+				networkRequests.push({
+					request_url,
+					request_headers,
+					request_post_data,
+					response_headers,
+					response_size,
+					response_body,
+				});
+
+				console.log(networkRequests);
+				request.continue();
+			}).catch(error => {
+				console.error(error);
+				request.abort();
+			});
+		});
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(() => {
 			const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
 			const img_tweets = Array.from(
-				[twt]
-					.filter(e =>
-						e.querySelector('img[src*="/media/"]') &&
-						e.querySelectorAll('time').length === 1)
+				[twt].filter(e => e.querySelectorAll('time').length === 1)
 			)
 			return img_tweets.map(a => {
-				const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-					const url = e.src.split('?');
-					const sq = new URLSearchParams(url[1]);
-					sq.delete('name')
-					sq.set('name', 'large')
-					return {
-						media_url: url[0] + '?' + sq.valueOf(),
-						format: sq.getAll('format')[0],
-						type: "photo"
-					}
-				});
+				const json = fetchJson(id)
+				const images = getMediaURL(id, json);
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
