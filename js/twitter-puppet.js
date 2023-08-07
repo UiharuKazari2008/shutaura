@@ -1433,6 +1433,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		await page.setCookie(...account.cookie);
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
+		await page.setBypassCSP(true);
 		let networkRequests = [];
 		await page.addScriptTag({ path: './js/puppet_utils/twitter.js'});
 		await page.waitForTimeout(1200);
