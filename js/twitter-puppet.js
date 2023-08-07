@@ -1443,8 +1443,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				[twt].filter(e => e.querySelectorAll('time').length === 1)
 			)
 			return img_tweets.map(a => {
-				const json = fetchJson(id)
-				const images = getMediaURL(id, json);
+				const json = window.fetchJson(id)
+				const images = window.getMediaURL(id, json);
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
