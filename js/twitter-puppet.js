@@ -711,8 +711,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										messageChannelID : (!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid,
 										itemFileName: filename,
 										itemDateTime: tweetDate,
-										itemFileURL: media.url,
-										itemReferral: 'https://twitter.com/status/' + ((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id,
+										itemFileURL: media.media_url,
+										itemReferral: `https://twitter.com/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
 										messageText: `**🎞 Twitter Video** - ***${obj.tweet.userName} (@${obj.tweet.screenName})***${(obj.tweet.text && obj.tweet.text.length > 0) ? '\n**' + obj.tweet.text + '**' : ''}`,
 										tweetMetadata: {
 											account: obj.accountid,
