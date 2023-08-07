@@ -876,7 +876,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (competedTweet && competedTweet.length > 0) {
 							let sent = true
 							for (let i in competedTweet) {
-								const _sent = await mqClient.publishData((message.itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
+								const _sent = await mqClient.publishData((competedTweet[i].itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
 								if (!_sent)
 									sent = false;
 							}
