@@ -802,7 +802,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const twit = twitterAccounts.get(1)
 		try {
 			const tweets = await getTweet(username, TweetID, twit);
-			Logger.printLine("Twitter", `Account 1: Returning ${tweets.length} tweets for user ${username}`, "info")
+			Logger.printLine("Twitter", `Account 1: Returning ${tweets.length} tweet @${username}:${TweetID}`, "info")
 			let listRequests = tweets.reduce((promiseChain, tweet) => {
 				return promiseChain.then(() => new Promise(async (tweetResolve) => {
 					const lasttweet = await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE tweetid = ? LIMIT 1`, [(tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id]);
@@ -827,7 +827,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					if (competedTweet && competedTweet.length > 0) {
 						let sent = true
 						for (let i in competedTweet) {
-							const _sent = await mqClient.publishData((competedTweet[i].itemFileURL) ? `${systemglobal.FileWorker_In}` : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
+							console.log(competedTweet[i])
+							const _sent = await mqClient.publishData((competedTweet[i].itemFileURL) ? systemglobal.FileWorker_In : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
 							if (!_sent)
 								sent = false;
 						}
@@ -1520,7 +1521,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			return await Promise.all(img_tweets.map(async a => {
 				const json = await fetchJson(tweet_id);
 				const images = await getMediaURL(tweet_id);
-				console.log(images)
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
