@@ -1351,6 +1351,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (MessageContents.itemDateTime) {
 										Cleanedobject.DateTime = MessageContents.itemDateTime
 									}
+									if (MessageContents.tweetMetadata) {
+										Cleanedobject.tweetMeta = MessageContents.tweetMetadata
+									}
 									if (MessageContents.messageUserID) {
 										Cleanedobject.UserID = MessageContents.messageUserID
 									}
@@ -1392,6 +1395,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.itemDateTime) {
 								Cleanedobject.DateTime = MessageContents.itemDateTime
+							}
+							if (MessageContents.tweetMetadata) {
+								Cleanedobject.tweetMeta = MessageContents.tweetMetadata
 							}
 							if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
 								Cleanedobject.Backlog = true
@@ -1461,6 +1467,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										if (MessageContents.itemDateTime) {
 											Cleanedobject.DateTime = MessageContents.itemDateTime
 										}
+										if (MessageContents.tweetMetadata) {
+											Cleanedobject.tweetMeta = MessageContents.tweetMetadata
+										}
 										if (MessageContents.messageUserID) {
 											Cleanedobject.UserID = MessageContents.messageUserID
 										}
@@ -1497,6 +1506,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.itemDateTime) {
 								Cleanedobject.DateTime = MessageContents.itemDateTime
+							}
+							if (MessageContents.tweetMetadata) {
+								Cleanedobject.tweetMeta = MessageContents.tweetMetadata
 							}
 							if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
 								Cleanedobject.Backlog = true
@@ -1556,6 +1568,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.itemDateTime = object.DateTime.toString()
 					console.log(`Got Remote Date and Time for File : ${parameters.itemDateTime}`)
 				}
+				if (object.tweetMeta) {
+					parameters.tweetMetadata = object.tweetMeta
+					console.log(`Got Embedded Tweet Metadata : ${object.tweetMeta.userId}:${object.tweetMeta.id}`)
+				}
 				Logger.printLine("FileProcessor", `Processing Remote File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
 			} else if (object.Type.toString() === "Local") {
 				// Local - File has been sent from the local file queue and is a local file on the system
@@ -1566,6 +1582,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parameters.prioritySend = (!!object.Priority)
 				parameters.clientGroupID = object.OriginGroup.toString()
 				parameters.itemDateTime = object.DateTime.toString()
+				parameters.tweetMetadata = object.tweetMeta
 				// Determine the Channel to send file to from its folder Path
 				if (FolderPairs.has(path.basename(path.dirname(object.OriginPath.toString())))) {
 					// Find Parent directory to get its Channel ID from the lookup table
@@ -1586,6 +1603,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parameters.itemFileData = object.FileData.toString()
 				if (object.DateTime) {
 					parameters.itemDateTime = object.DateTime.toString()
+				}
+				if (object.tweetMeta) {
+					parameters.tweetMetadata = object.tweetMeta
 				}
 				Logger.printLine("FileProcessor", `Processing Proxy File : ${object.FileName.toString()}`, "debug", parameters)
 			}
