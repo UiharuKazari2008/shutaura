@@ -1432,39 +1432,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
 		);
 		await page.setCookie(...account.cookie);
-		await page.addScriptTag({ path: './js/puppet_utils/twitter.js'});
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
-		await page.setRequestInterception(true);
-
 		let networkRequests = [];
-		page.on('request', request => {
-			request_client({
-				uri: request.url(),
-				resolveWithFullResponse: true,
-			}).then(response => {
-				const request_url = request.url();
-				const request_headers = request.headers();
-				const request_post_data = request.postData();
-				const response_headers = response.headers;
-				const response_size = response_headers['content-length'];
-				const response_body = response.body;
-
-				networkRequests.push({
-					request_url,
-					request_headers,
-					request_post_data,
-					response_headers,
-					response_size,
-					response_body,
-				});
-
-				console.log(networkRequests);
-				request.continue();
-			}).catch(error => {
-				console.error(error);
-				request.abort();
-			});
-		});
+		await page.addScriptTag({ path: './js/puppet_utils/twitter.js'});
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(() => {
