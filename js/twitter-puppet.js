@@ -1437,14 +1437,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.addScriptTag({ path: './js/puppet_utils/twitter.js'});
 		await page.waitForTimeout(1200);
 
-		const returnedTweets = await page.evaluate(() => {
+		const returnedTweets = await page.evaluate((tweet_id) => {
 			const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
 			const img_tweets = Array.from(
 				[twt].filter(e => e.querySelectorAll('time').length === 1)
 			)
 			return img_tweets.map(a => {
-				const json = window.fetchJson(id)
-				const images = window.getMediaURL(id, json);
+				const json = window.fetchJson(tweet_id)
+				const images = window.getMediaURL(tweet_id, json);
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
@@ -1452,7 +1452,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const date = a.querySelector('time').attributes['datetime'].value
 
 				return {
-					id,
+					id: tweet_id,
 					date,
 					userName,
 					screenName,
@@ -1460,7 +1460,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					images,
 					retweeted: false
 				};
-			});
+			}, id);
 			// Add RT support here
 		})
 
