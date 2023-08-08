@@ -58,6 +58,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let overflowControl = new Map();
 	let activeTasks = new Map();
 	let twitterAccounts = new Map();
+	let twitterBrowsers = new Map();
 	let twitterTabs = new Map();
 	let twitterTabCloseures = {};
 	let twitterFlowTimers = new Map();
@@ -199,31 +200,38 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const limiter4 = new RateLimiter(1, (systemglobal.Twitter_Mention_Pull) ? parseInt(systemglobal.Twitter_Mention_Pull.toString()) * 1000 : 1000);
 	let Twitter = null;
 
+	async function createBrowser(account) {
+		const browser = await puppeteer.launch({
+			executablePath: systemglobal.Chrome_Exec || undefined,
+			headless: (account.headless !== undefined) ? account.headless : 'new',
+			args: [
+				'--no-sandbox',
+				'--disable-setuid-sandbox',
+				'--inprivate',
+				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
+				'--remote-debugging-address=0.0.0.0',
+				'--enable-features=NetworkService',
+			],
+			ignoreHTTPSErrors: true
+		})
+		browser.on('close', () => createBrowser(account);
+		twitterBrowsers.set(parseInt(account.id.toString()), browser);
+	}
 	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
 		if (account.id && account.cookies && account.screenName) {
 			Logger.printLine("Twitter", "Settings up Twitter Client using account #" + account.id, "debug")
 			if (account.flowcontrol)
 				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
+
 			twitterAccounts.set(parseInt(account.id.toString()), {
 				id: parseInt(account.id.toString()),
 				cookie: account.cookies,
 				screenName: account.screenName,
-				browser: await puppeteer.launch({
-					executablePath: systemglobal.Chrome_Exec || undefined,
-					headless: (account.headless !== undefined) ? account.headless : 'new',
-					args: [
-						'--no-sandbox',
-						'--disable-setuid-sandbox',
-						'--inprivate',
-						`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
-						'--remote-debugging-address=0.0.0.0',
-						'--enable-features=NetworkService',
-					],
-					ignoreHTTPSErrors: true
-				}),
+				headless: (account.headless !== undefined) ? account.headless : undefined,
 				config: account.config,
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
 			})
+			await createBrowser(account);
 			if (account.id === 1) {
 				await yoinkTwitterAPIKey(account.id);
 			}
@@ -1196,12 +1204,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 
 	async function getTwitterTab(account, task, url) {
+		if (twitterTabCloseures[`${task}-${account.id}`]) {
+			clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
+		}
 		if (twitterTabs.has(`${task}-${account.id}`)) {
 			const page = twitterTabs.get(`${task}-${account.id}`);
 			await page.goto(url, { waitUntil: 'networkidle2' });
 			return page;
 		} else {
-			const page = await account.browser.newPage();
+			const browser = twitterBrowsers.get(account.id);
+			const page = await browser.newPage();
 			await page.setViewport({
 				width: 1080,
 				height: 4096,
@@ -1231,6 +1243,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const page = twitterTabs.get(`${task}-${account.id}`);
 				await page.close();
 				console.log(`Closed Inactive Tab: ${task}-${account.id}`);
+				twitterTabs.delete(`${task}-${account.id}`)
 				delete twitterTabCloseures[`${task}-${account.id}`]
 			}, 90000)
 		}
@@ -1949,7 +1962,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 	async function yoinkTwitterAPIKey(id) {
 		const account = twitterAccounts.get(parseInt(id.toString()))
-		const page = await account.browser.newPage();
+		const browser = twitterBrowsers.get(account.id);
+		const page = await browser.newPage();
 		await page.setViewport({
 			width: 1280,
 			height: 480,
