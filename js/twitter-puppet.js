@@ -1356,7 +1356,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		closeTab(account, `list`)
+		//closeTab(account, `list`)
 
 		return returnedTweets;
 	}
@@ -1367,7 +1367,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = 2500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-		const page = await getTwitterTab(account, `${user}`, TWITTER_LIST_URL)
+		const page = await getTwitterTab(account, `get`, TWITTER_LIST_URL)
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1545,7 +1545,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		closeTab(account, `${user}`)
+		closeTab(account, `get`)
 
 		return returnedTweets;
 	}
@@ -1730,7 +1730,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function getTweet(user, id, account) {
 		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
 
-		const page = await getTwitterTab(account, `${user}/status/${id}`, `https://twitter.com/${user}/status/${id}`)
+		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`)
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
@@ -1864,7 +1864,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}));
 			// Add RT support here
 		}, id, tGraphQL, tAuthorization)
-		closeTab(account, `${user}/status/${id}`);
+		closeTab(account, `get`);
 		return returnedTweets;
 	}
 	async function yoinkTwitterAPIKey(id) {
