@@ -966,6 +966,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 	}
 
+	let activeActions = [];
 	async function interactTweet(message, intent, cb){
 		const accountID = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
 		const account = twitterAccounts.get(accountID);
@@ -978,7 +979,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			id = getIDfromText(message.messageText)
 		}
 
-		if (id) {
+		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
+			activeActions.push(`${id}-${message.messageAction}-${intent.join('-')}`);
 			const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`)
 			await Promise.all(intent.map(async thisIntent => {
 				const results = await page.evaluate(async (action) => {
@@ -1039,6 +1041,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("TwitterInteract", `Account ${accountID}: Sent command ${message.messageAction}/${thisIntent} to ${id}: ${results}`, "info")
 				return results;
 			}));
+			closeTab(account, `get`);
 			cb(true);
 		} else {
 			cb(true);
