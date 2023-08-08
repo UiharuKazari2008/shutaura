@@ -1578,10 +1578,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
-			console.log(url);
 			if (url.includes('https://twitter.com/i/api/graphql/')) {
 				tGraphQL = url.split('graphql/').pop().split('/')[0];
-				tAuthorization = req.header.get('Authorization');
+				tAuthorization = req.headers.get('Authorization');
 				console.log("Got required request data to boot!", tGraphQL, tAuthorization)
 			}
 			req.continue().catch(e => e /* not intercepting */);
