@@ -1287,7 +1287,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								type: "photo"
 							}
 						});
-						const json = await getMediaURL(id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
+						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
 						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
 						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
@@ -1483,7 +1483,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								type: "photo"
 							}
 						});
-						const json = await getMediaURL(id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
+						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
 						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
 						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
@@ -1675,7 +1675,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								type: "photo"
 							}
 						});
-						const json = await getMediaURL(id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
+						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
 						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
 						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
@@ -1827,7 +1827,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						type: "photo"
 					}
 				});
-				const json = await getMediaURL(tweet_id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
+				const json = await getMediaURL(tweet_id, images, ((a.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
 				let tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
 				const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
