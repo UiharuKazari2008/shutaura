@@ -1359,7 +1359,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const MAX_TWEET_COUNT = 500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-		const page = getTwitterTab(account, `list`, TWITTER_LIST_URL)
+		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL)
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1464,7 +1464,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = 2500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-		const page = getTwitterTab(account, `${user}`, TWITTER_LIST_URL)
+		const page = await getTwitterTab(account, `${user}`, TWITTER_LIST_URL)
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1558,7 +1558,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const MAX_TWEET_COUNT = 250;
 
 		Logger.printLine("HTDSv1", `Starting search favorites...`, "info");
-		const page = getTwitterTab(account, `fav`, TWITTER_LIST_URL);
+		const page = await getTwitterTab(account, `fav`, TWITTER_LIST_URL);
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1637,7 +1637,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function getTweet(user, id, account) {
 		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
 
-		const page = getTwitterTab(account, `${user}/status/${id}`, `https://twitter.com/${user}/status/${id}`)
+		const page = await getTwitterTab(account, `${user}/status/${id}`, `https://twitter.com/${user}/status/${id}`)
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(async (tweet_id) => {
