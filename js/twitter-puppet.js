@@ -1726,7 +1726,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
 			async function getMediaURL(status_id, images, has_video) {
 				if (has_video) {
-					let _json = json || await fetchJson(status_id);
+					let _json = await fetchJson(status_id);
 					let tweet = _json.legacy;
 					let medias = tweet.extended_entities && tweet.extended_entities.media;
 					if (medias.length > 0) {
@@ -1849,7 +1849,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			// Add RT support here
 		}, id, tGraphQL, tAuthorization)
 
-		setTimeout(() => { page.close(); }, 90000)
+		await page.close();
 		return returnedTweets;
 	}
 	async function yoinkTwitterAPIKey(id) {
