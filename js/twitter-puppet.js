@@ -1532,11 +1532,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
 			return await Promise.all(img_tweets.map(async a => {
 				const json = await getMediaURL(tweet_id);
-				console.log(json)
-				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
-				const userName = userDiv.filter(e => !e.includes('@')).pop()
-				const text = (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
+				let tweet = (json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+				const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+				const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+				const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+				const text = (json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
 				const date = a.querySelector('time').attributes['datetime'].value
 
 				return {
