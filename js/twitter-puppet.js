@@ -203,47 +203,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const limiter4 = new RateLimiter(1, (systemglobal.Twitter_Mention_Pull) ? parseInt(systemglobal.Twitter_Mention_Pull.toString()) * 1000 : 1000);
 	let Twitter = null;
 
-	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
-		if (account.id && account.cookies && account.screenName) {
-			Logger.printLine("Twitter", "Settings up Twitter Client using account #" + account.id, "debug")
-			if (account.flowcontrol)
-				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
-			twitterAccounts.set(parseInt(account.id.toString()), {
-				cookie: account.cookies,
-				screenName: account.screenName,
-				browser: await puppeteer.launch({
-					executablePath: systemglobal.Chrome_Exec || undefined,
-					headless: (account.headless !== undefined) ? account.headless : 'new',
-					args: [
-						'--no-sandbox',
-						'--disable-setuid-sandbox',
-						'--inprivate',
-						`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
-						'--remote-debugging-address=0.0.0.0',
-						'--enable-features=NetworkService',
-					],
-					ignoreHTTPSErrors: true
-				}),
-				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
-				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
-			})
-			if (account.id === 1) {
-				await yoinkTwitterAPIKey(account.id);
-			}
-		} else {
-			Logger.printLine("Twitter", `Missing Twitter Bot Login Properties for account ${account.id}, Please verify that they exists in the configuration file or the global_parameters table`, "critical");
-		}
-	}))
-
-	try {
-		if (!fs.existsSync(systemglobal.TempFolder)) {
-			fs.mkdirSync(systemglobal.TempFolder);
-		}
-	} catch (e) {
-		console.error('Failed to create the temp folder, not a issue if your using docker');
-		console.error(e);
-	}
-
 	let lastClusterCheckin = (new Date().getTime());
 	if (systemglobal.Watchdog_Host && systemglobal.Cluster_ID) {
 		await new Promise(async (cont) => {
@@ -304,6 +263,47 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		})
 	} else {
 		enablePullData = true;
+	}
+
+	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
+		if (account.id && account.cookies && account.screenName) {
+			Logger.printLine("Twitter", "Settings up Twitter Client using account #" + account.id, "debug")
+			if (account.flowcontrol)
+				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
+			twitterAccounts.set(parseInt(account.id.toString()), {
+				cookie: account.cookies,
+				screenName: account.screenName,
+				browser: await puppeteer.launch({
+					executablePath: systemglobal.Chrome_Exec || undefined,
+					headless: (account.headless !== undefined) ? account.headless : 'new',
+					args: [
+						'--no-sandbox',
+						'--disable-setuid-sandbox',
+						'--inprivate',
+						`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
+						'--remote-debugging-address=0.0.0.0',
+						'--enable-features=NetworkService',
+					],
+					ignoreHTTPSErrors: true
+				}),
+				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
+				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
+			})
+			if (account.id === 1) {
+				await yoinkTwitterAPIKey(account.id);
+			}
+		} else {
+			Logger.printLine("Twitter", `Missing Twitter Bot Login Properties for account ${account.id}, Please verify that they exists in the configuration file or the global_parameters table`, "critical");
+		}
+	}))
+
+	try {
+		if (!fs.existsSync(systemglobal.TempFolder)) {
+			fs.mkdirSync(systemglobal.TempFolder);
+		}
+	} catch (e) {
+		console.error('Failed to create the temp folder, not a issue if your using docker');
+		console.error(e);
 	}
 
 	// Kanmi MQ Backend
