@@ -1586,6 +1586,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			req.continue().catch(e => e /* not intercepting */);
 		});
+		await page.waitForSelector('article[data-testid="tweet"]');
+		const tweet = await page.$('article[data-testid="tweet"]');
+		await tweet.click();
 		while (tAuthorization === undefined) {
 			await page.waitForTimeout(500);
 		}
