@@ -1442,14 +1442,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setCookie(...account.cookie);
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 		await page.setBypassCSP(true);
-		await page.setRequestInterception(true);
-		page.on('request', req => {
-			console.log('requesting', req.url(), req.header.get('Authorization'));
-			req.continue().catch(e => e /* not intercepting */);
-		});
 		await page.waitForTimeout(1200);
 
-		const returnedTweets = await page.evaluate(async (tweet_id) => {
+		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
 			async function getMediaURL(status_id, json) {
 				let _json = json || await fetchJson(status_id);
 				let tweet = _json.legacy;
@@ -1476,7 +1471,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			async function fetchJson(status_id) {
 				let host = location.hostname;
-				let base_url = `https://${host}/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail`;
+				let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 				let variables = {
 					"focalTweetId":status_id,
 					"with_rux_injections":false,
@@ -1512,7 +1507,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
 				let cookies = getCookie();
 				let headers = {
-					'authorization': 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA',
+					'authorization': auth,
 					'x-twitter-active-user': 'yes',
 					'x-twitter-client-language': cookies.lang,
 					'x-csrf-token': cookies.ct0
@@ -1555,7 +1550,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				};
 			}));
 			// Add RT support here
-		}, id)
+		}, id, tGraphQL, tAuthorization)
 
 		setTimeout(() => { page.close(); }, 90000)
 		return returnedTweets;
@@ -1593,7 +1588,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			await page.waitForTimeout(500);
 		}
 		await page.close();
-		return [tGraphQL, tAuthorization];
 	}
 
 	process.on('uncaughtException', function(err) {
