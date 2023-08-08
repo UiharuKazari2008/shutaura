@@ -52,7 +52,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const db = require('./utils/shutauraSQL')(facilityName);
 
 	let discordaccount;
-	let twitteraccount;
 	let tAuthorization;
 	let tGraphQL;
 
@@ -158,11 +157,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
 		discordaccount = _discordservers.rows;
 
-		Logger.printLine("SQL", "Getting Twitter Accounts", "debug")
-		const _twitteraccount = await db.query(`SELECT * FROM twitter_accounts`)
-		if (_twitteraccount.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitteraccount.error); return false }
-		twitteraccount = _twitteraccount.rows;
-
 		Logger.printLine("SQL", "Getting Twitter Notifications", "debug")
 		const _twitternotify = await db.query(`SELECT * FROM twitter_notify`);
 		if (_twitternotify.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitternotify.error); return false }
@@ -227,7 +221,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					],
 					ignoreHTTPSErrors: true
 				}),
-				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
+				config: account.config,
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
 			})
 			if (account.id === 1) {
@@ -524,7 +518,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const twit = e[1];
 
 				Logger.printLine("Twitter", `Twitter Client #${id} is ready!`, "info")
-				if (twit.config.activitychannelid === null) {
+				if (twit.config && twit.config.activity_channel === null) {
 					Logger.printLine("Twitter", ` - Mentions for account are disabled`, "debug");
 				}
 				if (twit.flowcontrol) {
