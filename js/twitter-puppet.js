@@ -1178,7 +1178,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
-						let _json = json || await fetchJson(status_id);
+						let _json = await fetchJson(status_id);
 						let tweet = _json.legacy;
 						let medias = tweet.extended_entities && tweet.extended_entities.media;
 						if (medias.length > 0) {
@@ -1374,7 +1374,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
-						let _json = json || await fetchJson(status_id);
+						let _json = await fetchJson(status_id);
 						let tweet = _json.legacy;
 						let medias = tweet.extended_entities && tweet.extended_entities.media;
 						if (medias.length > 0) {
@@ -1564,28 +1564,34 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
-				async function getMediaURL(status_id, json) {
-					let _json = json || await fetchJson(status_id);
-					let tweet = _json.legacy;
-					let medias = tweet.extended_entities && tweet.extended_entities.media;
-					if (medias.length > 0) {
-						const media_array =  medias.map(media => {
-							const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+				async function getMediaURL(status_id, images, has_video) {
+					if (has_video) {
+						let _json = await fetchJson(status_id);
+						let tweet = _json.legacy;
+						let medias = tweet.extended_entities && tweet.extended_entities.media;
+						if (medias.length > 0) {
+							const media_array =  medias.map(media => {
+								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+								return {
+									media_url: url,
+									format: url.split('.').pop().split(':')[0].split('?')[0],
+									type: media.type
+								}
+							})
 							return {
-								media_url: url,
-								format: url.split('.').pop().split(':')[0].split('?')[0],
-								type: media.type
-							}
-						})
-						return {
-							images: media_array,
-							data: _json
-						};
+								images: media_array,
+								data: _json
+							};
+						} else {
+							return {
+								images: [],
+								data: _json
+							};
+						}
 					} else {
 						return {
-							images: [],
-							data: _json
-						};
+							images
+						}
 					}
 				}
 				async function fetchJson(status_id) {
@@ -1656,137 +1662,37 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 				return [
 					...(await Promise.all(nom_tweets.map(async a => {
-						async function getMediaURL(status_id, images, has_video) {
-							if (has_video) {
-								let _json = json || await fetchJson(status_id);
-								let tweet = _json.legacy;
-								let medias = tweet.extended_entities && tweet.extended_entities.media;
-								if (medias.length > 0) {
-									const media_array =  medias.map(media => {
-										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-										return {
-											media_url: url,
-											format: url.split('.').pop().split(':')[0].split('?')[0],
-											type: media.type
-										}
-									})
-									return {
-										images: media_array,
-										data: _json
-									};
-								} else {
-									return {
-										images: [],
-										data: _json
-									};
-								}
-							} else {
-								return {
-									images
-								}
+						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
+						const id = metadataDiv.href.split('/').pop().split('?')[0]
+						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+							const url = e.src.split('?');
+							const sq = new URLSearchParams(url[1]);
+							sq.delete('name')
+							sq.set('name', 'large')
+							return {
+								media_url: url[0] + '?' + sq.valueOf(),
+								format: sq.getAll('format')[0],
+								type: "photo"
 							}
-						}
-						async function fetchJson(status_id) {
-							let host = location.hostname;
-							let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-							let variables = {
-								"focalTweetId":status_id,
-								"with_rux_injections":false,
-								"includePromotedContent":true,
-								"withCommunity":true,
-								"withQuickPromoteEligibilityTweetFields":true,
-								"withBirdwatchNotes":true,
-								"withVoice":true,
-								"withV2Timeline":true
-							};
-							let features = {
-								"rweb_lists_timeline_redesign_enabled":true,
-								"responsive_web_graphql_exclude_directive_enabled":true,
-								"verified_phone_label_enabled":false,
-								"creator_subscriptions_tweet_preview_api_enabled":true,
-								"responsive_web_graphql_timeline_navigation_enabled":true,
-								"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-								"tweetypie_unmention_optimization_enabled":true,
-								"responsive_web_edit_tweet_api_enabled":true,
-								"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-								"view_counts_everywhere_api_enabled":true,
-								"longform_notetweets_consumption_enabled":true,
-								"responsive_web_twitter_article_tweet_consumption_enabled":false,
-								"tweet_awards_web_tipping_enabled":false,
-								"freedom_of_speech_not_reach_fetch_enabled":true,
-								"standardized_nudges_misinfo":true,
-								"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-								"longform_notetweets_rich_text_read_enabled":true,
-								"longform_notetweets_inline_media_enabled":true,
-								"responsive_web_media_download_video_enabled":false,
-								"responsive_web_enhance_cards_enabled":false
-							};
-							let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-							let cookies = getCookie();
-							let headers = {
-								'authorization': auth,
-								'x-twitter-active-user': 'yes',
-								'x-twitter-client-language': cookies.lang,
-								'x-csrf-token': cookies.ct0
-							};
-							if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-							const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-							let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-							let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-							return tweet_result.tweet || tweet_result;
-						}
-						function getCookie(name) {
-							let cookies = {};
-							document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-								n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-									cookies[name.trim()] = value.trim();
-								});
-							});
-							return name ? cookies[name] : cookies;
-						}
+						});
+						const json = await getMediaURL(id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
+						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+						const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+						const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
+						const date = metadataDiv.querySelector('time').attributes['datetime'].value;
 
-						const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
-						const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
-						const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
-						const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
-
-						console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
-
-						return [
-							...(await Promise.all(nom_tweets.map(async a => {
-								const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-								const id = metadataDiv.href.split('/').pop().split('?')[0]
-								const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-									const url = e.src.split('?');
-									const sq = new URLSearchParams(url[1]);
-									sq.delete('name')
-									sq.set('name', 'large')
-									return {
-										media_url: url[0] + '?' + sq.valueOf(),
-										format: sq.getAll('format')[0],
-										type: "photo"
-									}
-								});
-								const json = await getMediaURL(id, images, ((document.querySelectorAll('div[aria-label="Embedded video"] > img')).length > 0));
-								const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-								const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-								const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-								const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-								const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
-								const date = metadataDiv.querySelector('time').attributes['datetime'].value;
-
-								return {
-									id,
-									date,
-									userName,
-									screenName,
-									text,
-									images: json.images,
-									retweeted: false,
-									is_api_backed: !!tweet
-								};
-							})))
-						]
+						return {
+							id,
+							date,
+							userName,
+							screenName,
+							text,
+							images: json.images,
+							retweeted: false,
+							is_api_backed: !!tweet
+						};
 					})))
 				]
 				// Add RT support here
