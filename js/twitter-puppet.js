@@ -216,7 +216,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			],
 			ignoreHTTPSErrors: true
 		})
-		browser.on('close', () => createBrowser(account))
+		if (!account.allow_idle)
+			browser.on('close', () => createBrowser(account))
 		twitterBrowsers.set(parseInt(account.id.toString()), browser);
 	}
 	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
@@ -1213,6 +1214,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function getTwitterTab(account, task, url) {
 		if (twitterTabCloseures[`${task}-${account.id}`]) {
 			clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
+			delete twitterTabCloseures[`${task}-${account.id}`]
+		}
+		if (account.allow_idle && twitterBrowsers.has(account.id)) {
+			if (twitterBrowserCloseures[account.id]) {
+				clearTimeout(twitterBrowserCloseures[account.id]);
+				delete twitterBrowserCloseures[account.id]
+			}
 		}
 		if (twitterTabs.has(`${task}-${account.id}`)) {
 			const page = twitterTabs.get(`${task}-${account.id}`);
