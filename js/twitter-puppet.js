@@ -1219,7 +1219,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		await page.close();
+		setTimeout(() => { page.close(); }, 90000)
 
 		return returnedTweets;
 	}
@@ -1318,7 +1318,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		await page.close();
+		setTimeout(() => { page.close(); }, 90000)
 
 		return returnedTweets;
 	}
@@ -1414,7 +1414,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		await page.close();
+		setTimeout(() => { page.close(); }, 90000)
 
 		return returnedTweets;
 	}
@@ -1443,7 +1443,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				let tweet = _json.legacy;
 				let medias = tweet.extended_entities && tweet.extended_entities.media;
 				if (medias.length > 0) {
-					return medias.map(media => {
+					const media_array =  medias.map(media => {
 						const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
 						return {
 							media_url: url,
@@ -1451,8 +1451,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							type: media.type
 						}
 					})
+					return {
+						images: media_array,
+						data: _json
+					};
 				} else {
-					return [];
+					return {
+						images: [],
+						data: _json
+					};
 				}
 			}
 			async function fetchJson(status_id) {
@@ -1515,12 +1522,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 
 			const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
-			const img_tweets = Array.from(
-				[twt].filter(e => e.querySelectorAll('time').length === 1)
-			)
+			const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
 			return await Promise.all(img_tweets.map(async a => {
-				const json = await fetchJson(tweet_id);
-				const images = await getMediaURL(tweet_id);
+				const json = await getMediaURL(tweet_id);
+				console.log(json)
 				const userDiv = Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
 				const screenName = userDiv.filter(e => e.includes('@')).pop().substring(1)
 				const userName = userDiv.filter(e => !e.includes('@')).pop()
@@ -1533,7 +1538,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					userName,
 					screenName,
 					text,
-					images,
+					images: json.images,
 					retweeted: false
 				};
 			}));
@@ -1541,7 +1546,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}, id)
 
 		setTimeout(() => { page.close(); }, 90000)
-
 		return returnedTweets;
 	}
 
