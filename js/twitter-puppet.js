@@ -320,7 +320,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("KanmiMQ", "Channel 1 Closed", "critical" )
 				start();
 			});
-			ch.prefetch(10);
+			ch.prefetch(1);
 			ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
 				if (closeOnErr(err)) return;
 				ch.consume(MQWorker1, processMsg, { noAck: false });
