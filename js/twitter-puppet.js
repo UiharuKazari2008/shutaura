@@ -1573,13 +1573,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		console.log("Searching for graphql request...")
 		await page.setCookie(...account.cookie);
-		await page.goto('https://twitter.com/notifications');
+		await page.goto('https://twitter.com/');
 		await page.setBypassCSP(true);
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
-			if (url.includes('https://twitter.com/i/api/graphql/')) {
+			if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
 				tGraphQL = url.split('graphql/').pop().split('/')[0];
+				console.log(req)
 				tAuthorization = req.headers['Authorization'];
 				console.log("Got required request data to boot!", tGraphQL, tAuthorization)
 			}
