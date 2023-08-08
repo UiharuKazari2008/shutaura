@@ -1206,7 +1206,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 				}
+				let lastAPIAccessTime = null;
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 				async function fetchJson(status_id) {
+					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						await sleep(30000);
+					}
+					lastAPIAccessTime = Date.now();
 					let host = location.hostname;
 					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 					let variables = {
@@ -1402,7 +1409,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 				}
+				let lastAPIAccessTime = null;
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 				async function fetchJson(status_id) {
+					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						await sleep(30000);
+					}
+					lastAPIAccessTime = Date.now();
 					let host = location.hostname;
 					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 					let variables = {
@@ -1594,7 +1608,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 				}
+				let lastAPIAccessTime = null;
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 				async function fetchJson(status_id) {
+					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						await sleep(30000);
+					}
+					lastAPIAccessTime = Date.now();
 					let host = location.hostname;
 					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 					let variables = {
@@ -1754,7 +1775,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				}
 			}
+			let lastAPIAccessTime = null;
+			const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 			async function fetchJson(status_id) {
+				if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+					console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+					await sleep(30000);
+				}
+				lastAPIAccessTime = Date.now();
 				let host = location.hostname;
 				let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 				let variables = {
