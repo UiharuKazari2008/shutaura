@@ -1275,7 +1275,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				return [
 					...(await Promise.all(nom_tweets.map(async a => {
 						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-						const id = metadataDiv.href.split('/').pop()
+						const id = metadataDiv.href.split('/').pop().split('?')[0]
 						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
 							const url = e.src.split('?');
 							const sq = new URLSearchParams(url[1]);
@@ -1471,7 +1471,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				return [
 					...(await Promise.all(nom_tweets.map(async a => {
 						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-						const id = metadataDiv.href.split('/').pop()
+						const id = metadataDiv.href.split('/').pop().split('?')[0]
 						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
 							const url = e.src.split('?');
 							const sq = new URLSearchParams(url[1]);
@@ -1755,7 +1755,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						return [
 							...(await Promise.all(nom_tweets.map(async a => {
 								const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-								const id = metadataDiv.href.split('/').pop()
+								const id = metadataDiv.href.split('/').pop().split('?')[0]
 								const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
 									const url = e.src.split('?');
 									const sq = new URLSearchParams(url[1]);
