@@ -1571,12 +1571,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setUserAgent(
 			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
 		);
+		console.log("Searching for graphql request...")
 		await page.setCookie(...account.cookie);
-		await page.goto('https://twitter.com/', { waitUntil: 'networkidle2' });
+		await page.goto('https://twitter.com/notifications', { waitUntil: 'networkidle2' });
 		await page.setBypassCSP(true);
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
+			console.log(url)l
 			if (url.includes('https://twitter.com/i/api/graphql/')) {
 				tGraphQL = url.split('graphql/').pop().split('/')[0];
 				tAuthorization = req.header.get('Authorization');
