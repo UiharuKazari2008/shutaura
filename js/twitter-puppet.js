@@ -1351,6 +1351,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		await page.setCookie(...account.cookie);
 		await page.setBypassCSP(true);
+		page.on('console', msg => {
+			for (let i = 0; i < msg.args().length; i++) {
+				console.log(msg.args()[i]);
+			}
+		});
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 
 		let previousHeight = 0;
@@ -1553,6 +1558,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		await page.setCookie(...account.cookie);
 		await page.setBypassCSP(true);
+		page.on('console', msg => {
+			for (let i = 0; i < msg.args().length; i++) {
+				console.log(msg.args()[i]);
+			}
+		});
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 
 		let previousHeight = 0;
@@ -1742,6 +1752,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setCookie(...account.cookie);
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 		await page.setBypassCSP(true);
+		page.on('console', msg => {
+			for (let i = 0; i < msg.args().length; i++) {
+				console.log(msg.args()[i]);
+			}
+		});
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
@@ -1895,6 +1910,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setCookie(...account.cookie);
 		await page.goto('https://twitter.com/' + account.screenName);
 		await page.setBypassCSP(true);
+		page.on('console', msg => {
+			for (let i = 0; i < msg.args().length; i++) {
+				console.log(msg.args()[i]);
+			}
+		});
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
