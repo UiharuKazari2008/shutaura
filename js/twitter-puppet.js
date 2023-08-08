@@ -59,6 +59,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let overflowControl = new Map();
 	let activeTasks = new Map();
 	let twitterAccounts = new Map();
+	let twitterTabs = new Map();
+	let twitterTabCloseures = {};
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
 	let twitterNotify = new Map();
@@ -209,6 +211,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (account.flowcontrol)
 				Logger.printLine("Twitter", `NOTE: Flow Control is enabled on account #${account.id}`, "debug")
 			twitterAccounts.set(parseInt(account.id.toString()), {
+				id: parseInt(account.id.toString()),
 				cookie: account.cookies,
 				screenName: account.screenName,
 				browser: await puppeteer.launch({
@@ -1115,67 +1118,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		});
 	}
 
-	async function doomScrollList(list, account) {
-		let search = `list:${list.listid}`
-		if (!list.textallowed)
-			search += ' filter:media'
-		if (!list.getretweets)
-			search += ' -filter:retweets'
-		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
-		const SCROLL_DELAY_MS_MIN = 100;
-		const SCROLL_DELAY_MS_MAX = 2500;
-		const MAX_TWEET_COUNT = 500;
-
-		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-
-		const page = await account.browser.newPage();
-		await page.setViewport({
-			width: 1080,
-			height: 1920,
-			deviceScaleFactor: 1,
-		});
-		await page.setUserAgent(
-			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
-		);
-		await page.setCookie(...account.cookie);
-		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
-
-		let previousHeight = 0;
-		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-		let returnedTweets = [];
-		let parsedIDs = [];
-
-		let latesttweets = (await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ?  AND timestamp >= now() - INTERVAL 1 DAY ORDER BY timestamp DESC`, [list.listid])).rows.map(e => e.tweetid);
-		latesttweets.push(...(await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ? ORDER BY timestamp DESC LIMIT 100`, [list.listid])).rows.map(e => e.tweetid));
-
-		Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "info");
-
-		function checkHistory() { return latesttweets.filter(e => parsedIDs.indexOf(e.toString()) !== -1).length === 0 }
-
-		let stop = false;
-		let stopCount = 0;
-
-		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
-		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
-			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
-		}
-
-		while (!stop) {
-			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
-				stop = true;
-			if (previousHeight === currentHeight) {
-				if (stopCount > 25)
-					stop = true;
-				stopCount++;
-			}
-			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
-			//await page.keyboard.press("PageDown");
-			await page.waitForTimeout(1200);
-
-			previousHeight = currentHeight;
-			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-
-			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+	async function getTwitterTab(account, task, url) {
+		if (twitterTabs.has(`${task}-${account.id}`)) {
+			const page = twitterTabs.get(`${task}-${account.id}`);
+			await page.goto(url, { waitUntil: 'networkidle2' });
+			await page.evaluate(async (gql, auth) => {
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
 						let _json = await fetchJson(status_id);
@@ -1214,9 +1161,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						await sleep(30000);
 					}
 					lastAPIAccessTime = Date.now();
-					let host = location.hostname;
-					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-					let variables = {
+					const host = location.hostname;
+					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+					const variables = {
 						"focalTweetId":status_id,
 						"with_rux_injections":false,
 						"includePromotedContent":true,
@@ -1226,7 +1173,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						"withVoice":true,
 						"withV2Timeline":true
 					};
-					let features = {
+					const features = {
 						"rweb_lists_timeline_redesign_enabled":true,
 						"responsive_web_graphql_exclude_directive_enabled":true,
 						"verified_phone_label_enabled":false,
@@ -1248,9 +1195,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						"responsive_web_media_download_video_enabled":false,
 						"responsive_web_enhance_cards_enabled":false
 					};
-					let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-					let cookies = getCookie();
-					let headers = {
+					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+					const cookies = (() => {
+						let _cookies = {};
+						document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+							n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+								_cookies[name.trim()] = value.trim();
+							});
+						});
+						return name ? _cookies[name] : _cookies;
+					})()
+					const headers = {
 						'authorization': auth,
 						'x-twitter-active-user': 'yes',
 						'x-twitter-client-language': cookies.lang,
@@ -1258,20 +1213,190 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					};
 					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-					let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 					return tweet_result.tweet || tweet_result;
 				}
-				function getCookie(name) {
-					let cookies = {};
-					document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-						n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-							cookies[name.trim()] = value.trim();
-						});
-					});
-					return name ? cookies[name] : cookies;
+			}, tGraphQL, tAuthorization)
+			return page;
+		} else {
+			const page = await account.browser.newPage();
+			await page.setViewport({
+				width: 1080,
+				height: 4096,
+				deviceScaleFactor: 1,
+			});
+			await page.setUserAgent(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
+			);
+			await page.setCookie(...account.cookie);
+			await page.setBypassCSP(true);
+			page.on('console', msg => {
+				for (let i = 0; i < msg.args().length; i++) {
+					console.log(msg.args()[i]);
 				}
+			});
+			await page.goto(url, {waitUntil: 'networkidle2'});
+			await page.evaluate(async (gql, auth) => {
+				async function getMediaURL(status_id, images, has_video) {
+					if (has_video) {
+						let _json = await fetchJson(status_id);
+						let tweet = _json.legacy;
+						let medias = tweet.extended_entities && tweet.extended_entities.media;
+						if (medias.length > 0) {
+							const media_array =  medias.map(media => {
+								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+								return {
+									media_url: url,
+									format: url.split('.').pop().split(':')[0].split('?')[0],
+									type: media.type
+								}
+							})
+							return {
+								images: media_array,
+								data: _json
+							};
+						} else {
+							return {
+								images: [],
+								data: _json
+							};
+						}
+					} else {
+						return {
+							images
+						}
+					}
+				}
+				let lastAPIAccessTime = null;
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+				async function fetchJson(status_id) {
+					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						await sleep(30000);
+					}
+					lastAPIAccessTime = Date.now();
+					const host = location.hostname;
+					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+					const variables = {
+						"focalTweetId":status_id,
+						"with_rux_injections":false,
+						"includePromotedContent":true,
+						"withCommunity":true,
+						"withQuickPromoteEligibilityTweetFields":true,
+						"withBirdwatchNotes":true,
+						"withVoice":true,
+						"withV2Timeline":true
+					};
+					const features = {
+						"rweb_lists_timeline_redesign_enabled":true,
+						"responsive_web_graphql_exclude_directive_enabled":true,
+						"verified_phone_label_enabled":false,
+						"creator_subscriptions_tweet_preview_api_enabled":true,
+						"responsive_web_graphql_timeline_navigation_enabled":true,
+						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
+						"tweetypie_unmention_optimization_enabled":true,
+						"responsive_web_edit_tweet_api_enabled":true,
+						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
+						"view_counts_everywhere_api_enabled":true,
+						"longform_notetweets_consumption_enabled":true,
+						"responsive_web_twitter_article_tweet_consumption_enabled":false,
+						"tweet_awards_web_tipping_enabled":false,
+						"freedom_of_speech_not_reach_fetch_enabled":true,
+						"standardized_nudges_misinfo":true,
+						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
+						"longform_notetweets_rich_text_read_enabled":true,
+						"longform_notetweets_inline_media_enabled":true,
+						"responsive_web_media_download_video_enabled":false,
+						"responsive_web_enhance_cards_enabled":false
+					};
+					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+					const cookies = (() => {
+						let _cookies = {};
+						document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+							n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+								_cookies[name.trim()] = value.trim();
+							});
+						});
+						return name ? _cookies[name] : _cookies;
+					})()
+					const headers = {
+						'authorization': auth,
+						'x-twitter-active-user': 'yes',
+						'x-twitter-client-language': cookies.lang,
+						'x-csrf-token': cookies.ct0
+					};
+					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
+					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+					return tweet_result.tweet || tweet_result;
+				}
+			}, tGraphQL, tAuthorization)
+			return page;
+		}
+	}
+	function closeTab(account, task) {
+		if (twitterTabCloseures[`${task}-${account.id}`]) {
+			clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
+		}
+		twitterTabCloseures[`${task}-${account.id}`] = setTimeout(async () => {
+			const page = twitterTabs.get(`${task}-${account.id}`);
+			await page.close();
+			console.log(`Closed Inactive Tab: ${task}-${account.id}`);
+			delete twitterTabCloseures[`${task}-${account.id}`]
+		}, 90000)
+	}
+	async function doomScrollList(list, account) {
+		let search = `list:${list.listid}`
+		if (!list.textallowed)
+			search += ' filter:media'
+		if (!list.getretweets)
+			search += ' -filter:retweets'
+		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
+		const SCROLL_DELAY_MS_MIN = 100;
+		const SCROLL_DELAY_MS_MAX = 2500;
+		const MAX_TWEET_COUNT = 500;
 
+		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
+		const page = getTwitterTab(account, `list`, TWITTER_LIST_URL)
+
+		let previousHeight = 0;
+		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+		let returnedTweets = [];
+		let parsedIDs = [];
+
+		let latesttweets = (await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ?  AND timestamp >= now() - INTERVAL 1 DAY ORDER BY timestamp DESC`, [list.listid])).rows.map(e => e.tweetid);
+		latesttweets.push(...(await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ? ORDER BY timestamp DESC LIMIT 100`, [list.listid])).rows.map(e => e.tweetid));
+
+		Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "info");
+
+		function checkHistory() { return latesttweets.filter(e => parsedIDs.indexOf(e.toString()) !== -1).length === 0 }
+
+		let stop = false;
+		let stopCount = 0;
+
+		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
+		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
+			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
+		}
+
+		while (!stop) {
+			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
+				stop = true;
+			if (previousHeight === currentHeight) {
+				if (stopCount > 25)
+					stop = true;
+				stopCount++;
+			}
+			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
+			//await page.keyboard.press("PageDown");
+			await page.waitForTimeout(1200);
+
+			previousHeight = currentHeight;
+			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
 				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
 				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
 				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
@@ -1328,7 +1453,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		setTimeout(() => { page.close(); }, 90000)
+		closeTab(account, `list`)
 
 		return returnedTweets;
 	}
@@ -1339,24 +1464,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = 2500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-
-		const page = await account.browser.newPage();
-		await page.setViewport({
-			width: 1080,
-			height: 4096,
-			deviceScaleFactor: 1,
-		});
-		await page.setUserAgent(
-			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
-		);
-		await page.setCookie(...account.cookie);
-		await page.setBypassCSP(true);
-		page.on('console', msg => {
-			for (let i = 0; i < msg.args().length; i++) {
-				console.log(msg.args()[i]);
-			}
-		});
-		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
+		const page = getTwitterTab(account, `${user}`, TWITTER_LIST_URL)
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1384,102 +1492,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
-				async function getMediaURL(status_id, images, has_video) {
-					if (has_video) {
-						let _json = await fetchJson(status_id);
-						let tweet = _json.legacy;
-						let medias = tweet.extended_entities && tweet.extended_entities.media;
-						if (medias.length > 0) {
-							const media_array =  medias.map(media => {
-								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-								return {
-									media_url: url,
-									format: url.split('.').pop().split(':')[0].split('?')[0],
-									type: media.type
-								}
-							})
-							return {
-								images: media_array,
-								data: _json
-							};
-						} else {
-							return {
-								images: [],
-								data: _json
-							};
-						}
-					} else {
-						return {
-							images
-						}
-					}
-				}
-				let lastAPIAccessTime = null;
-				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-				async function fetchJson(status_id) {
-					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-						await sleep(30000);
-					}
-					lastAPIAccessTime = Date.now();
-					let host = location.hostname;
-					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-					let variables = {
-						"focalTweetId":status_id,
-						"with_rux_injections":false,
-						"includePromotedContent":true,
-						"withCommunity":true,
-						"withQuickPromoteEligibilityTweetFields":true,
-						"withBirdwatchNotes":true,
-						"withVoice":true,
-						"withV2Timeline":true
-					};
-					let features = {
-						"rweb_lists_timeline_redesign_enabled":true,
-						"responsive_web_graphql_exclude_directive_enabled":true,
-						"verified_phone_label_enabled":false,
-						"creator_subscriptions_tweet_preview_api_enabled":true,
-						"responsive_web_graphql_timeline_navigation_enabled":true,
-						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-						"tweetypie_unmention_optimization_enabled":true,
-						"responsive_web_edit_tweet_api_enabled":true,
-						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-						"view_counts_everywhere_api_enabled":true,
-						"longform_notetweets_consumption_enabled":true,
-						"responsive_web_twitter_article_tweet_consumption_enabled":false,
-						"tweet_awards_web_tipping_enabled":false,
-						"freedom_of_speech_not_reach_fetch_enabled":true,
-						"standardized_nudges_misinfo":true,
-						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-						"longform_notetweets_rich_text_read_enabled":true,
-						"longform_notetweets_inline_media_enabled":true,
-						"responsive_web_media_download_video_enabled":false,
-						"responsive_web_enhance_cards_enabled":false
-					};
-					let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-					let cookies = getCookie();
-					let headers = {
-						'authorization': auth,
-						'x-twitter-active-user': 'yes',
-						'x-twitter-client-language': cookies.lang,
-						'x-csrf-token': cookies.ct0
-					};
-					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-					let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-					return tweet_result.tweet || tweet_result;
-				}
-				function getCookie(name) {
-					let cookies = {};
-					document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-						n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-							cookies[name.trim()] = value.trim();
-						});
-					});
-					return name ? cookies[name] : cookies;
-				}
-
 				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
 				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
 				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
@@ -1535,7 +1547,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			});
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		setTimeout(() => { page.close(); }, 90000)
+		closeTab(account, `${user}`)
 
 		return returnedTweets;
 	}
@@ -1546,24 +1558,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const MAX_TWEET_COUNT = 250;
 
 		Logger.printLine("HTDSv1", `Starting search favorites...`, "info");
-
-		const page = await account.browser.newPage();
-		await page.setViewport({
-			width: 1080,
-			height: 4096,
-			deviceScaleFactor: 1,
-		});
-		await page.setUserAgent(
-			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
-		);
-		await page.setCookie(...account.cookie);
-		await page.setBypassCSP(true);
-		page.on('console', msg => {
-			for (let i = 0; i < msg.args().length; i++) {
-				console.log(msg.args()[i]);
-			}
-		});
-		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
+		const page = getTwitterTab(account, `fav`, TWITTER_LIST_URL);
 
 		let previousHeight = 0;
 		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -1588,102 +1583,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
-				async function getMediaURL(status_id, images, has_video) {
-					if (has_video) {
-						let _json = await fetchJson(status_id);
-						let tweet = _json.legacy;
-						let medias = tweet.extended_entities && tweet.extended_entities.media;
-						if (medias.length > 0) {
-							const media_array =  medias.map(media => {
-								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-								return {
-									media_url: url,
-									format: url.split('.').pop().split(':')[0].split('?')[0],
-									type: media.type
-								}
-							})
-							return {
-								images: media_array,
-								data: _json
-							};
-						} else {
-							return {
-								images: [],
-								data: _json
-							};
-						}
-					} else {
-						return {
-							images
-						}
-					}
-				}
-				let lastAPIAccessTime = null;
-				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-				async function fetchJson(status_id) {
-					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-						await sleep(30000);
-					}
-					lastAPIAccessTime = Date.now();
-					let host = location.hostname;
-					let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-					let variables = {
-						"focalTweetId":status_id,
-						"with_rux_injections":false,
-						"includePromotedContent":true,
-						"withCommunity":true,
-						"withQuickPromoteEligibilityTweetFields":true,
-						"withBirdwatchNotes":true,
-						"withVoice":true,
-						"withV2Timeline":true
-					};
-					let features = {
-						"rweb_lists_timeline_redesign_enabled":true,
-						"responsive_web_graphql_exclude_directive_enabled":true,
-						"verified_phone_label_enabled":false,
-						"creator_subscriptions_tweet_preview_api_enabled":true,
-						"responsive_web_graphql_timeline_navigation_enabled":true,
-						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-						"tweetypie_unmention_optimization_enabled":true,
-						"responsive_web_edit_tweet_api_enabled":true,
-						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-						"view_counts_everywhere_api_enabled":true,
-						"longform_notetweets_consumption_enabled":true,
-						"responsive_web_twitter_article_tweet_consumption_enabled":false,
-						"tweet_awards_web_tipping_enabled":false,
-						"freedom_of_speech_not_reach_fetch_enabled":true,
-						"standardized_nudges_misinfo":true,
-						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-						"longform_notetweets_rich_text_read_enabled":true,
-						"longform_notetweets_inline_media_enabled":true,
-						"responsive_web_media_download_video_enabled":false,
-						"responsive_web_enhance_cards_enabled":false
-					};
-					let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-					let cookies = getCookie();
-					let headers = {
-						'authorization': auth,
-						'x-twitter-active-user': 'yes',
-						'x-twitter-client-language': cookies.lang,
-						'x-csrf-token': cookies.ct0
-					};
-					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-					let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-					return tweet_result.tweet || tweet_result;
-				}
-				function getCookie(name) {
-					let cookies = {};
-					document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-						n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-							cookies[name.trim()] = value.trim();
-						});
-					});
-					return name ? cookies[name] : cookies;
-				}
-
 				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
 				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
 				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
@@ -1731,131 +1630,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
 			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 		}
-		setTimeout(() => { page.close(); }, 90000)
+		closeTab(account, `fav`);
 
 		return returnedTweets;
 	}
 	async function getTweet(user, id, account) {
-		const TWITTER_LIST_URL = `https://twitter.com/${user}/status/${id}`;
-
 		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
 
-		const page = await account.browser.newPage();
-		await page.setViewport({
-			width: 1080,
-			height: 4096,
-			deviceScaleFactor: 1,
-		});
-		await page.setUserAgent(
-			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
-		);
-		await page.setCookie(...account.cookie);
-		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
-		await page.setBypassCSP(true);
-		page.on('console', msg => {
-			for (let i = 0; i < msg.args().length; i++) {
-				console.log(msg.args()[i]);
-			}
-		});
+		const page = getTwitterTab(account, `${user}/status/${id}`, `https://twitter.com/${user}/status/${id}`)
 		await page.waitForTimeout(1200);
 
-		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
-			async function getMediaURL(status_id, images, has_video) {
-				if (has_video) {
-					let _json = await fetchJson(status_id);
-					let tweet = _json.legacy;
-					let medias = tweet.extended_entities && tweet.extended_entities.media;
-					if (medias.length > 0) {
-						const media_array =  medias.map(media => {
-							const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-							return {
-								media_url: url,
-								format: url.split('.').pop().split(':')[0].split('?')[0],
-								type: media.type
-							}
-						})
-						return {
-							images: media_array,
-							data: _json
-						};
-					} else {
-						return {
-							images: [],
-							data: _json
-						};
-					}
-				} else {
-					return {
-						images
-					}
-				}
-			}
-			let lastAPIAccessTime = null;
-			const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-			async function fetchJson(status_id) {
-				if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-					console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-					await sleep(30000);
-				}
-				lastAPIAccessTime = Date.now();
-				let host = location.hostname;
-				let base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-				let variables = {
-					"focalTweetId":status_id,
-					"with_rux_injections":false,
-					"includePromotedContent":true,
-					"withCommunity":true,
-					"withQuickPromoteEligibilityTweetFields":true,
-					"withBirdwatchNotes":true,
-					"withVoice":true,
-					"withV2Timeline":true
-				};
-				let features = {
-					"rweb_lists_timeline_redesign_enabled":true,
-					"responsive_web_graphql_exclude_directive_enabled":true,
-					"verified_phone_label_enabled":false,
-					"creator_subscriptions_tweet_preview_api_enabled":true,
-					"responsive_web_graphql_timeline_navigation_enabled":true,
-					"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-					"tweetypie_unmention_optimization_enabled":true,
-					"responsive_web_edit_tweet_api_enabled":true,
-					"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-					"view_counts_everywhere_api_enabled":true,
-					"longform_notetweets_consumption_enabled":true,
-					"responsive_web_twitter_article_tweet_consumption_enabled":false,
-					"tweet_awards_web_tipping_enabled":false,
-					"freedom_of_speech_not_reach_fetch_enabled":true,
-					"standardized_nudges_misinfo":true,
-					"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-					"longform_notetweets_rich_text_read_enabled":true,
-					"longform_notetweets_inline_media_enabled":true,
-					"responsive_web_media_download_video_enabled":false,
-					"responsive_web_enhance_cards_enabled":false
-				};
-				let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-				let cookies = getCookie();
-				let headers = {
-					'authorization': auth,
-					'x-twitter-active-user': 'yes',
-					'x-twitter-client-language': cookies.lang,
-					'x-csrf-token': cookies.ct0
-				};
-				if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-				const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-				let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-				let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-				return tweet_result.tweet || tweet_result;
-			}
-			function getCookie(name) {
-				let cookies = {};
-				document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-					n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-						cookies[name.trim()] = value.trim();
-					});
-				});
-				return name ? cookies[name] : cookies;
-			}
-
+		const returnedTweets = await page.evaluate(async (tweet_id) => {
 			const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
 			const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
 			return await Promise.all(img_tweets.map(async a => {
@@ -1890,9 +1675,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				};
 			}));
 			// Add RT support here
-		}, id, tGraphQL, tAuthorization)
-
-		await page.close();
+		}, id)
+		closeTab(account, `${user}/status/${id}`);
 		return returnedTweets;
 	}
 	async function yoinkTwitterAPIKey(id) {
