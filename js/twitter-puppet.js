@@ -1437,8 +1437,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setCookie(...account.cookie);
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 		await page.setBypassCSP(true);
-		await page._client.send("Network.enable");
-		await page._client.send("Network.setBypassServiceWorker", { bypass: true });
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			console.log('requesting', req.url(), req.headers);
