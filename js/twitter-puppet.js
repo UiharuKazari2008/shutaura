@@ -217,8 +217,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						'--disable-setuid-sandbox',
 						'--inprivate',
 						`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
-						'--remote-debugging-address=0.0.0.0'
-					]
+						'--remote-debugging-address=0.0.0.0',
+						'--enable-features=NetworkService',
+					],
+					ignoreHTTPSErrors: true
 				}),
 				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
@@ -1435,6 +1437,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setCookie(...account.cookie);
 		await page.goto(TWITTER_LIST_URL, { waitUntil: 'networkidle2' });
 		await page.setBypassCSP(true);
+		await page._client.send("Network.enable");
+		await page._client.send("Network.setBypassServiceWorker", { bypass: true });
+		await page.setRequestInterception(true);
+		page.on('request', req => {
+			console.log('requesting', req.url(), req.headers);
+			req.continue().catch(e => e /* not intercepting */);
+		});
 		await page.waitForTimeout(1200);
 
 		const returnedTweets = await page.evaluate(async (tweet_id) => {
