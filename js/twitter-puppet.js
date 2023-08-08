@@ -53,6 +53,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 	let discordaccount;
 	let twitteraccount;
+	let tAuthorization;
+	let tGraphQL;
 
 	let overflowControl = new Map();
 	let activeTasks = new Map();
@@ -225,6 +227,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				config: twitteraccount.filter(e => e.taccount === parseInt(account.id.toString())).pop(),
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
 			})
+			if (account.id === 1) {
+				await yoinkTwitterAPIKey(account.id);
+			}
 		} else {
 			Logger.printLine("Twitter", `Missing Twitter Bot Login Properties for account ${account.id}, Please verify that they exists in the configuration file or the global_parameters table`, "critical");
 		}
@@ -1439,7 +1444,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setBypassCSP(true);
 		await page.setRequestInterception(true);
 		page.on('request', req => {
-			console.log('requesting', req.url(), req.headers);
+			console.log('requesting', req.url(), req.header.get('Authorization'));
 			req.continue().catch(e => e /* not intercepting */);
 		});
 		await page.waitForTimeout(1200);
@@ -1554,6 +1559,36 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		setTimeout(() => { page.close(); }, 90000)
 		return returnedTweets;
+	}
+	async function yoinkTwitterAPIKey(id) {
+		const account = twitterAccounts.get(parseInt(id.toString()))
+		const page = await account.browser.newPage();
+		await page.setViewport({
+			width: 1280,
+			height: 480,
+			deviceScaleFactor: 1,
+		});
+		await page.setUserAgent(
+			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
+		);
+		await page.setCookie(...account.cookie);
+		await page.goto('https://twitter.com/', { waitUntil: 'networkidle2' });
+		await page.setBypassCSP(true);
+		await page.setRequestInterception(true);
+		page.on('request', req => {
+			const url = req.url();
+			if (url.includes('https://twitter.com/i/api/graphql/')) {
+				tGraphQL = url.split('graphql/').pop().split('/')[0];
+				tAuthorization = req.header.get('Authorization');
+				console.log("Got required request data to boot!", tGraphQL, tAuthorization)
+			}
+			req.continue().catch(e => e /* not intercepting */);
+		});
+		while (tAuthorization === undefined) {
+			await page.waitForTimeout(500);
+		}
+		await page.close();
+		return [tGraphQL, tAuthorization];
 	}
 
 	process.on('uncaughtException', function(err) {
