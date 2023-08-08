@@ -978,69 +978,74 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
 			activeActions.push(`${id}-${message.messageAction}-${intent.join('-')}`);
-			const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`);
-			await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-			await Promise.all(intent.map(async thisIntent => {
-				const results = await page.evaluate(async (action) => {
-					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-					const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-					return await new Promise(async res => {
-						if (twt) {
-							switch (action) {
-								case "add-Like":
-									if (twt.querySelector('div[data-testid="like"]')) {
-										twt.querySelector('div[data-testid="like"]').click();
-										await sleep(1500);
-										res(!!(twt.querySelector('div[data-testid="unlike"]')));
-									} else {
-										res(1);
-									}
-									break;
-								case "remove-Like":
-									if (twt.querySelector('div[data-testid="unlike"]')) {
-										twt.querySelector('div[data-testid="unlike"]').click();
-										await sleep(1500);
-										res(!!(twt.querySelector('div[data-testid="like"]')));
-									} else {
-										res(1);
-									}
-									break;
-								case "add-Retweet":
-									if (twt.querySelector('div[data-testid="retweet"]')) {
-										twt.querySelector('div[data-testid="retweet"]').click();
-										await sleep(250);
-										document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-										await sleep(1500);
-										res(!!(twt.querySelector('div[data-testid="unretweet"]')));
-									} else {
-										res(1);
-									}
-									break;
-								case "remove-Retweet":
-									if (twt.querySelector('div[data-testid="unretweet"]')) {
-										twt.querySelector('div[data-testid="unretweet"]').click();
-										await sleep(250);
-										document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-										await sleep(1500);
-										res(!!(twt.querySelector('div[data-testid="retweet"]')));
-									} else {
-										res(1);
-									}
-									break;
-								default:
-									res(false);
-									break;
+			try {
+				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`);
+				await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+				await Promise.all(intent.map(async thisIntent => {
+					const results = await page.evaluate(async (action) => {
+						const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+						const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+						return await new Promise(async res => {
+							if (twt) {
+								switch (action) {
+									case "add-Like":
+										if (twt.querySelector('div[data-testid="like"]')) {
+											twt.querySelector('div[data-testid="like"]').click();
+											await sleep(1500);
+											res(!!(twt.querySelector('div[data-testid="unlike"]')));
+										} else {
+											res(1);
+										}
+										break;
+									case "remove-Like":
+										if (twt.querySelector('div[data-testid="unlike"]')) {
+											twt.querySelector('div[data-testid="unlike"]').click();
+											await sleep(1500);
+											res(!!(twt.querySelector('div[data-testid="like"]')));
+										} else {
+											res(1);
+										}
+										break;
+									case "add-Retweet":
+										if (twt.querySelector('div[data-testid="retweet"]')) {
+											twt.querySelector('div[data-testid="retweet"]').click();
+											await sleep(250);
+											document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+											await sleep(1500);
+											res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+										} else {
+											res(1);
+										}
+										break;
+									case "remove-Retweet":
+										if (twt.querySelector('div[data-testid="unretweet"]')) {
+											twt.querySelector('div[data-testid="unretweet"]').click();
+											await sleep(250);
+											document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+											await sleep(1500);
+											res(!!(twt.querySelector('div[data-testid="retweet"]')));
+										} else {
+											res(1);
+										}
+										break;
+									default:
+										res(false);
+										break;
+								}
+							} else {
+								res(false);
 							}
-						} else {
-							res(false);
-						}
-					})
-				}, `${message.messageAction}-${thisIntent}`)
-				Logger.printLine("TwitterInteract", `Account ${accountID}: Sent command ${message.messageAction}/${thisIntent} to ${id}: ${results}`, "info")
-				return results;
-			}));
-			closeTab(account, `get`);
-			cb(true);
+						})
+					}, `${message.messageAction}-${thisIntent}`)
+					Logger.printLine("TwitterInteract", `Account ${accountID}: Sent command ${message.messageAction}/${thisIntent} to ${id}: ${results}`, "info")
+					return results;
+				}));
+				closeTab(account, `get`);
+				cb(true);
+			} catch (e) {
+				console.error(e)
+				cb(false);
+			}
 		} else {
 			cb(true);
 		}
