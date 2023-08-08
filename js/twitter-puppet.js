@@ -1141,6 +1141,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			});
 			await page.goto(url, {waitUntil: 'networkidle2'});
+			twitterTabs.set(`${task}-${account.id}`, page);
 			return page;
 		}
 	}
