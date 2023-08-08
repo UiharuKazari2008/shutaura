@@ -61,6 +61,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	let twitterBrowsers = new Map();
 	let twitterTabs = new Map();
 	let twitterTabCloseures = {};
+	let twitterBrowserCloseures = {};
 	let twitterFlowTimers = new Map();
 	let twitterFlowState = new Map();
 	let twitterNotify = new Map();
@@ -230,11 +231,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				screenName: account.screenName,
 				headless: (account.headless !== undefined) ? account.headless : undefined,
 				config: account.config,
+				allow_idle: (account.id !== 1 && !account.no_idle),
 				flowcontrol: (account.flowcontrol) ? account.flowcontrol : false
 			})
-			await createBrowser(account);
 			if (account.id === 1) {
+				await createBrowser(account);
 				await yoinkTwitterAPIKey(account.id);
+			} else if (account.autostart) {
+				await createBrowser(account);
+			} else {
+				Logger.printLine("Twitter", `NOTE: Browser is available as on-demand only for #${account.id}`, "debug")
 			}
 		} else {
 			Logger.printLine("Twitter", `Missing Twitter Bot Login Properties for account ${account.id}, Please verify that they exists in the configuration file or the global_parameters table`, "critical");
@@ -1213,6 +1219,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			await page.goto(url, { waitUntil: 'networkidle2' });
 			return page;
 		} else {
+			if (!twitterBrowsers.has(account.id))
+				await createBrowser(account)
 			const browser = twitterBrowsers.get(account.id);
 			const page = await browser.newPage();
 			await page.setViewport({
@@ -1246,6 +1254,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				console.log(`Closed Inactive Tab: ${task}-${account.id}`);
 				twitterTabs.delete(`${task}-${account.id}`)
 				delete twitterTabCloseures[`${task}-${account.id}`]
+			}, 60000)
+		}
+		if (account.allow_idle && twitterBrowsers.has(account.id)) {
+			if (twitterBrowserCloseures[account.id]) {
+				clearTimeout(twitterBrowserCloseures[account.id]);
+			}
+			twitterBrowserCloseures[account.id] = setTimeout(async () => {
+				const browser = twitterBrowsers.get(account.id);
+				await browser.close();
+				console.log(`Closed Inactive Browser for account #${account.id}`);
+				twitterBrowsers.delete(account.id)
+				delete twitterBrowserCloseures[account.id]
 			}, 90000)
 		}
 	}
