@@ -1580,9 +1580,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const url = req.url();
 			const headers = req.headers();
 			if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
-				console.log(headers)
 				tGraphQL = url.split('graphql/').pop().split('/')[0];
-				//tAuthorization = ;
+				tAuthorization = headers['authorization'];
 				console.log("Got required request data to boot!", tGraphQL, tAuthorization)
 			}
 			req.continue().catch(e => e /* not intercepting */);
