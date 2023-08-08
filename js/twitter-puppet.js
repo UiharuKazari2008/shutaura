@@ -978,7 +978,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
 			activeActions.push(`${id}-${message.messageAction}-${intent.join('-')}`);
-			const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`)
+			const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`);
+			await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
 			await Promise.all(intent.map(async thisIntent => {
 				const results = await page.evaluate(async (action) => {
 					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
