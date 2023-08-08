@@ -912,15 +912,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				case "Like":
 					// Liked
 					interactTweet(message, [message.messageIntent], cb);
-					cb(true);
 					break;
 				case "Retweet":
 					interactTweet(message, [message.messageIntent], cb);
-					cb(true);
 					break;
 				case "LikeRT":
 					interactTweet(message, ['Like', 'Retweet'], cb);
-					cb(true);
 					break;
 				case "Download":
 					downloadTweet(message, cb);
