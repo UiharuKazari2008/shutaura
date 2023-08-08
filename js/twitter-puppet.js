@@ -219,6 +219,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (!account.allow_idle)
 			browser.on('close', () => createBrowser(account))
 		twitterBrowsers.set(parseInt(account.id.toString()), browser);
+		Logger.printLine("BrowserManager", `Created new browser for account #${account.id}`, "info")
 	}
 	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
 		if (account.id && account.cookies && account.screenName) {
@@ -847,7 +848,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					if (competedTweet && competedTweet.length > 0) {
 						let sent = true
 						for (let i in competedTweet) {
-							console.log(competedTweet[i])
 							const _sent = await mqClient.publishData((competedTweet[i].itemFileURL) ? systemglobal.FileWorker_In : `${systemglobal.PDP_Out || systemglobal.Discord_Out}`, competedTweet[i])
 							if (!_sent)
 								sent = false;
@@ -1059,6 +1059,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				closeTab(account, `get`);
 				cb(true);
 			} catch (e) {
+				Logger.printLine("TwitterInteract", `Failed to complete action for ${message.messageAction}/${intent.join('+')} to ${id}: ${e.message}`, "error", e)
 				console.error(e)
 				cb(false);
 			}
@@ -1141,7 +1142,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}));
 					}, Promise.resolve());
 					tweetRequests.then((ok) => {
-						console.log(`Account ${id}: List Complete - ${list.listid}`)
+						Logger.printLine("TwitterIngest", `Account ${id}: List Complete - ${list.listid}`, "info")
 						listResolve(true);
 					});
 					});
@@ -1158,7 +1159,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 					messageArray = null;
 				}
-				console.log(`Account ${id}: Completed Pass`);
+				Logger.printLine("TwitterIngest", `Account ${id}: Completed Pass`, "info")
 			})
 		}
 	}
@@ -1230,6 +1231,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (!twitterBrowsers.has(account.id))
 				await createBrowser(account)
 			const browser = twitterBrowsers.get(account.id);
+			Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
 			const page = await browser.newPage();
 			await page.setViewport({
 				width: 1080,
@@ -1241,12 +1243,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			);
 			await page.setCookie(...account.cookie);
 			await page.setBypassCSP(true);
-			page.on('console', msg => {
+			/*page.on('console', msg => {
 				for (let i = 0; i < msg.args().length; i++) {
 					console.log(msg.args()[i]);
 				}
-			});
+			});*/
 			await page.goto(url, {waitUntil: 'networkidle2'});
+			Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "info")
 			twitterTabs.set(`${task}-${account.id}`, page);
 			return page;
 		}
@@ -1259,7 +1262,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			twitterTabCloseures[`${task}-${account.id}`] = setTimeout(async () => {
 				const page = twitterTabs.get(`${task}-${account.id}`);
 				await page.close();
-				console.log(`Closed Inactive Tab: ${task}-${account.id}`);
+				Logger.printLine("TabManager", `Closed Inactive Tab: ${task}-${account.id}`, "warn")
 				twitterTabs.delete(`${task}-${account.id}`)
 				delete twitterTabCloseures[`${task}-${account.id}`]
 			}, 60000)
@@ -1271,7 +1274,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			twitterBrowserCloseures[account.id] = setTimeout(async () => {
 				const browser = twitterBrowsers.get(account.id);
 				await browser.close();
-				console.log(`Closed Inactive Browser for account #${account.id}`);
+				Logger.printLine("BrowserManager", `Closed Inactive Browser for account #${account.id}`, "warn")
 				twitterBrowsers.delete(account.id)
 				delete twitterBrowserCloseures[account.id]
 			}, 90000)
@@ -2001,15 +2004,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		await page.setUserAgent(
 			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
 		);
-		console.log("Searching for graphql request...")
+		Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 		await page.setCookie(...account.cookie);
 		await page.goto('https://twitter.com/' + account.screenName);
 		await page.setBypassCSP(true);
-		page.on('console', msg => {
-			for (let i = 0; i < msg.args().length; i++) {
-				console.log(msg.args()[i]);
-			}
-		});
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
@@ -2017,7 +2015,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
 				tGraphQL = url.split('graphql/').pop().split('/')[0];
 				tAuthorization = headers['authorization'];
-				console.log("Got required request data to boot!", tGraphQL, tAuthorization)
+				Logger.printLine("AuthManager", `Got required request data to start!`, "info")
 			}
 			req.continue().catch(e => e /* not intercepting */);
 		});
