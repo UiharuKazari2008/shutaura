@@ -1011,11 +1011,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 															}
 														}
 														const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-														return await Promise.all(rc.action.map(async (actionIntent, intentIndex) => {
+														return await Promise.all(rc.map(async (ai) => {
 															return await new Promise(async res => {
 																if (twt) {
 																	try {
-																		switch (actionIntent) {
+																		switch (ai) {
 																			case "add-Like":
 																				if (twt.querySelector('div[data-testid="like"]')) {
 																					twt.querySelector('div[data-testid="like"]').click();
@@ -1049,16 +1049,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}
 															})
 														}));
-													}, releaseCollection)
-													if (results.filter(e => !e).length > 0) {
-														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+													}, releaseCollection.action)
+													console.log(results)
+													if (results.filter(e => e === false).length > 0) {
+														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 														Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
 														tryTweet()
 													} else {
-														Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
+														Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${releaseCollection.action.join('/')} to ${tweetID}: ${results}`, "info");
 													}
 												} catch (e) {
-													Logger.printLine("TwitterInteract", `Failed to complete action for ${actionIntent} to ${id}: ${e.message}`, "error", e)
+													Logger.printLine("TwitterInteract", `Failed to complete action for ${releaseCollection.action.join('/')} to ${id}: ${e.message}`, "error", e)
 													console.error(e)
 													tryTweet()
 												}
