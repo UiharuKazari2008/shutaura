@@ -2059,38 +2059,40 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function yoinkTwitterAPIKey(id) {
 		const account = twitterAccounts.get(parseInt(id.toString()))
 		const browser = twitterBrowsers.get(account.id);
-		const page = await browser.newPage();
-		if (!page)
-			Logger.printLine("TabManager", `Failed to load inital page!`, "emergency");
-		await page.setViewport({
-			width: 1280,
-			height: 480,
-			deviceScaleFactor: 1,
-		});
-		await page.setUserAgent(
-			'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
-		);
-		Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
-		await page.setCookie(...account.cookie);
-		await page.goto('https://twitter.com/');
-		await page.setRequestInterception(true);
-		page.on('request', req => {
-			const url = req.url();
-			const headers = req.headers();
-			if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
-				tGraphQL = url.split('graphql/').pop().split('/')[0];
-				tAuthorization = headers['authorization'];
-				Logger.printLine("AuthManager", `Got required request data to start!`, "info")
+		try {
+			const page = await browser.newPage();
+			await page.setViewport({
+				width: 1280,
+				height: 480,
+				deviceScaleFactor: 1,
+			});
+			await page.setUserAgent(
+				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
+			);
+			Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
+			await page.setCookie(...account.cookie);
+			await page.goto('https://twitter.com/');
+			await page.setRequestInterception(true);
+			page.on('request', req => {
+				const url = req.url();
+				const headers = req.headers();
+				if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
+					tGraphQL = url.split('graphql/').pop().split('/')[0];
+					tAuthorization = headers['authorization'];
+					Logger.printLine("AuthManager", `Got required request data to start!`, "info")
+				}
+				req.continue().catch(e => e /* not intercepting */);
+			});
+			await page.waitForSelector('article');
+			const tweet = await page.$('article');
+			await tweet.click();
+			while (tAuthorization === undefined) {
+				await page.waitForTimeout(500);
 			}
-			req.continue().catch(e => e /* not intercepting */);
-		});
-		await page.waitForSelector('article');
-		const tweet = await page.$('article');
-		await tweet.click();
-		while (tAuthorization === undefined) {
-			await page.waitForTimeout(500);
+			await page.close();
+		} catch (e) {
+			Logger.printLine("TabManager", `Failed to load inital page!`, "emergency");
 		}
-		await page.close();
 	}
 
 	process.on('uncaughtException', function(err) {
