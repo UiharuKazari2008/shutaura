@@ -574,13 +574,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				}
 			})
-			//verifyQueue();
+			verifyQueue();
 			if (enablePullData) {
 				//updateStats();
 			}
 			cron.schedule('*/30 * * * *', () => {
 				if (enablePullData) {
-					//updateStats();
+					updateStats();
 					getTweets();
 					//getMentions();
 				}
@@ -590,10 +590,511 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					getLikes();
 				}
 			});
-			//cron.schedule('4,34 * * * *', verifyQueue);
+			cron.schedule('4,34 * * * *', verifyQueue);
 		})
 		if (process.send && typeof process.send === 'function') {
 			process.send('ready');
+		}
+	}
+
+	function updateStats() {
+		Array.from(twitterAccounts.entries()).forEach(e => {
+			const twitterUser = parseInt(e[0].toString())
+			const twit = e[1]
+			if (twit.flowcontrol) {
+				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?`, [twitterUser],(err, tweetQueue) => {
+					if (err) {
+						Logger.printLine(`Collector`, `Failed to get tweet to collector via SQL`, `error`, err);
+					} else if (tweetQueue) {
+						const rtCollection = tweetQueue.filter(e => { return e.action === 3 }).length;
+						const likeCollection = tweetQueue.filter(e => { return e.action === 2 }).length;
+						const likeRtCollection = tweetQueue.filter(e => { return e.action === 1 }).length;
+						const sendCollection = tweetQueue.filter(e => { return e.action === 4 }).length;
+						const stats = rtCollection + ((sendCollection > likeRtCollection) ? sendCollection : likeRtCollection)
+
+						Logger.printLine(`Collector`, `Account ${twitterUser}: Current Collector Stacks - Like: ${likeCollection} Retweet: ${rtCollection} LikeRT: ${likeRtCollection} Send: ${sendCollection}`, `info`);
+
+						if (stats < ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64) && twitterFlowTimers.has(`flow_low_${twitterUser}`)) {
+							if (twitterFlowState.get(twitterUser) !== 0) {
+								if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+									twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_low_${twitterUser}`).start()
+								overflowControl.set(twitterUser, 0)
+								twitterFlowState.set(twitterUser, 0)
+							}
+						} else if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) && twitterFlowTimers.has(`flow_max_${twitterUser}`)) {
+							if (twitterFlowState.get(twitterUser) !== 2) {
+								if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+									twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_max_${twitterUser}`).start()
+								overflowControl.set(twitterUser, ((twit.flowcontrol.max_rate) ? twit.flowcontrol.max_rate : 1))
+								twitterFlowState.set(twitterUser, 2)
+							}
+						} else if (stats > ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
+							if (twitterFlowState.get(twitterUser) !== 2) {
+								const _fcc = ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500) / ((twit.flowcontrol.max_divide) ? twit.flowcontrol.volume.max_divide : 500)
+								if (_fcc < 1) {
+									overflowControl.set(twitterUser, 0)
+								} else {
+									overflowControl.set(twitterUser, _fcc.toFixed(0))
+								}
+							}
+						} else {
+							if (twitterFlowState.get(twitterUser) !== 1) {
+								if (twitterFlowTimers.has(`flow_max_${twitterUser}`))
+									twitterFlowTimers.get(`flow_max_${twitterUser}`).stop()
+								if (twitterFlowTimers.has(`flow_low_${twitterUser}`))
+									twitterFlowTimers.get(`flow_low_${twitterUser}`).stop()
+								twitterFlowTimers.get(`flow_normal_${twitterUser}`).start()
+								overflowControl.set(twitterUser, 0)
+								twitterFlowState.set(twitterUser, 1)
+							}
+						}
+
+						if (twit.flowcontrol.status_name) {
+							let messageText = ''
+							let messageIcon = ''
+							if (twit.config.short_name) {
+								messageText += `${twit.config.short_name} `
+							}
+
+							if (stats <= ((twit.flowcontrol.volume.empty) ? twit.flowcontrol.volume.empty : 4)) {
+								messageIcon = '🛑'
+							} else if (stats <= ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64)) {
+								messageIcon = '⚠'
+							} else if (stats <= ((twit.flowcontrol.volume.warning) ? twit.flowcontrol.volume.warning : 128)) {
+								messageIcon = '🟢'
+							} else if (stats >= ((twit.flowcontrol.volume.max) ? twit.flowcontrol.volume.max : 1500)) {
+								messageIcon = '🌊'
+							} else {
+								messageIcon = '✅'
+							}
+							if (stats >= 1 ) {
+								messageText += `${messageIcon} ${stats}`
+							} else {
+								messageText += `${messageIcon} Sleeping`
+							}
+
+							mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+								fromClient: `return.${facilityName}.${e[0]}.${systemglobal.SystemName}`,
+								messageReturn: false,
+								messageChannelID: '0',
+								messageChannelName: twit.flowcontrol.status_name,
+								messageType: 'status',
+								messageData: {
+									flowName: twit.config.name,
+									flowIcon: twit.config.short_name,
+									flowCountTotal: stats,
+									flowCountSend: sendCollection,
+									flowCountLikeRt: likeRtCollection,
+									flowCountLike: likeCollection,
+									flowCountRt: rtCollection,
+									flowVolume: twit.flowcontrol.volume,
+									flowMode: twitterFlowState.get(twitterUser),
+									flowMinAlert: twit.flowcontrol.min_alert,
+									flowMaxAlert: twit.flowcontrol.max_alert,
+									statusText: messageText,
+									statusIcon: messageIcon,
+									accountShortName: twit.config.short_name,
+									accountName: twit.config.name,
+								},
+								updateIndicators: true
+							}, (ok) => { if (!ok) { console.error('Failed to send update to MQ') } })
+						}
+					}
+				})
+			}
+		})
+	}
+	async function verifyQueue() {
+		const _tweetQueue = await db.query(`SELECT * FROM twitter_tweet_queue WHERE (system_id = ? OR system_id IS NULL) ORDER BY RAND() LIMIT 100`, [systemglobal.SystemName])
+		if (_tweetQueue.errors) {
+			Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, _tweetQueue.errors);
+		} else {
+			await Promise.all(Array.from(twitterAccounts.entries()).map(async e => {
+				const twit = e[1];
+				const twitterUser = parseInt(e[0].toString());
+				const tweetQueue = _tweetQueue.rows.filter(e => e.taccount === twitterUser)
+
+				if (tweetQueue.length > 0) {
+					await Promise.all(tweetQueue.filter(e => e.action === 4).map(async (tweet) => {
+						if (tweet.action === 4) {
+							if ((fs.existsSync(path.join(process.cwd(),`/data/flow_storage_${twitterUser}`, '/' + tweet.id))) === false) {
+								Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+								await db.query(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id, tweet.action ])
+							}
+						} else {
+							await limiter1.removeTokens(1, async function () {
+								const page = await getTwitterTab(twit, `get`, `https://twitter.com/${twit.screenName}/status/${tweet.id.toString()}`);
+								if (page) {
+									const dead = await page.evaluate(async () => {
+										return !(document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]'));
+									})
+									if (dead) {
+										Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+										await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id.toString(), tweet.action ], (err, results) => {
+											if (err) {
+												Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+											}
+										});
+									}
+									closeTab(account, `get`);
+								} else {
+									Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+									await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id.toString(), tweet.action ], (err, results) => {
+										if (err) {
+											Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+										}
+									});
+								}
+							})
+						}
+					}))
+				}
+			}))
+		}
+	}
+	function storeTweet(message, cb) {
+		try {
+			if (message && message.messageIntent) {
+				let twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
+				let actionID = ((x) => {
+					switch (x) {
+						case "LikeRT":
+							return 1
+						case "Like":
+							return 2
+						case "Retweet":
+							return 3
+						case "SendTweet":
+							return 4
+						default:
+							return null
+					}
+				})(message.messageIntent);
+				let tweetID = ((x, y, z) => {
+					if (z) {
+						return null
+					} else if (x && x.length > 0 && x[0].title && (x[0].title.includes('📨 Tweet') || x[0].title.includes('✳ Retweet'))) {
+						return x[0].url.split("/").pop().toString()
+					} else  if (x && x.title && (x.title.includes('📨 Tweet') || x.title.includes('✳ Retweet'))) {
+						return x.url.split("/").pop().toString()
+					} else if (y.length > 0) {
+						return getIDfromText(y).toString()
+					} else {
+						return null
+					}
+				})(message.messageEmbeds, message.messageText, (message.messageIntent === 'SendTweet'));
+
+				if (message.messageIntent === 'SendTweet') {
+					const json = JSON.stringify(message);
+					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?, data = ?, system_id = ?`, [twitterUser, actionID, message.messageFileData, json, systemglobal.SystemName], (err, savedResult) => {
+						if (err) {
+							Logger.printLine(`Collector`, `Failed to save send tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
+							cb(true);
+						} else if (savedResult && savedResult.affectedRows > 0) {
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Send Tweet to collector as "${message.messageText}"`, `info`);
+							cb(true);
+						} else {
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Unable to save send Tweet to collector as "${tweetID}"`, `warning`);
+							cb(true);
+						}
+					})
+				} else if (tweetID && actionID) {
+					db.safe(`INSERT INTO twitter_tweet_queue SET taccount = ?, action = ?, id = ?, system_id = ?`, [twitterUser, actionID, tweetID, systemglobal.SystemName], (err, savedResult) => {
+						if (err) {
+							Logger.printLine(`Collector`, `Failed to save tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
+							cb(true);
+						} else if (savedResult && savedResult.affectedRows > 0) {
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Tweet to collector as "${tweetID}"`, `info`);
+							cb(true);
+						} else {
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Unable to save Tweet to collector as "${tweetID}"`, `warning`);
+							cb(true);
+						}
+					})
+				} else {
+					Logger.printLine(`Collector`, `Account ${twitterUser}: Unable to save Tweet to collector as "${tweetID}" due to invalid data : No Tweet ID or ActionID`, `error`);
+					cb(true);
+				}
+			} else {
+				Logger.printLine(`Collector`, `Unable to save Tweet to collector due to invalid data : No Intent`, `error`);
+				cb(true);
+			}
+		} catch (err) {
+			Logger.printLine(`Collector`, `Failed to save tweet into collector due to a uncaught error`, `error`, err);
+			console.error(err)
+			cb(true);
+		}
+	}
+	function removeTweet(message, cb) {
+		try {
+			if (message && message.messageIntent) {
+				let twitterUser = (message.accountID) ? parseInt(message.accountID.toString()) : 1;
+				let tweetID = ((x, y) => {
+					if (x && x.length > 0 && x[0].title && (x[0].title.includes('📨 Tweet') || x[0].title.includes('✳ Retweet'))) {
+						return x[0].url.split("/").pop().toString()
+					} else if (x && x.title && (x.title.includes('📨 Tweet') || x.title.includes('✳ Retweet'))) {
+						return x.url.split("/").pop().toString()
+					} else if (y.length > 0) {
+						return getIDfromText(y).toString()
+					} else {
+						return null
+					}
+				}) (message.messageEmbeds, message.messageText);
+
+				if (tweetID) {
+					db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ?`, [twitterUser, tweetID], (err, results) => {
+						if (err) {
+							Logger.printLine(`Collector`, `Failed to save tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
+							cb(true);
+						} else {
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Removed Tweet from collector as "${tweetID}"`, `info`);
+							cb(true);
+						}
+					})
+				} else {
+					Logger.printLine(`Collector`, `Unable to delete Tweet from the collector as "${tweetID}" due to invalid data : No Tweet ID or ActionID`, `error`);
+					cb(true);
+				}
+			} else {
+				Logger.printLine(`Collector`, `Unable to delete Tweet from the collector due to invalid data : No Intent`, `error`);
+				cb(true);
+			}
+		} catch (err) {
+			Logger.printLine(`Collector`, `Failed to delete tweet from the collector due to a uncaught error`, `error`, err);
+			cb(true);
+		}
+	}
+	function clearCollector() {
+		return false
+	}
+	function releaseTweet(twitterUser, action) {
+		const overFlowValuse = (overflowControl.has((twitterUser) ? parseInt(twitterUser.toString()) : 1)) ? overflowControl.get((twitterUser) ? parseInt(twitterUser.toString()) : 1) : 0
+		Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Requested to release Tweet!`, "debug");
+		if (overFlowValuse > 1) {
+			Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Overflow Condition, Releasing ${overFlowValuse} Tweets!`, "warn");
+		}
+		const twit = twitterAccounts.get(twitterUser)
+		for (let i = 0; i <= overFlowValuse; i +=1) {
+			setTimeout(() => {
+				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
+					if (err) {
+						Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
+					} else if (tweetQueue && tweetQueue.length > 0) {
+						let actionList = [];
+						if (action) {
+							switch (action) {
+								case 'send':
+									actionList = [
+										{
+											action: 'SendTweet',
+											type: 4,
+											tweets: tweetQueue.filter(e => { return e.action === 4 })
+										}
+									];
+									break;
+								case 'rt':
+									actionList = [
+										{
+											action: ['add-Like', 'add-Retweet'],
+											type: 1,
+											tweets: tweetQueue.filter(e => { return e.action === 1 })
+										},
+										{
+											action: ['add-Retweet'],
+											type: 2,
+											tweets: tweetQueue.filter(e => { return e.action === 2 })
+										},
+										{
+											action: ['add-Like'],
+											type: 3,
+											tweets: tweetQueue.filter(e => { return e.action === 3 })
+										}
+									];
+									break;
+								default:
+									actionList = [
+										{
+											action: ['add-Like', 'add-Retweet'],
+											type: 1,
+											tweets: tweetQueue.filter(e => { return e.action === 1 })
+										},
+										{
+											action: ['add-Retweet'],
+											type: 2,
+											tweets: tweetQueue.filter(e => { return e.action === 2 })
+										},
+										{
+											action: ['add-Like'],
+											type: 3,
+											tweets: tweetQueue.filter(e => { return e.action === 3 })
+										},
+										{
+											action: [],
+											type: 4,
+											tweets: tweetQueue.filter(e => { return e.action === 4 })
+										}
+									];
+									break;
+							}
+						} else {
+							actionList = [
+								{
+									action: ['add-Like', 'add-Retweet'],
+									type: 1,
+									tweets: tweetQueue.filter(e => { return e.action === 1 })
+								},
+								{
+									action: ['add-Retweet'],
+									type: 2,
+									tweets: tweetQueue.filter(e => { return e.action === 2 })
+								},
+								{
+									action: ['add-Like'],
+									type: 3,
+									tweets: tweetQueue.filter(e => { return e.action === 3 })
+								},
+								{
+									action: [],
+									type: 4,
+									tweets: tweetQueue.filter(e => { return e.action === 4 })
+								}
+							];
+						}
+						await Prmoise.all(actionList.map(async (releaseCollection) => {
+							let keyIndex = -1;
+							if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
+								/*async function tryTweet() {
+									keyIndex++;
+									if (releaseCollection.tweets[keyIndex].data !== null) {
+										const json = JSON.parse(releaseCollection.tweets[keyIndex].data);
+										sendTweet(twitterUser, json, async (ok) => {
+											await db.safe(`DELETE
+													   FROM twitter_tweet_queue
+													   WHERE taccount = ?
+														 AND id = ?
+														 AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
+												if (err) {
+													Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+												}
+											});
+											if (!ok) {
+												tryTweet();
+											}
+										})
+									} else {
+										await db.safe(`DELETE
+												   FROM twitter_tweet_queue
+												   WHERE taccount = ?
+													 AND id = ?
+													 AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
+											if (err) {
+												Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+											}
+										});
+										tryTweet();
+									}
+								}
+								await tryTweet();*/
+							} else if (releaseCollection.tweets.length > 0 && releaseCollection.action.length > 0) {
+								async function tryTweet() {
+									keyIndex++;
+									if (releaseCollection.tweets.length - 1 >= keyIndex && releaseCollection.tweets[keyIndex]) {
+										const tweetID = releaseCollection.tweets[keyIndex].id;
+										await limiter1.removeTokens(1, async function () {
+											Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
+											await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
+												activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
+												try {
+													const page = await getTwitterTab(twit, `flowctrlrelease`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
+													if (page) {
+														const results = await page.evaluate(async (action) => {
+															const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+															if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
+																const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
+																const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
+																link.click();
+																while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
+																	await sleep(1000);
+																}
+															}
+															const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+															//document.querySelector('[aria-label="There’s a new version of this Tweet."]').parentNode.parentNode.parentNode.querySelector('a')
+															return await new Promise(async res => {
+																if (twt) {
+																	try {
+																		switch (action) {
+																			case "add-Like":
+																				if (twt.querySelector('div[data-testid="like"]')) {
+																					twt.querySelector('div[data-testid="like"]').click();
+																					await sleep(1500);
+																					res(!!(twt.querySelector('div[data-testid="unlike"]')));
+																				} else {
+																					res(1);
+																				}
+																				break;
+																			case "add-Retweet":
+																				if (twt.querySelector('div[data-testid="retweet"]')) {
+																					twt.querySelector('div[data-testid="retweet"]').click();
+																					await sleep(250);
+																					document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+																					await sleep(1500);
+																					res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+																				} else {
+																					res(1);
+																				}
+																				break;
+																			default:
+																				res(false);
+																				break;
+																		}
+																	} catch (e) {
+																		console.error(`Failed to interact with tweets`);
+																		res(false);
+																	}
+																} else {
+																	res(false);
+																}
+															})
+														}, actionIntent)
+														closeTab(twit, `flowctrlrelease`);
+														if (!results) {
+															mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+															Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
+															if (intentIndex === 0) { tryTweet(); }
+														} else {
+															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${action} to ${tweetID}: ${results}`, "info");
+														}
+													} else {
+														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+														Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
+														if (intentIndex === 0) { tryTweet(); }
+													}
+												} catch (e) {
+													Logger.printLine("TwitterInteract", `Failed to complete action for ${message.messageAction}/${intent.join('+')} to ${id}: ${e.message}`, "error", e)
+													console.error(e)
+													if (intentIndex === 0) { tryTweet(); }
+												}
+											}));
+											await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [twitterUser, tweetID, releaseCollection.type], (err, results) => {
+												if (err) {
+													Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to delete tweet from collector due to an SQL error`, `error`, err);
+												}
+											});
+										});
+									}
+								}
+								await tryTweet();
+							}
+						}))
+					} else {
+						console.log('Empty Queue');
+					}
+				})
+			}, (overFlowValuse - 1) * 5000)
 		}
 	}
 
