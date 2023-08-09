@@ -458,16 +458,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
 							cb(true);
 						} else if (tweetQueue && tweetQueue.length === 0) {
-							limiter1.removeTokens(1, async function () {
-								twit.client.get('statuses/show', {id: id}, function (err, tweets) {
-									if (!err) {
-										storeTweet(MessageContents, cb);
-									} else {
-										console.log(err);
-										cb(true);
-									}
-								});
-							})
+							storeTweet(MessageContents, cb);
 						} else {
 							console.log('Ignored, already added')
 							cb(true);
