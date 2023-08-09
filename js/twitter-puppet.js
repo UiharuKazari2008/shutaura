@@ -909,7 +909,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								default:
 									actionList = [
 										{
-											action: ['add-Like', 'add-Retweet'],
+											action: ['add-Retweet', 'add-Like'],
 											type: 1,
 											tweets: tweetQueue.filter(e => { return e.action === 1 })
 										},
@@ -1002,17 +1002,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												try {
 													const results = await page.evaluate(async (rc) => {
 														const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-														if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
-															const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
-															const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
-															link.click();
-															while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
-																await sleep(1000);
-															}
-														}
-														const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
 														return await Promise.all(rc.map(async (ai) => {
 															return await new Promise(async res => {
+																if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
+																	const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
+																	const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
+																	link.click();
+																	while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
+																		await sleep(1000);
+																	}
+																}
+																const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
 																if (twt) {
 																	try {
 																		switch (ai) {
