@@ -890,7 +890,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								case 'rt':
 									actionList = [
 										{
-											action: ['add-Like', 'add-Retweet'],
+											action: ['add-Retweet', 'add-Like'],
 											type: 1,
 											tweets: tweetQueue.filter(e => { return e.action === 1 })
 										},
@@ -1051,7 +1051,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														}));
 													}, releaseCollection.action)
 													console.log(results)
-													if (results.filter(e => e === false).length > 0) {
+													if (results[0] === false) {
 														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 														Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
 														tryTweet()
