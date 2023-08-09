@@ -1462,11 +1462,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					cb(true);
 					break;
 				case "releaseTweet":
-					//releaseTweet((message.accountID) ? message.accountID : 1, message.messageAction);
+					releaseTweet((message.accountID) ? message.accountID : 1, message.messageAction);
 					cb(true);
 					break;
 				case "clearCollector":
-					//clearCollector();
+					clearCollector();
 					cb(true);
 					break;
 				default:
