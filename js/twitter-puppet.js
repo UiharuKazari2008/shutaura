@@ -997,7 +997,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			try {
 				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`, true);
 				if (page) {
-					await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+					await page.waitForSelector('div[data-testid="cellInnerDiv"] article');
 					await Promise.all(intent.map(async thisIntent => {
 						const results = await page.evaluate(async (action) => {
 							const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -1539,7 +1539,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			return returnedTweets;
 		} else {
-			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			Logger.printLine("HTDSv1", `Failed to read list because never got a tab`, "error")
 			return [];
 		}
 	}
@@ -1737,7 +1737,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			return returnedTweets;
 		} else {
-			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			Logger.printLine("HTDSv1", `Failed to get user because never got a tab`, "error")
 			return [];
 		}
 	}
@@ -1924,7 +1924,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 			return returnedTweets;
 		} else {
-			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			Logger.printLine("HTDSv1", `Failed to get favorites tweets because never got a tab`, "error")
 			return [];
 		}
 	}
@@ -2071,7 +2071,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			closeTab(account, `get`);
 			return returnedTweets;
 		} else {
-			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			Logger.printLine("HTDSv1", `Failed to get tweet because never got a tab`, "error")
 			return [];
 		}
 	}
@@ -2090,7 +2090,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			);
 			Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 			await page.setCookie(...account.cookie);
-			await page.goto('https://twitter.com/home');
+			await page.goto('https://twitter.com/');
 			await page.setRequestInterception(true);
 			page.on('request', req => {
 				const url = req.url();
