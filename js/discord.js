@@ -5876,10 +5876,10 @@ This code is publicly released and is restricted by its project license
                                 _siT.push(`📨 ${_si.flowCountSend}`)
                             }
                             if (_si.flowCountLikeRt > 0) {
-                                _siT.push(`❤ ${_si.flowCountLikeRt}`)
+                                _siT.push(`🧡 ${_si.flowCountLikeRt}`)
                             }
                             if (_si.flowCountLike > 0) {
-                                _siT.push(`💙 ${_si.flowCountLike}`)
+                                _siT.push(`❤️ ${_si.flowCountLike}`)
                             }
                             if (_si.flowCountRt > 0) {
                                 _siT.push(`🔄 ${_si.flowCountRt}`)
