@@ -1254,10 +1254,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (wait_for_tweet) {
 					await page.goto(url);
 					let i = 0;
-					while (i <= 4) {
+					let stop = false;
+					while (i <= 4 && !stop) {
 						i++;
 						try {
 							await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+							stop = true;
 						} catch (e) {
 							Logger.printLine("TabManager", `Page failed to return a article! Retry...`, "error")
 						}
