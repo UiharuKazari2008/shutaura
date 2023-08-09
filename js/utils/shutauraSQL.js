@@ -43,7 +43,7 @@ module.exports = function (facility, options) {
     }
     module.safe = function (sql_q, inputs, callback) {
         sqlConnection.query(mysql.format(sql_q, inputs), function (err, rows) {
-            callback(err, rows);
+            callback(err, rows || []);
         });
     }
     module.query = async function (sql_q, inputs) {
