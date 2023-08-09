@@ -934,7 +934,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						} else {
 							actionList = [
 								{
-									action: ['add-Like', 'add-Retweet'],
+									action: ['add-Retweet', 'add-Like'],
 									type: 1,
 									tweets: tweetQueue.filter(e => { return e.action === 1 })
 								},
