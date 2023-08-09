@@ -1254,7 +1254,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (wait_for_tweet) {
 					await page.goto(url);
 					let i = 0;
-					let stop = false;
 					while (i <= 4) {
 						i++;
 						try {
