@@ -2048,6 +2048,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const account = twitterAccounts.get(parseInt(id.toString()))
 		const browser = twitterBrowsers.get(account.id);
 		const page = await browser.newPage();
+		if (!page)
+			process.exit(1);
 		await page.setViewport({
 			width: 1280,
 			height: 480,
