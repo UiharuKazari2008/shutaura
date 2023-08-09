@@ -999,25 +999,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
 											const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
 											if (page){
-												await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
-													activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
-													try {
-														const results = await page.evaluate(async (action) => {
-															const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-															if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
-																const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
-																const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
-																link.click();
-																while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
-																	await sleep(1000);
-																}
+												try {
+													const results = await page.evaluate(async (rc) => {
+														const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+														if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
+															const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
+															const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
+															link.click();
+															while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
+																await sleep(1000);
 															}
-															const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-															//document.querySelector('[aria-label="There’s a new version of this Tweet."]').parentNode.parentNode.parentNode.querySelector('a')
+														}
+														const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+														return await Promise.all(rc.action.map(async (actionIntent, intentIndex) => {
 															return await new Promise(async res => {
 																if (twt) {
 																	try {
-																		switch (action) {
+																		switch (actionIntent) {
 																			case "add-Like":
 																				if (twt.querySelector('div[data-testid="like"]')) {
 																					twt.querySelector('div[data-testid="like"]').click();
@@ -1050,23 +1048,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																	res(false);
 																}
 															})
-														}, actionIntent)
-														if (!results) {
-															mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
-															Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
-															if (intentIndex === 0) { tryTweet() }
-															return false
-														} else {
-															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
-															return true
-														}
-													} catch (e) {
-														Logger.printLine("TwitterInteract", `Failed to complete action for ${actionIntent} to ${id}: ${e.message}`, "error", e)
-														console.error(e)
-														if (intentIndex === 0) { tryTweet() }
-														return false;
+														}));
+													}, releaseCollection)
+													if (results.filter(e => !e).length > 0) {
+														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+														Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
+														tryTweet()
+													} else {
+														Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
 													}
-												}));
+												} catch (e) {
+													Logger.printLine("TwitterInteract", `Failed to complete action for ${actionIntent} to ${id}: ${e.message}`, "error", e)
+													console.error(e)
+													tryTweet()
+												}
 												closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
 											} else {
 												mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
