@@ -893,10 +893,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const twitterUser = parseInt(e[0].toString())
 			const twit = e[1]
 			if (twit.flowcontrol) {
-				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?`, [twitterUser],(err, tweetQueue) => {
+				db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?`, [twitterUser],(err, tq) => {
 					if (err) {
 						Logger.printLine(`Collector`, `Failed to get tweet to collector via SQL`, `error`, err);
 					} else {
+						const tweetQueue = tq.rows
 						const rtCollection = tweetQueue.filter(e => { return e.action === 3 }).length;
 						const likeCollection = tweetQueue.filter(e => { return e.action === 2 }).length;
 						const likeRtCollection = tweetQueue.filter(e => { return e.action === 1 }).length;
