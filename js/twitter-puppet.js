@@ -1000,53 +1000,67 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					await Promise.all(intent.map(async thisIntent => {
 						const results = await page.evaluate(async (action) => {
 							const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+							if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
+								const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
+								const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
+								link.click();
+								while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
+									await sleep(1000);
+								}
+							}
 							const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+							//document.querySelector('[aria-label="There’s a new version of this Tweet."]').parentNode.parentNode.parentNode.querySelector('a')
 							return await new Promise(async res => {
 								if (twt) {
-									switch (action) {
-										case "add-Like":
-											if (twt.querySelector('div[data-testid="like"]')) {
-												twt.querySelector('div[data-testid="like"]').click();
-												await sleep(1500);
-												res(!!(twt.querySelector('div[data-testid="unlike"]')));
-											} else {
-												res(1);
-											}
-											break;
-										case "remove-Like":
-											if (twt.querySelector('div[data-testid="unlike"]')) {
-												twt.querySelector('div[data-testid="unlike"]').click();
-												await sleep(1500);
-												res(!!(twt.querySelector('div[data-testid="like"]')));
-											} else {
-												res(1);
-											}
-											break;
-										case "add-Retweet":
-											if (twt.querySelector('div[data-testid="retweet"]')) {
-												twt.querySelector('div[data-testid="retweet"]').click();
-												await sleep(250);
-												document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-												await sleep(1500);
-												res(!!(twt.querySelector('div[data-testid="unretweet"]')));
-											} else {
-												res(1);
-											}
-											break;
-										case "remove-Retweet":
-											if (twt.querySelector('div[data-testid="unretweet"]')) {
-												twt.querySelector('div[data-testid="unretweet"]').click();
-												await sleep(250);
-												document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-												await sleep(1500);
-												res(!!(twt.querySelector('div[data-testid="retweet"]')));
-											} else {
-												res(1);
-											}
-											break;
-										default:
-											res(false);
-											break;
+									try {
+										switch (action) {
+											case "add-Like":
+												if (twt.querySelector('div[data-testid="like"]')) {
+													twt.querySelector('div[data-testid="like"]').click();
+													await sleep(1500);
+													res(!!(twt.querySelector('div[data-testid="unlike"]')));
+												} else {
+													res(1);
+												}
+												break;
+											case "remove-Like":
+												if (twt.querySelector('div[data-testid="unlike"]')) {
+													twt.querySelector('div[data-testid="unlike"]').click();
+													await sleep(1500);
+													res(!!(twt.querySelector('div[data-testid="like"]')));
+												} else {
+													res(1);
+												}
+												break;
+											case "add-Retweet":
+												if (twt.querySelector('div[data-testid="retweet"]')) {
+													twt.querySelector('div[data-testid="retweet"]').click();
+													await sleep(250);
+													document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+													await sleep(1500);
+													res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+												} else {
+													res(1);
+												}
+												break;
+											case "remove-Retweet":
+												if (twt.querySelector('div[data-testid="unretweet"]')) {
+													twt.querySelector('div[data-testid="unretweet"]').click();
+													await sleep(250);
+													document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+													await sleep(1500);
+													res(!!(twt.querySelector('div[data-testid="retweet"]')));
+												} else {
+													res(1);
+												}
+												break;
+											default:
+												res(false);
+												break;
+										}
+									} catch (e) {
+										console.error(`Failed to interact with tweets`);
+										res(false);
 									}
 								} else {
 									res(false);
