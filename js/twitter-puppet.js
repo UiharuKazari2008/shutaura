@@ -2090,7 +2090,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			);
 			Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 			await page.setCookie(...account.cookie);
-			await page.goto('https://twitter.com/');
+			await page.goto('https://twitter.com/home');
 			await page.setRequestInterception(true);
 			page.on('request', req => {
 				const url = req.url();
