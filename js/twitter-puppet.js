@@ -999,7 +999,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
 											const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
 											if (page){
-												const comp = await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
+												await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
 													activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
 													try {
 														const results = await page.evaluate(async (action) => {
@@ -1054,6 +1054,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 														if (!results) {
 															mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 															Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
+															if (intentIndex === 0) { tryTweet() }
 															return false
 														} else {
 															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
@@ -1062,12 +1063,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													} catch (e) {
 														Logger.printLine("TwitterInteract", `Failed to complete action for ${actionIntent} to ${id}: ${e.message}`, "error", e)
 														console.error(e)
+														if (intentIndex === 0) { tryTweet() }
 														return false;
 													}
 												}));
 												closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
-												if (comp.filter(e => e === false).length > 0)
-													tryTweet();
 											} else {
 												mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 												Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
