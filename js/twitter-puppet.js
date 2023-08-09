@@ -995,7 +995,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
 			activeActions.push(`${accountID}-${id}-${message.messageAction}-${intent.join('-')}`);
 			try {
-				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`);
+				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`, true);
 				if (page) {
 					await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
 					await Promise.all(intent.map(async thisIntent => {
@@ -1217,7 +1217,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		});
 	}
 
-	async function getTwitterTab(account, task, url) {
+	async function getTwitterTab(account, task, url, wait_for_tweet) {
 		try {
 			if (twitterTabCloseures[`${task}-${account.id}`]) {
 				clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
@@ -1251,7 +1251,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         console.log(msg.args()[i]);
                     }
                 });*/
-				await page.goto(url, { waitUntil: 'networkidle2' });
+				if (wait_for_tweet) {
+					await page.goto(url);
+					await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+				} else {
+					await page.goto(url, {waitUntil: 'networkidle2'});
+				}
 				Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "info")
 				twitterTabs.set(`${task}-${account.id}`, page);
 				return page;
@@ -1300,7 +1305,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const MAX_TWEET_COUNT = 500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL)
+		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL, true)
 
 		if (page) {
 			let previousHeight = 0;
@@ -1514,7 +1519,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = 2500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
-		const page = await getTwitterTab(account, `get`, TWITTER_LIST_URL)
+		const page = await getTwitterTab(account, `get`, TWITTER_LIST_URL, true)
 
 		if (page) {
 			let previousHeight = 0;
@@ -1895,7 +1900,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function getTweet(user, id, account) {
 		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
 
-		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`)
+		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`, true)
 		if (page) {
 			await page.waitForTimeout(1200);
 
@@ -2053,7 +2058,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 		await page.setCookie(...account.cookie);
-		await page.goto('https://twitter.com/' + account.screenName);
+		await page.goto('https://twitter.com/');
 		await page.setRequestInterception(true);
 		page.on('request', req => {
 			const url = req.url();
@@ -2065,8 +2070,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			req.continue().catch(e => e /* not intercepting */);
 		});
-		await page.waitForSelector('article[data-testid="tweet"]');
-		const tweet = await page.$('article[data-testid="tweet"]');
+		await page.waitForSelector('article');
+		const tweet = await page.$('article');
 		await tweet.click();
 		while (tAuthorization === undefined) {
 			await page.waitForTimeout(500);
