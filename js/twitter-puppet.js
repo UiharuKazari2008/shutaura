@@ -955,7 +955,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								}
 							];
 						}
-						await Prmoise.all(actionList.map(async (releaseCollection) => {
+						await Promise.all(actionList.map(async (releaseCollection) => {
 							let keyIndex = -1;
 							if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
 								/*async function tryTweet() {
