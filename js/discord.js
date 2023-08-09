@@ -5174,6 +5174,10 @@ This code is publicly released and is restricted by its project license
                             _name += '☃ Backlog'
                             id = id + 2
                             break;
+                        case '.sequenzia':
+                            _name += '📋 Sequenzia'
+                            id = id + 2
+                            break;
                         default:
                             _name = e.name
                             break;
