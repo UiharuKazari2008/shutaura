@@ -1255,16 +1255,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					await page.goto(url);
 					let i = 0;
 					let stop = false;
-					while (i <= 4 && !stop) {
+					while (i <= 4) {
 						i++;
 						try {
 							await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
-							stop = true;
+							i = 100
 						} catch (e) {
 							Logger.printLine("TabManager", `Page failed to return a article! Retry...`, "error")
 						}
 					}
-					if (i >= 5) {
+					if (i >= 5 && i !== 100) {
 						Logger.printLine("TabManager", `Failed to launch browser/tab: Timeout`, "error");
 						return false;
 					}
