@@ -1253,7 +1253,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 });*/
 				if (wait_for_tweet) {
 					await page.goto(url);
-					await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+					let i = 0;
+					while (i <= 4) {
+						i++;
+						try {
+							await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+						} catch (e) {
+							Logger.printLine("TabManager", `Page failed to return a article! Retry...`, "error")
+						}
+					}
+					if (i >= 5) {
+						Logger.printLine("TabManager", `Failed to launch browser/tab: Timeout`, "error");
+						return false;
+					}
 				} else {
 					await page.goto(url, {waitUntil: 'networkidle2'});
 				}
@@ -2049,7 +2061,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const browser = twitterBrowsers.get(account.id);
 		const page = await browser.newPage();
 		if (!page)
-			process.exit(1);
+			Logger.printLine("TabManager", `Failed to load inital page!`, "emergency");
 		await page.setViewport({
 			width: 1280,
 			height: 480,
