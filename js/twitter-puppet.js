@@ -997,11 +997,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										const tweetID = releaseCollection.tweets[keyIndex].id;
 										await limiter1.removeTokens(1, async function () {
 											Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
-											await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
-												activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
-												try {
-													const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
-													if (page) {
+											const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
+											if (page){
+												const comp = await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
+													activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
+													try {
 														const results = await page.evaluate(async (action) => {
 															const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 															if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
@@ -1051,25 +1051,29 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}
 															})
 														}, actionIntent)
-														closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
 														if (!results) {
 															mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 															Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
-															if (intentIndex === 0) { tryTweet(); }
+															return false
 														} else {
 															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
+															return true
 														}
-													} else {
-														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
-														Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
-														if (intentIndex === 0) { tryTweet(); }
+													} catch (e) {
+														Logger.printLine("TwitterInteract", `Failed to complete action for ${actionIntent} to ${id}: ${e.message}`, "error", e)
+														console.error(e)
+														return false;
 													}
-												} catch (e) {
-													Logger.printLine("TwitterInteract", `Failed to complete action for ${message.messageAction}/${intent.join('+')} to ${id}: ${e.message}`, "error", e)
-													console.error(e)
-													if (intentIndex === 0) { tryTweet(); }
-												}
-											}));
+												}));
+												closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
+												if (comp.filter(e => e === false).length > 0)
+													tryTweet();
+											} else {
+												mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+												Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
+												tryTweet();
+											}
+
 											await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [twitterUser, tweetID, releaseCollection.type], (err, results) => {
 												if (err) {
 													Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to delete tweet from collector due to an SQL error`, `error`, err);
