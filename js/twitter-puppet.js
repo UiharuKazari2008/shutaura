@@ -890,7 +890,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								case 'rt':
 									actionList = [
 										{
-											action: ['add-Retweet', 'add-Like'],
+											action: ['add-Like', 'add-Retweet'],
 											type: 1,
 											tweets: tweetQueue.filter(e => { return e.action === 1 })
 										},
@@ -909,7 +909,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								default:
 									actionList = [
 										{
-											action: ['add-Retweet', 'add-Like'],
+											action: ['add-Like', 'add-Retweet'],
 											type: 1,
 											tweets: tweetQueue.filter(e => { return e.action === 1 })
 										},
@@ -934,7 +934,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						} else {
 							actionList = [
 								{
-									action: ['add-Retweet', 'add-Like'],
+									action: ['add-Like', 'add-Retweet'],
 									type: 1,
 									tweets: tweetQueue.filter(e => { return e.action === 1 })
 								},
