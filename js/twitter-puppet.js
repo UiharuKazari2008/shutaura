@@ -993,71 +993,76 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 
 		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
-			activeActions.push(`${id}-${message.messageAction}-${intent.join('-')}`);
+			activeActions.push(`${accountID}-${id}-${message.messageAction}-${intent.join('-')}`);
 			try {
 				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`);
-				await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-				await Promise.all(intent.map(async thisIntent => {
-					const results = await page.evaluate(async (action) => {
-						const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-						const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-						return await new Promise(async res => {
-							if (twt) {
-								switch (action) {
-									case "add-Like":
-										if (twt.querySelector('div[data-testid="like"]')) {
-											twt.querySelector('div[data-testid="like"]').click();
-											await sleep(1500);
-											res(!!(twt.querySelector('div[data-testid="unlike"]')));
-										} else {
-											res(1);
-										}
-										break;
-									case "remove-Like":
-										if (twt.querySelector('div[data-testid="unlike"]')) {
-											twt.querySelector('div[data-testid="unlike"]').click();
-											await sleep(1500);
-											res(!!(twt.querySelector('div[data-testid="like"]')));
-										} else {
-											res(1);
-										}
-										break;
-									case "add-Retweet":
-										if (twt.querySelector('div[data-testid="retweet"]')) {
-											twt.querySelector('div[data-testid="retweet"]').click();
-											await sleep(250);
-											document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-											await sleep(1500);
-											res(!!(twt.querySelector('div[data-testid="unretweet"]')));
-										} else {
-											res(1);
-										}
-										break;
-									case "remove-Retweet":
-										if (twt.querySelector('div[data-testid="unretweet"]')) {
-											twt.querySelector('div[data-testid="unretweet"]').click();
-											await sleep(250);
-											document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-											await sleep(1500);
-											res(!!(twt.querySelector('div[data-testid="retweet"]')));
-										} else {
-											res(1);
-										}
-										break;
-									default:
-										res(false);
-										break;
+				if (page) {
+					await page.waitForSelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+					await Promise.all(intent.map(async thisIntent => {
+						const results = await page.evaluate(async (action) => {
+							const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+							const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+							return await new Promise(async res => {
+								if (twt) {
+									switch (action) {
+										case "add-Like":
+											if (twt.querySelector('div[data-testid="like"]')) {
+												twt.querySelector('div[data-testid="like"]').click();
+												await sleep(1500);
+												res(!!(twt.querySelector('div[data-testid="unlike"]')));
+											} else {
+												res(1);
+											}
+											break;
+										case "remove-Like":
+											if (twt.querySelector('div[data-testid="unlike"]')) {
+												twt.querySelector('div[data-testid="unlike"]').click();
+												await sleep(1500);
+												res(!!(twt.querySelector('div[data-testid="like"]')));
+											} else {
+												res(1);
+											}
+											break;
+										case "add-Retweet":
+											if (twt.querySelector('div[data-testid="retweet"]')) {
+												twt.querySelector('div[data-testid="retweet"]').click();
+												await sleep(250);
+												document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+												await sleep(1500);
+												res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+											} else {
+												res(1);
+											}
+											break;
+										case "remove-Retweet":
+											if (twt.querySelector('div[data-testid="unretweet"]')) {
+												twt.querySelector('div[data-testid="unretweet"]').click();
+												await sleep(250);
+												document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+												await sleep(1500);
+												res(!!(twt.querySelector('div[data-testid="retweet"]')));
+											} else {
+												res(1);
+											}
+											break;
+										default:
+											res(false);
+											break;
+									}
+								} else {
+									res(false);
 								}
-							} else {
-								res(false);
-							}
-						})
-					}, `${message.messageAction}-${thisIntent}`)
-					Logger.printLine("TwitterInteract", `Account ${accountID}: Sent command ${message.messageAction}/${thisIntent} to ${id}: ${results}`, "info")
-					return results;
-				}));
-				closeTab(account, `get`);
-				cb(true);
+							})
+						}, `${message.messageAction}-${thisIntent}`)
+						Logger.printLine("TwitterInteract", `Account ${accountID}: Sent command ${message.messageAction}/${thisIntent} to ${id}: ${results}`, "info")
+						return results;
+					}));
+					closeTab(account, `get`);
+					cb(true);
+				} else {
+					Logger.printLine("TwitterInteract", `Failed to interact with tweet because never got a tab`, "error")
+					cb(false);
+				}
 			} catch (e) {
 				Logger.printLine("TwitterInteract", `Failed to complete action for ${message.messageAction}/${intent.join('+')} to ${id}: ${e.message}`, "error", e)
 				console.error(e)
@@ -1213,45 +1218,49 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 
 	async function getTwitterTab(account, task, url) {
-		if (twitterTabCloseures[`${task}-${account.id}`]) {
-			clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
-			delete twitterTabCloseures[`${task}-${account.id}`]
-		}
-		if (account.allow_idle && twitterBrowsers.has(account.id)) {
-			if (twitterBrowserCloseures[account.id]) {
+		try {
+			if (twitterTabCloseures[`${task}-${account.id}`]) {
+				clearTimeout(twitterTabCloseures[`${task}-${account.id}`]);
+				delete twitterTabCloseures[`${task}-${account.id}`]
+			}
+			if (account.allow_idle && twitterBrowsers.has(account.id) && twitterBrowserCloseures[account.id]) {
 				clearTimeout(twitterBrowserCloseures[account.id]);
 				delete twitterBrowserCloseures[account.id]
 			}
-		}
-		if (twitterTabs.has(`${task}-${account.id}`)) {
-			const page = twitterTabs.get(`${task}-${account.id}`);
-			await page.goto(url, { waitUntil: 'networkidle2' });
-			return page;
-		} else {
-			if (!twitterBrowsers.has(account.id))
-				await createBrowser(account)
-			const browser = twitterBrowsers.get(account.id);
-			Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
-			const page = await browser.newPage();
-			await page.setViewport({
-				width: 1080,
-				height: 4096,
-				deviceScaleFactor: 1,
-			});
-			await page.setUserAgent(
-				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
-			);
-			await page.setCookie(...account.cookie);
-			await page.setBypassCSP(true);
-			/*page.on('console', msg => {
-				for (let i = 0; i < msg.args().length; i++) {
-					console.log(msg.args()[i]);
-				}
-			});*/
-			await page.goto(url, {waitUntil: 'networkidle2'});
-			Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "info")
-			twitterTabs.set(`${task}-${account.id}`, page);
-			return page;
+			if (twitterTabs.has(`${task}-${account.id}`)) {
+				const page = twitterTabs.get(`${task}-${account.id}`);
+				await page.goto(url, {waitUntil: 'networkidle2'});
+				return page;
+			} else {
+				if (!twitterBrowsers.has(account.id))
+					await createBrowser(account)
+				const browser = twitterBrowsers.get(account.id);
+				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
+				const page = await browser.newPage();
+				await page.setViewport({
+					width: 1080,
+					height: 4096,
+					deviceScaleFactor: 1,
+				});
+				await page.setUserAgent(
+					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.96 Safari/537.36'
+				);
+				await page.setCookie(...account.cookie);
+				await page.setBypassCSP(true);
+				/*page.on('console', msg => {
+                    for (let i = 0; i < msg.args().length; i++) {
+                        console.log(msg.args()[i]);
+                    }
+                });*/
+				await page.goto(url, { waitUntil: 'networkidle2' });
+				Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "info")
+				twitterTabs.set(`${task}-${account.id}`, page);
+				return page;
+			}
+		} catch (err) {
+			Logger.printLine("TabManager", `Failed to launch browser/tab: ${err.message}`, "error", err);
+			console.error(err);
+			return false;
 		}
 	}
 	function closeTab(account, task) {
@@ -1294,196 +1303,210 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
 		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL)
 
-		let previousHeight = 0;
-		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-		let returnedTweets = [];
-		let parsedIDs = [];
+		if (page) {
+			let previousHeight = 0;
+			let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+			let returnedTweets = [];
+			let parsedIDs = [];
 
-		let latesttweets = (await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ?  AND timestamp >= now() - INTERVAL 1 DAY ORDER BY timestamp DESC`, [list.listid])).rows.map(e => e.tweetid);
-		latesttweets.push(...(await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ? ORDER BY timestamp DESC LIMIT 100`, [list.listid])).rows.map(e => e.tweetid));
+			let latesttweets = (await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ?  AND timestamp >= now() - INTERVAL 1 DAY ORDER BY timestamp DESC`, [list.listid])).rows.map(e => e.tweetid);
+			latesttweets.push(...(await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ? ORDER BY timestamp DESC LIMIT 100`, [list.listid])).rows.map(e => e.tweetid));
 
-		Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "info");
+			Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "info");
 
-		function checkHistory() { return latesttweets.filter(e => parsedIDs.indexOf(e.toString()) !== -1).length === 0 }
-
-		let stop = false;
-		let stopCount = 0;
-
-		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true, force: true });
-		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
-			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), { recursive: true });
-		}
-
-		while (!stop) {
-			if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT )
-				stop = true;
-			if (previousHeight === currentHeight) {
-				if (stopCount > 25)
-					stop = true;
-				stopCount++;
+			function checkHistory() {
+				return latesttweets.filter(e => parsedIDs.indexOf(e.toString()) !== -1).length === 0
 			}
-			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
-			//await page.keyboard.press("PageDown");
-			await page.waitForTimeout(1200);
 
-			previousHeight = currentHeight;
-			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+			let stop = false;
+			let stopCount = 0;
 
-			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
-				async function getMediaURL(status_id, images, has_video) {
-					if (has_video) {
-						let _json = await fetchJson(status_id);
-						let tweet = _json.legacy;
-						let medias = tweet.extended_entities && tweet.extended_entities.media;
-						if (medias.length > 0) {
-							const media_array =  medias.map(media => {
-								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+			fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), {
+				recursive: true,
+				force: true
+			});
+			if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`))) {
+				fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/${list.listid}/`), {recursive: true});
+			}
+
+			while (!stop) {
+				if (!(checkHistory()) || parsedIDs.length > MAX_TWEET_COUNT)
+					stop = true;
+				if (previousHeight === currentHeight) {
+					if (stopCount > 25)
+						stop = true;
+					stopCount++;
+				}
+				await page.evaluate(() => {
+					window.scrollBy(0, window.innerHeight);
+				});
+				//await page.keyboard.press("PageDown");
+				await page.waitForTimeout(1200);
+
+				previousHeight = currentHeight;
+				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					async function getMediaURL(status_id, images, has_video) {
+						if (has_video) {
+							let _json = await fetchJson(status_id);
+							let tweet = _json.legacy;
+							let medias = tweet.extended_entities && tweet.extended_entities.media;
+							if (medias.length > 0) {
+								const media_array = medias.map(media => {
+									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+									return {
+										media_url: url,
+										format: url.split('.').pop().split(':')[0].split('?')[0],
+										type: media.type
+									}
+								})
 								return {
-									media_url: url,
-									format: url.split('.').pop().split(':')[0].split('?')[0],
-									type: media.type
-								}
-							})
-							return {
-								images: media_array,
-								data: _json
-							};
+									images: media_array,
+									data: _json
+								};
+							} else {
+								return {
+									images: [],
+									data: _json
+								};
+							}
 						} else {
 							return {
-								images: [],
-								data: _json
-							};
-						}
-					} else {
-						return {
-							images
-						}
-					}
-				}
-				let lastAPIAccessTime = null;
-				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-				async function fetchJson(status_id) {
-					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-						await sleep(30000);
-					}
-					lastAPIAccessTime = Date.now();
-					const host = location.hostname;
-					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-					const variables = {
-						"focalTweetId":status_id,
-						"with_rux_injections":false,
-						"includePromotedContent":true,
-						"withCommunity":true,
-						"withQuickPromoteEligibilityTweetFields":true,
-						"withBirdwatchNotes":true,
-						"withVoice":true,
-						"withV2Timeline":true
-					};
-					const features = {
-						"rweb_lists_timeline_redesign_enabled":true,
-						"responsive_web_graphql_exclude_directive_enabled":true,
-						"verified_phone_label_enabled":false,
-						"creator_subscriptions_tweet_preview_api_enabled":true,
-						"responsive_web_graphql_timeline_navigation_enabled":true,
-						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-						"tweetypie_unmention_optimization_enabled":true,
-						"responsive_web_edit_tweet_api_enabled":true,
-						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-						"view_counts_everywhere_api_enabled":true,
-						"longform_notetweets_consumption_enabled":true,
-						"responsive_web_twitter_article_tweet_consumption_enabled":false,
-						"tweet_awards_web_tipping_enabled":false,
-						"freedom_of_speech_not_reach_fetch_enabled":true,
-						"standardized_nudges_misinfo":true,
-						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-						"longform_notetweets_rich_text_read_enabled":true,
-						"longform_notetweets_inline_media_enabled":true,
-						"responsive_web_media_download_video_enabled":false,
-						"responsive_web_enhance_cards_enabled":false
-					};
-					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-					const cookies = (() => {
-						let _cookies = {};
-						document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-							n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-								_cookies[name.trim()] = value.trim();
-							});
-						});
-						return name ? _cookies[name] : _cookies;
-					})()
-					const headers = {
-						'authorization': auth,
-						'x-twitter-active-user': 'yes',
-						'x-twitter-client-language': cookies.lang,
-						'x-csrf-token': cookies.ct0
-					};
-					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-					return tweet_result.tweet || tweet_result;
-				}
-
-				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
-				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
-				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
-				const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
-
-				console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
-
-				return [
-					...(await Promise.all(nom_tweets.map(async a => {
-						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-						const id = metadataDiv.href.split('/').pop().split('?')[0]
-						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-							const url = e.src.split('?');
-							const sq = new URLSearchParams(url[1]);
-							sq.delete('name')
-							sq.set('name', 'large')
-							return {
-								media_url: url[0] + '?' + sq.valueOf(),
-								format: sq.getAll('format')[0],
-								type: "photo"
+								images
 							}
-						});
-						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
-						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-						const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-						const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
-						const date = metadataDiv.querySelector('time').attributes['datetime'].value;
+						}
+					}
 
-						return {
-							id,
-							date,
-							userName,
-							screenName,
-							text,
-							images: json.images,
-							retweeted: false,
-							is_api_backed: !!tweet
+					let lastAPIAccessTime = null;
+					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+
+					async function fetchJson(status_id) {
+						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							await sleep(30000);
+						}
+						lastAPIAccessTime = Date.now();
+						const host = location.hostname;
+						const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+						const variables = {
+							"focalTweetId": status_id,
+							"with_rux_injections": false,
+							"includePromotedContent": true,
+							"withCommunity": true,
+							"withQuickPromoteEligibilityTweetFields": true,
+							"withBirdwatchNotes": true,
+							"withVoice": true,
+							"withV2Timeline": true
 						};
-					})))
-				]
-				// Add RT support here
-			}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
-			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+						const features = {
+							"rweb_lists_timeline_redesign_enabled": true,
+							"responsive_web_graphql_exclude_directive_enabled": true,
+							"verified_phone_label_enabled": false,
+							"creator_subscriptions_tweet_preview_api_enabled": true,
+							"responsive_web_graphql_timeline_navigation_enabled": true,
+							"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+							"tweetypie_unmention_optimization_enabled": true,
+							"responsive_web_edit_tweet_api_enabled": true,
+							"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+							"view_counts_everywhere_api_enabled": true,
+							"longform_notetweets_consumption_enabled": true,
+							"responsive_web_twitter_article_tweet_consumption_enabled": false,
+							"tweet_awards_web_tipping_enabled": false,
+							"freedom_of_speech_not_reach_fetch_enabled": true,
+							"standardized_nudges_misinfo": true,
+							"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+							"longform_notetweets_rich_text_read_enabled": true,
+							"longform_notetweets_inline_media_enabled": true,
+							"responsive_web_media_download_video_enabled": false,
+							"responsive_web_enhance_cards_enabled": false
+						};
+						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+						const cookies = (() => {
+							let _cookies = {};
+							document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+								n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+									_cookies[name.trim()] = value.trim();
+								});
+							});
+							return name ? _cookies[name] : _cookies;
+						})()
+						const headers = {
+							'authorization': auth,
+							'x-twitter-active-user': 'yes',
+							'x-twitter-client-language': cookies.lang,
+							'x-csrf-token': cookies.ct0
+						};
+						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
+						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+						return tweet_result.tweet || tweet_result;
+					}
 
-			await page.screenshot({
-				path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
-				type: 'jpeg',
-				encoding: 'binary',
-				fullPage: false,
-				quality: 50,
-				captureBeyondViewport: true
-			});
-			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
+					const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
+					const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
+					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
+					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
+
+					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+
+					return [
+						...(await Promise.all(nom_tweets.map(async a => {
+							const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
+							const id = metadataDiv.href.split('/').pop().split('?')[0]
+							const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+								const url = e.src.split('?');
+								const sq = new URLSearchParams(url[1]);
+								sq.delete('name')
+								sq.set('name', 'large')
+								return {
+									media_url: url[0] + '?' + sq.valueOf(),
+									format: sq.getAll('format')[0],
+									type: "photo"
+								}
+							});
+							const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
+							const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+							const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+							const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+							const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+							const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
+							const date = metadataDiv.querySelector('time').attributes['datetime'].value;
+
+							return {
+								id,
+								date,
+								userName,
+								screenName,
+								text,
+								images: json.images,
+								retweeted: false,
+								is_api_backed: !!tweet
+							};
+						})))
+					]
+					// Add RT support here
+				}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
+				parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+
+				await page.screenshot({
+					path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
+					type: 'jpeg',
+					encoding: 'binary',
+					fullPage: false,
+					quality: 50,
+					captureBeyondViewport: true
+				});
+				await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
+			}
+			closeTab(account, `list`)
+
+			return returnedTweets;
+		} else {
+			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			return [];
 		}
-		//closeTab(account, `list`)
-
-		return returnedTweets;
 	}
 	async function doomScrollUser(user, account) {
 		const search = `(from:${user}) filter:media -filter:retweets`
@@ -1494,185 +1517,194 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
 		const page = await getTwitterTab(account, `get`, TWITTER_LIST_URL)
 
-		let previousHeight = 0;
-		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-		let returnedTweets = [];
-		let parsedIDs = [];
+		if (page) {
+			let previousHeight = 0;
+			let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+			let returnedTweets = [];
+			let parsedIDs = [];
 
-		let stop = false;
-		let stopCount = 0;
+			let stop = false;
+			let stopCount = 0;
 
-		fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), { recursive: true, force: true });
-		if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`))) {
-			fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), { recursive: true });
-		}
-
-		while (!stop) {
-			if (previousHeight === currentHeight) {
-				if (stopCount > 25)
-					stop = true;
-				stopCount++;
+			fs.rmSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), {recursive: true, force: true});
+			if (!fs.existsSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`))) {
+				fs.mkdirSync(path.join(systemglobal.TempFolder, `screenshots/dl-${user}/`), {recursive: true});
 			}
-			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
-			await page.waitForTimeout(1200);
 
-			previousHeight = currentHeight;
-			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+			while (!stop) {
+				if (previousHeight === currentHeight) {
+					if (stopCount > 25)
+						stop = true;
+					stopCount++;
+				}
+				await page.evaluate(() => {
+					window.scrollBy(0, window.innerHeight);
+				});
+				await page.waitForTimeout(1200);
 
-			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
-				async function getMediaURL(status_id, images, has_video) {
-					if (has_video) {
-						let _json = await fetchJson(status_id);
-						let tweet = _json.legacy;
-						let medias = tweet.extended_entities && tweet.extended_entities.media;
-						if (medias.length > 0) {
-							const media_array =  medias.map(media => {
-								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+				previousHeight = currentHeight;
+				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					async function getMediaURL(status_id, images, has_video) {
+						if (has_video) {
+							let _json = await fetchJson(status_id);
+							let tweet = _json.legacy;
+							let medias = tweet.extended_entities && tweet.extended_entities.media;
+							if (medias.length > 0) {
+								const media_array = medias.map(media => {
+									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+									return {
+										media_url: url,
+										format: url.split('.').pop().split(':')[0].split('?')[0],
+										type: media.type
+									}
+								})
 								return {
-									media_url: url,
-									format: url.split('.').pop().split(':')[0].split('?')[0],
-									type: media.type
-								}
-							})
-							return {
-								images: media_array,
-								data: _json
-							};
+									images: media_array,
+									data: _json
+								};
+							} else {
+								return {
+									images: [],
+									data: _json
+								};
+							}
 						} else {
 							return {
-								images: [],
-								data: _json
-							};
-						}
-					} else {
-						return {
-							images
-						}
-					}
-				}
-				let lastAPIAccessTime = null;
-				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-				async function fetchJson(status_id) {
-					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-						await sleep(30000);
-					}
-					lastAPIAccessTime = Date.now();
-					const host = location.hostname;
-					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-					const variables = {
-						"focalTweetId":status_id,
-						"with_rux_injections":false,
-						"includePromotedContent":true,
-						"withCommunity":true,
-						"withQuickPromoteEligibilityTweetFields":true,
-						"withBirdwatchNotes":true,
-						"withVoice":true,
-						"withV2Timeline":true
-					};
-					const features = {
-						"rweb_lists_timeline_redesign_enabled":true,
-						"responsive_web_graphql_exclude_directive_enabled":true,
-						"verified_phone_label_enabled":false,
-						"creator_subscriptions_tweet_preview_api_enabled":true,
-						"responsive_web_graphql_timeline_navigation_enabled":true,
-						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-						"tweetypie_unmention_optimization_enabled":true,
-						"responsive_web_edit_tweet_api_enabled":true,
-						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-						"view_counts_everywhere_api_enabled":true,
-						"longform_notetweets_consumption_enabled":true,
-						"responsive_web_twitter_article_tweet_consumption_enabled":false,
-						"tweet_awards_web_tipping_enabled":false,
-						"freedom_of_speech_not_reach_fetch_enabled":true,
-						"standardized_nudges_misinfo":true,
-						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-						"longform_notetweets_rich_text_read_enabled":true,
-						"longform_notetweets_inline_media_enabled":true,
-						"responsive_web_media_download_video_enabled":false,
-						"responsive_web_enhance_cards_enabled":false
-					};
-					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-					const cookies = (() => {
-						let _cookies = {};
-						document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-							n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-								_cookies[name.trim()] = value.trim();
-							});
-						});
-						return name ? _cookies[name] : _cookies;
-					})()
-					const headers = {
-						'authorization': auth,
-						'x-twitter-active-user': 'yes',
-						'x-twitter-client-language': cookies.lang,
-						'x-csrf-token': cookies.ct0
-					};
-					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-					return tweet_result.tweet || tweet_result;
-				}
-
-				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
-				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
-				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
-				const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
-
-				console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
-
-				return [
-					...(await Promise.all(nom_tweets.map(async a => {
-						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-						const id = metadataDiv.href.split('/').pop().split('?')[0]
-						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-							const url = e.src.split('?');
-							const sq = new URLSearchParams(url[1]);
-							sq.delete('name')
-							sq.set('name', 'large')
-							return {
-								media_url: url[0] + '?' + sq.valueOf(),
-								format: sq.getAll('format')[0],
-								type: "photo"
+								images
 							}
-						});
-						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
-						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-						const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-						const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
-						const date = metadataDiv.querySelector('time').attributes['datetime'].value;
+						}
+					}
 
-						return {
-							id,
-							date,
-							userName,
-							screenName,
-							text,
-							images: json.images,
-							retweeted: false,
-							is_api_backed: !!tweet
+					let lastAPIAccessTime = null;
+					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+
+					async function fetchJson(status_id) {
+						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							await sleep(30000);
+						}
+						lastAPIAccessTime = Date.now();
+						const host = location.hostname;
+						const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+						const variables = {
+							"focalTweetId": status_id,
+							"with_rux_injections": false,
+							"includePromotedContent": true,
+							"withCommunity": true,
+							"withQuickPromoteEligibilityTweetFields": true,
+							"withBirdwatchNotes": true,
+							"withVoice": true,
+							"withV2Timeline": true
 						};
-					})))
-				]
-				// Add RT support here
-			}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
-			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
-			await page.screenshot({
-				path: path.join(systemglobal.TempFolder, `screenshots/dl-${user}/${(new Date()).valueOf()}.jpg`),
-				type: 'jpeg',
-				encoding: 'binary',
-				fullPage: false,
-				quality: 50,
-				captureBeyondViewport: true
-			});
-			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
-		}
-		closeTab(account, `get`)
+						const features = {
+							"rweb_lists_timeline_redesign_enabled": true,
+							"responsive_web_graphql_exclude_directive_enabled": true,
+							"verified_phone_label_enabled": false,
+							"creator_subscriptions_tweet_preview_api_enabled": true,
+							"responsive_web_graphql_timeline_navigation_enabled": true,
+							"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+							"tweetypie_unmention_optimization_enabled": true,
+							"responsive_web_edit_tweet_api_enabled": true,
+							"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+							"view_counts_everywhere_api_enabled": true,
+							"longform_notetweets_consumption_enabled": true,
+							"responsive_web_twitter_article_tweet_consumption_enabled": false,
+							"tweet_awards_web_tipping_enabled": false,
+							"freedom_of_speech_not_reach_fetch_enabled": true,
+							"standardized_nudges_misinfo": true,
+							"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+							"longform_notetweets_rich_text_read_enabled": true,
+							"longform_notetweets_inline_media_enabled": true,
+							"responsive_web_media_download_video_enabled": false,
+							"responsive_web_enhance_cards_enabled": false
+						};
+						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+						const cookies = (() => {
+							let _cookies = {};
+							document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+								n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+									_cookies[name.trim()] = value.trim();
+								});
+							});
+							return name ? _cookies[name] : _cookies;
+						})()
+						const headers = {
+							'authorization': auth,
+							'x-twitter-active-user': 'yes',
+							'x-twitter-client-language': cookies.lang,
+							'x-csrf-token': cookies.ct0
+						};
+						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
+						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+						return tweet_result.tweet || tweet_result;
+					}
 
-		return returnedTweets;
+					const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
+					const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
+					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
+					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
+
+					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+
+					return [
+						...(await Promise.all(nom_tweets.map(async a => {
+							const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
+							const id = metadataDiv.href.split('/').pop().split('?')[0]
+							const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+								const url = e.src.split('?');
+								const sq = new URLSearchParams(url[1]);
+								sq.delete('name')
+								sq.set('name', 'large')
+								return {
+									media_url: url[0] + '?' + sq.valueOf(),
+									format: sq.getAll('format')[0],
+									type: "photo"
+								}
+							});
+							const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
+							const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+							const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+							const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+							const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+							const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
+							const date = metadataDiv.querySelector('time').attributes['datetime'].value;
+
+							return {
+								id,
+								date,
+								userName,
+								screenName,
+								text,
+								images: json.images,
+								retweeted: false,
+								is_api_backed: !!tweet
+							};
+						})))
+					]
+					// Add RT support here
+				}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
+				parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+				await page.screenshot({
+					path: path.join(systemglobal.TempFolder, `screenshots/dl-${user}/${(new Date()).valueOf()}.jpg`),
+					type: 'jpeg',
+					encoding: 'binary',
+					fullPage: false,
+					quality: 50,
+					captureBeyondViewport: true
+				});
+				await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
+			}
+			closeTab(account, `get`)
+
+			return returnedTweets;
+		} else {
+			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			return [];
+		}
 	}
 	async function doomScrollFav(account) {
 		const TWITTER_LIST_URL = `https://twitter.com/${account.screenName}/likes`;
@@ -1683,36 +1715,199 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		Logger.printLine("HTDSv1", `Starting search favorites...`, "info");
 		const page = await getTwitterTab(account, `fav`, TWITTER_LIST_URL);
 
-		let previousHeight = 0;
-		let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-		let returnedTweets = [];
-		let parsedIDs = [];
+		if (page) {
+			let previousHeight = 0;
+			let currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+			let returnedTweets = [];
+			let parsedIDs = [];
 
-		let stop = false;
-		let stopCount = 0;
-		while (!stop) {
-			if (parsedIDs.length > MAX_TWEET_COUNT )
-				stop = true;
-			if (previousHeight === currentHeight) {
-				if (stopCount > 25)
+			let stop = false;
+			let stopCount = 0;
+			while (!stop) {
+				if (parsedIDs.length > MAX_TWEET_COUNT)
 					stop = true;
-				stopCount++;
+				if (previousHeight === currentHeight) {
+					if (stopCount > 25)
+						stop = true;
+					stopCount++;
+				}
+				await page.evaluate(() => {
+					window.scrollBy(0, window.innerHeight);
+				});
+				//await page.keyboard.press("PageDown");
+				await page.waitForTimeout(1200);
+
+				previousHeight = currentHeight;
+				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
+
+				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					async function getMediaURL(status_id, images, has_video) {
+						if (has_video) {
+							let _json = await fetchJson(status_id);
+							let tweet = _json.legacy;
+							let medias = tweet.extended_entities && tweet.extended_entities.media;
+							if (medias.length > 0) {
+								const media_array = medias.map(media => {
+									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+									return {
+										media_url: url,
+										format: url.split('.').pop().split(':')[0].split('?')[0],
+										type: media.type
+									}
+								})
+								return {
+									images: media_array,
+									data: _json
+								};
+							} else {
+								return {
+									images: [],
+									data: _json
+								};
+							}
+						} else {
+							return {
+								images
+							}
+						}
+					}
+
+					let lastAPIAccessTime = null;
+					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+
+					async function fetchJson(status_id) {
+						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							await sleep(30000);
+						}
+						lastAPIAccessTime = Date.now();
+						const host = location.hostname;
+						const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+						const variables = {
+							"focalTweetId": status_id,
+							"with_rux_injections": false,
+							"includePromotedContent": true,
+							"withCommunity": true,
+							"withQuickPromoteEligibilityTweetFields": true,
+							"withBirdwatchNotes": true,
+							"withVoice": true,
+							"withV2Timeline": true
+						};
+						const features = {
+							"rweb_lists_timeline_redesign_enabled": true,
+							"responsive_web_graphql_exclude_directive_enabled": true,
+							"verified_phone_label_enabled": false,
+							"creator_subscriptions_tweet_preview_api_enabled": true,
+							"responsive_web_graphql_timeline_navigation_enabled": true,
+							"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+							"tweetypie_unmention_optimization_enabled": true,
+							"responsive_web_edit_tweet_api_enabled": true,
+							"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+							"view_counts_everywhere_api_enabled": true,
+							"longform_notetweets_consumption_enabled": true,
+							"responsive_web_twitter_article_tweet_consumption_enabled": false,
+							"tweet_awards_web_tipping_enabled": false,
+							"freedom_of_speech_not_reach_fetch_enabled": true,
+							"standardized_nudges_misinfo": true,
+							"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+							"longform_notetweets_rich_text_read_enabled": true,
+							"longform_notetweets_inline_media_enabled": true,
+							"responsive_web_media_download_video_enabled": false,
+							"responsive_web_enhance_cards_enabled": false
+						};
+						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+						const cookies = (() => {
+							let _cookies = {};
+							document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+								n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+									_cookies[name.trim()] = value.trim();
+								});
+							});
+							return name ? _cookies[name] : _cookies;
+						})()
+						const headers = {
+							'authorization': auth,
+							'x-twitter-active-user': 'yes',
+							'x-twitter-client-language': cookies.lang,
+							'x-csrf-token': cookies.ct0
+						};
+						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
+						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+						return tweet_result.tweet || tweet_result;
+					}
+
+					const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
+					const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
+					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
+					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
+
+					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+
+					return [
+						...(await Promise.all(nom_tweets.map(async a => {
+							const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
+							const id = metadataDiv.href.split('/').pop().split('?')[0]
+							const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+								const url = e.src.split('?');
+								const sq = new URLSearchParams(url[1]);
+								sq.delete('name')
+								sq.set('name', 'large')
+								return {
+									media_url: url[0] + '?' + sq.valueOf(),
+									format: sq.getAll('format')[0],
+									type: "photo"
+								}
+							});
+							const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
+							const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+							const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+							const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+							const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+							const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
+							const date = metadataDiv.querySelector('time').attributes['datetime'].value;
+
+							return {
+								id,
+								date,
+								userName,
+								screenName,
+								text,
+								images: json.images,
+								retweeted: false,
+								is_api_backed: !!tweet
+							};
+						})))
+					]
+					// Add RT support here
+				}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
+				parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
+				await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
 			}
-			await page.evaluate(() => { window.scrollBy(0, window.innerHeight); });
-			//await page.keyboard.press("PageDown");
+			closeTab(account, `fav`);
+
+			return returnedTweets;
+		} else {
+			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			return [];
+		}
+	}
+	async function getTweet(user, id, account) {
+		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
+
+		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`)
+		if (page) {
 			await page.waitForTimeout(1200);
 
-			previousHeight = currentHeight;
-			currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-
-			returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+			const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
 						let _json = await fetchJson(status_id);
 						let tweet = _json.legacy;
 						let medias = tweet.extended_entities && tweet.extended_entities.media;
 						if (medias.length > 0) {
-							const media_array =  medias.map(media => {
+							const media_array = medias.map(media => {
 								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
 								return {
 									media_url: url,
@@ -1736,8 +1931,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 				}
+
 				let lastAPIAccessTime = null;
 				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+
 				async function fetchJson(status_id) {
 					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
 						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
@@ -1747,36 +1944,36 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const host = location.hostname;
 					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 					const variables = {
-						"focalTweetId":status_id,
-						"with_rux_injections":false,
-						"includePromotedContent":true,
-						"withCommunity":true,
-						"withQuickPromoteEligibilityTweetFields":true,
-						"withBirdwatchNotes":true,
-						"withVoice":true,
-						"withV2Timeline":true
+						"focalTweetId": status_id,
+						"with_rux_injections": false,
+						"includePromotedContent": true,
+						"withCommunity": true,
+						"withQuickPromoteEligibilityTweetFields": true,
+						"withBirdwatchNotes": true,
+						"withVoice": true,
+						"withV2Timeline": true
 					};
 					const features = {
-						"rweb_lists_timeline_redesign_enabled":true,
-						"responsive_web_graphql_exclude_directive_enabled":true,
-						"verified_phone_label_enabled":false,
-						"creator_subscriptions_tweet_preview_api_enabled":true,
-						"responsive_web_graphql_timeline_navigation_enabled":true,
-						"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-						"tweetypie_unmention_optimization_enabled":true,
-						"responsive_web_edit_tweet_api_enabled":true,
-						"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-						"view_counts_everywhere_api_enabled":true,
-						"longform_notetweets_consumption_enabled":true,
-						"responsive_web_twitter_article_tweet_consumption_enabled":false,
-						"tweet_awards_web_tipping_enabled":false,
-						"freedom_of_speech_not_reach_fetch_enabled":true,
-						"standardized_nudges_misinfo":true,
-						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-						"longform_notetweets_rich_text_read_enabled":true,
-						"longform_notetweets_inline_media_enabled":true,
-						"responsive_web_media_download_video_enabled":false,
-						"responsive_web_enhance_cards_enabled":false
+						"rweb_lists_timeline_redesign_enabled": true,
+						"responsive_web_graphql_exclude_directive_enabled": true,
+						"verified_phone_label_enabled": false,
+						"creator_subscriptions_tweet_preview_api_enabled": true,
+						"responsive_web_graphql_timeline_navigation_enabled": true,
+						"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+						"tweetypie_unmention_optimization_enabled": true,
+						"responsive_web_edit_tweet_api_enabled": true,
+						"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+						"view_counts_everywhere_api_enabled": true,
+						"longform_notetweets_consumption_enabled": true,
+						"responsive_web_twitter_article_tweet_consumption_enabled": false,
+						"tweet_awards_web_tipping_enabled": false,
+						"freedom_of_speech_not_reach_fetch_enabled": true,
+						"standardized_nudges_misinfo": true,
+						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+						"longform_notetweets_rich_text_read_enabled": true,
+						"longform_notetweets_inline_media_enabled": true,
+						"responsive_web_media_download_video_enabled": false,
+						"responsive_web_enhance_cards_enabled": false
 					};
 					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
 					const cookies = (() => {
@@ -1801,196 +1998,47 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					return tweet_result.tweet || tweet_result;
 				}
 
-				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'));
-				const img_tweets = Array.from(twt.filter(e => e.querySelectorAll('time').length === 1))
-				const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
-				const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
-
-				console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
-
-				return [
-					...(await Promise.all(nom_tweets.map(async a => {
-						const metadataDiv = a.querySelector('div[data-testid="User-Name"] a[href*="/status/"]')
-						const id = metadataDiv.href.split('/').pop().split('?')[0]
-						const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-							const url = e.src.split('?');
-							const sq = new URLSearchParams(url[1]);
-							sq.delete('name')
-							sq.set('name', 'large')
-							return {
-								media_url: url[0] + '?' + sq.valueOf(),
-								format: sq.getAll('format')[0],
-								type: "photo"
-							}
-						});
-						const json = await getMediaURL(id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
-						const tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-						const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-						const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-						const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-						const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
-						const date = metadataDiv.querySelector('time').attributes['datetime'].value;
-
+				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
+				const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
+				return await Promise.all(img_tweets.map(async a => {
+					const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+						const url = e.src.split('?');
+						const sq = new URLSearchParams(url[1]);
+						sq.delete('name')
+						sq.set('name', 'large')
 						return {
-							id,
-							date,
-							userName,
-							screenName,
-							text,
-							images: json.images,
-							retweeted: false,
-							is_api_backed: !!tweet
-						};
-					})))
-				]
-				// Add RT support here
-			}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
-			parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
-			await page.waitForTimeout(Math.floor(Math.random() * (SCROLL_DELAY_MS_MAX - SCROLL_DELAY_MS_MIN + 1)) + SCROLL_DELAY_MS_MIN);
-		}
-		closeTab(account, `fav`);
-
-		return returnedTweets;
-	}
-	async function getTweet(user, id, account) {
-		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
-
-		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`)
-		await page.waitForTimeout(1200);
-
-		const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
-			async function getMediaURL(status_id, images, has_video) {
-				if (has_video) {
-					let _json = await fetchJson(status_id);
-					let tweet = _json.legacy;
-					let medias = tweet.extended_entities && tweet.extended_entities.media;
-					if (medias.length > 0) {
-						const media_array =  medias.map(media => {
-							const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-							return {
-								media_url: url,
-								format: url.split('.').pop().split(':')[0].split('?')[0],
-								type: media.type
-							}
-						})
-						return {
-							images: media_array,
-							data: _json
-						};
-					} else {
-						return {
-							images: [],
-							data: _json
-						};
-					}
-				} else {
-					return {
-						images
-					}
-				}
-			}
-			let lastAPIAccessTime = null;
-			const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-			async function fetchJson(status_id) {
-				if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-					console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-					await sleep(30000);
-				}
-				lastAPIAccessTime = Date.now();
-				const host = location.hostname;
-				const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-				const variables = {
-					"focalTweetId":status_id,
-					"with_rux_injections":false,
-					"includePromotedContent":true,
-					"withCommunity":true,
-					"withQuickPromoteEligibilityTweetFields":true,
-					"withBirdwatchNotes":true,
-					"withVoice":true,
-					"withV2Timeline":true
-				};
-				const features = {
-					"rweb_lists_timeline_redesign_enabled":true,
-					"responsive_web_graphql_exclude_directive_enabled":true,
-					"verified_phone_label_enabled":false,
-					"creator_subscriptions_tweet_preview_api_enabled":true,
-					"responsive_web_graphql_timeline_navigation_enabled":true,
-					"responsive_web_graphql_skip_user_profile_image_extensions_enabled":false,
-					"tweetypie_unmention_optimization_enabled":true,
-					"responsive_web_edit_tweet_api_enabled":true,
-					"graphql_is_translatable_rweb_tweet_is_translatable_enabled":true,
-					"view_counts_everywhere_api_enabled":true,
-					"longform_notetweets_consumption_enabled":true,
-					"responsive_web_twitter_article_tweet_consumption_enabled":false,
-					"tweet_awards_web_tipping_enabled":false,
-					"freedom_of_speech_not_reach_fetch_enabled":true,
-					"standardized_nudges_misinfo":true,
-					"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled":true,
-					"longform_notetweets_rich_text_read_enabled":true,
-					"longform_notetweets_inline_media_enabled":true,
-					"responsive_web_media_download_video_enabled":false,
-					"responsive_web_enhance_cards_enabled":false
-				};
-				const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-				const cookies = (() => {
-					let _cookies = {};
-					document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-						n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-							_cookies[name.trim()] = value.trim();
-						});
+							media_url: url[0] + '?' + sq.valueOf(),
+							format: sq.getAll('format')[0],
+							type: "photo"
+						}
 					});
-					return name ? _cookies[name] : _cookies;
-				})()
-				const headers = {
-					'authorization': auth,
-					'x-twitter-active-user': 'yes',
-					'x-twitter-client-language': cookies.lang,
-					'x-csrf-token': cookies.ct0
-				};
-				if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-				const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-				const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-				const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-				return tweet_result.tweet || tweet_result;
-			}
+					const json = await getMediaURL(tweet_id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
+					let tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+					const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+					const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+					const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+					const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
+					const date = a.querySelector('time').attributes['datetime'].value
 
-			const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
-			const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
-			return await Promise.all(img_tweets.map(async a => {
-				const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-					const url = e.src.split('?');
-					const sq = new URLSearchParams(url[1]);
-					sq.delete('name')
-					sq.set('name', 'large')
 					return {
-						media_url: url[0] + '?' + sq.valueOf(),
-						format: sq.getAll('format')[0],
-						type: "photo"
-					}
-				});
-				const json = await getMediaURL(tweet_id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
-				let tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-				const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-				const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-				const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-				const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText )).join('') : ''
-				const date = a.querySelector('time').attributes['datetime'].value
-
-				return {
-					id: tweet_id,
-					date,
-					userName,
-					screenName,
-					text,
-					images: json.images,
-					retweeted: false,
-					is_api_backed: !!tweet
-				};
-			}));
-			// Add RT support here
-		}, id, tGraphQL, tAuthorization)
-		closeTab(account, `get`);
-		return returnedTweets;
+						id: tweet_id,
+						date,
+						userName,
+						screenName,
+						text,
+						images: json.images,
+						retweeted: false,
+						is_api_backed: !!tweet
+					};
+				}));
+				// Add RT support here
+			}, id, tGraphQL, tAuthorization)
+			closeTab(account, `get`);
+			return returnedTweets;
+		} else {
+			Logger.printLine("HTDSv1", `Failed to interact with tweet because never got a tab`, "error")
+			return [];
+		}
 	}
 	async function yoinkTwitterAPIKey(id) {
 		const account = twitterAccounts.get(parseInt(id.toString()))
@@ -2006,9 +2054,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		);
 		Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 		await page.setCookie(...account.cookie);
-		await page.goto('https://twitter.com/' + account.screenName);
 		await page.setBypassCSP(true);
 		await page.setRequestInterception(true);
+		await page.goto('https://twitter.com/' + account.screenName);
 		page.on('request', req => {
 			const url = req.url();
 			const headers = req.headers();
