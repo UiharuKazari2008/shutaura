@@ -1000,7 +1000,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											await Promise.all(releaseCollection.action.map(async (actionIntent, intentIndex) => {
 												activeActions.push(`${twitterUser}-${tweetID}-${actionIntent}`);
 												try {
-													const page = await getTwitterTab(twit, `flowctrlrelease`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
+													const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
 													if (page) {
 														const results = await page.evaluate(async (action) => {
 															const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -1051,13 +1051,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																}
 															})
 														}, actionIntent)
-														closeTab(twit, `flowctrlrelease`);
+														closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
 														if (!results) {
 															mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
 															Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
 															if (intentIndex === 0) { tryTweet(); }
 														} else {
-															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${action} to ${tweetID}: ${results}`, "info");
+															Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${actionIntent} to ${tweetID}: ${results}`, "info");
 														}
 													} else {
 														mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${actionIntent}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
