@@ -997,7 +997,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			try {
 				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`, true);
 				if (page) {
-					await page.waitForSelector('div[data-testid="cellInnerDiv"] article');
 					await Promise.all(intent.map(async thisIntent => {
 						const results = await page.evaluate(async (action) => {
 							const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -1235,7 +1234,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					while (i <= 4) {
 						i++;
 						try {
-							await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+							await page.waitForSelector('div[data-testid="cellInnerDiv"] article, div[data-testid="error-detail"]')
 							i = 100
 						} catch (e) {
 							Logger.printLine("TabManager", `Page failed to return a article! Retry...`, "error")
@@ -1275,7 +1274,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					while (i <= 4) {
 						i++;
 						try {
-							await page.waitForSelector('div[data-testid="cellInnerDiv"] article')
+							await page.waitForSelector('div[data-testid="cellInnerDiv"] article, div[data-testid="error-detail"]')
 							i = 100
 						} catch (e) {
 							Logger.printLine("TabManager", `Page failed to return a article! Retry...`, "error")
