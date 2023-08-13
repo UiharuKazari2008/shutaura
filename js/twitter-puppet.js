@@ -1283,7 +1283,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 
 	async function downloadTweet(message, cb) {
-		const username = (message.messageEmbeds.length > 0) ? message.messageEmbeds[0].author.name.split("(@").pop().slice(0, -1).toLowerCase() : getURLfromText(message.messageText).pop().split("/")[3].toLowerCase()
+		const username = (message.messageEmbeds.length > 0 && message.messageEmbeds[0].author) ? message.messageEmbeds[0].author.name.split("(@").pop().slice(0, -1).toLowerCase() : getURLfromText(message.messageText).pop().split("/")[3].toLowerCase()
 		const listinfo = await db.query(`SELECT taccount,name,saveid,nsfw,redirect_taccount FROM twitter_list WHERE listid = ?`, [message.listID])
 		const channelreplacement = await db.query(`SELECT channelid FROM twitter_user_redirect WHERE twitter_username = ?`, [username])
 
