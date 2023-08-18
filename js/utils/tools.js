@@ -36,8 +36,10 @@ function findTwitterListKey(value, twitterlist) {
     return "";
 }
 function getIDfromText(message){
-    const url = Array.from(getUrls(message, { exclude : ["https://t.co/"] }))
-    return url.pop().toString().split(`/`).pop().split('?').pop().toString()
+    const url = Array.from(getUrls(message, { exclude : ["https://t.co/"] })).pop().toString()
+    if ((url.includes('x.com') || url.includes('twitter.com')) && url.includes('/status/'))
+        return url.split(`/status/`).pop().split('/')[0].split('?').pop().toString()
+    return url.split(`/`).pop().split('?').pop().toString()
 }
 function getURLfromText(message){
     return Array.from(getUrls(message, {exclude: ["https://t.co/"]}))
