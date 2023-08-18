@@ -37,7 +37,7 @@ function findTwitterListKey(value, twitterlist) {
 }
 function getIDfromText(message){
     const url = Array.from(getUrls(message, { exclude : ["https://t.co/"] }))
-    return url.pop().toString().split(`/`).pop().toString()
+    return url.pop().toString().split(`/`).pop().split('?').pop().toString()
 }
 function getURLfromText(message){
     return Array.from(getUrls(message, {exclude: ["https://t.co/"]}))

@@ -6559,27 +6559,6 @@ This code is publicly released and is restricted by its project license
                         if (image) {
                             jfsMove(messageEdited, channelID, function (cb) { }, true);
                             activeTasks.delete(`SAVE_${fullmsg.id}`);
-                        } else if (fullmsg.embeds.length > 0 && fullmsg.embeds[0].video) {
-                            const ID = getIDfromText(fullmsg.embeds[0].url);
-                            const FileName = `${username}-${ID}.mp4`;
-                            mqClient.sendData(systemglobal.FileWorker_In, {
-                                messageChannelID: channelID,
-                                messageReturn: false,
-                                messageText: `**🎞 Twitter Video** - ***${name} (@${username})***${messageText}`,
-                                itemFileName: FileName,
-                                itemVideoURL: fullmsg.embeds[0].video.url
-                            }, function (ok) {
-                                if (ok) {
-                                    activeTasks.delete(`SAVE_${fullmsg.id}`);
-                                    Logger.printLine("TwitterDownload", `Tweet ${TweetID} will be downloaded to ${channelID}, Sent to file worker proxy downloader`, "info", fullmsg.embeds[0], {
-                                        messageChannelID: channelID,
-                                        messageReturn: false,
-                                        messageText: `**🎞 Twitter Video** - ***${name} (@${username})***${messageText}`,
-                                        itemFileName: FileName,
-                                        itemVideoURL: fullmsg.embeds[0].video.url
-                                    })
-                                }
-                            })
                         } else {
                             sendTwitterAction(fullmsg.content, 'Download', "add", fullmsg.attachments, fullmsg.channel.id, fullmsg.guildID, fullmsg.embeds, destination);
                             activeTasks.delete(`SAVE_${fullmsg.id}`);
@@ -6596,7 +6575,7 @@ This code is publicly released and is restricted by its project license
                 }
             })
         }
-        else if (fullmsg.content.includes("twitter.com") || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].url && fullmsg.embeds[0].url.includes("twitter.com"))) {
+        else if ((fullmsg.content.includes("twitter.com") || fullmsg.content.startsWith("x.com") || fullmsg.content.includes("/x.com")) || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].url && (fullmsg.embeds[0].url.includes("twitter.com") || fullmsg.embeds[0].url.includes("x.com")))) {
             if (TwitterLikeList.get(sendTo) && TwitterAutoLike.has(TwitterLikeList.get(sendTo)) || TwitterAutoLike.has(sendTo)) {
                 sendTwitterAction(fullmsg.content, "LikeRT", "add", fullmsg.attachments, sendTo, fullmsg.guildID, fullmsg.embeds);
             }
@@ -6730,12 +6709,12 @@ This code is publicly released and is restricted by its project license
         if (msg.content.split(" _DEST_ ").length > 1) {
             moveTo = msg.content.replace('REQUEST ', '').split(" _DEST_ ")[1].replace('RECOM','').trim();
         }
-        if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image) && !(msg.content.includes("pixiv.net/") || msg.content.includes("youtube.com") || msg.content.includes("youtu.be") || msg.content.includes("twitter.com"))) {
+        if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image) && !(msg.content.includes("pixiv.net/") || msg.content.includes("youtube.com") || msg.content.includes("youtu.be") || msg.content.includes("twitter.com") || msg.content.includes("x.com"))) {
             downloadMessageFile(msg, moveTo, true)
             activeTasks.delete(`RSAVE_${msg.id}`);
         } else if (url.length > 0) {
             await Promise.all(url.map(async (urlItem) => {
-                if (urlItem.includes("twitter.com") && !urlItem.includes("/status/")) {
+                if ((urlItem.includes("twitter.com") || urlItem.includes("x.com")) && !urlItem.includes("/status/")) {
                     (async () => {
                         let chid = undefined
                         const username = urlItem.split('/').pop().trim()
@@ -6810,7 +6789,7 @@ This code is publicly released and is restricted by its project license
                     } else {
                         SendMessage("No known ID was passed to the download channel", "warn", msg.guildID, "DownloadMgr")
                     }
-                } else if (urlItem.includes("youtube.com") || urlItem.includes("youtu.be") || urlItem.includes("twitter.com")) {
+                } else if (urlItem.includes("youtube.com") || urlItem.includes("youtu.be") || urlItem.includes("twitter.com") || urlItem.includes("x.com")) {
                     downloadMessageFile(msg, moveTo,true)
                 } else if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image)) {
                     downloadMessageFile(msg, moveTo, true)
@@ -8666,7 +8645,7 @@ This code is publicly released and is restricted by its project license
                                             case 'Like':
                                                 if (fullmsg.content.includes('://pixiv.net/') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && fullmsg.embeds[0].title.includes('🎆 '))) {
                                                     sendPixivAction(fullmsg.embeds[0], 'Like', "add");
-                                                } else if (fullmsg.content.includes('://twitter.com') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && (fullmsg.embeds[0].title.includes('📨 Tweet') || fullmsg.embeds[0].title.includes('✳ Retweet')))) {
+                                                } else if (fullmsg.content.includes('://x.com') || fullmsg.content.includes('://twitter.com') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && (fullmsg.embeds[0].title.includes('📨 Tweet') || fullmsg.embeds[0].title.includes('✳ Retweet')))) {
                                                     sendTwitterAction(fullmsg.content, 'Like', "add", fullmsg.attachments, msg.channel.id, fullmsg.guildID, fullmsg.embeds);
                                                 }
                                                 break;
@@ -8906,7 +8885,7 @@ This code is publicly released and is restricted by its project license
                                         case 'Like':
                                             if (fullmsg.content.includes('://pixiv.net/') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && fullmsg.embeds[0].title.includes('🎆 '))) {
                                                 sendPixivAction(fullmsg.embeds[0], 'Like', "remove")
-                                            } else if (fullmsg.content.includes('://twitter.com') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && (fullmsg.embeds[0].title.includes('📨 Tweet') ||fullmsg.embeds[0].title.includes('✳ Retweet')) )) {
+                                            } else if (fullmsg.content.includes('://x.com') || fullmsg.content.includes('://twitter.com') || (fullmsg.embeds.length > 0 && fullmsg.embeds[0].title && (fullmsg.embeds[0].title.includes('📨 Tweet') ||fullmsg.embeds[0].title.includes('✳ Retweet')) )) {
                                                 sendTwitterAction(fullmsg.content, 'Like', "remove", fullmsg.attachments, msg.channel.id, fullmsg.guildID);
                                             }
                                             break;
