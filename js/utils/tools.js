@@ -38,7 +38,7 @@ function findTwitterListKey(value, twitterlist) {
 function getIDfromText(message){
     const url = Array.from(getUrls(message, { exclude : ["https://t.co/"] })).pop().toString()
     if ((url.includes('x.com') || url.includes('twitter.com')) && url.includes('/status/'))
-        return url.split(`/status/`).pop().split('/')[0].split('?').pop().toString()
+        return url.split(`/status/`).pop().split('/')[0].split('?')[0].toString()
     return url.split(`/`).pop().split('?').pop().toString()
 }
 function getURLfromText(message){
