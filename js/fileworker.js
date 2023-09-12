@@ -1902,14 +1902,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								} else {
 									Logger.printLine("BackDate", `Failed to get a valid date from the image file!`, 'warn');
 								}
-								resizeImageFile(object.FilePath.toString(), function (data) {
-									if (data === false) {
-										mqClient.sendMessage(`Error occurred when resizing the image "${object.FilePath.toString()}" for transport, Will send without preview!`, "err", "")
-										sendTxt()
-									} else {
-										sendPreview(data, '.jpg')
-									}
-								})
+								try {
+
+									resizeImageFile(object.FilePath.toString(), function (data) {
+										if (data === false) {
+											mqClient.sendMessage(`Error occurred when resizing the image "${object.FilePath.toString()}" for transport, Will send without preview!`, "err", "")
+											sendTxt()
+										} else {
+											sendPreview(data, '.jpg')
+										}
+									})
+								} catch (e) {
+									mqClient.sendMessage(`Error occurred when resizing the image "${object.FilePath.toString()}" for transport, Will send without preview!`, "err", e.message)
+									sendTxt()
+								}
 							})
 						} else if (systemglobal.FW_Accepted_Videos.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 							// Get Video Duration
