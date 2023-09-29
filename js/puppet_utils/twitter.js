@@ -48,7 +48,8 @@ function fetchJson(status_id) {
         "longform_notetweets_rich_text_read_enabled":true,
         "longform_notetweets_inline_media_enabled":true,
         "responsive_web_media_download_video_enabled":false,
-        "responsive_web_enhance_cards_enabled":false
+        "responsive_web_enhance_cards_enabled":false,
+        "responsive_web_home_pinned_timelines_enabled": true
     };
     let url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
     let cookies = this.getCookie();
