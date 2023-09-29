@@ -2422,6 +2422,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 						const variables = {
 							"focalTweetId": status_id,
+							"referrer": "tweet",
 							"with_rux_injections": false,
 							"includePromotedContent": true,
 							"withCommunity": true,
@@ -2431,9 +2432,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							"withV2Timeline": true
 						};
 						const features = {
-							"rweb_lists_timeline_redesign_enabled": true,
 							"responsive_web_graphql_exclude_directive_enabled": true,
 							"verified_phone_label_enabled": false,
+							"responsive_web_home_pinned_timelines_enabled": false,
 							"creator_subscriptions_tweet_preview_api_enabled": true,
 							"responsive_web_graphql_timeline_navigation_enabled": true,
 							"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
@@ -2617,6 +2618,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 						const variables = {
 							"focalTweetId": status_id,
+							"referrer": "tweet",
 							"with_rux_injections": false,
 							"includePromotedContent": true,
 							"withCommunity": true,
@@ -2626,9 +2628,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							"withV2Timeline": true
 						};
 						const features = {
-							"rweb_lists_timeline_redesign_enabled": true,
 							"responsive_web_graphql_exclude_directive_enabled": true,
 							"verified_phone_label_enabled": false,
+							"responsive_web_home_pinned_timelines_enabled": false,
 							"creator_subscriptions_tweet_preview_api_enabled": true,
 							"responsive_web_graphql_timeline_navigation_enabled": true,
 							"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
@@ -2777,6 +2779,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
 					const variables = {
 						"focalTweetId": status_id,
+						"referrer": "tweet",
 						"with_rux_injections": false,
 						"includePromotedContent": true,
 						"withCommunity": true,
@@ -2786,9 +2789,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						"withV2Timeline": true
 					};
 					const features = {
-						"rweb_lists_timeline_redesign_enabled": true,
 						"responsive_web_graphql_exclude_directive_enabled": true,
 						"verified_phone_label_enabled": false,
+						"responsive_web_home_pinned_timelines_enabled": false,
 						"creator_subscriptions_tweet_preview_api_enabled": true,
 						"responsive_web_graphql_timeline_navigation_enabled": true,
 						"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
