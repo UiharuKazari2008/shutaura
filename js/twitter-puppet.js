@@ -1577,6 +1577,297 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			cb(true);
 		}
 	}
+	function sendTweet(twitterUser, message, cb) {
+		let inputText
+		const twit = twitterAccounts.get((twitterUser) ? parseInt(twitterUser.toString()) : 1)
+		function textChecker(text, returned) {
+			if (text.length > 275) {
+				textToPicture.convert({
+					text: text,
+					source: "./src/tweet-bg.png",
+					color: 'white',
+				}).then(result => {
+					return result.getBase64()
+				}).then(str => {
+					returned(str.replace(/^data:image\/png;base64,/, ""))
+					Logger.printLine("Twitter", `Account ${twitterUser}: Generated a image with the status text`, "debug", {
+						tweetText: text,
+						tweetLength: text.length
+					})
+				}).catch(err => {
+					Logger.printLine("Twitter", `Account ${twitterUser}: Error when creating text to image for long messsage`, "error", err, {
+						tweetText: text,
+						tweetLength: text.length
+					})
+					returned(false)
+				})
+			} else {
+				returned(true)
+			}
+		}
+		function sendAction(params){
+			function send(object){
+				twit.client.post('statuses/update', object, function (err, data, response) {
+					if (!err) {
+						cb(true);
+						mqClient.sendMessage(`Tweet sent successfully for account #${twitterUser}!\nhttps://twitter.com/${data.user.screen_name}/status/${data.id_str}`, "info", "Twitter")
+					} else {
+						mqClient.sendMessage(`Failed to send tweet for account #${twitterUser}!, Ticket will be dropped!`, "err", "Twitter", err)
+						cb(false);
+					}
+				})
+			}
+			textChecker(inputText, function (results) {
+				if (results === true) {
+					params.status = inputText
+					send(params)
+				} else if (results === false) {
+					mqClient.sendMessage("Failed to obtain a text image for your long message!", "err", "SendTweet", {
+						tweetText: inputText,
+						tweetLength: inputText.length
+					})
+					cb(false)
+				} else {
+					sendMedia([results], "raw")
+						.then(function (moremediakeys) {
+							if (moremediakeys) {
+								params.media_ids = moremediakeys.concat(params.media_ids)
+								const URLs = getURLfromText(message.messageText)
+								if (URLs.length > 0) {
+									let messageFinalText = ""
+									for (let index in URLs) {
+										messageFinalText = messageFinalText + URLs[index] + "\n"
+										if (parseInt(index) === URLs.length-1) {
+											params.status = messageFinalText
+											send(params);
+										}
+									}
+								} else {
+									params.status = ""
+									send(params);
+								}
+							} else {
+								mqClient.sendMessage(`Did not get second set of media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
+								cb(false);
+							}
+						})
+				}
+			})
+		}
+		function sendMedia(media_array, mediatype){
+			let mediaIDs = [];
+			let index = 0
+			return new Promise(function (fulfill){
+				function parseImage(imageSize, media, url, numOfMedia) {
+					function uploadFile(media, numOfMedia) {
+						limiter2.removeTokens(1, function () {
+							twit.client.post('media/upload', { media_data: Buffer.from(media).toString('base64') }, function (err, data, response) {
+								if (!err && data.media_id_string) {
+									mediaIDs.push(data.media_id_string);
+									Logger.printLine("TwitterMedia", `Account ${twitterUser}: Uploaded ${data.media_id_string}`, "debug", data)
+									index++;
+									if (index === numOfMedia) {
+										fulfill(mediaIDs)
+									}
+								} else {
+									Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet!`, "error", err)
+									fulfill(null);
+								}
+							})
+						})
+					}
+					if (imageSize.length / 1000000 > 5 ){
+						Logger.printLine("TwitterMedia", `Account ${twitterUser}: File is to large for Twitter, will resize it down`, "info", imageSize)
+						const scaleSize = 2500 // Lets Shoot for 2100?
+						let resizeParam = {
+							fit: sharp.fit.inside,
+							withoutEnlargement: true
+						}
+						if (imageSize.width > imageSize.height) { // Landscape Resize
+							resizeParam.width = scaleSize
+						} else { // Portrait or Square Image
+							resizeParam.height = scaleSize
+						}
+						sharp(Buffer.from(media))
+							.resize(resizeParam)
+							.toFormat('jpg')
+							.withMetadata()
+							.toBuffer({resolveWithObject: true})
+							.then(({data, info}) => {
+								uploadFile(data, numOfMedia)
+							})
+							.catch(err => {
+								Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${url}`, "error", err)
+								fulfill(null);
+							})
+					} else {
+						uploadFile(media, numOfMedia)
+					}
+				}
+				switch (mediatype) {
+					case 'url':
+						Logger.printLine("TwitterMedia", `Account ${twitterUser}: Got Discord File Upload`, "debug")
+						for( let key in media_array ){
+							Logger.printLine("TwitterMedia", `Account ${twitterUser}: Need ${media_array[key].url} for Twitter Upload`, "debug", media_array[key])
+							probe(media_array[key].url).then(imageSize => {
+								request.get({
+									url: media_array[key].url,
+									headers: {
+										'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+										'accept-language': 'en-US,en;q=0.9',
+										'cache-control': 'max-age=0',
+										'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+										'sec-ch-ua-mobile': '?0',
+										'sec-fetch-dest': 'document',
+										'sec-fetch-mode': 'navigate',
+										'sec-fetch-site': 'none',
+										'sec-fetch-user': '?1',
+										'upgrade-insecure-requests': '1',
+										'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+									},
+								}, function (err, res, body) {
+									if(err){
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to download media for sending Tweet! ${media_array[key].url}`, "error", err, res)
+										fulfill(null);
+									} else {
+										parseImage(imageSize, body, media_array[key].url, media_array.length)
+									}
+								})
+							})
+								.catch(err => {
+									Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${media_array[key].url}`, "error", err);
+									fulfill(null);
+								})
+						}
+						break;
+					case 'raw':
+						Logger.printLine("TwitterMedia", `Account ${twitterUser}: Got Raw File Upload`, "debug")
+						for( let key in media_array ){
+							const mediaparams = {
+								media_data : media_array[key]
+							}
+							limiter2.removeTokens(1, function() {
+								twit.client.post('media/upload', mediaparams, function(err, data, response) {
+									if(!err) {
+										mediaIDs.push(data.media_id_string);
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: Uploaded ${data.media_id_string}`, "debug", data)
+										if (media_array[key] === media_array[media_array.length-1]) {
+											fulfill(mediaIDs)
+										}
+									} else {
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet!`, "error", response)
+										fulfill(null);
+									}
+								})
+							})
+						}
+						break;
+					case 'hash':
+						Logger.printLine("TwitterMedia", `Account ${twitterUser}: Got Raw File Upload`, "debug")
+						for( let key in media_array ){
+							const filePath = path.join(process.cwd(),`/data/flow_storage_${twitterUser}`, '/' + media_array[key])
+							if (fs.existsSync(filePath)) {
+								fs.readFile(filePath, (err, data) => {
+									if (err) {
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet! Data Error`, "error", err);
+										fulfill(null);
+									} else if (data) {
+										limiter2.removeTokens(1, function () {
+											twit.client.post('media/upload', { media_data: Buffer.from(data).toString() }, function (err, data, response) {
+												if (!err) {
+													mediaIDs.push(data.media_id_string);
+													Logger.printLine("TwitterMedia", `Account ${twitterUser}: Uploaded ${data.media_id_string}`, "debug", data)
+													if (media_array[key] === media_array[media_array.length - 1]) {
+														fulfill(mediaIDs)
+													}
+												} else {
+													Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet!`, "error", response)
+													fulfill(null);
+												}
+											})
+										})
+									} else {
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet! Data Invalid`, "error")
+										fulfill(null);
+									}
+									try {
+										fs.unlinkSync(filePath);
+									} catch (e) {
+										Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to delete media for tweet! ${e.message}`, "error", e)
+									}
+								})
+							} else {
+								Logger.printLine("TwitterMedia", `Account ${twitterUser}: Failed to upload media for tweet! File does not exsist!`, "error", response)
+								fulfill(null);
+							}
+						}
+						break;
+					default:
+						break;
+				}
+			})
+		}
+		let parameters = {}
+
+		if (message.messageAction === "Reply" && !(message.messageEmbeds && message.messageEmbeds.length > 0)) {
+			mqClient.sendMessage(`Did not get url for tweet to reply, Ticket will be dropped!`, "err", "SendTweet")
+			cb(false);
+		} else {
+			if (message.messageAction === "Reply"){
+				parameters.auto_populate_reply_metadata = true;
+				if (message.messageEmbeds && message.messageEmbeds.length > 0) {
+					parameters.in_reply_to_status_id = getIDfromText(message.messageEmbeds[0].url);
+				} else {
+					parameters.in_reply_to_status_id = getIDfromText(message.messageText);
+				}
+				inputText = message.messageText
+					.split("\n<@!>").pop()
+					.replace('/^[ ]+|[ ]+$/g','')
+					.split("***").join("")
+					.split("**").join("")
+					.split("`").join("")
+					.split("__").join("")
+					.split("~~").join("")
+					.split("||").join("")
+					.split("<#").join("")
+					.split("<!@").join("")
+					.split(">").join("")
+				Logger.printLine("TwitterSend", `Account ${twitterUser}: Preparing to send Reply`, "debug", {
+					tweetText: inputText,
+					tweetLength: inputText.length
+				})
+			} else {
+				inputText = message.messageText
+					.split("***").join("")
+					.split("**").join("")
+					.split("`").join("")
+					.split("__").join("")
+					.split("~~").join("")
+					.split("||").join("")
+					.split("<#").join("")
+					.split("<!@").join("")
+					.split(">").join("")
+				Logger.printLine("TwitterSend", `Account ${twitterUser}: Preparing to send Tweet`, "debug", {
+					tweetText: inputText,
+					tweetLength: inputText.length
+				})
+			}
+			if (message.messageFileData[0]) {
+				sendMedia(message.messageFileData, message.messageFileType)
+					.then((mediakeys) => {
+						if (mediakeys) {
+							parameters.media_ids = mediakeys
+							sendAction(parameters);
+						} else {
+							mqClient.sendMessage(`Did not get media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
+							cb(false);
+						}
+					})
+			} else {
+				sendAction(parameters);
+			}
+		}
+	}
 	async function getTweets(countLimit) {
 		for (const e of Array.from(twitterAccounts.entries())) {
 			const id = e[0];
@@ -2533,6 +2824,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					};
 					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+					console.log(tweet_detail);
 					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 					return tweet_result.tweet || tweet_result;

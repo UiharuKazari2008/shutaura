@@ -63,6 +63,7 @@ function fetchJson(status_id) {
         const result = await fetch(url, {headers: headers});
         return await result.json();
     }
+    console.log(tweet_detail)
     let tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
     let tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
     return tweet_result.tweet || tweet_result;
