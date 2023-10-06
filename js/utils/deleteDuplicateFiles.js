@@ -116,10 +116,10 @@ ORDER BY eid DESC;`)
         console.log('Parseing...')
         const attachmentMap = new Map();
         for (const row of results.rows) {
-            if (!attachmentMap.has(row.attachment_name)) {
-                attachmentMap.set(row.attachment_name, []);
+            if (!attachmentMap.has(row.attachment_name.split('?')[0])) {
+                attachmentMap.set(row.attachment_name.split('?')[0], []);
             }
-            attachmentMap.get(row.attachment_name).push(row);
+            attachmentMap.get(row.attachment_name.split('?')[0]).push(row);
         }
         const duplicateFiles = [];
         for (const [name, rows] of attachmentMap.entries()) {

@@ -131,9 +131,9 @@ const systemglobal = require("../config.json");
         if (message.real_filename) {
             destName += '-' + message.real_filename.replace(message.id, '')
         } else if (message.attachment_name) {
-            destName += '-' + message.attachment_name.replace(message.id, '')
+            destName += '-' + message.attachment_name.replace(message.id, '').split('?')[0]
         } else if (message.attachment_hash) {
-            destName += '-' + message.attachment_hash.split('/').pop()
+            destName += '-' + message.attachment_hash.split('/').pop().split('?')[0]
         }
 
         async function backupCompleted() {
@@ -177,7 +177,7 @@ const systemglobal = require("../config.json");
 
             Logger.printLine("BackupFile", `Downloading ${message.id} ${destName}...`, "debug")
             await request.get({
-                url: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name}`),
+                url: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`),
                 headers: {
                     'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
                     'accept-language': 'en-US,en;q=0.9',
@@ -465,9 +465,9 @@ const systemglobal = require("../config.json");
                 if (e.real_filename) {
                     destName += '-' + e.real_filename.replace(e.id, '')
                 } else if (e.attachment_name) {
-                    destName += '-' + e.attachment_name.replace(e.id, '')
+                    destName += '-' + e.attachment_name.replace(e.id, '').split('?')[0]
                 } else if (e.attachment_hash) {
-                    destName += '-' + e.attachment_hash.split('/').pop()
+                    destName += '-' + e.attachment_hash.split('/').pop().split('?')[0]
                 }
 
                 return {

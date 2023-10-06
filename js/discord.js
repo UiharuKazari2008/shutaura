@@ -1322,7 +1322,7 @@ This code is publicly released and is restricted by its project license
                             await cacheColor(MessageContents.messageID, `${(!messageData.rows[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${messageData.rows[0].cache_proxy}`)
                             cb(true);
                         } else if (messageData.rows.length > 0 && messageData.rows[0].attachment_hash) {
-                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `/${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name}`))
+                            await cacheColor(MessageContents.messageID, `https://cdn.discordapp.com/attachments` + ((messageData.rows[0].attachment_hash.includes('/')) ? messageData.rows[0].attachment_hash : `/${messageData.rows[0].channel}/${messageData.rows[0].attachment_hash}/${messageData.rows[0].attachment_name.split('?')[0]}`))
                             cb(true);
                         } else {
                             Logger.printLine("Discord", `Unable to cache item ${MessageContents.messageID}!`, "warn")
@@ -6916,15 +6916,15 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
             attachments = [
                 {
-                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name}`),
-                    filename: database_vales[0].attachment_name
+                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name.split('?')[0]}`),
+                    filename: database_vales[0].attachment_name.split('?')[0]
                 }
             ]
             if (database_vales[0].cache_proxy) {
                 const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}`
                 attachments.push({
-                    url: cache_url,
-                    filename: cache_url.split('/').pop()
+                    url: cache_url.split('?')[0],
+                    filename: cache_url.split('/').pop().split('?')[0]
                 })
             }
         }
@@ -7882,8 +7882,8 @@ This code is publicly released and is restricted by its project license
                                     sqlObject.attachment_hash = (urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
                                     sqlObject.attachment_name = urlParts[1].split('/')[2]
                                 } else {
-                                    sqlObject.attachment_hash = msg.attachments[0].url
-                                    sqlObject.attachment_name = msg.attachments[0].filename
+                                    sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
+                                    sqlObject.attachment_name = msg.attachments[0].filename.split('?')[0]
                                 }
                                 if (!sqlObject.filesize) {
                                     if (msg.attachments[0].size && msg.attachments[0].size > 0) {
@@ -8008,7 +8008,7 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
-                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name.split('?')[0]}`)
                                 }
 
                                 if (chDbval.notify !== null) {
@@ -8045,12 +8045,12 @@ This code is publicly released and is restricted by its project license
                                         if (sqlObject.real_filename) {
                                             embed["title"] = sqlObject.real_filename
                                         } else if (embedText.length <= 2) {
-                                            embed["title"] = sqlObject.attachment_name
+                                            embed["title"] = sqlObject.attachment_name.split('?')[0]
                                         }
                                         if ((sqlObject.attachment_hash || sqlObject.cache_proxy) &&
-                                            ['jpg','png','gif','jfif','jpeg'].indexOf(((sqlObject.cache_proxy) ? sqlObject.cache_proxy : sqlObject.attachment_name).split('.').pop().toLowerCase()) !== -1) {
+                                            ['jpg','png','gif','jfif','jpeg'].indexOf(((sqlObject.cache_proxy) ? sqlObject.cache_proxy : sqlObject.attachment_name).split('?')[0].split('.').pop().toLowerCase()) !== -1) {
                                             embed[(sqlObject.fileid) ? "thumbnail" : "image"] = {
-                                                "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                                "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name.split('?')[0]}`)
                                             }
                                         }
                                         if (systemglobal.base_url)
@@ -8108,7 +8108,7 @@ This code is publicly released and is restricted by its project license
                                         Logger.printLine("ExtendedContent", `Failed to process extended data because the associated record was not found!`, "warn");
                                     }
                                 }
-                                if (sqlObject.attachment_name || sqlObject.real_filename) {
+                                if (sqlObject.attachment_name.split('?')[0] || sqlObject.real_filename) {
                                     const fileIcon = ((x,y) => {
                                         const z = (x) ? x : y
                                         const t = z.split('?')[0].split('.').pop().toLowerCase().trim()
@@ -8124,9 +8124,9 @@ This code is publicly released and is restricted by its project license
                                         if (x)
                                             return '📦'
                                         return '📄'
-                                    })(sqlObject.real_filename, sqlObject.attachment_name)
+                                    })(sqlObject.real_filename, sqlObject.attachment_name.split('?')[0])
                                     fileTicker.unshift({
-                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
+                                        name: `${fileIcon} ${(sqlObject.real_filename) ? sqlObject.real_filename : sqlObject.attachment_name.split('?')[0]}${(sqlObject.filesize && sqlObject.filesize >= 1) ? ' (' + sqlObject.filesize + ' MB)' : ''}`,
                                         date: Date.now(),
                                     });
                                 }
@@ -8273,11 +8273,11 @@ This code is publicly released and is restricted by its project license
             if (msg.attachments && (msg.attachments.length === 1 || (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0))) {
                 const urlParts = msg.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
                 if (urlParts.length === 2) {
-                    sqlObject.attachment_hash = (urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
-                    sqlObject.attachment_name = urlParts[1].split('/')[2]
+                    sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
+                    sqlObject.attachment_name = urlParts[1].split('/')[2].split('?')[0]
                 } else {
-                    sqlObject.attachment_hash = msg.attachments[0].url
-                    sqlObject.attachment_name = msg.attachments[0].filename
+                    sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
+                    sqlObject.attachment_name = msg.attachments[0].filename.split('?')[0]
                 }
                 sqlObject.attachment_extra = null
 

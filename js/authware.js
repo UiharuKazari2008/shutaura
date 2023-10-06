@@ -1364,7 +1364,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                     if (userAlbums && userAlbums.rows.length > 0) {
                         userAccount.albums = userAlbums.rows.map(e => {
-                            let ranImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                            let ranImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
                             return {
                                 ...e,
                                 image: ranImage
@@ -1373,7 +1373,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     if (userArtists && userArtists.rows.length > 0) {
                         userAccount.artists = userArtists.rows.map(e => {
-                            let latestImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name}`) : undefined
+                            let latestImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
                             return {
                                 ...e,
                                 image: latestImage
