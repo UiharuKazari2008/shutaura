@@ -209,7 +209,7 @@ const systemglobal = require("../config.json");
         if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
             ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
 
-        const backupItems = await db.query(`SELECT x.*, y.cid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid) WHERE y.cid IS NULL ORDER BY RAND() LIMIT ?`, [backupSystemName, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        const backupItems = await db.query(`SELECT x.*, y.ecid FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid) WHERE y.ecid IS NULL ORDER BY RAND() LIMIT ?`, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else if (backupItems.rows.length > 0) {
