@@ -177,73 +177,81 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
 
         if (Object.keys(attachements).length > 0) {
-            const res = Object.keys(attachements).map(async k => {
-                const val = attachements[k];
-                const data = await new Promise(ok => {
-                    const url = val.src;
-                    Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
-                    request.get({
-                        url,
-                        headers: {
-                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                            'accept-language': 'en-US,en;q=0.9',
-                            'cache-control': 'max-age=0',
-                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                            'sec-ch-ua-mobile': '?0',
-                            'sec-fetch-dest': 'document',
-                            'sec-fetch-mode': 'navigate',
-                            'sec-fetch-site': 'none',
-                            'sec-fetch-user': '?1',
-                            'upgrade-insecure-requests': '1',
-                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                        },
-                    }, async (err, res, body) => {
-                        if (err || res && res.statusCode && res.statusCode !== 200) {
-                            if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full') {
-                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                mqClient.sendData(systemglobal.Discord_Out, {
-                                    fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                    messageReturn: false,
-                                    messageID: message.id,
-                                    messageChannelID: message.channel,
-                                    messageServerID: message.server,
-                                    messageType: 'command',
-                                    messageAction: 'ValidateMessage'
-                                }, function (callback) {
-                                    if (callback) {
-                                        Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                    } else {
-                                        Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                    }
-                                });
+            let res = [];
+            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                return promiseChain.then(() => new Promise(async (blockOk) => {
+                    const val = attachements[k];
+                    const data = await new Promise(ok => {
+                        const url = val.src;
+                        Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                        request.get({
+                            url,
+                            headers: {
+                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                'accept-language': 'en-US,en;q=0.9',
+                                'cache-control': 'max-age=0',
+                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                'sec-ch-ua-mobile': '?0',
+                                'sec-fetch-dest': 'document',
+                                'sec-fetch-mode': 'navigate',
+                                'sec-fetch-site': 'none',
+                                'sec-fetch-user': '?1',
+                                'upgrade-insecure-requests': '1',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                            },
+                        }, async (err, res, body) => {
+                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full') {
+                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                    mqClient.sendData(systemglobal.Discord_Out, {
+                                        fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                        messageReturn: false,
+                                        messageID: message.id,
+                                        messageChannelID: message.channel,
+                                        messageServerID: message.server,
+                                        messageType: 'command',
+                                        messageAction: 'ValidateMessage'
+                                    }, function (callback) {
+                                        if (callback) {
+                                            Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                        } else {
+                                            Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                        }
+                                    });
+                                } else {
+                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                }
+                                ok(false)
                             } else {
-                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                ok(body);
                             }
-                            ok(false)
-                        } else {
-                            ok(body);
-                        }
-                    })
-                })
-                if (data) {
-                    fsEx.ensureDirSync(path.join(val.dest, k));
-                    return await new Promise(ok => {
-                        fs.writeFile(path.join(val.dest, k, destName), data, async (err) => {
-                            if (err) {
-                                Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
-                            }
-                            ok(!err);
                         })
-                    });
-                } else {
-                    Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                    return false;
-                }
-
-            })
-            if (res.filter(f => !f).length === 0)
-                await backupCompleted();
-            cb(res.filter(f => !f).length === 0);
+                    })
+                    if (data) {
+                        fsEx.ensureDirSync(path.join(val.dest, k));
+                        const write = await new Promise(ok => {
+                            fs.writeFile(path.join(val.dest, k, destName), data, async (err) => {
+                                if (err) {
+                                    Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                }
+                                ok(!err);
+                            })
+                        });
+                        res.push(write);
+                        blockOk();
+                    } else {
+                        Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                        res.push(false);
+                        blockOk();
+                    }
+                }))
+            }, Promise.resolve());
+            requests.then(async () => {
+                Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
+                if (res.filter(f => !f).length === 0)
+                    await backupCompleted();
+                cb(res.filter(f => !f).length === 0);
+            });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
             cb(false)
