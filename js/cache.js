@@ -155,26 +155,26 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (message.attachment_hash) {
             attachements['full'] = {
                 src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`),
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'full'),
+                dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
             }
         }
         if (message.cache_proxy) {
             attachements['preview'] = {
                 src: message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`,
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview'),
+                dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: message.cache_proxy.split('?')[0].split('.').pop()
             }
         } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
             attachements['preview'] = {
                 src: `https://media.discordapp.net/attachments/` + ((message.attachment_hash.includes('/')) ? `${message.attachment_hash}${getimageSizeParam()}` : `${message.channel}/${message.attachment_hash}/${message.attachment_name}${getimageSizeParam()}`),
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview'),
+                dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
         }
         if (message.data && message.data.preview_image && message.data.preview_image) {
             attachements['extended-preview'] = {
                 src: `https://media.discordapp.net${message.data.preview_image}`,
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'extended_preview'),
+                dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
                 ext: message.data.preview_image.split('?')[0].split('.').pop()
             }
         }
@@ -237,7 +237,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         })
                     })
                     if (data) {
-                        fsEx.ensureDirSync(path.join(val.dest, k));
+                        fsEx.ensureDirSync(path.join(val.dest));
                         const write = await new Promise(ok => {
                             fs.writeFile(path.join(val.dest, destName), data, async (err) => {
                                 if (err) {
