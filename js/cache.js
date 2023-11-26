@@ -122,10 +122,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function backupMessage (message, cb) {
         let attachements = {};
-        let destName = `${message.eid}`
-        if (message.attachment_name) {
-            destName += '.' +  message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
-        }
 
         async function backupCompleted() {
             const saveBackupSQL = await db.query(`INSERT INTO kanmi_cdn SET eid = ?, host = ?`, [message.eid, systemglobal.CDN_ID])
@@ -155,24 +151,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (message.attachment_hash) {
             attachements['full'] = {
                 src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`),
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'full')
+                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'full'),
             }
         }
         if (message.cache_proxy) {
             attachements['preview'] = {
                 src: message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`,
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview')
+                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview'),
+                ext: message.cache_proxy.split('?')[0].split('.').pop()
             }
         } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
             attachements['preview'] = {
                 src: `https://media.discordapp.net/attachments/` + ((message.attachment_hash.includes('/')) ? `${message.attachment_hash}${getimageSizeParam()}` : `${message.channel}/${message.attachment_hash}/${message.attachment_name}${getimageSizeParam()}`),
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview')
+                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'preview'),
+                ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
         }
         if (message.data && message.data.preview_image && message.data.preview_image) {
             attachements['extended-preview'] = {
                 src: `https://media.discordapp.net${message.data.preview_image}`,
-                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'extended_preview')
+                dest: path.join(systemglobal.CDN_Base_Path, message.server, message.channel, 'extended_preview'),
+                ext: message.data.preview_image.split('?')[0].split('.').pop()
             }
         }
 
@@ -181,6 +180,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
+                    let destName = `${message.eid}`
+                    if (val.ext) {
+                        destName += '.' + val.ext;
+                    } else if (message.attachment_name) {
+                        destName += '.' +  message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
+                    }
                     const data = await new Promise(ok => {
                         const url = val.src;
                         Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
