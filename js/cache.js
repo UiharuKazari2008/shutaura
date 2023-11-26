@@ -239,7 +239,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (data) {
                         fsEx.ensureDirSync(path.join(val.dest, k));
                         const write = await new Promise(ok => {
-                            fs.writeFile(path.join(val.dest, k, destName), data, async (err) => {
+                            fs.writeFile(path.join(val.dest, destName), data, async (err) => {
                                 if (err) {
                                     Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
                                 }
