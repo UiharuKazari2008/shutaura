@@ -86,7 +86,7 @@ const systemglobal = require("../config.json");
                     systemglobal.CDN_Interval_Min = _backup_config[0].param_data.interval_min;
                 if (_backup_config[0].param_data.items_per_backup)
                     systemglobal.CDN_N_Per_Interval = _backup_config[0].param_data.items_per_backup;
-                if (_backup_config[0].param_data.backup_base_path)
+                if (_backup_config[0].param_data.base_path)
                     systemglobal.CDN_Base_Path = _backup_config[0].param_data.base_path;
             }
             // {"backup_parts": true, "interval_min": 5, "backup_base_path": "/mnt/backup/", "pickup_base_path": "/mnt/data/kanmi-files/", "items_per_backup" : 2500}
