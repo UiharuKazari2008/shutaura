@@ -268,43 +268,55 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function findBackupItems(focus_list) {
-        runCount++
-        let ignoreQuery = [];
-        if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
-            ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
-        if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
-            ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
+        return new Promise(async completed => {
+            runCount++
+            let ignoreQuery = [];
+            if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
+                ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
+            if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
+                ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
 
-        const q = `SELECT x.*, y.ecid FROM (SELECT rec.*, ext.data FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' AND ') + ')' : ''} AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''})) rec LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x LEFT OUTER JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid) WHERE y.ecid IS NULL ORDER BY RAND() LIMIT ?`
-        Logger.printLine("Search", `Preparing Search....`, "info");
-        console.log(q);
-        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
-        if (backupItems.error) {
-            Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
-        } else if (backupItems.rows.length > 0) {
-            let total = backupItems.rows.length
-            let ticks = 0
-            let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
-                return promiseChain.then(() => new Promise(async(resolve) => {
-                    await backupMessage(m, async ok => {
-                        ticks++
-                        if (ticks >= 100 || a.length <= 100) {
-                            ticks = 0
-                        }
-                        resolve(ok)
-                        m = null
-                    })
-                }))
-            }, Promise.resolve());
-            requests.then(async () => {
-                if (total > 0) {
-                    Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
-                }
-                setTimeout(findBackupItems,(systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-            })
-        } else {
-            setTimeout(findBackupItems,(systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-        }
+            const q = `SELECT x.*, y.ecid
+                       FROM (SELECT rec.*, ext.data
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' AND ') + ')' : ''} AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''})) rec
+                                      LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                                LEFT OUTER JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                       WHERE y.ecid IS NULL
+                       ORDER BY RAND()
+                       LIMIT ?`
+            Logger.printLine("Search", `Preparing Search....`, "info");
+            console.log(q);
+            const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+            if (backupItems.error) {
+                Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
+                completed();
+            } else if (backupItems.rows.length > 0) {
+                let total = backupItems.rows.length
+                let ticks = 0
+                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
+                    return promiseChain.then(() => new Promise(async (resolve) => {
+                        await backupMessage(m, async ok => {
+                            ticks++
+                            if (ticks >= 100 || a.length <= 100) {
+                                ticks = 0
+                            }
+                            resolve(ok)
+                            m = null
+                        })
+                    }))
+                }, Promise.resolve());
+                requests.then(async () => {
+                    if (total > 0) {
+                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
+                    }
+                    completed();
+                    setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+                })
+            } else {
+                setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+                completed();
+            }
+        });
     }
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
