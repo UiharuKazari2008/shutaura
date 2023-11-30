@@ -1404,6 +1404,12 @@ This code is publicly released and is restricted by its project license
                                                                                             Logger.printLine("Discord", `Cached Image for ${message.id} to ${data.id}`, "info")
                                                                                         }
                                                                                     })
+                                                                                    (async () => {
+                                                                                        const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [message.id])
+                                                                                        if (cacheRemove.rows.length > 0) {
+                                                                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
+                                                                                        }
+                                                                                    })()
                                                                                 }
                                                                             })
                                                                             cb(true);
@@ -1822,6 +1828,12 @@ This code is publicly released and is restricted by its project license
                                                                 })
                                                             }
                                                         });
+                                                        (async () => {
+                                                            const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageID])
+                                                            if (cacheRemove.rows.length > 0) {
+                                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
+                                                            }
+                                                        })()
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -1855,6 +1867,12 @@ This code is publicly released and is restricted by its project license
                                                                 cb(true);
                                                             }
                                                         });
+                                                        (async () => {
+                                                            const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageID])
+                                                            if (cacheRemove.rows.length > 0) {
+                                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
+                                                            }
+                                                        })()
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -1929,6 +1947,7 @@ This code is publicly released and is restricted by its project license
                                         if (Object.keys(jsonData).length > 0) {
                                             const stringJson = JSON.stringify(jsonData);
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, stringJson, stringJson])
+                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid])
                                         } else {
                                             Logger.printLine("ModifyExtendedContent", `Failed to process extended data because no data!`, "warn");
                                         }
@@ -2333,6 +2352,12 @@ This code is publicly released and is restricted by its project license
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
                     const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageOriginalID])
+                    (async () => {
+                        const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageOriginalID])
+                        if (cacheRemove.rows.length > 0) {
+                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
+                        }
+                    })()
                     if (updatedMessage.error) {
                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", updatedMessage.error)
                     } else {
@@ -7997,6 +8022,10 @@ This code is publicly released and is restricted by its project license
                                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                                 console.error(addedMessage.error)
                             } else {
+                                const newItem = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])
+                                if (newItem.rows.length > 0) {
+                                    db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [newItem.rows[0].eid])
+                                }
                                 if (chDbval.autofetch === 1 && sqlObject.fileid) {
                                     try {
                                         Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
@@ -8068,7 +8097,6 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (options && options.extendedData) {
-                                    const newItem = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])
                                     if (newItem.rows.length > 0) {
                                         let jsonData = {}
                                         await Promise.all(Object.keys(options.extendedData).map(async (ext_key) => {
@@ -8101,6 +8129,7 @@ This code is publicly released and is restricted by its project license
                                         if (Object.keys(jsonData).length > 0) {
                                             const stringJson = JSON.stringify(jsonData);
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [newItem.rows[0].eid, stringJson, stringJson])
+                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [newItem.rows[0].eid])
                                         } else {
                                             Logger.printLine("ExtendedContent", `Failed to process extended data because no data!`, "warn");
                                         }
@@ -8315,6 +8344,11 @@ This code is publicly released and is restricted by its project license
                 if (addedMessage.error) {
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                     console.error(addedMessage.error)
+                } else {
+                    const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])
+                    if (cacheRemove.rows.length > 0) {
+                        db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
+                    }
                 }
             } else {
                 await messageCreate(msg, {
