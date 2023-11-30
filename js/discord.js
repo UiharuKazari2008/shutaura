@@ -1985,7 +1985,20 @@ This code is publicly released and is restricted by its project license
                                 }
                             } catch (e) {
                                 SendMessage(`Failed to validate message ${MessageContents.messageID}`, "validateMessage", 'main', "error")
-                                console.log(e)
+                                if (e.message.includes('Unknown Message')) {
+                                    messageDelete({
+                                        id: MessageContents.messageID,
+                                        channel: {
+                                            id: MessageContents.messageChannelID
+                                        },
+                                        guild: {
+                                            id: MessageContents.messageServerID
+                                        },
+                                        guildID: MessageContents.messageServerID
+                                    })
+                                } else {
+                                    console.log(e)
+                                }
                             }
                         } else {
                             SendMessage("No Message ID was provided to validate", "validateMessage", 'main', "warn")
