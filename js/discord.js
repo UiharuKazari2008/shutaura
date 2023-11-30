@@ -1984,8 +1984,8 @@ This code is publicly released and is restricted by its project license
                                     })
                                 }
                             } catch (e) {
-                                SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
                                 if (e.message.includes('Unknown Message')) {
+                                    SendMessage(`Failed to validate message ${MessageContents.messageID}, Message Deleted from Database due to "Unknown Message"!`, "err", 'main', "error")
                                     messageDelete({
                                         id: MessageContents.messageID,
                                         channel: {
@@ -1997,11 +1997,12 @@ This code is publicly released and is restricted by its project license
                                         guildID: MessageContents.messageServerID
                                     })
                                 } else {
+                                    SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
                                     console.log(e)
                                 }
                             }
                         } else {
-                            SendMessage("No Message ID was provided to validate", "validateMessage", 'main', "warn")
+                            SendMessage(`Failed to validate message, Invalid Message ID passed`, "err", 'main', "error")
                         }
                         cb(true)
                         break;
