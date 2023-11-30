@@ -4679,6 +4679,7 @@ This code is publicly released and is restricted by its project license
             })
                 .catch((er) => {
                     Logger.printLine("Discord", "Failed to send Message", "critical", er)
+                    console.log(er);
                 });
         } else {
             if (channel === "system") {
@@ -4702,6 +4703,7 @@ This code is publicly released and is restricted by its project license
             })
                 .catch((er) => {
                     Logger.printLine("Discord", "Failed to send Message", "critical", er)
+                    console.log(er);
                 });
         }
     }
