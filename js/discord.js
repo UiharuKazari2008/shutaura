@@ -1984,7 +1984,7 @@ This code is publicly released and is restricted by its project license
                                     })
                                 }
                             } catch (e) {
-                                SendMessage(`Failed to validate message ${MessageContents.messageID}`, "error", 'main', "error")
+                                SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
                                 if (e.message.includes('Unknown Message')) {
                                     messageDelete({
                                         id: MessageContents.messageID,
