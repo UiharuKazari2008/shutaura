@@ -322,8 +322,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             if (err) {
                                                 Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err);
                                                 console.error(err);
+                                                if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
+                                                    fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
+                                                        if (err) {
+                                                            Logger.printLine("CopyFile", `Failed to write full/preview ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                                        }
+                                                        image_saved(!err);
+                                                    })
+                                                } else {
+                                                    image_saved(false);
+                                                }
+                                            } else {
+                                                image_saved(true);
                                             }
-                                            image_saved(!err);
                                         })
                                 })));
                                 blockOk();
