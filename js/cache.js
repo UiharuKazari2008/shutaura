@@ -319,6 +319,78 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         });
     }
 
+    async function validateStorage() {
+        const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0`)
+        let requests = channels.rows.reduce((promiseChain, c, i, a) => {
+            return promiseChain.then(() => new Promise(async (resolveChannel) => {
+                const previews = fs.readdirSync(path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid));
+                const full = fs.readdirSync(path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid));
+                const messages = await db.query(`SELECT x.eid, y.ecid, server, channel, attachment_name, attachment_hash, attachment_extra, data
+                                                 FROM (SELECT rec.eid, server, channel, attachment_name, attachment_hash, attachment_extra, ext.data
+                                                       FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) rec
+                                                                LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                                                          LEFT JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
+                if (messages.rows.length > 0) {
+                    let messages_verify = messages.rows.filter(e => !!e.ecid).reduce((promiseChain, message, i, a) => {
+                        return promiseChain.then(() => new Promise(async (resolveMessages) => {
+                            attachements = {};
+                            if (message.attachment_hash) {
+                                attachements['full'] = {
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
+                                }
+                            }
+                            if (message.cache_proxy) {
+                                attachements['preview'] = {
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
+                                    ext: message.cache_proxy.split('?')[0].split('.').pop()
+                                }
+                            } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
+                                attachements['preview'] = {
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
+                                    ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
+                                }
+                            }
+                            if (message.data && message.data.preview_image && message.data.preview_image) {
+                                attachements['extended-preview'] = {
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
+                                    ext: message.data.preview_image.split('?')[0].split('.').pop()
+                                }
+                            }
+
+                            let file_verify = Object.keys(attachements).reduce((promiseChain, k) => {
+                                return promiseChain.then(() => new Promise(async (blockOk) => {
+                                    const val = attachements[k];
+                                    let destName = `${message.eid}`
+                                    if (val.ext) {
+                                        destName += '.' + val.ext;
+                                    } else if (message.attachment_name) {
+                                        destName += '.' +  message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
+                                    }
+                                    if (!fs.existsSync(path.join(val.dest, destName))) {
+                                        console.error(`Invalid Cache File = ${path.join(val.dest, destName)}`);
+                                    }
+                                    blockOk();
+                                }))
+                            })
+                            file_verify.then(() => {
+                                resolveMessages();
+                            })
+                        }))
+                    }, Promise.resolve());
+                    messages_verify.then(() => {
+                        console.log(`Channel ${c.channelid} Verify Completed`)
+                        resolveChannel();
+                    });
+                } else {
+                    resolveChannel();
+                }
+            }))
+        }, Promise.resolve());
+        requests.then(() => {
+
+        });
+    }
+
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
             if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
@@ -346,6 +418,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         process.send('ready');
     }
     if (systemglobal.CDN_Base_Path) {
+        await validateStorage();
         if (systemglobal.CDN_Focus_Channels) {
             await findBackupItems(systemglobal.CDN_Focus_Channels);
         }
