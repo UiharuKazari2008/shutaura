@@ -314,7 +314,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 if (isNaN(resizeParam.height))
                                     resizeParam.height = 512;
                                 res.push(!!(await new Promise(image_saved => {
-                                    sharp(Buffer.from(full_data))
+                                    sharp(full_data)
                                         .resize(resizeParam)
                                         .toFormat(destName.split('.').pop().toLowerCase())
                                         .withMetadata()
