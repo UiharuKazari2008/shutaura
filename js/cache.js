@@ -490,11 +490,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         process.send('ready');
     }
     if (systemglobal.CDN_Base_Path) {
-        await validateStorage();
         if (systemglobal.CDN_Focus_Channels) {
             await findBackupItems(systemglobal.CDN_Focus_Channels);
         }
         await findBackupItems();
+        await validateStorage();
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
     }
