@@ -318,9 +318,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         .resize(resizeParam)
                                         .toFormat(destName.split('.').pop().toLowerCase())
                                         .withMetadata()
-                                        .toFile(path.join(val.dest, destName), function (err, buffer) {
+                                        .toFile(path.join(val.dest, destName), function (err) {
                                             if (err) {
-                                                Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                                Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err);
+                                                console.error(err);
                                             }
                                             image_saved(!err);
                                         })
