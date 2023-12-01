@@ -8038,10 +8038,6 @@ This code is publicly released and is restricted by its project license
                                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                                 console.error(addedMessage.error)
                             } else {
-                                const newItem = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])
-                                if (newItem.rows.length > 0) {
-                                    db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [newItem.rows[0].eid])
-                                }
                                 if (chDbval.autofetch === 1 && sqlObject.fileid) {
                                     try {
                                         Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
@@ -8145,7 +8141,6 @@ This code is publicly released and is restricted by its project license
                                         if (Object.keys(jsonData).length > 0) {
                                             const stringJson = JSON.stringify(jsonData);
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [newItem.rows[0].eid, stringJson, stringJson])
-                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [newItem.rows[0].eid])
                                         } else {
                                             Logger.printLine("ExtendedContent", `Failed to process extended data because no data!`, "warn");
                                         }
