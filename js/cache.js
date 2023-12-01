@@ -375,7 +375,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             }
                                             if (!fs.existsSync(path.join(val.dest, destName))) {
                                                 console.error(`Invalid Cache File = ${path.join(val.dest, destName)}`);
-                                                db.query(`DELETE FROM kanmi_cdn WHERE kanmi_cdn.eid = ?`, [message.eid]);
+                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
                                             }
                                             blockOk();
                                         }))
