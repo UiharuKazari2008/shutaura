@@ -7920,8 +7920,8 @@ This code is publicly released and is restricted by its project license
                             if (msg.attachments.length === 1 || msg.attachments.length > 1 && ((options && options.preview) || msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0)) {
                                 const urlParts = msg.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
                                 if (urlParts.length === 2) {
-                                    sqlObject.attachment_hash = (urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
-                                    sqlObject.attachment_name = urlParts[1].split('/')[2]
+                                    sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
+                                    sqlObject.attachment_name = (urlParts[1].split('/')[2]).split('?')[0]
                                 } else {
                                     sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
                                     sqlObject.attachment_name = msg.attachments[0].filename.split('?')[0]
@@ -7952,9 +7952,9 @@ This code is publicly released and is restricted by its project license
                                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                                 }
                                 if (options && options.preview) {
-                                    sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url.split('/attachments').pop()
+                                    sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url.split('/attachments').pop().split('?')[0]
                                 } else if (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).length > 0) {
-                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments').pop();
+                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments').pop().split('?')[0];
                                 } else if (msg.attachments.length > 0 && accepted_cache_types.indexOf(msg.attachments.pop().filename.toLowerCase().split('.')[0]) !== -1 ) {
                                     mqClient.sendData(MQWorker3, {
                                         fromClient : `return.Discord.${systemglobal.SystemName}`,
@@ -7982,7 +7982,7 @@ This code is publicly released and is restricted by its project license
                                             }
                                         })
                                     })
-                                    _fileextra.push([msg.attachments[index].filename, msg.attachments[index].url, msg.attachments[index].proxy_url, _filesize])
+                                    _fileextra.push([msg.attachments[index].filename, msg.attachments[index].url.split('?')[0], msg.attachments[index].proxy_url.split('?')[0], _filesize])
                                 }
                                 sqlObject.attachment_extra = JSON.stringify(_fileextra).toString()
                             }
@@ -8053,7 +8053,7 @@ This code is publicly released and is restricted by its project license
                                     }
                                 }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
-                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name.split('?')[0]}`)
+                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
 
                                 if (chDbval.notify !== null) {
