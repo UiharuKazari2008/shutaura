@@ -251,7 +251,25 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         blockOk();
                     } else {
                         Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                        if (k !== 'full') {
+                        if (k === 'extended-preview') {
+                            mqClient.sendData(systemglobal.Discord_Out, {
+                                messageReturn: false,
+                                messageType: 'command',
+                                messageAction: (destName.split('.').pop().toLowerCase() === 'gif') ? 'CacheVideo' : 'CacheImage',
+                                fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                messageID: message.id,
+                                messageChannelID: message.channel,
+                                messageServerID: message.server,
+                            }, function (callback) {
+                                if (callback) {
+                                    Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                } else {
+                                    Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                }
+                            });
+                            res.push(false);
+                            blockOk();
+                        } else if (k === 'preview') {
                             const full_data = await new Promise(ok => {
                                 const url = attachements.full.src;
                                 Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} (Sharp Convert) ${destName}...`, "debug")
@@ -291,6 +309,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 } else {
                                     resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
                                 }
+                                if (isNaN(resizeParam.width))
+                                    resizeParam.width = 512;
+                                if (isNaN(resizeParam.height))
+                                    resizeParam.height = 512;
                                 res.push(!!(await new Promise(image_saved => {
                                     sharp(full_data)
                                         .resize(resizeParam)
