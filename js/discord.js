@@ -1393,7 +1393,7 @@ This code is publicly released and is restricted by its project license
                                                                     })
                                                                         .then((data) => {
                                                                             cacheColor(message.id, data.attachments[0].proxy_url)
-                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop(), message.id], (err, result) => {
+                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], message.id], (err, result) => {
                                                                                 if (err) {
                                                                                     SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                 } else {
@@ -1541,7 +1541,7 @@ This code is publicly released and is restricted by its project license
                                                                                 db.safe(`UPDATE kanmi_records
                                                                                      SET cache_proxy = ?
                                                                                      WHERE id = ?
-                                                                                       AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), message.id], (err, result) => {
+                                                                                       AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], message.id], (err, result) => {
                                                                                     if (err) {
                                                                                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                     } else {
@@ -1713,7 +1713,7 @@ This code is publicly released and is restricted by its project license
                                                         name: `${show.data.background.pop().split('/').pop()}`
                                                     })
                                                         .then((data) => {
-                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], show.show_id])
                                                             setTimeout(() => {
                                                                 resolve(true);
                                                             }, 1000)
@@ -1764,7 +1764,7 @@ This code is publicly released and is restricted by its project license
                                                         name: `${show.data.poster.pop().split('/').pop()}`
                                                     })
                                                         .then((data) => {
-                                                            db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
+                                                            db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], show.show_id])
                                                             setTimeout(() => {
                                                                 resolve(true);
                                                             }, 1000)
@@ -1812,7 +1812,7 @@ This code is publicly released and is restricted by its project license
                                                 })
                                                     .then((data) => {
                                                         cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
-                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageID], (err, result) => {
+                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                 cb(false);
@@ -1850,7 +1850,7 @@ This code is publicly released and is restricted by its project license
                                                         cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
                                                         let filename
                                                         let filehash
-                                                        const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
+                                                        const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`).split('?')[0]
                                                         if (urlParts.length === 2) {
                                                             filehash = (urlParts[1].startsWith(`${MessageContents.messageChannelID}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
                                                             filename = urlParts[1].split('/')[2]
@@ -1926,7 +1926,7 @@ This code is publicly released and is restricted by its project license
                                                             file: Buffer.from(MessageContents.extendedAttachments[fileIndex].file, 'base64')
                                                         })
                                                         if (data && data.attachments.length > 0) {
-                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0]
                                                             if (attachmentUrl) {
                                                                 jsonData[ext_key] = attachmentUrl
                                                             }
@@ -2055,7 +2055,7 @@ This code is publicly released and is restricted by its project license
                                                     })
                                                         .then(async (data) => {
                                                             if (data.attachments.length > 0) {
-                                                                const url = data.attachments[0].url.split('/attachments')[1]
+                                                                const url = data.attachments[0].url.split('/attachments')[1].split('?')[0]
                                                                 db.query(`UPDATE discord_users_extended SET banner_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                 Logger.printLine('SetUserBanner', `User Banner for ${MessageContents.userId} set!`, 'debug')
                                                             }
@@ -2129,7 +2129,7 @@ This code is publicly released and is restricted by its project license
                                                     })
                                                         .then(async (data) => {
                                                             if (data.attachments.length > 0) {
-                                                                const url = data.attachments[0].url.split('/attachments')[1]
+                                                                const url = data.attachments[0].url.split('/attachments')[1].split('?')[0]
                                                                 db.query(`UPDATE discord_users_extended SET avatar_custom = ? WHERE id = ?`, [url, MessageContents.userId]);
                                                                 Logger.printLine('SetUserAvatar', `User Avatar for ${MessageContents.userId} set!`, 'debug')
                                                             }
@@ -2365,7 +2365,7 @@ This code is publicly released and is restricted by its project license
                 if (MessageContents.messageRefrance && MessageContents.messageRefrance.action && MessageContents.messageRefrance.action === 'jfsMove' ) {
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
-                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop(), MessageContents.messageOriginalID])
+                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageOriginalID])
                     (async () => {
                         const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageOriginalID])
                         if (cacheRemove.rows.length > 0) {
@@ -6957,7 +6957,7 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
             attachments = [
                 {
-                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name.split('?')[0]}`),
+                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash.split('?')[0] : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name.split('?')[0]}`),
                     filename: database_vales[0].attachment_name.split('?')[0]
                 }
             ]
@@ -8126,7 +8126,7 @@ This code is publicly released and is restricted by its project license
                                                             file: Buffer.from(options.extendedAttachments[fileIndex].file, 'base64')
                                                         })
                                                         if (data && data.attachments.length > 0) {
-                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop()
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0]
                                                             if (attachmentUrl) {
                                                                 jsonData[ext_key] = attachmentUrl
                                                             }
@@ -8333,7 +8333,7 @@ This code is publicly released and is restricted by its project license
                 }
 
                 if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
-                    sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop();
+                    sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop().split('?')[0];
                 }
             } else if (msg.attachments && msg.attachments.length > 1) {
                 sqlObject.attachment_name = null
