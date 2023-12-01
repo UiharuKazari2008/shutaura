@@ -251,7 +251,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         blockOk();
                     } else {
                         Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                        if (k === 'extended-preview') {
+                        if (k === 'extended-preview' || destName.includes('t9-preview')) {
                             mqClient.sendData(systemglobal.Discord_Out, {
                                 messageReturn: false,
                                 messageType: 'command',
