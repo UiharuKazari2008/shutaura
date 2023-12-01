@@ -287,9 +287,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     height: 512
                                 }
                                 if (message.sizeW >= message.sizeH) {
-                                    resizeParam.width = (message.sizeW * (512 / message.sizeH)).toFixed(0)
+                                    resizeParam.width = parseInt((message.sizeW * (512 / message.sizeH)).toFixed(0).toString())
                                 } else {
-                                    resizeParam.height = (message.sizeH * (512 / message.sizeW)).toFixed(0)
+                                    resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
                                 }
                                 res.push(!!(await new Promise(image_saved => {
                                     sharp(full_data)
