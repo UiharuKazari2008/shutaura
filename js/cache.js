@@ -35,6 +35,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const fsEx = require("fs-extra");
     const fs = require("fs");
     const minimist = require("minimist");
+    const sharp = require("sharp");
     let args = minimist(process.argv.slice(2));
     const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp','gif'];
 
@@ -250,8 +251,68 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         blockOk();
                     } else {
                         Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                        res.push(false);
-                        blockOk();
+                        if (k !== 'full') {
+                            const full_data = await new Promise(ok => {
+                                const url = attachements.full.src;
+                                Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} (Sharp Convert) ${destName}...`, "debug")
+                                request.get({
+                                    url,
+                                    headers: {
+                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                        'accept-language': 'en-US,en;q=0.9',
+                                        'cache-control': 'max-age=0',
+                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                        'sec-ch-ua-mobile': '?0',
+                                        'sec-fetch-dest': 'document',
+                                        'sec-fetch-mode': 'navigate',
+                                        'sec-fetch-site': 'none',
+                                        'sec-fetch-user': '?1',
+                                        'upgrade-insecure-requests': '1',
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                    },
+                                }, async (err, res, body) => {
+                                    if (err || res && res.statusCode && res.statusCode !== 200) {
+                                        Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                        ok(false)
+                                    } else {
+                                        ok(body);
+                                    }
+                                })
+                            })
+                            if (full_data) {
+                                let resizeParam = {
+                                    fit: sharp.fit.inside,
+                                    withoutEnlargement: true,
+                                    width: 512,
+                                    height: 512
+                                }
+                                if (message.sizeW >= message.sizeH) {
+                                    resizeParam.width = (message.sizeW * (512 / message.sizeH)).toFixed(0)
+                                } else {
+                                    resizeParam.height = (message.sizeH * (512 / message.sizeW)).toFixed(0)
+                                }
+                                res.push(!!(await new Promise(image_saved => {
+                                    sharp(full_data)
+                                        .resize(resizeParam)
+                                        .toFormat(destName.split('.').pop().toLowerCase())
+                                        .withMetadata()
+                                        .toFile(path.join(val.dest, destName), function (err, buffer) {
+                                            if (err) {
+                                                Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                            }
+                                            image_saved(!err);
+                                        })
+                                })));
+                                blockOk();
+                            } else {
+                                Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
+                                res.push(false);
+                                blockOk();
+                            }
+                        } else {
+                            res.push(false);
+                            blockOk();
+                        }
                     }
                 }))
             }, Promise.resolve());
