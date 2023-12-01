@@ -328,7 +328,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 const previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
                 const full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
 
-                console.log(`${c.channelid} : Preview = ${previews} | Full = ${full}`)
+                console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
 
                 if (full.length > 0 || previews.length > 0) {
                     const messages = await db.query(`SELECT x.eid, y.ecid, server, channel, attachment_name, attachment_hash, attachment_extra, data
