@@ -37,7 +37,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     const sharp = require("sharp");
     let args = minimist(process.argv.slice(2));
-    const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp','gif'];
+    const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp'];
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
