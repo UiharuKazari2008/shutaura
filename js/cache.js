@@ -715,7 +715,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     start();
     if (systemglobal.CDN_Base_Path) {
-        setTimeout(() => {
+        setTimeout(async () => {
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
             }
