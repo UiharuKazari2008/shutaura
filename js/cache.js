@@ -629,7 +629,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                                             ext: message.cache_proxy.split('?')[0].split('.').pop()
                                         }
-                                    } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
+                                        } else if (message.attachment_hash && message.attachment_name) {
                                         attachements['preview'] = {
                                             dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                                             ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
