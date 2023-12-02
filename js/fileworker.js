@@ -1307,6 +1307,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										} else {
 											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 										}
+										cb(true);
 									} else if ((MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview') || (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
 										const preview_image = await previewVideo(CompleteFilename, startPosition)
 										if (preview_image) {
@@ -1337,6 +1338,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										} else {
 											mqClient.sendMessage(`Error occurred when generating preview the video for transport, Will send without preview!`, "warn")
 										}
+										cb(true);
 									}
 									if (cacheresponse[0].cache_proxy === null || (MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'video')) {
 										const preview_video = await encodeVideo(CompleteFilename, true)
