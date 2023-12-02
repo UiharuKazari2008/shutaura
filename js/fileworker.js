@@ -1099,8 +1099,105 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (err) {
 								mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 								cb(true)
-							} else if (cacheresponse.length > 0 && cacheresponse[0].filecached === 1) {
-								const CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
+							} else if (systemglobal.PickupFolder && cacheresponse.length > 0) {
+								let CompleteFilename
+								if (cacheresponse[0].filecached === 1) {
+									CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
+								} else {
+									CompleteFilename = path.join(systemglobal.TempFolder, `.${cacheresponse[0].fileid}`);
+									await new Promise((tempFile) => {
+										db.safe(`SELECT x.*, y.data FROM (SELECT kanmi_records.*, discord_multipart_files.url, discord_multipart_files.valid
+									 FROM kanmi_records,
+										  discord_multipart_files
+									 WHERE kanmi_records.id = ?
+									   AND kanmi_records.source = 0
+									   AND kanmi_records.fileid = discord_multipart_files.fileid) x LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID], function (err, cacheresponse) {
+											if (err || cacheresponse.length === 0) {
+												mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+												tempFile(false)
+											} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
+												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+												tempFile(false)
+											} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
+												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+												tempFile(false)
+											} else {
+												let itemsCompleted = [];
+												const fileName = cacheresponse[0].real_filename
+												const fileNameUniq = '.' + cacheresponse[0].fileid
+												const PartsFilePath = path.join(systemglobal.TempFolder, `PARITY-${cacheresponse[0].fileid}`);
+												fs.mkdirSync(PartsFilePath, {recursive: true})
+												let requests = cacheresponse.filter(e => e.valid === 1 && !(!e.url)).map(e => e.url).sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0).reduce((promiseChain, URLtoGet, URLIndex) => {
+													return promiseChain.then(() => new Promise((resolve) => {
+														const DestFilename = path.join(PartsFilePath, `${URLIndex}.par`)
+														const stream = request.get({
+															url: URLtoGet,
+															headers: {
+																'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+																'accept-language': 'en-US,en;q=0.9',
+																'cache-control': 'max-age=0',
+																'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+																'sec-ch-ua-mobile': '?0',
+																'sec-fetch-dest': 'document',
+																'sec-fetch-mode': 'navigate',
+																'sec-fetch-site': 'none',
+																'sec-fetch-user': '?1',
+																'upgrade-insecure-requests': '1',
+																'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+															},
+														}).pipe(fs.createWriteStream(DestFilename))
+														// Write File to Temp Filesystem
+														stream.on('finish', function () {
+															Logger.printLine("MPFDownload", `Downloaded Part #${URLIndex} : ${DestFilename}`, "debug", {
+																URL: URLtoGet,
+																DestFilename: DestFilename,
+																CompleteFilename: fileName
+															})
+															itemsCompleted.push(DestFilename);
+															resolve()
+														});
+														stream.on("error", function (err) {
+															mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}`, "err", "MPFDownload", err)
+															resolve()
+														})
+													}))
+												}, Promise.resolve());
+												requests.then(async () => {
+													if (itemsCompleted.length === cacheresponse[0].paritycount) {
+														await new Promise((deleted) => {
+															rimraf(CompleteFilename, function (err) { deleted(!err) });
+														})
+														try {
+															await splitFile.mergeFiles(itemsCompleted.sort(function (a, b) {
+																return a - b
+															}), CompleteFilename)
+															await new Promise((deleted) => {
+																rimraf(PartsFilePath, function (err) { deleted(!err) });
+															})
+															tempFile(true);
+														} catch (err) {
+															mqClient.sendMessage(`File ${cacheresponse[0].real_filename} failed to rebuild for video preview!`, "err", "MPFDownload", err)
+															console.error(err)
+															for (let part of itemsCompleted) {
+																fs.unlink(part, function (err) {
+																	if (err && (err.code === 'EBUSY' || err.code === 'ENOENT')) {
+																		//mqClient.sendMessage(`Error removing file part from temporary folder! - ${err.message}`, "err", "MPFDownload", err)
+																	}
+																})
+															}
+															tempFile(false);
+														}
+														tempFile(false);
+													} else {
+														mqClient.sendMessage(`Failed to proccess the MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for view preview\nThe expected number of parity files did not all download or save.`, "error", "MPFDownload")
+														tempFile(false)
+													}
+												})
+											}
+										})
+									})
+								}
+
 								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
 								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
 									// Get Video Duration
