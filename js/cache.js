@@ -251,7 +251,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function deleteCacheItem(deleteItem, deleteRow) {
         if (deleteItem.full_hint) {
             try {
-                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, deleteItem.path_hint, deleteItem.full_hint));
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                 Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
