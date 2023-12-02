@@ -512,7 +512,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
-                if (res.filter(f => !f).length === 0)
+                const exsists = await db.query(`SELECT * FROM kanmi_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
+                if (res.filter(f => !f).length === 0 & exsists.rows.length === 0)
                     await backupCompleted();
                 cb(res.filter(f => !f).length === 0);
             });
