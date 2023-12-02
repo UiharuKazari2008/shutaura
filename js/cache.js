@@ -283,9 +283,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const saveBackupSQL = await db.query(`INSERT INTO kanmi_cdn SET eid = ?, host = ?`, [message.eid, systemglobal.CDN_ID])
             if (saveBackupSQL.error) {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
-                cb(false)
-            } else {
-                cb(true)
             }
         }
         function getimageSizeParam() {
