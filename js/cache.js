@@ -378,7 +378,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
         if (Object.keys(attachements).length > 0) {
             let res = {};
-            let requests = deleteItem.keys(attachements).reduce((promiseChain, k) => {
+            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
                     let destName = `${message.eid}`
