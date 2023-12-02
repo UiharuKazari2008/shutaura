@@ -8347,7 +8347,6 @@ This code is publicly released and is restricted by its project license
                 })
             }
             if (refrance && refrance.channel && refrance.id) {
-                db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [refrance.id]);
                 setTimeout(() => {
                     discordClient.deleteMessage(refrance.channel, refrance.id, "Message was moved")
                         .catch((er) => {
@@ -8356,6 +8355,7 @@ This code is publicly released and is restricted by its project license
             }
             if (refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate')) {
                 if (sqlObject.fileid && discordChannels.get(msg.channel.id).autofetch === 1) {
+                    db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [msg.id]);
                     try {
                         Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
                         setTimeout(() => {
