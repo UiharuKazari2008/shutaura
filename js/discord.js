@@ -8419,7 +8419,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])).rows.pop(), messageUpdate: {} });
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT * FROM kanmi_records WHERE id = ?`, [msg.id])).rows.pop(), messageUpdate: {} });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
