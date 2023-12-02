@@ -8038,8 +8038,9 @@ This code is publicly released and is restricted by its project license
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
                                     cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
+                                const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows.pop(), messageUpdate: sqlObject });
+                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: sqlObject });
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
@@ -8339,12 +8340,20 @@ This code is publicly released and is restricted by its project license
                 }
                 sqlObject.attachment_extra = JSON.stringify(_fileextra).toString()
             }
-            if ((await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.length > 0) {
+            const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows
+            if (eidData.length > 0) {
                 const addedMessage = await db.query(`UPDATE kanmi_records SET ? WHERE id = ?`, [sqlObject, (refrance) ? refrance.id : msg.id]);
                 if (addedMessage.error) {
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                     console.error(addedMessage.error)
                 }
+                mqClient.cdnRequest({
+                    messageIntent: "Reload",
+                    messageData: {
+                        ...eidData.rows[0]
+                    },
+                    messageUpdate: sqlObject
+                })
             } else {
                 await messageCreate(msg, {
                     forceAdd: true,
@@ -8358,11 +8367,6 @@ This code is publicly released and is restricted by its project license
                         })
                 }, (refrance && refrance.delay) ? 30000 : 1000)
             }
-            mqClient.cdnRequest({
-                messageIntent: "Reload",
-                messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(),
-                messageUpdate: sqlObject
-            })
             if (refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate')) {
                 if (sqlObject.fileid && discordChannels.get(msg.channel.id).autofetch === 1) {
                     try {
@@ -8418,7 +8422,8 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT * FROM kanmi_records WHERE id = ?`, [msg.id])).rows.pop(), messageUpdate: {} });
+        const eidData = (await db.query(`SELECT * FROM kanmi_records WHERE id = ?`, [msg.id])).rows
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: {...eidData[0]}, messageUpdate: {} });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
