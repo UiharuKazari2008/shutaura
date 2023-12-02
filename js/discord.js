@@ -2355,7 +2355,6 @@ This code is publicly released and is restricted by its project license
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
                     const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageOriginalID])
-                    db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageOriginalID]);
                     if (updatedMessage.error) {
                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", updatedMessage.error)
                     } else {
