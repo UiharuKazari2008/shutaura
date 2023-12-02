@@ -1563,6 +1563,7 @@ This code is publicly released and is restricted by its project license
                                                                                     messageReturn: false,
                                                                                     messageID: message.id,
                                                                                     messageAction: 'GenerateVideoPreview',
+                                                                                    forceRefresh: true,
                                                                                     messageType: 'command'
                                                                                 }, function (ok) {
                                                                                     if (ok) {
@@ -1584,6 +1585,7 @@ This code is publicly released and is restricted by its project license
                                                                     messageReturn: false,
                                                                     messageID: message.id,
                                                                     messageAction: 'GenerateVideoPreview',
+                                                                    forceRefresh: true,
                                                                     messageType: 'command'
                                                                 }, function (ok) {
                                                                     if (ok) {
@@ -1601,7 +1603,8 @@ This code is publicly released and is restricted by its project license
                                                                 messageReturn: false,
                                                                 messageID: message.id,
                                                                 messageAction: 'GenerateVideoPreview',
-                                                                messageType: 'command'
+                                                                messageType: 'command',
+                                                                forceRefresh: true,
                                                             }, function (ok) {
                                                                 if (ok) {
                                                                     Logger.printLine("Polyfill", "Failed to generate a valid thumbnail for video! Passing job to FileWorker...", "warn", err)
@@ -1634,6 +1637,7 @@ This code is publicly released and is restricted by its project license
                                                 messageReturn: false,
                                                 messageID: message.id,
                                                 messageAction: 'GenerateVideoPreview',
+                                                forceRefresh: true,
                                                 messageType: 'command'
                                             }, function (ok) {
                                                 if (ok) {
