@@ -1099,9 +1099,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (err) {
 								mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
 								cb(true)
-							} else if (systemglobal.PickupFolder && cacheresponse.length > 0) {
+							} else if (cacheresponse.length > 0) {
 								let CompleteFilename
-								if (cacheresponse[0].filecached === 1) {
+								if (systemglobal.PickupFolder && cacheresponse[0].filecached === 1) {
 									CompleteFilename = path.join(systemglobal.PickupFolder, `.${cacheresponse[0].fileid}`);
 								} else {
 									CompleteFilename = path.join(systemglobal.TempFolder, `.${cacheresponse[0].fileid}`);
