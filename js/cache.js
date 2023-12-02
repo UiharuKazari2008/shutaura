@@ -252,7 +252,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (deleteItem.full_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, deleteItem.path_hint, deleteItem.full_hint));
-                Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "err");
+                Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
@@ -261,7 +261,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (deleteItem.preview_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
-                Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "err");
+                Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
@@ -270,7 +270,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (deleteItem.ext_0_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
-                Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "err");
+                Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
