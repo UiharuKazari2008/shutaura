@@ -610,7 +610,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
 
                     if (full.length > 0 || previews.length > 0) {
-                        const messages = await db.query(`SELECT x.eid, y.ecid, server, channel, attachment_name, attachment_hash, attachment_extra, data
+                        const messages = await db.query(`SELECT x.eid, y.heid, server, channel, attachment_name, attachment_hash, attachment_extra, data
                                                  FROM (SELECT rec.eid, server, channel, attachment_name, attachment_hash, attachment_extra, ext.data
                                                        FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) rec
                                                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
