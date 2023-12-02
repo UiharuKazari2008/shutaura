@@ -8410,6 +8410,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
+        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [msg.id]);
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
