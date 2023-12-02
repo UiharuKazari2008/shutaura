@@ -42,7 +42,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
-    let backupSystemName = `${systemglobal.SystemName}${(systemglobal.CDN_ID) ? '-' + systemglobal.CDN_ID : ''}`
+    if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
+        systemglobal.MQServer = process.env.MQ_HOST.trim()
+    if (process.env.RABBITMQ_DEFAULT_USER && process.env.RABBITMQ_DEFAULT_USER.trim().length > 0)
+        systemglobal.MQUsername = process.env.RABBITMQ_DEFAULT_USER.trim()
+    if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
+        systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
     let runCount = 0;
     Logger.printLine("Init", "Download I/O", "info");
@@ -98,6 +103,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (_backup_ignore[0].param_data.servers)
                     systemglobal.CDN_Ignore_Servers = _backup_ignore[0].param_data.servers;
             }
+            const _mq_cdn_in = systemparams_sql.filter(e => e.param_key === 'mq.cdn.in');
+            if (_mq_cdn_in.length > 0 && _mq_cdn_in[0].param_value)
+                systemglobal.CDN_In = _mq_cdn_in[0].param_value;
             const _backup_focus = systemparams_sql.filter(e => e.param_key === 'seq_cdn.focus');
             if (_backup_focus.length > 0 && _backup_focus[0].param_data) {
                 if (_backup_focus[0].param_data.channels)
@@ -115,7 +123,148 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
+
+    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
+    const MQWorker1 = systemglobal.CDN_In + '.' + systemglobal.CDN_ID;
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
+
+    // Kanmi MQ Backend
+    function startWorker() {
+        amqpConn.createChannel(function(err, ch) {
+            if (closeOnErr(err)) return;
+            ch.on("error", function(err) {
+                Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
+            });
+            ch.on("close", function() {
+                Logger.printLine("KanmiMQ", "Channel 1 Closed", "critical")
+                start();
+            });
+            ch.prefetch(10);
+            ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.consume(MQWorker1, processMsg, { noAck: false });
+                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "info")
+            });
+            ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.bindQueue(MQWorker1, "kanmi.exchange", MQWorker1, [], function(err, _ok) {
+                    if (closeOnErr(err)) return;
+                    Logger.printLine("KanmiMQ", "Channel 1 Worker Bound to Exchange", "debug")
+                })
+            });
+            ch.assertExchange("kanmi.cdn", "fanout", {}, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.bindQueue(MQWorker1, "kanmi.cdn", systemglobal.CDN_In, [], function(err, _ok) {
+                    if (closeOnErr(err)) return;
+                    Logger.printLine("KanmiMQ", "Channel 1 Worker Bound to FanoutExchange", "debug")
+                })
+            });
+            function processMsg(msg) {
+                work(msg, function(ok) {
+                    try {
+                        if (ok)
+                            ch.ack(msg);
+                        else
+                            ch.reject(msg, true);
+                    } catch (e) {
+                        closeOnErr(e);
+                    }
+                });
+            }
+        });
+    }
+    function work(msg, cb) {
+        const MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
+        doAction(MessageContents, cb);
+    }
+    function start() {
+        amqp.connect(MQServer, function(err, conn) {
+            if (err) {
+                Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
+                return setTimeout(start, 1000);
+            }
+            conn.on("error", function(err) {
+                if (err.message !== "Connection closing") {
+                    Logger.printLine("KanmiMQ", "Initialization Connection Error", "emergency", err)
+                }
+            });
+            conn.on("close", function() {
+                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
+                return setTimeout(start, 1000);
+            });
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            amqpConn = conn;
+            whenConnected();
+        });
+    }
+    function closeOnErr(err) {
+        if (!err) return false;
+        Logger.printLine("KanmiMQ", "Connection Closed due to error", "error", err)
+        amqpConn.close();
+        return true;
+    }
+    async function whenConnected() {
+        startWorker();
+        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
+                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                }
+            })
+            setInterval(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            }, 60000)
+        }
+    }
+
+    async function doAction(message, complete) {
+        switch (message.messageIntent) {
+            case "Reload" :
+                backupMessage({...message.messageData, ...message.messageUpdate}, complete);
+                break;
+            case "Delete" :
+                if (message.attachment_hash) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel, `${message.eid}.${message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()}`));
+                        Logger.printLine("CDN Manager", `Delete full copy: ${message.eid}`, "err", e.message);
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete full copy: ${message.eid}`, "err", e.message);
+                    }
+                }
+                if (message.cache_proxy) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel, `${message.eid}.${message.cache_proxy.split('?')[0].split('.').pop()}`));
+                        Logger.printLine("CDN Manager", `Delete preview copy: ${message.eid}`, "err", e.message);
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${message.eid}`, "err", e.message);
+                    }
+                } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel, `${message.eid}.${(message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()}`));
+                        Logger.printLine("CDN Manager", `Delete preview copy: ${message.eid}`, "err", e.message);
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${message.eid}`, "err", e.message);
+                    }
+                }
+                if (message.data && message.data.preview_image && message.data.preview_image) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel, `${message.eid}.${message.data.preview_image.split('?')[0].split('.').pop()}`));
+                        Logger.printLine("CDN Manager", `Delete extended preview copy: ${message.eid}`, "err", e.message);
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${message.eid}`, "err", e.message);
+                    }
+                }
+                complete(true);
+                break;
+            default :
+                complete(true);
+                break;
+        }
+    }
 
     try {
         if (!fs.existsSync(systemglobal.TempFolder))
@@ -497,20 +646,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })
     }
 
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-        request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
-            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-            }
-        })
-        setInterval(() => {
-            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                }
-            })
-        }, 60000)
-    }
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
