@@ -226,7 +226,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         switch (message.messageIntent) {
             case "Reload" :
                 const object = {...message.messageData, ...message.messageUpdate};
-                if (!!object.attchment_hash) {
+                if (!!object.attachment_hash) {
                     backupMessage(object, complete);
                 } else {
                     complete(true);
