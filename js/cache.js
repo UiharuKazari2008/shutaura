@@ -229,7 +229,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (!!object.attachment_hash && object.eid) {
                     const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
                     if (cacheItem.rows.length > 0)
-                        await deleteCacheItem(cacheItem.rows[0]);
+                        await deleteCacheItem(cacheItem.rows[0], false);
                     backupMessage(object, complete);
                 } else {
                     complete(true);
@@ -239,7 +239,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let deletedAction = false;
                 const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
                 if (cacheItem.rows.length > 0)
-                    await deleteCacheItem(cacheItem.rows[0]);
+                    await deleteCacheItem(cacheItem.rows[0], true);
                 complete(true);
                 break;
             default :
@@ -248,7 +248,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
 
-    async function deleteCacheItem(deleteItem) {
+    async function deleteCacheItem(deleteItem, deleteRow) {
         if (deleteItem.full_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, deleteItem.path_hint, deleteItem.full_hint));
@@ -276,7 +276,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
             }
         }
-        if (deletedAction) {
+        if (deleteRow) {
             db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
         }
     }
