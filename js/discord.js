@@ -8350,7 +8350,7 @@ This code is publicly released and is restricted by its project license
                 mqClient.cdnRequest({
                     messageIntent: "Reload",
                     messageData: {
-                        ...eidData.rows[0]
+                        ...eidData[0]
                     },
                     messageUpdate: sqlObject
                 })
