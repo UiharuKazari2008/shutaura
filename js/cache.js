@@ -351,6 +351,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else if (message.attachment_name) {
                         destName += '.' +  message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
                     }
+                    fs.unlinkSync(path.join(val.dest, destName));
                     const data = await new Promise(ok => {
                         const url = val.src;
                         Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
