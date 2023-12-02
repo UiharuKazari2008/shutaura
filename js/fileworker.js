@@ -1369,6 +1369,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									mqClient.sendMessage(`"File "${CompleteFilename}" is cached but is not available here!"`, "warn", 'GenerateVideoPreview')
 									cb(true);
 								}
+								if (!(systemglobal.PickupFolder && cacheresponse[0].filecached === 1))
+									fs.unlinkSync(CompleteFilename);
 							} else {
 								mqClient.sendMessage(`File ${MessageContents.messageID} is not cached!`, "warn", 'GenerateVideoPreview')
 								cb(true);
