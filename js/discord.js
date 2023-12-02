@@ -524,6 +524,10 @@ This code is publicly released and is restricted by its project license
             // Discord Insights Panel - Requires Server ID
             // Discord_Insights_Custom_Image_URL = { "default" : "https://...", "1234567890" : "https://..." }
             // discord.insights = {"custom_image_url": "https://media.discordapp.net/attachments/827315100998172693/892564677228363887/suzuya-banner.png?width=1410&height=796"}
+            const _mq_cdn_in = systemparams_sql.filter(e => e.param_key === 'mq.cdn.in');
+            if (_mq_cdn_in.length > 0 && _mq_cdn_in[0].param_value)
+                systemglobal.CDN_In = _mq_cdn_in[0].param_value;
+            // Sequenzia CDN
         }
 
         Logger.printLine("SQL", "Getting Twitter Lists", "debug")
@@ -8015,6 +8019,8 @@ This code is publicly released and is restricted by its project license
                             if (options && options.tags) {
                                 sqlObject.tags = options.tags;
                             }
+                            // Write to CDN
+                            mqClient.cdnRequest({ messageIntent: "Reload", messageData: sqlObject, messageUpdate: {} });
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
@@ -8353,11 +8359,12 @@ This code is publicly released and is restricted by its project license
                         })
                 }, (refrance && refrance.delay) ? 30000 : 1000)
             }
+            mqClient.cdnRequest({
+                messageIntent: "Reload",
+                messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(),
+                messageUpdate: sqlObject
+            })
             if (refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate')) {
-                db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [msg.id])
-                    .then(out => {
-                        console.log(out);
-                    })
                 if (sqlObject.fileid && discordChannels.get(msg.channel.id).autofetch === 1) {
                     try {
                         Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
@@ -8412,7 +8419,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [msg.id]);
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(), messageUpdate: {} });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
