@@ -277,7 +277,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (deleteRow) {
-            db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
+            db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
         }
     }
 
