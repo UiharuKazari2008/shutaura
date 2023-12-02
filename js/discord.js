@@ -8019,8 +8019,6 @@ This code is publicly released and is restricted by its project license
                             if (options && options.tags) {
                                 sqlObject.tags = options.tags;
                             }
-                            // Write to CDN
-                            mqClient.cdnRequest({ messageIntent: "Reload", messageData: sqlObject, messageUpdate: {} });
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
@@ -8040,7 +8038,9 @@ This code is publicly released and is restricted by its project license
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
                                     cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
-
+                                // Write to CDN
+                                console.log(addedMessage)
+                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(), messageUpdate: {} });
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
