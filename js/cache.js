@@ -270,7 +270,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
                 if (deletedAction) {
-                    db.query(`DELETE FROM kanmi_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
+                    db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                 }
                 complete(true);
                 break;
@@ -292,8 +292,31 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function backupMessage (message, cb) {
         let attachements = {};
 
-        async function backupCompleted() {
-            const saveBackupSQL = await db.query(`INSERT INTO kanmi_cdn SET eid = ?, host = ?`, [message.eid, systemglobal.CDN_ID])
+        async function backupCompleted(path, preview, full, ext_0) {
+            const saveBackupSQL = await db.query(`INSERT INTO kanmi_records_cdn
+                                                  SET heid         = ?,
+                                                      eid          = ?,
+                                                      host         = ?,
+                                                      id_hint      = ?,
+                                                      path_hint    = ?,
+                                                      preview      = ?,
+                                                      preview_hint = ?,
+                                                      full         = ?,
+                                                      full_hint    = ?,
+                                                      ext_0        = ?,
+                                                      ext_0_hint   = ?`, [
+                (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                message.eid,
+                systemglobal.CDN_ID,
+                message.id,
+                path,
+                (!!preview) ? 1 : 0,
+                (!!preview) ? preview : null,
+                (!!full) ? 1 : 0,
+                (!!full) ? full : null,
+                (!!ext_0) ? 1 : 0,
+                (!!ext_0) ? ext_0 : null,
+            ])
             if (saveBackupSQL.error) {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
             }
@@ -341,7 +364,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
 
         if (Object.keys(attachements).length > 0) {
-            let res = [];
+            let res = {};
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
@@ -407,7 +430,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 ok(!err);
                             })
                         });
-                        res.push(write);
+                        res[k] = (write) ? destName : null;
                         blockOk();
                     } else {
                         Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
@@ -427,7 +450,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                 }
                             });
-                            res.push(false);
+                            res[k] = false;
                             blockOk();
                         } else if (k === 'preview') {
                             const full_data = await new Promise(ok => {
@@ -473,7 +496,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     resizeParam.width = 512;
                                 if (isNaN(resizeParam.height))
                                     resizeParam.height = 512;
-                                res.push(!!(await new Promise(image_saved => {
+                                res[k] = (await new Promise(image_saved => {
                                     sharp(full_data)
                                         .resize(resizeParam)
                                         .toFormat(destName.split('.').pop().toLowerCase())
@@ -487,16 +510,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         if (err) {
                                                             Logger.printLine("CopyFile", `Failed to write full/preview ${message.id} in ${message.channel} for ${k}`, "err", err)
                                                         }
-                                                        image_saved(!err);
+                                                        image_saved((!err) ? destName : false);
                                                     })
                                                 } else {
                                                     image_saved(false);
                                                 }
                                             } else {
-                                                image_saved(true);
+                                                image_saved(destName);
                                             }
                                         })
-                                })));
+                                }));
                                 blockOk();
                             } else {
                                 Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
@@ -512,9 +535,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
-                const exsists = await db.query(`SELECT * FROM kanmi_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
-                if (res.filter(f => !f).length === 0 && exsists.rows.length === 0)
-                    await backupCompleted();
+                if (res.filter(f => !f).length === 0)
+                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview);
                 cb(res.filter(f => !f).length === 0);
             });
         } else {
@@ -536,8 +558,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                        FROM (SELECT rec.*, ext.data
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' OR ') + ')' : ''} AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''})) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
-                                LEFT OUTER JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid)
-                       WHERE y.ecid IS NULL
+                                LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                       WHERE y.heid IS NULL
                        ORDER BY RAND()
                        LIMIT ?`
             Logger.printLine("Search", `Preparing Search....`, "info");
@@ -592,7 +614,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                  FROM (SELECT rec.eid, server, channel, attachment_name, attachment_hash, attachment_extra, ext.data
                                                        FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) rec
                                                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
-                                                          LEFT JOIN (SELECT * FROM kanmi_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
+                                                          LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
                             let messages_verify = messages.rows.filter(e => !!e.ecid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
@@ -631,7 +653,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             }
                                             if (!fs.existsSync(path.join(val.dest, destName))) {
                                                 console.error(`Invalid Cache File = ${path.join(val.dest, destName)}`);
-                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
+                                                db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
                                             }
                                             blockOk();
                                         }))

@@ -1408,7 +1408,7 @@ This code is publicly released and is restricted by its project license
                                                                                             Logger.printLine("Discord", `Cached Image for ${message.id} to ${data.id}`, "info")
                                                                                         }
                                                                                     })
-                                                                                    db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [message.id]);
+                                                                                    db.query('DELETE FROM kanmi_records_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [message.id]);
                                                                                 }
                                                                             })
                                                                             cb(true);
@@ -1831,7 +1831,7 @@ This code is publicly released and is restricted by its project license
                                                                 })
                                                             }
                                                         });
-                                                        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
+                                                        db.query('DELETE FROM kanmi_records_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -1865,7 +1865,7 @@ This code is publicly released and is restricted by its project license
                                                                 cb(true);
                                                             }
                                                         });
-                                                        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
+                                                        db.query('DELETE FROM kanmi_records_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -1940,7 +1940,7 @@ This code is publicly released and is restricted by its project license
                                         if (Object.keys(jsonData).length > 0) {
                                             const stringJson = JSON.stringify(jsonData);
                                             db.query(`INSERT INTO kanmi_records_extended SET eid = ?, data = ? ON DUPLICATE KEY UPDATE data = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid, stringJson, stringJson])
-                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid])
+                                            db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ?`, [ModifyExtendedContentmessageRecord.rows[0].eid])
                                         } else {
                                             Logger.printLine("ModifyExtendedContent", `Failed to process extended data because no data!`, "warn");
                                         }
