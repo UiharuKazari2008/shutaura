@@ -1404,12 +1404,7 @@ This code is publicly released and is restricted by its project license
                                                                                             Logger.printLine("Discord", `Cached Image for ${message.id} to ${data.id}`, "info")
                                                                                         }
                                                                                     })
-                                                                                    (async () => {
-                                                                                        const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [message.id])
-                                                                                        if (cacheRemove.rows.length > 0) {
-                                                                                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
-                                                                                        }
-                                                                                    })()
+                                                                                    db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [message.id]);
                                                                                 }
                                                                             })
                                                                             cb(true);
@@ -1832,12 +1827,7 @@ This code is publicly released and is restricted by its project license
                                                                 })
                                                             }
                                                         });
-                                                        (async () => {
-                                                            const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageID])
-                                                            if (cacheRemove.rows.length > 0) {
-                                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
-                                                            }
-                                                        })()
+                                                        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -1871,12 +1861,7 @@ This code is publicly released and is restricted by its project license
                                                                 cb(true);
                                                             }
                                                         });
-                                                        (async () => {
-                                                            const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageID])
-                                                            if (cacheRemove.rows.length > 0) {
-                                                                db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
-                                                            }
-                                                        })()
+                                                        db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
                                                         Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
@@ -2370,12 +2355,7 @@ This code is publicly released and is restricted by its project license
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
                     const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageOriginalID])
-                    (async () => {
-                        const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageOriginalID])
-                        if (cacheRemove.rows.length > 0) {
-                            db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
-                        }
-                    })()
+                    db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageOriginalID]);
                     if (updatedMessage.error) {
                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", updatedMessage.error)
                     } else {
@@ -8360,11 +8340,6 @@ This code is publicly released and is restricted by its project license
                 if (addedMessage.error) {
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                     console.error(addedMessage.error)
-                } else {
-                    const cacheRemove = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])
-                    if (cacheRemove.rows.length > 0) {
-                        db.query(`DELETE FROM kanmi_cdn WHERE eid = ?`, [cacheRemove.rows[0].eid])
-                    }
                 }
             } else {
                 await messageCreate(msg, {
@@ -8373,6 +8348,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
             if (refrance && refrance.channel && refrance.id) {
+                db.query('DELETE FROM kanmi_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [refrance.id]);
                 setTimeout(() => {
                     discordClient.deleteMessage(refrance.channel, refrance.id, "Message was moved")
                         .catch((er) => {
