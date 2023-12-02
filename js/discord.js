@@ -8039,7 +8039,6 @@ This code is publicly released and is restricted by its project license
                                     cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                 }
                                 // Write to CDN
-                                console.log(addedMessage)
                                 mqClient.cdnRequest({ messageIntent: "Reload", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows.pop(), messageUpdate: sqlObject });
                                 if (chDbval.notify !== null) {
                                     try {
