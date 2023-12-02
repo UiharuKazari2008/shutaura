@@ -256,6 +256,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
+                console.error(e);
             }
         }
         if (deleteItem.preview_hint) {
@@ -265,6 +266,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                console.error(e);
             }
         }
         if (deleteItem.ext_0_hint) {
@@ -274,6 +276,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                console.error(e);
             }
         }
         if (deleteRow) {
@@ -712,11 +715,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     start();
     if (systemglobal.CDN_Base_Path) {
-        if (systemglobal.CDN_Focus_Channels) {
-            await findBackupItems(systemglobal.CDN_Focus_Channels);
-        }
-        await findBackupItems();
-        await validateStorage();
+        setTimeout(() => {
+            if (systemglobal.CDN_Focus_Channels) {
+                await findBackupItems(systemglobal.CDN_Focus_Channels);
+            }
+            await findBackupItems();
+            await validateStorage();
+        }, 90000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
     }
