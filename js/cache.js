@@ -27,6 +27,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const facilityName = 'Download-IO';
 
     const path = require('path');
+    const amqp = require('amqplib/callback_api');
     const RateLimiter = require('limiter').RateLimiter;
     const limiter1 = new RateLimiter(1, 250);
     const limiter2 = new RateLimiter(1, 250);
