@@ -356,7 +356,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (message.data && message.data.preview_image && message.data.preview_image) {
-            attachements['extended-preview'] = {
+            attachements['extended_preview'] = {
                 src: `https://media.discordapp.net${message.data.preview_image}`,
                 dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
                 ext: message.data.preview_image.split('?')[0].split('.').pop()
@@ -434,7 +434,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         blockOk();
                     } else {
                         Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                        if (k === 'extended-preview' || val['src'].includes('t9-preview')) {
+                        if (k === 'extended_preview' || val['src'].includes('t9-preview')) {
                             mqClient.sendData(systemglobal.Discord_Out, {
                                 messageReturn: false,
                                 messageType: 'command',
@@ -535,9 +535,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
-                if (res.filter(f => !f).length === 0)
+                if (Object.values(res).filter(f => !f).length === 0)
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview);
-                cb(res.filter(f => !f).length === 0);
+                cb(Object.values(res).filter(f => !f).length === 0);
             });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
@@ -636,7 +636,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }
                                     }
                                     if (message.data && message.data.preview_image && message.data.preview_image) {
-                                        attachements['extended-preview'] = {
+                                        attachements['extended_preview'] = {
                                             dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
                                             ext: message.data.preview_image.split('?')[0].split('.').pop()
                                         }
