@@ -8040,7 +8040,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 // Write to CDN
                                 console.log(addedMessage)
-                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(), messageUpdate: {} });
+                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows.pop(), messageUpdate: sqlObject });
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
@@ -8419,7 +8419,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [(refrance) ? refrance.id : msg.id])).rows.pop(), messageUpdate: {} });
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [msg.id])).rows.pop(), messageUpdate: {} });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
