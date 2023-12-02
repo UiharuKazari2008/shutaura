@@ -1242,7 +1242,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out + '.backlog'}`, "error")
 												}
 											});
-											if (preview_image && (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
+											if (preview_image && ((MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview') || (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)))) {
 												mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 													fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 													messageReturn: false,
@@ -1307,7 +1307,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										} else {
 											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
 										}
-									} else if (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image)) {
+									} else if ((MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview') || (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
 										const preview_image = await previewVideo(CompleteFilename, startPosition)
 										if (preview_image) {
 											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {

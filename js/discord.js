@@ -1811,8 +1811,8 @@ This code is publicly released and is restricted by its project license
                                                     file: Buffer.from(MessageContents.itemCacheData, 'base64')
                                                 })
                                                     .then((data) => {
-                                                        cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
-                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageID], (err, result) => {
+                                                        cacheColor(MessageContents.messageID, data.attachments[0].url)
+                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                 cb(false);
