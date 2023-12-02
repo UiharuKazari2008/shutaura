@@ -223,9 +223,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function doAction(message, complete) {
+        const object = {...message.messageData, ...message.messageUpdate};
         switch (message.messageIntent) {
             case "Reload" :
-                const object = {...message.messageData, ...message.messageUpdate};
                 if (!!object.attachment_hash && object.eid) {
                     backupMessage(object, complete);
                 } else {
@@ -233,7 +233,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
                 break;
             case "Delete" :
-                const object = {...message.messageData, ...message.messageUpdate};
                 let deletedAction = false;
                 if (object.attachment_hash) {
                     try {
@@ -272,7 +271,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
                 if (deletedAction) {
                     db.query(`DELETE FROM kanmi_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
-                    Logger.printLine("CDN Manager", `Deleted extended preview copy: ${object.eid}`, "err", e.message);
                 }
                 complete(true);
                 break;
