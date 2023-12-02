@@ -234,43 +234,39 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 break;
             case "Delete" :
                 let deletedAction = false;
-                if (object.attachment_hash) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', object.server, object.channel, `${object.eid}.${object.attachment_name.replace(object.id, '').split('?')[0].split('.').pop()}`));
-                        Logger.printLine("CDN Manager", `Delete full copy: ${object.eid}`, "err", e.message);
-                        deletedAction = true;
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete full copy: ${object.eid}`, "err", e.message);
+                const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
+                if (cacheItem.rows.length > 0) {
+                    const deleteItem = cacheItem.rows[0];
+                    if (deleteItem.full_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, deleteItem.path_hint, deleteItem.full_hint);
+                            Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "err", e.message);
+                            deletedAction = true;
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
+                        }
                     }
-                }
-                if (object.cache_proxy) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', object.server, object.channel, `${object.eid}.${object.cache_proxy.split('?')[0].split('.').pop()}`));
-                        Logger.printLine("CDN Manager", `Delete preview copy: ${object.eid}`, "err", e.message);
-                        deletedAction = true;
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${object.eid}`, "err", e.message);
+                    if (deleteItem.preview_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint);
+                            Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                            deletedAction = true;
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                        }
                     }
-                } else if (object.attachment_hash && object.attachment_name && (object.sizeH && object.sizeW && Discord_CDN_Accepted_Files.indexOf(object.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (object.sizeH > 512 || object.sizeW > 512))) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', object.server, object.channel, `${object.eid}.${(object.attachment_hash.includes('/')) ? object.attachment_hash.split('?')[0].split('.').pop() : object.attachment_name.replace(object.id, '').split('?')[0].split('.').pop()}`));
-                        Logger.printLine("CDN Manager", `Delete preview copy: ${object.eid}`, "err", e.message);
-                        deletedAction = true;
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${object.eid}`, "err", e.message);
+                    if (deleteItem.ext_0_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint);
+                            Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                            deletedAction = true;
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                        }
                     }
-                }
-                if (object.data && object.data.preview_image && object.data.preview_image) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', object.server, object.channel, `${object.eid}.${object.data.preview_image.split('?')[0].split('.').pop()}`));
-                        Logger.printLine("CDN Manager", `Delete extended preview copy: ${object.eid}`, "err", e.message);
-                        deletedAction = true;
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${object.eid}`, "err", e.message);
+                    if (deletedAction) {
+                        db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                     }
-                }
-                if (deletedAction) {
-                    db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                 }
                 complete(true);
                 break;
@@ -382,7 +378,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
         if (Object.keys(attachements).length > 0) {
             let res = {};
-            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+            let requests = deleteItem.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
                     let destName = `${message.eid}`
