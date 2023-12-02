@@ -293,7 +293,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let attachements = {};
 
         async function backupCompleted() {
-            const saveBackupSQL = await db.query(`INSERT INTO kanmi_cdn SET eid = ?, host = ?`, [message.eid, systemglobal.CDN_ID])
+            const saveBackupSQL = await db.query(`INSERT IGNORE INTO kanmi_cdn (eid, host) SELECT ('${message.eid}', '${systemglobal.CDN_ID}') FROM kanmi_cdn WHERE NOT EXISTS (SELECT * FROM kanmi_cdn WHERE eid = ? AND host = ?)`, [message.eid, systemglobal.CDN_ID])
             if (saveBackupSQL.error) {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
             }
@@ -351,7 +351,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else if (message.attachment_name) {
                         destName += '.' +  message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
                     }
-                    fs.unlinkSync(path.join(val.dest, destName));
                     const data = await new Promise(ok => {
                         const url = val.src;
                         Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
@@ -513,8 +512,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
-                const exsists = await db.query(`SELECT * FROM kanmi_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
-                if (res.filter(f => !f).length === 0 & exsists.rows.length === 0)
+                if (res.filter(f => !f).length === 0)
                     await backupCompleted();
                 cb(res.filter(f => !f).length === 0);
             });
