@@ -1958,40 +1958,43 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'ValidateMessage':
                         if (MessageContents.messageID) {
-                            try {
-                                const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
-                                if (message) {
-                                    Logger.printLine("validateMessage", `Successfully found message ${MessageContents.messageID}, Updating database`,"info")
-                                    messageUpdate(message)
-                                } else {
-                                    SendMessage(`Failed to validate message ${MessageContents.messageID}, It no longer exists`, "validateMessage", 'main', "error")
-                                    messageDelete({
-                                        id: MessageContents.messageID,
-                                        channel: {
-                                            id: MessageContents.messageChannelID
-                                        },
-                                        guild: {
-                                            id: MessageContents.messageServerID
-                                        },
-                                        guildID: MessageContents.messageServerID
-                                    })
-                                }
-                            } catch (e) {
-                                if (e.message.includes('Unknown Message')) {
-                                    SendMessage(`Failed to validate message ${MessageContents.messageID}, Message Deleted from Database due to "Unknown Message"!`, "err", 'main', "error")
-                                    messageDelete({
-                                        id: MessageContents.messageID,
-                                        channel: {
-                                            id: MessageContents.messageChannelID
-                                        },
-                                        guild: {
-                                            id: MessageContents.messageServerID
-                                        },
-                                        guildID: MessageContents.messageServerID
-                                    })
-                                } else {
-                                    SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
-                                    console.log(e)
+                            const found = (await db.query(`SELECT eid FROM kanmi_system.kanmi_records WHERE id = ?`, [MessageContents.messageID]));
+                            if (found.rows.length > 0) {
+                                try {
+                                    const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
+                                    if (message) {
+                                        Logger.printLine("validateMessage", `Successfully found message ${MessageContents.messageID}, Updating database`, "info")
+                                        messageUpdate(message)
+                                    } else {
+                                        SendMessage(`Failed to validate message ${MessageContents.messageID}, It no longer exists`, "validateMessage", 'main', "error")
+                                        messageDelete({
+                                            id: MessageContents.messageID,
+                                            channel: {
+                                                id: MessageContents.messageChannelID
+                                            },
+                                            guild: {
+                                                id: MessageContents.messageServerID
+                                            },
+                                            guildID: MessageContents.messageServerID
+                                        })
+                                    }
+                                } catch (e) {
+                                    if (e.message.includes('Unknown Message')) {
+                                        SendMessage(`Failed to validate message ${MessageContents.messageID}, Message Deleted from Database due to "Unknown Message"!`, "err", 'main', "error")
+                                        messageDelete({
+                                            id: MessageContents.messageID,
+                                            channel: {
+                                                id: MessageContents.messageChannelID
+                                            },
+                                            guild: {
+                                                id: MessageContents.messageServerID
+                                            },
+                                            guildID: MessageContents.messageServerID
+                                        })
+                                    } else {
+                                        SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
+                                        console.log(e)
+                                    }
                                 }
                             }
                         } else {
