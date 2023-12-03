@@ -1958,7 +1958,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     case 'ValidateMessage':
                         if (MessageContents.messageID) {
-                            const found = (await db.query(`SELECT eid FROM kanmi_system.kanmi_records WHERE id = ?`, [MessageContents.messageID]));
+                            const found = await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [MessageContents.messageID]);
                             if (found.rows.length > 0) {
                                 try {
                                     const message = await discordClient.getMessage(MessageContents.messageChannelID, MessageContents.messageID)
