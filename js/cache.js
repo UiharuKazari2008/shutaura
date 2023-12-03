@@ -555,7 +555,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
             }, Promise.resolve());
             requests.then(async () => {
-                Logger.printLine("BackupFile", `Download ${message.id}...`, "debug")
+                Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0)
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview);
                 cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
