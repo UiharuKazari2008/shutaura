@@ -715,7 +715,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     start();
     if (systemglobal.CDN_Base_Path) {
-        console.log((await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`)).rows.pop());
+        console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
         setTimeout(async () => {
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
