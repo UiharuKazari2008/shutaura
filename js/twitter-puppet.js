@@ -2271,6 +2271,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						};
 						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						if (!tweet_detail.data)
+							return false
 						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 						return tweet_result.tweet || tweet_result;
@@ -2471,6 +2473,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						};
 						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						if (!tweet_detail.data)
+							return false
 						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 						return tweet_result.tweet || tweet_result;
@@ -2667,6 +2671,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						};
 						if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 						const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+						if (!tweet_detail.data)
+							return false
 						const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 						const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 						return tweet_result.tweet || tweet_result;
@@ -2829,6 +2835,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
 					console.log(tweet_detail);
+					if (!tweet_detail.data)
+						return false
 					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 					return tweet_result.tweet || tweet_result;
