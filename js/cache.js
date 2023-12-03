@@ -544,11 +544,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 blockOk();
                             } else {
                                 Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
-                                res.push(false);
+                                res[k] = false;
                                 blockOk();
                             }
                         } else {
-                            res.push(false);
+                            res[k] = false;
                             blockOk();
                         }
                     }
@@ -715,6 +715,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     start();
     if (systemglobal.CDN_Base_Path) {
+        console.log((await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`)).rows.pop());
         setTimeout(async () => {
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
