@@ -230,7 +230,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
                     if (cacheItem.rows.length > 0)
                         await deleteCacheItem(cacheItem.rows[0], false);
-                    backupMessage(object, complete);
+                    backupMessage(object, complete, true);
                 } else {
                     complete(true);
                 }
@@ -293,7 +293,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         console.error('Failed to create the temp folder, not a issue if your using docker');
         console.error(e);
     }
-    async function backupMessage (message, cb) {
+    async function backupMessage (message, cb, requested_remotely) {
         let attachements = {};
 
         async function backupCompleted(path, preview, full, ext_0) {
@@ -415,7 +415,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             },
                         }, async (err, res, body) => {
                             if (err || res && res.statusCode && res.statusCode !== 200) {
-                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full') {
+                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
                                     Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
                                     mqClient.sendData(systemglobal.Discord_Out, {
                                         fromClient: `return.CDN.${systemglobal.SystemName}`,
