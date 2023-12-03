@@ -2181,21 +2181,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
-							let tweet = _json.legacy;
-							let medias = tweet.extended_entities && tweet.extended_entities.media;
-							if (medias.length > 0) {
-								const media_array = medias.map(media => {
-									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+							if (_json) {
+								let tweet = _json.legacy;
+								let medias = tweet.extended_entities && tweet.extended_entities.media;
+								if (medias.length > 0) {
+									const media_array = medias.map(media => {
+										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+										return {
+											media_url: url,
+											format: url.split('.').pop().split(':')[0].split('?')[0],
+											type: media.type
+										}
+									})
 									return {
-										media_url: url,
-										format: url.split('.').pop().split(':')[0].split('?')[0],
-										type: media.type
-									}
-								})
-								return {
-									images: media_array,
-									data: _json
-								};
+										images: media_array,
+										data: _json
+									};
+								} else {
+									return {
+										images: [],
+										data: _json
+									};
+								}
 							} else {
 								return {
 									images: [],
@@ -2383,21 +2390,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
-							let tweet = _json.legacy;
-							let medias = tweet.extended_entities && tweet.extended_entities.media;
-							if (medias.length > 0) {
-								const media_array = medias.map(media => {
-									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+							if (_json) {
+								let tweet = _json.legacy;
+								let medias = tweet.extended_entities && tweet.extended_entities.media;
+								if (medias.length > 0) {
+									const media_array = medias.map(media => {
+										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+										return {
+											media_url: url,
+											format: url.split('.').pop().split(':')[0].split('?')[0],
+											type: media.type
+										}
+									})
 									return {
-										media_url: url,
-										format: url.split('.').pop().split(':')[0].split('?')[0],
-										type: media.type
-									}
-								})
-								return {
-									images: media_array,
-									data: _json
-								};
+										images: media_array,
+										data: _json
+									};
+								} else {
+									return {
+										images: [],
+										data: _json
+									};
+								}
 							} else {
 								return {
 									images: [],
@@ -2581,21 +2595,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
-							let tweet = _json.legacy;
-							let medias = tweet.extended_entities && tweet.extended_entities.media;
-							if (medias.length > 0) {
-								const media_array = medias.map(media => {
-									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+							if (_json) {
+								let tweet = _json.legacy;
+								let medias = tweet.extended_entities && tweet.extended_entities.media;
+								if (medias.length > 0) {
+									const media_array = medias.map(media => {
+										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+										return {
+											media_url: url,
+											format: url.split('.').pop().split(':')[0].split('?')[0],
+											type: media.type
+										}
+									})
 									return {
-										media_url: url,
-										format: url.split('.').pop().split(':')[0].split('?')[0],
-										type: media.type
-									}
-								})
-								return {
-									images: media_array,
-									data: _json
-								};
+										images: media_array,
+										data: _json
+									};
+								} else {
+									return {
+										images: [],
+										data: _json
+									};
+								}
 							} else {
 								return {
 									images: [],
@@ -2744,21 +2765,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
 						let _json = await fetchJson(status_id);
-						let tweet = _json.legacy;
-						let medias = tweet.extended_entities && tweet.extended_entities.media;
-						if (medias.length > 0) {
-							const media_array = medias.map(media => {
-								const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+						if (_json) {
+							let tweet = _json.legacy;
+							let medias = tweet.extended_entities && tweet.extended_entities.media;
+							if (medias.length > 0) {
+								const media_array = medias.map(media => {
+									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+									return {
+										media_url: url,
+										format: url.split('.').pop().split(':')[0].split('?')[0],
+										type: media.type
+									}
+								})
 								return {
-									media_url: url,
-									format: url.split('.').pop().split(':')[0].split('?')[0],
-									type: media.type
-								}
-							})
-							return {
-								images: media_array,
-								data: _json
-							};
+									images: media_array,
+									data: _json
+								};
+							} else {
+								return {
+									images: [],
+									data: _json
+								};
+							}
 						} else {
 							return {
 								images: [],
