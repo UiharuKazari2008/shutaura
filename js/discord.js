@@ -8357,8 +8357,7 @@ This code is publicly released and is restricted by its project license
                         ...eidData[0]
                     },
                     messageUpdate: {
-                        ...sqlObject,
-                        id:  msg.id
+                        ...sqlObject
                     }
                 })
             } else {
