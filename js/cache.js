@@ -704,8 +704,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let requests = channels.rows.reduce((promiseChain, c, i, a) => {
                 return promiseChain.then(() => new Promise(async (resolveChannel) => {
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
+                    const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
                     const previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
+                    const ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
                     const full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
 
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
@@ -716,9 +718,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                  FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
+                            const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
+                            const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
+                            const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
                             await new Promise(orphok => {
-                                const files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
-                                const orphaned_files = previews.filter(e => files.indexOf(e) === -1);
+                                const orphaned_files = previews.filter(e => preview_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
                                     Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
@@ -726,41 +730,37 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 orphok();
                             })
                             await new Promise(orphok => {
-                                const files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
-                                const orphaned_files = full.filter(e => files.indexOf(e) === -1);
+                                const orphaned_files = full.filter(e => full_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
                                     Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
                                 }
                                 orphok();
                             })
+                            await new Promise(orphok => {
+                                const orphaned_files = ext_previews.filter(e => ext_preview_files.indexOf(e) === -1);
+                                if (orphaned_files.length > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
+                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_ext_previews, e)));
+                                }
+                                orphok();
+                            })
 
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
-                                    attachements = {};
                                     if (message.full_hint) {
-                                        attachements['full'] = path.join(systemglobal.CDN_Base_Path, 'full', message.path_hint, message.full_hint)
+                                        if (full.indexOf(message.full_hint) === -1)
+                                            deleteID.set(message.eid, false);
                                     }
                                     if (message.preview_hint) {
-                                        attachements['preview'] = path.join(systemglobal.CDN_Base_Path, 'preview', message.path_hint, message.preview_hint)
+                                        if (dir_full.indexOf(message.preview_hint) === -1)
+                                            deleteID.set(message.eid, false);
                                     }
                                     if (message.ext_0_hint) {
-                                        attachements['extended_preview'] = path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.path_hint, message.ext_0_hint)
+                                        if (ext_previews.indexOf(message.ext_0_hint) === -1)
+                                            deleteID.set(message.eid, false);
                                     }
-
-                                    let file_verify = Object.keys(attachements).reduce((promiseChain, k) => {
-                                        return promiseChain.then(() => new Promise(async (blockOk) => {
-                                            const val = attachements[k];
-                                            if (!fs.existsSync(val)) {
-                                                //console.error(`Invalid Cache File = ${val}`);
-                                                deleteID.set(message.eid, false);
-                                            }
-                                            blockOk();
-                                        }))
-                                    }, Promise.resolve());
-                                    file_verify.then(() => {
-                                        resolveMessages();
-                                    })
+                                    resolveMessages();
                                 }))
                             }, Promise.resolve());
                             messages_verify.then(async () => {
