@@ -721,6 +721,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
                             const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                             const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
+
                             await new Promise(orphok => {
                                 const orphaned_files = previews.filter(e => preview_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
@@ -740,7 +741,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             await new Promise(orphok => {
                                 const orphaned_files = ext_previews.filter(e => ext_preview_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
+                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} ext_preview images deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_ext_previews, e)));
                                 }
                                 orphok();
@@ -749,18 +750,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
                                     if (message.full_hint) {
-                                        console.log(full[0])
-                                        console.log(message.full_hint)
-                                        if (full.indexOf(message.full_hint) === -1)
+                                        if (full.indexOf(message.full_hint) === -1) {
                                             deleteID.set(message.eid, false);
+                                        }
                                     }
                                     if (message.preview_hint) {
-                                        if (dir_full.indexOf(message.preview_hint) === -1)
+                                        if (previews.indexOf(message.preview_hint) === -1) {
                                             deleteID.set(message.eid, false);
+                                        }
                                     }
                                     if (message.ext_0_hint) {
-                                        if (ext_previews.indexOf(message.ext_0_hint) === -1)
+                                        if (ext_previews.indexOf(message.ext_0_hint) === -1) {
                                             deleteID.set(message.eid, false);
+                                        }
                                     }
                                     resolveMessages();
                                 }))
