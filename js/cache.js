@@ -747,50 +747,51 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 orphok();
                             })
 
+                            await Promise.all(messages.rows.filter(e => !!e.heid).map(message => {
+                                if (message.full_hint) {
+                                    if (full.indexOf(message.full_hint) === -1) {
+                                        deleteID.set(message.eid, false);
+                                    }
+                                }
+                                if (message.preview_hint) {
+                                    if (previews.indexOf(message.preview_hint) === -1) {
+                                        deleteID.set(message.eid, false);
+                                    }
+                                }
+                                if (message.ext_0_hint) {
+                                    if (ext_previews.indexOf(message.ext_0_hint) === -1) {
+                                        deleteID.set(message.eid, false);
+                                    }
+                                }
+                            }))
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
-                                    if (message.full_hint) {
-                                        if (full.indexOf(message.full_hint) === -1) {
-                                            deleteID.set(message.eid, false);
-                                        }
-                                    }
-                                    if (message.preview_hint) {
-                                        if (previews.indexOf(message.preview_hint) === -1) {
-                                            deleteID.set(message.eid, false);
-                                        }
-                                    }
-                                    if (message.ext_0_hint) {
-                                        if (ext_previews.indexOf(message.ext_0_hint) === -1) {
-                                            deleteID.set(message.eid, false);
-                                        }
-                                    }
+
                                     resolveMessages();
                                 }))
                             }, Promise.resolve());
-                            messages_verify.then(async () => {
-                                if (deleteID.size > 0) {
-                                    if (deleteID.size > 100) {
-                                        function splitArray(array, chunkSize) {
-                                            const result = [];
+                            if (deleteID.size > 0) {
+                                if (deleteID.size > 100) {
+                                    function splitArray(array, chunkSize) {
+                                        const result = [];
 
-                                            for (let i = 0; i < array.length; i += chunkSize) {
-                                                result.push(array.slice(i, i + chunkSize));
-                                            }
-
-                                            return result;
+                                        for (let i = 0; i < array.length; i += chunkSize) {
+                                            result.push(array.slice(i, i + chunkSize));
                                         }
-                                        (splitArray(Array.from(deleteID.keys()), 50)).map(async h => {
-                                            await db.query(`DELETE FROM kanmi_records_cdn WHERE (${h.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
-                                            console.log('DELETE BATCH')
-                                        })
 
-                                    } else {
-                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                        return result;
                                     }
-                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
+                                    (splitArray(Array.from(deleteID.keys()), 50)).map(async h => {
+                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${h.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                        console.log('DELETE BATCH')
+                                    })
+
+                                } else {
+                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
                                 }
-                                resolveChannel();
-                            });
+                                Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
+                            }
+                            resolveChannel();
                         } else {
                             resolveChannel();
                         }
@@ -819,15 +820,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (process.send && typeof process.send === 'function') {
         process.send('ready');
     }
+
     if (systemglobal.CDN_Base_Path) {
+        start();
         console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
         console.log("Waiting 30sec before normal tasks..")
-        if (systemglobal.CDN_Focus_Channels) {
-            await findBackupItems(systemglobal.CDN_Focus_Channels);
-        }
-        await findBackupItems();
-        await validateStorage();
-        start();
+        setTimeout(async () => {
+            if (systemglobal.CDN_Focus_Channels) {
+                await findBackupItems(systemglobal.CDN_Focus_Channels);
+            }
+            await findBackupItems();
+            await validateStorage();
+        }, 30000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
     }
