@@ -765,7 +765,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }, Promise.resolve());
                             messages_verify.then(async () => {
                                 if (deleteID.size > 0) {
-                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 1000`, [systemglobal.CDN_ID]);
+                                    if (deleteID.size > 100) {
+                                        function splitArray(array, chunkSize) {
+                                            const result = [];
+
+                                            for (let i = 0; i < array.length; i += chunkSize) {
+                                                result.push(array.slice(i, i + chunkSize));
+                                            }
+
+                                            return result;
+                                        }
+                                        (splitArray(Array.from(deleteID.keys()), 50)).map(async h => {
+                                            await db.query(`DELETE FROM kanmi_records_cdn WHERE (${h.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                            console.log('DELETE BATCH')
+                                        })
+
+                                    } else {
+                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                    }
                                     Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
                                 }
                                 resolveChannel();
