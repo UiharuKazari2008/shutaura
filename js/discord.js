@@ -8359,7 +8359,7 @@ This code is publicly released and is restricted by its project license
                     messageUpdate: {
                         ...sqlObject
                     },
-                    reCache: true
+                    reCache: !(refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate'))
                 })
             } else {
                 await messageCreate(msg, {
