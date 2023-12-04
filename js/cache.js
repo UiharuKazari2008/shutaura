@@ -725,10 +725,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Orphaned Files - Preview`)
                             await new Promise(orphok => {
-                                const orphaned_files = previews.filter(e => preview_files.indexOf(e) === -1);
-                                if (orphaned_files.length > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
-                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
+                                let removed = 0;
+                                for (let i = 0; i < previews.length; i++) {
+                                    if (previews[i].indexOf(e) === -1) {
+                                        fs.unlinkSync(path.join(dir_previews, previews[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} previews deleted items storage`, "info");
                                     previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
                                 }
                                 orphok();
@@ -736,10 +741,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Orphaned Files - Full`)
                             await new Promise(orphok => {
-                                const orphaned_files = full.filter(e => full_files.indexOf(e) === -1);
-                                if (orphaned_files.length > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
-                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
+                                let removed = 0;
+                                for (let i = 0; i < full.length; i++) {
+                                    if (full[i].indexOf(e) === -1) {
+                                        fs.unlinkSync(path.join(dir_full, full[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} full deleted items storage`, "info");
                                     full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
                                 }
                                 orphok();
@@ -747,10 +757,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Orphaned Files - Ext Previews`)
                             await new Promise(orphok => {
-                                const orphaned_files = ext_previews.filter(e => ext_preview_files.indexOf(e) === -1);
-                                if (orphaned_files.length > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} ext_preview images deleted items storage`, "info");
-                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_ext_previews, e)));
+                                let removed = 0;
+                                for (let i = 0; i < ext_previews.length; i++) {
+                                    if (ext_previews[i].indexOf(e) === -1) {
+                                        fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} ext_previews deleted items storage`, "info");
                                     ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
                                 }
                                 orphok();
