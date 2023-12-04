@@ -707,49 +707,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
 
                     if (full.length > 0 || previews.length > 0) {
-                        const messages = await db.query(`SELECT x.eid, y.heid, server, channel, attachment_name, attachment_hash, attachment_extra, data
-                                                 FROM (SELECT rec.eid, server, channel, attachment_name, attachment_hash, attachment_extra, ext.data
-                                                       FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) rec
-                                                                LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                        const messages = await db.query(`SELECT x.eid, y.*
+                                                 FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
                                     attachements = {};
-                                    if (message.attachment_hash) {
-                                        attachements['full'] = {
-                                            dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
-                                        }
+                                    if (message.full_hint) {
+                                        attachements['full'] = path.join(systemglobal.CDN_Base_Path, 'full', message.path_hint, message.full_hint)
                                     }
-                                    if (message.cache_proxy) {
-                                        attachements['preview'] = {
-                                            dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
-                                            ext: message.cache_proxy.split('?')[0].split('.').pop()
-                                        }
-                                    } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
-                                        attachements['preview'] = {
-                                            dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
-                                            ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
-                                        }
+                                    if (message.preview_hint) {
+                                        attachements['preview'] = path.join(systemglobal.CDN_Base_Path, 'preview', message.path_hint, message.preview_hint)
                                     }
-                                    if (message.data && message.data.preview_image && message.data.preview_image) {
-                                        attachements['extended_preview'] = {
-                                            dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
-                                            ext: message.data.preview_image.split('?')[0].split('.').pop()
-                                        }
+                                    if (message.ext_0_hint) {
+                                        attachements['extended_preview'] = path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.path_hint, message.ext_0_hint)
                                     }
 
                                     let file_verify = Object.keys(attachements).reduce((promiseChain, k) => {
                                         return promiseChain.then(() => new Promise(async (blockOk) => {
                                             const val = attachements[k];
-                                            let destName = `${message.eid}`
-                                            if (val.ext) {
-                                                destName += '.' + val.ext;
-                                            } else if (message.attachment_name) {
-                                                destName += '.' + message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
-                                            }
-                                            if (!fs.existsSync(path.join(val.dest, destName))) {
-                                                console.error(`Invalid Cache File = ${path.join(val.dest, destName)}`);
+                                            if (!fs.existsSync(val)) {
+                                                console.error(`Invalid Cache File = ${val)}`);
                                                 db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
                                             }
                                             blockOk();
