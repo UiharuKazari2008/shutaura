@@ -398,7 +398,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     const data = await new Promise(ok => {
                         const url = val.src;
-                        Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                        //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
                         request.get({
                             url,
                             headers: {
@@ -664,7 +664,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                        ORDER BY RAND()
                        LIMIT ?`
             Logger.printLine("Search", `Preparing Search....`, "info");
-            console.log(q);
             const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
             if (backupItems.error) {
                 Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -687,11 +686,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 requests.then(async () => {
                     if (total > 0) {
                         Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
+                    } else {
+                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
                     }
                     completed();
                     setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 })
             } else {
+                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
                 setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 completed();
             }
