@@ -719,15 +719,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             await new Promise(orphok => {
                                 const files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
                                 const orphaned_files = previews.filter(e => files.indexOf(e) === -1);
-                                Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
-                                //orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
+                                if (orphaned_files.length > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
+                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
+                                }
                                 orphok();
                             })
                             await new Promise(orphok => {
                                 const files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                                 const orphaned_files = full.filter(e => files.indexOf(e) === -1);
-                                Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
-                                //orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
+                                if (orphaned_files.length > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
+                                    orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
+                                }
                                 orphok();
                             })
 
