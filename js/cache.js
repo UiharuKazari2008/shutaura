@@ -727,7 +727,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             await new Promise(orphok => {
                                 let removed = 0;
                                 for (let i = 0; i < previews.length; i++) {
-                                    if (previews[i].indexOf(e) === -1) {
+                                    if (preview_files.indexOf(previews[i]) === -1) {
                                         fs.unlinkSync(path.join(dir_previews, previews[i]))
                                         removed++;
                                     }
@@ -743,7 +743,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             await new Promise(orphok => {
                                 let removed = 0;
                                 for (let i = 0; i < full.length; i++) {
-                                    if (full[i].indexOf(e) === -1) {
+                                    if (full_files.indexOf(full[i]) === -1) {
                                         fs.unlinkSync(path.join(dir_full, full[i]))
                                         removed++;
                                     }
@@ -759,7 +759,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             await new Promise(orphok => {
                                 let removed = 0;
                                 for (let i = 0; i < ext_previews.length; i++) {
-                                    if (ext_previews[i].indexOf(e) === -1) {
+                                    if (ext_preview_files.indexOf(ext_previews[i]) === -1) {
                                         fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
                                         removed++;
                                     }
@@ -780,6 +780,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Stored Files - Ext Previews`)
                             messages.rows.filter(e => !!e.heid && e.ext_0_hint && ext_previews.indexOf(e.ext_0_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            for (let i = 0; i < messages.rows.length; i++) {
+                                if (messages.rows[i].indexOf(e) === -1) {
+                                    fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
+                                    removed++;
+                                }
+                            }
 
                             if (deleteID.size > 0) {
                                 if (deleteID.size > 100) {
