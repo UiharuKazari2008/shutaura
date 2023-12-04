@@ -747,7 +747,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             messages_verify.then(async () => {
                                 if (deleteID.size > 0) {
                                     await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'eid = ' + e).join(' OR ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "err", saveBackupSQL.error)
+                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info")
                                 }
                                 resolveChannel();
                             });
