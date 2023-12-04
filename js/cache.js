@@ -227,7 +227,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         switch (message.messageIntent) {
             case "Reload" :
                 if (!!object.attachment_hash && object.eid) {
-                    const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
+                    const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                     if (cacheItem.rows.length > 0) {
                         moveMessage(cacheItem.rows[0], object, complete, true);
                     } else {
@@ -238,7 +238,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
                 break;
             case "Delete" :
-                const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
+                const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ? AND host = ?`, [object.id, systemglobal.CDN_ID]);
                 if (cacheItem.rows.length > 0)
                     await deleteCacheItem(cacheItem.rows[0], true);
                 complete(true);
