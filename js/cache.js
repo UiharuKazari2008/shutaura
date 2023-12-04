@@ -621,7 +621,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}`, "err", err);
                             console.error(err)
                         }
-                        res[k] = (!err) ? ;
+                        res[k] = (!err)
                         blockOk();
                     })
                 }))
