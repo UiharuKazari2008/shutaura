@@ -635,8 +635,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await backupCompleted(`${message.server}/${message.channel}`);
                 } else {
                     await backupMessage(message, cb, true);
+                } else {
+                    cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 }
-                cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
             });
         } else {
             Logger.printLine("BackupParts", `Nothing to do for item ${message.id}, No Data Available`, "error")
