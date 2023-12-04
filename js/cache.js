@@ -603,18 +603,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             attachements['full'] = {
                 src: path.join(systemglobal.CDN_Base_Path, 'full', previous.path_hint, previous.full_hint),
                 dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel, previous.full_hint),
+                base: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
             }
         }
         if (previous.preview_hint) {
             attachements['preview'] = {
                 src: path.join(systemglobal.CDN_Base_Path, 'preview', previous.path_hint, previous.preview_hint),
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel, previous.preview_hint),
+                base: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
             }
         }
         if (previous.ext_0_hint) {
             attachements['extended_preview'] = {
                 src: path.join(systemglobal.CDN_Base_Path, 'extended_preview', previous.path_hint, previous.ext_0_hint),
                 dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel, previous.ext_0_hint),
+                base: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel),
             }
         }
 
@@ -623,7 +626,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
-                    fsEx.ensureDirSync(path.join(val.dest));
+                    fsEx.ensureDirSync(path.join(val.base));
                     fs.rename(val.src, val.dest, err => {
                         if (err) {
                             Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}`, "err", err);
