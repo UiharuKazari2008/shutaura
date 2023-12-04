@@ -8425,8 +8425,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        const eidData = (await db.query(`SELECT * FROM kanmi_records WHERE id = ?`, [msg.id])).rows
-        mqClient.cdnRequest({ messageIntent: "Delete", messageData: {...eidData[0]}, messageUpdate: { id: msg.id } });
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg.id }, messageUpdate: {  } });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
