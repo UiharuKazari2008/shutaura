@@ -240,7 +240,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     })
 
                                 } else {
-                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                    const values = Array.from(deleteID.keys()).filter(e => !!e)
+                                    if (values.length> 0)
+                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${values.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
                                 }
                                 Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
                             }
