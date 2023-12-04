@@ -711,6 +711,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
 
                     if (full.length > 0 || previews.length > 0) {
+                        let deleteID = new Map();
                         const messages = await db.query(`SELECT x.eid, y.*
                                                  FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
@@ -732,8 +733,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         return promiseChain.then(() => new Promise(async (blockOk) => {
                                             const val = attachements[k];
                                             if (!fs.existsSync(val)) {
-                                                console.error(`Invalid Cache File = ${val}`);
-                                                await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
+                                                //console.error(`Invalid Cache File = ${val}`);
+                                                deleteID.set(message.eid, false);
                                             }
                                             blockOk();
                                         }))
@@ -743,7 +744,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     })
                                 }))
                             }, Promise.resolve());
-                            messages_verify.then(() => {
+                            messages_verify.then(async () => {
+                                if (deleteID.size > 0) {
+                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'eid = ' + e).join(' OR ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "err", saveBackupSQL.error)
+                                }
                                 resolveChannel();
                             });
                         } else {
