@@ -299,7 +299,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let attachements = {};
 
         async function backupCompleted(path, preview, full, ext_0) {
-            const saveBackupSQL = await db.query(`INSERT INTO kanmi_records_cdn
+            if (message.id) {
+                const saveBackupSQL = await db.query(`INSERT INTO kanmi_records_cdn
                                                   SET heid         = ?,
                                                       eid          = ?,
                                                       host         = ?,
@@ -320,28 +321,31 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                       full_hint    = ?,
                                                       ext_0        = ?,
                                                       ext_0_hint   = ?`, [
-                (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
-                message.eid,
-                systemglobal.CDN_ID,
-                message.id,
-                path,
-                (!!preview) ? 1 : 0,
-                (!!preview) ? preview : null,
-                (!!full) ? 1 : 0,
-                (!!full) ? full : null,
-                (!!ext_0) ? 1 : 0,
-                (!!ext_0) ? ext_0 : null,
-                message.id,
-                path,
-                (!!preview) ? 1 : 0,
-                (!!preview) ? preview : null,
-                (!!full) ? 1 : 0,
-                (!!full) ? full : null,
-                (!!ext_0) ? 1 : 0,
-                (!!ext_0) ? ext_0 : null,
-            ])
-            if (saveBackupSQL.error) {
-                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                    (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                    message.eid,
+                    systemglobal.CDN_ID,
+                    message.id,
+                    path,
+                    (!!preview) ? 1 : 0,
+                    (!!preview) ? preview : null,
+                    (!!full) ? 1 : 0,
+                    (!!full) ? full : null,
+                    (!!ext_0) ? 1 : 0,
+                    (!!ext_0) ? ext_0 : null,
+                    message.id,
+                    path,
+                    (!!preview) ? 1 : 0,
+                    (!!preview) ? preview : null,
+                    (!!full) ? 1 : 0,
+                    (!!full) ? full : null,
+                    (!!ext_0) ? 1 : 0,
+                    (!!ext_0) ? ext_0 : null,
+                ])
+                if (saveBackupSQL.error) {
+                    Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
+                }
+            } else {
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err", saveBackupSQL.error)
             }
         }
         function getimageSizeParam() {
