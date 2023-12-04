@@ -716,6 +716,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                  FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
+                            await new Promise(orphok => {
+                                const files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
+                                const orphaned_files = previews.filter(e => files.indexOf(e) === -1);
+                                Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
+                                //orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
+                                orphok();
+                            })
+                            await new Promise(orphok => {
+                                const files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
+                                const orphaned_files = full.filter(e => files.indexOf(e) === -1);
+                                Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
+                                //orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
+                                orphok();
+                            })
+
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
                                     attachements = {};
@@ -747,7 +762,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             messages_verify.then(async () => {
                                 if (deleteID.size > 0) {
                                     await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'eid = ' + e).join(' OR ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info")
+                                    Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
                                 }
                                 resolveChannel();
                             });
