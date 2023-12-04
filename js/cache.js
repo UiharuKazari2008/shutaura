@@ -345,7 +345,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
                 }
             } else {
-                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err", saveBackupSQL.error)
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err")
             }
         }
         function getimageSizeParam() {
