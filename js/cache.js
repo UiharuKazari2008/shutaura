@@ -630,7 +630,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`);
                 } else {
-                    await backupMessage(message, cb, `true);
+                    await backupMessage(message, cb, true);
                 }
                 cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
             });
