@@ -228,7 +228,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             case "Reload" :
                 if (!!object.attachment_hash && object.eid) {
                     const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
-                    if (cacheItem.rows.length > 0) {
+                    if (cacheItem.rows.length > 0 && !message.reCache) {
                         await moveMessage(cacheItem.rows[0], object, complete, true);
                     } else {
                         await backupMessage(object, complete, true);
@@ -570,28 +570,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function moveMessage (previous, message, cb, requested_remotely) {
         let attachements = {};
 
-        async function backupCompleted(path, preview, full, ext_0) {
+        async function backupCompleted(path) {
             const saveBackupSQL = await db.query(`UPDATE kanmi_records_cdn
                                                   SET id_hint      = ?,
-                                                      path_hint    = ?,
-                                                      preview      = ?,
-                                                      preview_hint = ?,
-                                                      full         = ?,
-                                                      full_hint    = ?,
-                                                      ext_0        = ?,
-                                                      ext_0_hint   = ? 
+                                                      path_hint    = ?
                                                   WHERE
                                                       eid      = ? AND 
                                                       host    = ?`, [
                 (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
                 message.id,
                 path,
-                (!!preview) ? 1 : 0,
-                (!!preview) ? preview : null,
-                (!!full) ? 1 : 0,
-                (!!full) ? full : null,
-                (!!ext_0) ? 1 : 0,
-                (!!ext_0) ? ext_0 : null,
                 message.eid,
                 systemglobal.CDN_ID,
             ])
@@ -633,7 +621,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}`, "err", err);
                             console.error(err)
                         }
-                        res[k] = !err;
+                        res[k] = (!err) ? ;
                         blockOk();
                     })
                 }))
@@ -641,7 +629,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Moved ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0)
-                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview);
+                    await backupCompleted(`${message.server}/${message.channel}`);
                 cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
             });
         } else {
