@@ -819,17 +819,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (process.send && typeof process.send === 'function') {
         process.send('ready');
     }
-    start();
     if (systemglobal.CDN_Base_Path) {
         console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
         console.log("Waiting 30sec before normal tasks..")
-        setTimeout(async () => {
-            if (systemglobal.CDN_Focus_Channels) {
-                await findBackupItems(systemglobal.CDN_Focus_Channels);
-            }
-            await findBackupItems();
-            await validateStorage();
-        }, 30000)
+        if (systemglobal.CDN_Focus_Channels) {
+            await findBackupItems(systemglobal.CDN_Focus_Channels);
+        }
+        await findBackupItems();
+        await validateStorage();
+        start();
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
     }
