@@ -145,8 +145,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 let removed = 0;
                                 for (let i = 0; i < previews.length; i++) {
                                     if (preview_files.indexOf(previews[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_previews, previews[i]))
-                                        removed++;
+                                        try {
+                                            fs.unlinkSync(path.join(dir_previews, previews[i]))
+                                            removed++;
+                                        } catch (e) {
+                                            
+                                        }
                                     }
                                 }
                                 if (removed > 0) {
@@ -161,8 +165,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 let removed = 0;
                                 for (let i = 0; i < full.length; i++) {
                                     if (full_files.indexOf(full[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_full, full[i]))
-                                        removed++;
+                                        try {
+                                            fs.unlinkSync(path.join(dir_full, full[i]))
+                                            removed++;
+                                        } catch (e) {
+                                            
+                                        }
                                     }
                                 }
                                 if (removed > 0) {
@@ -177,8 +185,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 let removed = 0;
                                 for (let i = 0; i < ext_previews.length; i++) {
                                     if (ext_preview_files.indexOf(ext_previews[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
-                                        removed++;
+                                        try {
+                                            fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
+                                            removed++;
+                                        } catch (e) {
+                                            
+                                        }
                                     }
                                 }
                                 if (removed > 0) {
