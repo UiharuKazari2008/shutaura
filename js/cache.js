@@ -706,9 +706,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
                     const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
-                    const previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
-                    const ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
-                    const full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+                    let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
+                    let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
+                    let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
 
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
 
@@ -722,33 +722,48 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                             const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
 
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Preview`)
                             await new Promise(orphok => {
                                 const orphaned_files = previews.filter(e => preview_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
                                     Logger.printLine("Sweeper", `Removed ${orphaned_files.length} previews deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_previews, e)));
+                                    previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
                                 }
                                 orphok();
                             })
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Full`)
                             await new Promise(orphok => {
                                 const orphaned_files = full.filter(e => full_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
                                     Logger.printLine("Sweeper", `Removed ${orphaned_files.length} full images deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_full, e)));
+                                    full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
                                 }
                                 orphok();
                             })
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Ext Previews`)
                             await new Promise(orphok => {
                                 const orphaned_files = ext_previews.filter(e => ext_preview_files.indexOf(e) === -1);
                                 if (orphaned_files.length > 0) {
                                     Logger.printLine("Sweeper", `Removed ${orphaned_files.length} ext_preview images deleted items storage`, "info");
                                     orphaned_files.map(e => fs.unlinkSync(path.join(dir_ext_previews, e)));
+                                    ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
                                 }
                                 orphok();
                             })
 
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Full`)
                             messages.rows.filter(e => !!e.heid && e.full_hint && full.indexOf(e.full_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Preview`)
                             messages.rows.filter(e => !!e.heid && e.preview_hint &&  previews.indexOf(e.preview_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Ext Previews`)
                             messages.rows.filter(e => !!e.heid && e.ext_0_hint && ext_previews.indexOf(e.ext_0_hint) === -1).map(e => deleteID.set(e.eid, false));
 
                             if (deleteID.size > 0) {
