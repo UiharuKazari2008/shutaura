@@ -773,17 +773,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Stored Files - Full`)
-                            messages.rows.filter(e => !!e.heid && e.full_hint && full.indexOf(e.full_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            for (let i = 0; i < full_files.length; i++) {
+                                if (full.indexOf(full_files[i]) === -1) {
+                                    deleteID.set(full_files[i].eid, false)
+                                }
+                            }
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Stored Files - Preview`)
-                            messages.rows.filter(e => !!e.heid && e.preview_hint &&  previews.indexOf(e.preview_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            for (let i = 0; i < preview_files.length; i++) {
+                                if (previews.indexOf(preview_files[i]) === -1) {
+                                    deleteID.set(preview_files[i].eid, false)
+                                }
+                            }
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Stored Files - Ext Previews`)
-                            messages.rows.filter(e => !!e.heid && e.ext_0_hint && ext_previews.indexOf(e.ext_0_hint) === -1).map(e => deleteID.set(e.eid, false));
-                            for (let i = 0; i < messages.rows.length; i++) {
-                                if (messages.rows[i].indexOf(e) === -1) {
-                                    fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
-                                    removed++;
+                            for (let i = 0; i < ext_preview_files.length; i++) {
+                                if (ext_previews.indexOf(ext_preview_files[i]) === -1) {
+                                    deleteID.set(ext_preview_files[i].eid, false)
                                 }
                             }
 
