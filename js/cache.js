@@ -229,9 +229,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (!!object.attachment_hash && object.eid) {
                     const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                     if (cacheItem.rows.length > 0) {
-                        moveMessage(cacheItem.rows[0], object, complete, true);
+                        await moveMessage(cacheItem.rows[0], object, complete, true);
                     } else {
-                        backupMessage(object, complete, true);
+                        await backupMessage(object, complete, true);
                     }
                 } else {
                     complete(true);
@@ -250,6 +250,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function deleteCacheItem(deleteItem, deleteRow) {
+        let deletedAction = false;
         if (deleteItem.full_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));

@@ -51,6 +51,7 @@ This code is publicly released and is restricted by its project license
     app.use(upload.array());
     const sbiPort = 31000;
     let enableListening = (!systemglobal.Discord_Upload_Only);
+    let handledDeletes = {};
 
     const args = minimist(process.argv.slice(2));
     const { clone, fileSize, shuffle, filterItems, getIDfromText, convertIDtoUnix, msConversion } = require('./utils/tools');
@@ -8043,7 +8044,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: sqlObject });
+                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject} });
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
@@ -8355,7 +8356,10 @@ This code is publicly released and is restricted by its project license
                     messageData: {
                         ...eidData[0]
                     },
-                    messageUpdate: sqlObject
+                    messageUpdate: {
+                        ...sqlObject,
+                        id:  msg.id
+                    }
                 })
             } else {
                 await messageCreate(msg, {
