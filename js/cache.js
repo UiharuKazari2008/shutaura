@@ -228,15 +228,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             case "Reload" :
                 if (!!object.attachment_hash && object.eid) {
                     const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
-                    if (cacheItem.rows.length > 0)
-                        await deleteCacheItem(cacheItem.rows[0], false);
-                    backupMessage(object, complete, true);
+                    if (cacheItem.rows.length > 0) {
+                        moveMessage(cacheItem.rows[0], object, complete, true);
+                    } else {
+                        backupMessage(object, complete, true);
+                    }
                 } else {
                     complete(true);
                 }
                 break;
             case "Delete" :
-                let deletedAction = false;
                 const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE id_hint = ?`, [object.id]);
                 if (cacheItem.rows.length > 0)
                     await deleteCacheItem(cacheItem.rows[0], true);
@@ -565,6 +566,85 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             cb(requested_remotely || false)
         }
     }
+    async function moveMessage (previous, message, cb, requested_remotely) {
+        let attachements = {};
+
+        async function backupCompleted(path, preview, full, ext_0) {
+            const saveBackupSQL = await db.query(`UPDATE kanmi_records_cdn
+                                                  SET id_hint      = ?,
+                                                      path_hint    = ?,
+                                                      preview      = ?,
+                                                      preview_hint = ?,
+                                                      full         = ?,
+                                                      full_hint    = ?,
+                                                      ext_0        = ?,
+                                                      ext_0_hint   = ? 
+                                                  WHERE
+                                                      eid      = ? AND 
+                                                      host    = ?`, [
+                (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                message.id,
+                path,
+                (!!preview) ? 1 : 0,
+                (!!preview) ? preview : null,
+                (!!full) ? 1 : 0,
+                (!!full) ? full : null,
+                (!!ext_0) ? 1 : 0,
+                (!!ext_0) ? ext_0 : null,
+                message.eid,
+                systemglobal.CDN_ID,
+            ])
+            if (saveBackupSQL.error) {
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+            }
+        }
+
+        if (previous.full_hint) {
+            attachements['full'] = {
+                src: path.join(systemglobal.CDN_Base_Path, 'full', previous.path_hint, previous.full_hint),
+                dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel, previous.full_hint),
+            }
+        }
+        if (previous.preview_hint) {
+            attachements['preview'] = {
+                src: path.join(systemglobal.CDN_Base_Path, 'preview', previous.path_hint, previous.preview_hint),
+                dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel, previous.preview_hint),
+            }
+        }
+        if (previous.ext_0_hint) {
+            attachements['extended_preview'] = {
+                src: path.join(systemglobal.CDN_Base_Path, 'extended_preview', previous.path_hint, previous.ext_0_hint),
+                dest: path.join(systemglobal.CDN_Base_Path, 'extended_preview', message.server, message.channel, previous.ext_0_hint),
+            }
+        }
+
+        if (Object.keys(attachements).length > 0) {
+            let res = {};
+            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                return promiseChain.then(() => new Promise(async (blockOk) => {
+                    const val = attachements[k];
+                    fsEx.ensureDirSync(path.join(val.dest));
+                    fs.rename(val.src, val.dest, err => {
+                        if (err) {
+                            Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}`, "err", err);
+                            console.error(err)
+                        }
+                        res[k] = !err;
+                        blockOk();
+                    })
+                }))
+            }, Promise.resolve());
+            requests.then(async () => {
+                Logger.printLine("BackupFile", `Moved ${message.id}`, "debug")
+                if (Object.values(res).filter(f => !f).length === 0)
+                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview);
+                cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
+            });
+        } else {
+            Logger.printLine("BackupParts", `Nothing to do for item ${message.id}, No Data Available`, "error")
+            cb(requested_remotely || false)
+        }
+    }
 
     async function findBackupItems(focus_list) {
         return new Promise(async completed => {
@@ -696,6 +776,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
             }, Promise.resolve());
             requests.then(() => {
+                setTimeout(findBackupItems, (systemglobal.CDN_Verify_Interval_Min) ? systemglobal.CDN_Verify_Interval_Min * 60000 : 3610000);
                 completed();
             });
         })
