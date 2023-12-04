@@ -749,6 +749,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
                                 return promiseChain.then(() => new Promise(async (resolveMessages) => {
                                     if (message.full_hint) {
+                                        console.log(full[0])
+                                        console.log(message.full_hint)
                                         if (full.indexOf(message.full_hint) === -1)
                                             deleteID.set(message.eid, false);
                                     }
@@ -825,7 +827,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             await findBackupItems();
             await validateStorage();
-        }, 30000)
+        }, 10000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
     }
