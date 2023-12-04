@@ -577,7 +577,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                   WHERE
                                                       eid      = ? AND 
                                                       host    = ?`, [
-                (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
                 message.id,
                 path,
                 message.eid,
