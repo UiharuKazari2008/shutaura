@@ -747,23 +747,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 orphok();
                             })
 
-                            await Promise.all(messages.rows.filter(e => !!e.heid).map(message => {
-                                if (message.full_hint) {
-                                    if (full.indexOf(message.full_hint) === -1) {
-                                        deleteID.set(message.eid, false);
-                                    }
-                                }
-                                if (message.preview_hint) {
-                                    if (previews.indexOf(message.preview_hint) === -1) {
-                                        deleteID.set(message.eid, false);
-                                    }
-                                }
-                                if (message.ext_0_hint) {
-                                    if (ext_previews.indexOf(message.ext_0_hint) === -1) {
-                                        deleteID.set(message.eid, false);
-                                    }
-                                }
-                            }))
+                            messages.rows.filter(e => !!e.heid && e.full_hint && full.indexOf(e.full_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            messages.rows.filter(e => !!e.heid && e.preview_hint &&  previews.indexOf(e.preview_hint) === -1).map(e => deleteID.set(e.eid, false));
+                            messages.rows.filter(e => !!e.heid && e.ext_0_hint && ext_previews.indexOf(e.ext_0_hint) === -1).map(e => deleteID.set(e.eid, false));
+
                             if (deleteID.size > 0) {
                                 if (deleteID.size > 100) {
                                     function splitArray(array, chunkSize) {
