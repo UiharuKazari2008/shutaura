@@ -764,12 +764,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                 }
                             }))
-                            let messages_verify = messages.rows.filter(e => !!e.heid).reduce((promiseChain, message, i, a) => {
-                                return promiseChain.then(() => new Promise(async (resolveMessages) => {
-
-                                    resolveMessages();
-                                }))
-                            }, Promise.resolve());
                             if (deleteID.size > 0) {
                                 if (deleteID.size > 100) {
                                     function splitArray(array, chunkSize) {
