@@ -728,7 +728,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         return promiseChain.then(() => new Promise(async (blockOk) => {
                                             const val = attachements[k];
                                             if (!fs.existsSync(val)) {
-                                                console.error(`Invalid Cache File = ${val)}`);
+                                                console.error(`Invalid Cache File = ${val}`);
                                                 db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [message.eid, systemglobal.CDN_ID]);
                                             }
                                             blockOk();
