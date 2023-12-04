@@ -127,6 +127,141 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
     const MQWorker1 = systemglobal.CDN_In + '.' + systemglobal.CDN_ID;
+
+    async function validateStorage() {
+        return new Promise(async (completed) => {
+            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0`)
+            let requests = channels.rows.reduce((promiseChain, c, i, a) => {
+                return promiseChain.then(() => new Promise(async (resolveChannel) => {
+                    const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
+                    const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
+                    const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
+                    let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
+                    let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
+                    let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+
+                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
+
+                    if (full.length > 0 || previews.length > 0) {
+                        let deleteID = new Map();
+                        const messages = await db.query(`SELECT x.eid, y.*
+                                                 FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
+                                                          LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
+                        if (messages.rows.length > 0) {
+                            const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
+                            const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
+                            const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
+
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Preview`)
+                            await new Promise(orphok => {
+                                let removed = 0;
+                                for (let i = 0; i < previews.length; i++) {
+                                    if (preview_files.indexOf(previews[i]) === -1) {
+                                        fs.unlinkSync(path.join(dir_previews, previews[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} previews deleted items storage`, "info");
+                                    previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
+                                }
+                                orphok();
+                            })
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Full`)
+                            await new Promise(orphok => {
+                                let removed = 0;
+                                for (let i = 0; i < full.length; i++) {
+                                    if (full_files.indexOf(full[i]) === -1) {
+                                        fs.unlinkSync(path.join(dir_full, full[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} full deleted items storage`, "info");
+                                    full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+                                }
+                                orphok();
+                            })
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Orphaned Files - Ext Previews`)
+                            await new Promise(orphok => {
+                                let removed = 0;
+                                for (let i = 0; i < ext_previews.length; i++) {
+                                    if (ext_preview_files.indexOf(ext_previews[i]) === -1) {
+                                        fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
+                                        removed++;
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} ext_previews deleted items storage`, "info");
+                                    ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
+                                }
+                                orphok();
+                            })
+
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Full`)
+                            for (let i = 0; i < full_files.length; i++) {
+                                if (full.indexOf(full_files[i]) === -1) {
+                                    deleteID.set(full_files[i].eid, false)
+                                }
+                            }
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Preview`)
+                            for (let i = 0; i < preview_files.length; i++) {
+                                if (previews.indexOf(preview_files[i]) === -1) {
+                                    deleteID.set(preview_files[i].eid, false)
+                                }
+                            }
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Ext Previews`)
+                            for (let i = 0; i < ext_preview_files.length; i++) {
+                                if (ext_previews.indexOf(ext_preview_files[i]) === -1) {
+                                    deleteID.set(ext_preview_files[i].eid, false)
+                                }
+                            }
+
+                            if (deleteID.size > 0) {
+                                if (deleteID.size > 100) {
+                                    function splitArray(array, chunkSize) {
+                                        const result = [];
+
+                                        for (let i = 0; i < array.length; i += chunkSize) {
+                                            result.push(array.slice(i, i + chunkSize));
+                                        }
+
+                                        return result;
+                                    }
+                                    (splitArray(Array.from(deleteID.keys()), 50)).map(async h => {
+                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${h.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                        console.log('DELETE BATCH')
+                                    })
+
+                                } else {
+                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
+                                }
+                                Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
+                            }
+                            resolveChannel();
+                        } else {
+                            resolveChannel();
+                        }
+                    } else {
+                        resolveChannel();
+                    }
+                }))
+            }, Promise.resolve());
+            requests.then(() => {
+                console.log('Storage has been verified!')
+                //setTimeout(findBackupItems, (systemglobal.CDN_Verify_Interval_Min) ? systemglobal.CDN_Verify_Interval_Min * 60000 : 3610000);
+                completed();
+            });
+        })
+    }
+    await validateStorage();
+
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
     // Kanmi MQ Backend
@@ -698,138 +833,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         });
     }
 
-    async function validateStorage() {
-        return new Promise(async (completed) => {
-            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0`)
-            let requests = channels.rows.reduce((promiseChain, c, i, a) => {
-                return promiseChain.then(() => new Promise(async (resolveChannel) => {
-                    const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
-                    const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
-                    const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
-                    let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
-                    let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
-                    let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
 
-                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
-
-                    if (full.length > 0 || previews.length > 0) {
-                        let deleteID = new Map();
-                        const messages = await db.query(`SELECT x.eid, y.*
-                                                 FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
-                                                          LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
-                        if (messages.rows.length > 0) {
-                            const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
-                            const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
-                            const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
-
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Orphaned Files - Preview`)
-                            await new Promise(orphok => {
-                                let removed = 0;
-                                for (let i = 0; i < previews.length; i++) {
-                                    if (preview_files.indexOf(previews[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_previews, previews[i]))
-                                        removed++;
-                                    }
-                                }
-                                if (removed > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${removed} previews deleted items storage`, "info");
-                                    previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
-                                }
-                                orphok();
-                            })
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Orphaned Files - Full`)
-                            await new Promise(orphok => {
-                                let removed = 0;
-                                for (let i = 0; i < full.length; i++) {
-                                    if (full_files.indexOf(full[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_full, full[i]))
-                                        removed++;
-                                    }
-                                }
-                                if (removed > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${removed} full deleted items storage`, "info");
-                                    full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
-                                }
-                                orphok();
-                            })
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Orphaned Files - Ext Previews`)
-                            await new Promise(orphok => {
-                                let removed = 0;
-                                for (let i = 0; i < ext_previews.length; i++) {
-                                    if (ext_preview_files.indexOf(ext_previews[i]) === -1) {
-                                        fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
-                                        removed++;
-                                    }
-                                }
-                                if (removed > 0) {
-                                    Logger.printLine("Sweeper", `Removed ${removed} ext_previews deleted items storage`, "info");
-                                    ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
-                                }
-                                orphok();
-                            })
-
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Stored Files - Full`)
-                            for (let i = 0; i < full_files.length; i++) {
-                                if (full.indexOf(full_files[i]) === -1) {
-                                    deleteID.set(full_files[i].eid, false)
-                                }
-                            }
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Stored Files - Preview`)
-                            for (let i = 0; i < preview_files.length; i++) {
-                                if (previews.indexOf(preview_files[i]) === -1) {
-                                    deleteID.set(preview_files[i].eid, false)
-                                }
-                            }
-                            if (messages.rows.length > 100000)
-                                console.log(`Processing Stored Files - Ext Previews`)
-                            for (let i = 0; i < ext_preview_files.length; i++) {
-                                if (ext_previews.indexOf(ext_preview_files[i]) === -1) {
-                                    deleteID.set(ext_preview_files[i].eid, false)
-                                }
-                            }
-
-                            if (deleteID.size > 0) {
-                                if (deleteID.size > 100) {
-                                    function splitArray(array, chunkSize) {
-                                        const result = [];
-
-                                        for (let i = 0; i < array.length; i += chunkSize) {
-                                            result.push(array.slice(i, i + chunkSize));
-                                        }
-
-                                        return result;
-                                    }
-                                    (splitArray(Array.from(deleteID.keys()), 50)).map(async h => {
-                                        await db.query(`DELETE FROM kanmi_records_cdn WHERE (${h.map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
-                                        console.log('DELETE BATCH')
-                                    })
-
-                                } else {
-                                    await db.query(`DELETE FROM kanmi_records_cdn WHERE (${Array.from(deleteID.keys()).map(e => 'heid = ' + (parseInt(e.toString()) * parseInt(systemglobal.CDN_ID.toString()))).join(' OR ')}) AND host = ? LIMIT 100`, [systemglobal.CDN_ID]);
-                                }
-                                Logger.printLine("SQL", `Removed ${deleteID.size} Invalid items from cache`, "info");
-                            }
-                            resolveChannel();
-                        } else {
-                            resolveChannel();
-                        }
-                    } else {
-                        resolveChannel();
-                    }
-                }))
-            }, Promise.resolve());
-            requests.then(() => {
-                console.log('Storage has been verified!')
-                //setTimeout(findBackupItems, (systemglobal.CDN_Verify_Interval_Min) ? systemglobal.CDN_Verify_Interval_Min * 60000 : 3610000);
-                completed();
-            });
-        })
-    }
 
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
@@ -853,7 +857,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
             }
             await findBackupItems();
-            await validateStorage();
         }, 30000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
