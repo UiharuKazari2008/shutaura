@@ -751,7 +751,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
             }, Promise.resolve());
             requests.then(() => {
-                setTimeout(findBackupItems, (systemglobal.CDN_Verify_Interval_Min) ? systemglobal.CDN_Verify_Interval_Min * 60000 : 3610000);
+                console.log('Storage has been verified!')
+                //setTimeout(findBackupItems, (systemglobal.CDN_Verify_Interval_Min) ? systemglobal.CDN_Verify_Interval_Min * 60000 : 3610000);
                 completed();
             });
         })
