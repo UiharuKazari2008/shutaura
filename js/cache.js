@@ -24,7 +24,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
-    const facilityName = 'Download-IO';
+    const facilityName = 'CDN';
 
     const path = require('path');
     const amqp = require('amqplib/callback_api');
@@ -51,7 +51,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
     let runCount = 0;
-    Logger.printLine("Init", "Download I/O", "info");
+    Logger.printLine("Init", "CDN", "info");
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -688,15 +688,53 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else {
                         Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
                     }
-                    completed();
+                    await clearDeadFiles();
                     setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+                    completed();
                 })
             } else {
                 Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                await clearDeadFiles();
                 setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 completed();
             }
         });
+    }
+    async function clearDeadFiles() {
+        // SELECT path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records);
+        const removedItems = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
+        if (removedItems.rows.length > 0) {
+            removedItems.rows.map(async deleteItem => {
+                if (deleteItem.full_hint) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
+                        Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
+                        console.error(e);
+                    }
+                }
+                if (deleteItem.preview_hint) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
+                        Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "info");
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                        console.error(e);
+                    }
+                }
+                if (deleteItem.ext_0_hint) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
+                        Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                        console.error(e);
+                    }
+                }
+                await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+            })
+        }
     }
 
     process.on('uncaughtException', function(err) {
