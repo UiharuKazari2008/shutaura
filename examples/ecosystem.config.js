@@ -118,10 +118,10 @@ module.exports = {
             }
         },
         {
-            name   : "Backup I/O",
+            name   : "CDN Sync",
             namespace: "june-dps",
-            script : "./js/backup.js",
-            cron_restart: '16 3 * * *',
+            script : "./js/cache.js",
+            cron_restart: '0 5 * * *',
             stop_exit_codes: [0],
             restart_delay: 5000,
             kill_timeout : 3000,
