@@ -490,6 +490,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         part_download.then(async () => {
                             Logger.printLine("BackupFile", `Download ${message.real_filename}`, "debug")
                             if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
+                                console.log(part_urls)
                                 const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
                                 await splitFile.mergeFiles(files, path.join(val.dest, destName));
                                 fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()), function (err) { });
