@@ -500,6 +500,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 //} catch (e) {
                                 //    res[k] = false;
                                 //}
+                                console.log(k)
+                                console.log(res)
                             } else {
                                 res[k] = false;
                             }
