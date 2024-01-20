@@ -468,8 +468,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     })
                                 })
                                 if (data) {
-                                    fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid));
-                                    const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid, u.url.split('?')[0].split('/').pop());
+                                    fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
+                                    const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString(), u.url.split('?')[0].split('/').pop());
                                     const write = await new Promise(ok => {
                                         fs.writeFile(filepath, data, async (err) => {
                                             if (err) {
@@ -492,7 +492,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
                                 const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
                                 await splitFile.mergeFiles(files, path.join(val.dest, destName));
-                                fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid), function (err) { });
+                                fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()), function (err) { });
                                 res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
                             } else {
                                 res[k] = false;
