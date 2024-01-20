@@ -410,7 +410,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (message.fileid) {
             const master_urls = await db.query(`SELECT url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
             if (master_urls.rows.length > 0) {
-                attachements['master'] = {
+                attachements['mfull'] = {
                     id: message.fileid,
                     filename: message.real_filename,
                     src: master_urls.rows,
@@ -431,7 +431,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else if (message.attachment_name) {
                         destName += '.' + message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
                     }
-                    if (k === 'master') {
+                    if (k === 'mfull') {
                         let part_urls = [];
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
@@ -482,7 +482,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     partOk();
                                 } else {
                                     Logger.printLine("DownloadFile", `Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
-                                    part_urls[k] = false;
+                                    part_urls[i] = false;
                                     partOk();
                                 }
                             }))
@@ -669,7 +669,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length > 0)
-                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.master);
+                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
                 cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
             });
         } else {
