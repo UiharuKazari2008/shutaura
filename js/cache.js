@@ -762,7 +762,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
             const q = `SELECT x.*, y.heid
                        FROM (SELECT rec.*, ext.data
-                             FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' OR ') + ') ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)' : ' AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)'} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' OR ') + ') (((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)' : ' AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)'} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE y.heid IS NULL
