@@ -304,6 +304,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
         async function backupCompleted(path, preview, full, ext_0, master) {
             if (message.id) {
+                console.log(`${message.eid} ${message.id} - ${path} - ${full} ${master} ${preview} ${ext_0}`)
                 const saveBackupSQL = await db.query(`INSERT INTO kanmi_records_cdn
                                                   SET heid         = ?,
                                                       eid          = ?,
@@ -488,21 +489,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }))
                         }, Promise.resolve());
                         part_download.then(async () => {
-                            Logger.printLine("BackupFile", `Download ${message.real_filename}`, "debug")
                             if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
                                 const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
                                 fsEx.ensureDirSync(path.join(val.dest));
                                 fsEx.removeSync(path.join(val.dest, destName));
                                 await splitFile.mergeFiles(files, path.join(val.dest, destName));
                                 fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
-                                //try {
+                                try {
                                     res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                //} catch (e) {
-                                //    res[k] = false;
-                                //}
-                                console.log(k)
-                                console.log(res)
+                                    Logger.printLine("BackupFile", `Download ${message.real_filename}`, "debug")
+                                } catch (e) {
+                                    res[k] = false;
+                                }
                             } else {
+                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
                                 res[k] = false;
                             }
                             blockOk();
