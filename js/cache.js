@@ -230,8 +230,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const object = {...message.messageData, ...message.messageUpdate};
         switch (message.messageIntent) {
             case "Reload" :
-                if (!!object.attachment_hash && object.eid) {
-                    const cacheItem = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
+                if (!!object.attachment_hash && object.eid && (!object.channel || (object.channel && systemglobal.CDN_Ignore_Channels.indexOf(object.channel) === -1)) && (!object.server || (object.server && systemglobal.CDN_Ignore_Servers.indexOf(object.server) === -1))) {
+                    const cacheItem = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
                     if (cacheItem.rows.length > 0 && !message.reCache) {
                         await moveMessage(cacheItem.rows[0], object, complete, true);
                     } else {
