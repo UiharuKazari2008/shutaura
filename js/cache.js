@@ -774,7 +774,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
                 ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
 
-            const included_focus = (async () => {
+            const included_focus = (() => {
                 if (focus_list) {
                     if (systemglobal.CDN_Ignore_Master_Channels)
                         return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL AND channel NOT IN (${systemglobal.CDN_Ignore_Master_Channels.join(', ')})))`
