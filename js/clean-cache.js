@@ -134,6 +134,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                         const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
 
+                        console.log(`DATABASE : Preview = ${preview_files.length} | Full = ${full_files.length} | Master = ${master_files.length}`)
+
                         if (messages.rows.length > 100000)
                             console.log(`Processing Orphaned Files - Preview`)
                         await new Promise(orphok => {
