@@ -116,13 +116,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
                     const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
-                    const dir_master = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
+                    const dir_mfull = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
                     let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
                     let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
                     let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
-                    let master = (fs.existsSync(dir_master)) ? fs.readdirSync(dir_master) : [];
+                    let mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
 
-                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${master.length}`)
+                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${mfull.length}`)
 
                     let deleteID = new Map();
                     const messages = await db.query(`SELECT y.*
@@ -130,11 +130,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                       LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                     if (messages.rows.length > 0) {
                         const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
-                        const master_files = messages.rows.filter(e => !!e.mfull_hint).map(e => e.mfull_hint);
+                        const mfull_files = messages.rows.filter(e => !!e.mfull_hint).map(e => e.mfull_hint);
                         const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                         const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
 
-                        console.log(`DATABASE : Preview = ${preview_files.length} | Full = ${full_files.length} | Master = ${master_files.length}`)
+                        console.log(`DATABASE : Preview = ${preview_files.length} | Full = ${full_files.length} | Master = ${mfull_files.length}`)
 
                         if (messages.rows.length > 100000)
                             console.log(`Processing Orphaned Files - Preview`)
@@ -179,10 +179,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             console.log(`Processing Orphaned Files - Master`)
                         await new Promise(orphok => {
                             let removed = 0;
-                            for (let i = 0; i < master.length; i++) {
-                                if (master_files.indexOf(master[i]) === -1) {
+                            for (let i = 0; i < mfull.length; i++) {
+                                if (mfull_files.indexOf(mfull[i]) === -1) {
                                     try {
-                                        fs.unlinkSync(path.join(dir_master, master[i]))
+                                        fs.unlinkSync(path.join(dir_mfull, mfull[i]))
                                         removed++;
                                     } catch (e) {
 
@@ -191,7 +191,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                             if (removed > 0) {
                                 Logger.printLine("Sweeper", `Removed ${removed} master deleted items storage`, "info");
-                                master = (fs.existsSync(dir_master)) ? fs.readdirSync(dir_master) : [];
+                                mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
                             }
                             orphok();
                         })
@@ -218,9 +218,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                         if (messages.rows.length > 100000)
                             console.log(`Processing Stored Files - Master`)
-                        for (let i = 0; i < master_files.length; i++) {
-                            if (master.indexOf(master_files[i]) === -1) {
-                                deleteID.set(master_files[i].eid, false)
+                        for (let i = 0; i < mfull_files.length; i++) {
+                            if (mfull.indexOf(mfull_files[i]) === -1) {
+                                deleteID.set(mfull_files[i].eid, false)
                             }
                         }
                         if (messages.rows.length > 100000)
