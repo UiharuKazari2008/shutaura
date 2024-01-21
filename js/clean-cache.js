@@ -127,7 +127,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (full.length > 0 || master.length > 0 || previews.length > 0) {
                         let deleteID = new Map();
                         const messages = await db.query(`SELECT x.eid, y.*
-                                                 FROM (SELECT eid, source, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
+                                                 FROM (SELECT eid, source, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
                             const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
