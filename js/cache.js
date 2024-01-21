@@ -269,6 +269,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 complete(true);
                 break;
             default :
+                Logger.printLine("Inbox", `Failed to parse intent: ${JSON.stringify(message)}`, "err");
                 complete(true);
                 break;
         }
