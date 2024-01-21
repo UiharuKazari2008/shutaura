@@ -123,19 +123,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
                     const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
+                    const dir_master = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
                     let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
                     let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
                     let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+                    let master = (fs.existsSync(dir_master)) ? fs.readdirSync(dir_master) : [];
 
-                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length}`)
+                    console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${master.length}`)
 
-                    if (full.length > 0 || previews.length > 0) {
+                    if (full.length > 0 || master.length > 0 || previews.length > 0) {
                         let deleteID = new Map();
                         const messages = await db.query(`SELECT x.eid, y.*
-                                                 FROM (SELECT eid, source, server, channel, attachment_name, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
+                                                 FROM (SELECT eid, source, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)) AND channel = ?) x
                                                           LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                         if (messages.rows.length > 0) {
                             const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
+                            const master_files = messages.rows.filter(e => !!e.mfull_hint).map(e => e.mfull_hint);
                             const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
                             const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
 
@@ -149,7 +152,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             fs.unlinkSync(path.join(dir_previews, previews[i]))
                                             removed++;
                                         } catch (e) {
-                                            
+
                                         }
                                     }
                                 }
@@ -169,13 +172,32 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             fs.unlinkSync(path.join(dir_full, full[i]))
                                             removed++;
                                         } catch (e) {
-                                            
+
                                         }
                                     }
                                 }
                                 if (removed > 0) {
                                     Logger.printLine("Sweeper", `Removed ${removed} full deleted items storage`, "info");
                                     full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+                                }
+                                orphok();
+                            })
+                                console.log(`Processing Orphaned Files - Master`)
+                            await new Promise(orphok => {
+                                let removed = 0;
+                                for (let i = 0; i < master.length; i++) {
+                                    if (master_files.indexOf(master[i]) === -1) {
+                                        try {
+                                            fs.unlinkSync(path.join(dir_master, master[i]))
+                                            removed++;
+                                        } catch (e) {
+
+                                        }
+                                    }
+                                }
+                                if (removed > 0) {
+                                    Logger.printLine("Sweeper", `Removed ${removed} master deleted items storage`, "info");
+                                    master = (fs.existsSync(dir_master)) ? fs.readdirSync(dir_master) : [];
                                 }
                                 orphok();
                             })
@@ -189,7 +211,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             fs.unlinkSync(path.join(dir_ext_previews, ext_previews[i]))
                                             removed++;
                                         } catch (e) {
-                                            
+
                                         }
                                     }
                                 }
@@ -200,6 +222,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 orphok();
                             })
 
+                            if (messages.rows.length > 100000)
+                                console.log(`Processing Stored Files - Master`)
+                            for (let i = 0; i < master_files.length; i++) {
+                                if (master.indexOf(master_files[i]) === -1) {
+                                    deleteID.set(master_files[i].eid, false)
+                                }
+                            }
                             if (messages.rows.length > 100000)
                                 console.log(`Processing Stored Files - Full`)
                             for (let i = 0; i < full_files.length; i++) {
