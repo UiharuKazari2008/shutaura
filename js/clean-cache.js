@@ -129,10 +129,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                              FROM (SELECT eid, source, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL) AND channel = ?) x
                                                       LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                     if (messages.rows.length > 0) {
-                        const preview_files = messages.rows.filter(e => !!e.preview_hint).map(e => e.preview_hint);
-                        const mfull_files = messages.rows.filter(e => !!e.mfull_hint).map(e => e.mfull_hint);
-                        const full_files = messages.rows.filter(e => !!e.full_hint).map(e => e.full_hint);
-                        const ext_preview_files = messages.rows.filter(e => !!e.ext_0_hint).map(e => e.ext_0_hint);
+                        const db_preview = messages.rows.filter(e => !!e.preview_hint);
+                        const db_mfull = messages.rows.filter(e => !!e.mfull_hint);
+                        const db_full = messages.rows.filter(e => !!e.full_hint);
+                        const db_ext_preview = messages.rows.filter(e => !!e.ext_0_hint);
+
+                        const preview_files = db_preview.map(e => e.preview_hint);
+                        const mfull_files = db_mfull.map(e => e.mfull_hint);
+                        const full_files = db_full.map(e => e.full_hint);
+                        const ext_preview_files = db_ext_preview.map(e => e.ext_0_hint);
 
                         console.log(`DATABASE : Preview = ${preview_files.length} | Full = ${full_files.length} | Master = ${mfull_files.length}`)
 
@@ -220,28 +225,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             console.log(`Processing Stored Files - Master`)
                         for (let i = 0; i < mfull_files.length; i++) {
                             if (mfull.indexOf(mfull_files[i]) === -1) {
-                                deleteID.set(mfull_files[i].eid, false)
+                                deleteID.set(db_mfull[i].eid, false)
                             }
                         }
                         if (messages.rows.length > 100000)
                             console.log(`Processing Stored Files - Full`)
                         for (let i = 0; i < full_files.length; i++) {
                             if (full.indexOf(full_files[i]) === -1) {
-                                deleteID.set(full_files[i].eid, false)
+                                deleteID.set(db_full[i].eid, false)
                             }
                         }
                         if (messages.rows.length > 100000)
                             console.log(`Processing Stored Files - Preview`)
                         for (let i = 0; i < preview_files.length; i++) {
                             if (previews.indexOf(preview_files[i]) === -1) {
-                                deleteID.set(preview_files[i].eid, false)
+                                deleteID.set(db_preview[i].eid, false)
                             }
                         }
                         if (messages.rows.length > 100000)
                             console.log(`Processing Stored Files - Ext Previews`)
                         for (let i = 0; i < ext_preview_files.length; i++) {
                             if (ext_previews.indexOf(ext_preview_files[i]) === -1) {
-                                deleteID.set(ext_preview_files[i].eid, false)
+                                deleteID.set(db_ext_preview[i].eid, false)
                             }
                         }
 
