@@ -87,22 +87,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Base_Path = _backup_config[0].param_data.base_path;
             }
             // {"backup_parts": true, "interval_min": 5, "backup_base_path": "/mnt/backup/", "pickup_base_path": "/mnt/data/kanmi-files/", "items_per_backup" : 2500}
-            const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'seq_cdn.ignore');
-            if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
-                if (_backup_ignore[0].param_data.channels)
-                    systemglobal.CDN_Ignore_Channels = _backup_ignore[0].param_data.channels;
-                if (_backup_ignore[0].param_data.servers)
-                    systemglobal.CDN_Ignore_Servers = _backup_ignore[0].param_data.servers;
-            }
             const _mq_cdn_in = systemparams_sql.filter(e => e.param_key === 'mq.cdn.in');
             if (_mq_cdn_in.length > 0 && _mq_cdn_in[0].param_value)
                 systemglobal.CDN_In = _mq_cdn_in[0].param_value;
-            const _backup_focus = systemparams_sql.filter(e => e.param_key === 'seq_cdn.focus');
+            const _backup_focus = systemparams_sql.filter(e => e.param_key === 'seq_cdn.verify.focus');
             if (_backup_focus.length > 0 && _backup_focus[0].param_data) {
                 if (_backup_focus[0].param_data.channels)
                     systemglobal.CDN_Focus_Channels = _backup_focus[0].param_data.channels;
-                if (_backup_focus[0].param_data.master_channels)
-                    systemglobal.CDN_Focus_Master_Channels = _backup_focus[0].param_data.master_channels;
             }
             backupSystemName = `${systemglobal.SystemName}${(systemglobal.CDN_ID) ? '-' + systemglobal.CDN_ID : ''}`
         }
@@ -117,9 +108,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
 
-    async function validateStorage() {
+    async function validateStorage(channel) {
         return new Promise(async (completed) => {
-            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0`)
+            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0${(channel) ? 'AND channel IN (' + channel.join(', ') + ')' : ''}`)
             let requests = channels.rows.reduce((promiseChain, c, i, a) => {
                 return promiseChain.then(() => new Promise(async (resolveChannel) => {
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
@@ -315,6 +306,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     if (systemglobal.CDN_Base_Path) {
+        if (systemglobal.CDN_Focus_Channels)
+            await validateStorage(systemglobal.CDN_Focus_Channels);
         await validateStorage();
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
