@@ -235,6 +235,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function doAction(message, complete) {
         const object = {...message.messageData, ...message.messageUpdate};
         switch (message.messageIntent) {
+            case "DownloadMaster" :
+                const foundItem = await db.query(`SELECT * FROM kanmi_records WHERE eid = ?`, [object.eid]);
+                if (foundItem.rows.length > 0) {
+                    await backupMessage({...foundItem.rows[0], ...object}, complete, true, true);
+                } else {
+                    complete(true);
+                }
+                break;
+            case "RemoveMaster" :
+                const cacheItemToRemove = await db.query(`SELECT * FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
+                if (cacheItemToRemove.rows.length > 0) {
+                    await deleteMasterCacheItem(cacheItemToRemove.rows[0]);
+                }
+                complete(true);
+                break;
             case "Reload" :
                 if (!!object.attachment_hash && object.eid && (!object.channel || (object.channel && systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.indexOf(object.channel) === -1)) && (!object.server || (object.server && systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.indexOf(object.server) === -1))) {
                     const cacheItem = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [object.eid, systemglobal.CDN_ID]);
@@ -261,6 +276,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     async function deleteCacheItem(deleteItem, deleteRow) {
         let deletedAction = false;
+        if (deleteItem.mfull_hint) {
+            try {
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
+                Logger.printLine("CDN Manager", `Delete master copy: ${deleteItem.eid}`, "info");
+                deletedAction = true;
+            } catch (e) {
+                Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
+                console.error(e);
+            }
+        }
         if (deleteItem.full_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
@@ -295,6 +320,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
         }
     }
+    async function deleteMasterCacheItem(deleteItem) {
+        if (deleteItem.mfull_hint) {
+            try {
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
+                Logger.printLine("CDN Manager", `Delete master copy (by request): ${deleteItem.eid}`, "info");
+                deletedAction = true;
+            } catch (e) {
+                Logger.printLine("CDN Manager", `Failed to delete master copy (by request): ${deleteItem.eid}`, "err", e.message);
+                console.error(e);
+            }
+            if (deleteItem.full_hint || deleteItem.preview_hint || deleteItem.ext_0_hint) {
+                db.query(`UPDATE kanmi_records_cdn SET mfull = 0, mfull_hint = null WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+            } else {
+                db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+            }
+        }
+    }
 
     try {
         if (!fs.existsSync(systemglobal.TempFolder))
@@ -310,7 +352,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
         async function backupCompleted(path, preview, full, ext_0, master) {
             if (message.id) {
-                console.log(`${message.eid} ${message.id} - ${path} - ${full} ${master} ${preview} ${ext_0}`)
                 const saveBackupSQL = await db.query(`INSERT INTO kanmi_records_cdn
                                                   SET heid         = ?,
                                                       eid          = ?,
@@ -444,7 +485,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
                                 const data = await new Promise(ok => {
                                     const url = u.url.split('?')[0].toString();
-                                    Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
+                                    //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
                                     request.get({
                                         url,
                                         headers: {
@@ -503,7 +544,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
                                 try {
                                     res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                    Logger.printLine("BackupFile", `Download ${message.real_filename}`, "debug")
+                                    Logger.printLine("BackupFile", `Download Master File ${message.real_filename}`, "debug")
                                 } catch (e) {
                                     res[k] = false;
                                 }
