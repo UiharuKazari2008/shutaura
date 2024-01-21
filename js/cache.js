@@ -106,6 +106,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Ignore_Channels = _backup_ignore[0].param_data.channels;
                 if (_backup_ignore[0].param_data.servers)
                     systemglobal.CDN_Ignore_Servers = _backup_ignore[0].param_data.servers;
+                if (_backup_ignore[0].param_data.master_channels)
+                    systemglobal.CDN_Ignore_Master_Channels = _backup_ignore[0].param_data.master_channels;
+                if (_backup_ignore[0].param_data.master_servers)
+                    systemglobal.CDN_Ignore_Master_Servers = _backup_ignore[0].param_data.master_servers;
             }
             const _mq_cdn_in = systemparams_sql.filter(e => e.param_key === 'mq.cdn.in');
             if (_mq_cdn_in.length > 0 && _mq_cdn_in[0].param_value)
@@ -114,6 +118,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_backup_focus.length > 0 && _backup_focus[0].param_data) {
                 if (_backup_focus[0].param_data.channels)
                     systemglobal.CDN_Focus_Channels = _backup_focus[0].param_data.channels;
+                if (_backup_focus[0].param_data.master_channels)
+                    systemglobal.CDN_Focus_Master_Channels = _backup_focus[0].param_data.master_channels;
             }
             backupSystemName = `${systemglobal.SystemName}${(systemglobal.CDN_ID) ? '-' + systemglobal.CDN_ID : ''}`
         }
@@ -299,7 +305,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         console.error('Failed to create the temp folder, not a issue if your using docker');
         console.error(e);
     }
-    async function backupMessage (message, cb, requested_remotely) {
+    async function backupMessage (message, cb, requested_remotely, allow_master_files) {
         let attachements = {};
 
         async function backupCompleted(path, preview, full, ext_0, master) {
@@ -408,7 +414,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 ext: message.data.preview_image.split('?')[0].split('.').pop()
             }
         }
-        if (message.fileid) {
+        if (message.fileid && (allow_master_files || !(systemglobal.CDN_Ignore_Master_Channels && systemglobal.CDN_Ignore_Master_Channels.indexOf(message.channel) !== -1))) {
             const master_urls = await db.query(`SELECT url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
             if (master_urls.rows.length > 0) {
                 attachements['mfull'] = {
@@ -768,12 +774,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
                 ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
 
+            const included_focus = (async () => {
+                if (focus_list) {
+                    if (systemglobal.CDN_Ignore_Master_Channels)
+                        return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL AND channel NOT IN (${systemglobal.CDN_Ignore_Master_Channels.join(', ')})))`
+                    return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL))`
+                }
+                return 'AND (attachment_hash IS NOT NULL AND attachment_extra IS NULL)'
+            })()
             const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
                        FROM (SELECT rec.*, ext.data
-                             FROM (SELECT * FROM kanmi_records WHERE source = 0 ${(focus_list) ? 'AND (' + focus_list.map(f => 'channel = ' + f).join(' OR ') + ') AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)' : ' AND (attachment_hash IS NOT NULL AND attachment_extra IS NULL)'} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
-                       WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
+                       WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                        ORDER BY RAND()
                        LIMIT ?`
             Logger.printLine("Search", `Preparing Search....`, "info");
@@ -793,7 +807,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                             resolve(ok)
                             m = null
-                        })
+                        }, false)
                     }))
                 }, Promise.resolve());
                 requests.then(async () => {
@@ -819,6 +833,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const removedItems = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             removedItems.rows.map(async deleteItem => {
+                if (deleteItem.mfull_hint) {
+                    try {
+                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
+                        Logger.printLine("CDN Manager", `Delete master copy: ${deleteItem.eid}`, "info");
+                    } catch (e) {
+                        Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
+                        console.error(e);
+                    }
+                }
                 if (deleteItem.full_hint) {
                     try {
                         fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));

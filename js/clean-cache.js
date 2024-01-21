@@ -101,6 +101,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (_backup_focus.length > 0 && _backup_focus[0].param_data) {
                 if (_backup_focus[0].param_data.channels)
                     systemglobal.CDN_Focus_Channels = _backup_focus[0].param_data.channels;
+                if (_backup_focus[0].param_data.master_channels)
+                    systemglobal.CDN_Focus_Master_Channels = _backup_focus[0].param_data.master_channels;
             }
             backupSystemName = `${systemglobal.SystemName}${(systemglobal.CDN_ID) ? '-' + systemglobal.CDN_ID : ''}`
         }
