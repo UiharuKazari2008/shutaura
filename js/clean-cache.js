@@ -110,7 +110,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     async function validateStorage(channel) {
         return new Promise(async (completed) => {
-            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0${(channel) ? 'AND channel IN (' + channel.join(', ') + ')' : ''}`)
+            const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0 ${(channel) ? 'AND channel IN (' + channel.join(', ') + ')' : ''}`)
             let requests = channels.rows.reduce((promiseChain, c, i, a) => {
                 return promiseChain.then(() => new Promise(async (resolveChannel) => {
                     const dir_previews = path.join(systemglobal.CDN_Base_Path, 'preview', c.serverid, c.channelid);
