@@ -846,12 +846,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function findEpisodeItems() {
-        let ignoreQuery = [];
-        if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
-            ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
-        if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
-            ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
-
         const q = `SELECT x.*,
                           y.heid,
                           y.full,
@@ -874,8 +868,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                            INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND (' + systemglobal.CDN_Focus_Media_Groups.map(e => 'media_group = "' + e + '"').join(' OR ') + ')' : ''}) g
                                                                                       ON (g.media_group = s.media_group)) shows
                                                                  ON (episodes.show_id = shows.show_id))
-                                 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR
-                                      fileid IS NOT NULL) ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                                 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)) rec
                                   LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                             LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                    WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
