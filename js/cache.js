@@ -120,6 +120,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Focus_Channels = _backup_focus[0].param_data.channels;
                 if (_backup_focus[0].param_data.master_channels)
                     systemglobal.CDN_Focus_Master_Channels = _backup_focus[0].param_data.master_channels;
+                if (_backup_focus[0].param_data.media_groups)
+                    systemglobal.CDN_Focus_Media_Groups = _backup_focus[0].param_data.media_groups;
+                if (_backup_focus[0].param_data.prefetch_episodes)
+                    systemglobal.CDN_PreFetch_Episodes = _backup_focus[0].param_data.prefetch_episodes;
             }
             backupSystemName = `${systemglobal.SystemName}${(systemglobal.CDN_ID) ? '-' + systemglobal.CDN_ID : ''}`
         }
@@ -808,36 +812,89 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function findBackupItems(focus_list) {
-        return new Promise(async completed => {
-            runCount++
-            let ignoreQuery = [];
-            if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
-                ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
-            if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
-                ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
+        let ignoreQuery = [];
+        if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
+        if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
 
-            const included_focus = (() => {
-                if (focus_list) {
-                    if (systemglobal.CDN_Ignore_Master_Channels)
-                        return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL AND channel NOT IN (${systemglobal.CDN_Ignore_Master_Channels.join(', ')})))`
-                    return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL))`
-                }
-                return 'AND (attachment_hash IS NOT NULL AND attachment_extra IS NULL)'
-            })()
-            const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
+        const included_focus = (() => {
+            if (focus_list) {
+                if (systemglobal.CDN_Ignore_Master_Channels)
+                    return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL AND channel NOT IN (${systemglobal.CDN_Ignore_Master_Channels.join(', ')})))`
+                return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL))`
+            }
+            return 'AND (attachment_hash IS NOT NULL AND attachment_extra IS NULL)'
+        })()
+        const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
                        FROM (SELECT rec.*, ext.data
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                        ORDER BY RAND()
-                       LIMIT ?`
-            Logger.printLine("Search", `Preparing Search....`, "info");
-            const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
-            if (backupItems.error) {
-                Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
-                completed();
-            } else if (backupItems.rows.length > 0) {
+                       LIMIT ?`;
+        Logger.printLine("Search", `Preparing Search....`, "info");
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
+        } else {
+            await handleBackupItems(backupItems);
+            await clearDeadFiles();
+            setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+            return null;
+        }
+    }
+    async function findEpisodeItems() {
+        let ignoreQuery = [];
+        if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
+        if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
+
+        const q = `SELECT x.*,
+                          y.heid,
+                          y.full,
+                          y.mfull,
+                          y.preview,
+                          y.ext_0,
+                          y.ext_1,
+                          y.ext_2,
+                          y.ext_3
+                   FROM (SELECT rec.*, ext.data
+                         FROM (SELECT *
+                               FROM kanmi_records
+                               WHERE source = 0
+                                 AND eid IN (SELECT eid
+                                             FROM (SELECT eid, episode_num, show_id
+                                                   FROM kongou_episodes
+                                                   WHERE season_num > 0 AND episode_num <= ${systemglobal.CDN_PreFetch_Episodes || 3}) episodes
+                                                      INNER JOIN (SELECT s.*
+                                                                  FROM (SELECT * FROM kongou_shows) s
+                                                                           INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND media_group IN (' + systemglobal.CDN_Focus_Media_Groups.join(', ') + ')' : ''}) g
+                                                                                      ON (g.media_group = s.media_group)) shows
+                                                                 ON (episodes.show_id = shows.show_id))
+                                 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR
+                                      fileid IS NOT NULL) ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                                  LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                            LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                   WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
+                   ORDER BY RAND()
+                   LIMIT ?`;
+        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
+        } else {
+            await handleBackupItems(backupItems);
+            setTimeout(findEpisodeItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+            return null;
+        }
+    }
+    async function handleBackupItems(backupItems) {
+        return new Promise(async completed => {
+            runCount++;
+            if (backupItems.rows.length > 0) {
                 let total = backupItems.rows.length
                 let ticks = 0
                 let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
@@ -858,14 +915,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     } else {
                         Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
                     }
-                    await clearDeadFiles();
-                    setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                     completed();
                 })
             } else {
                 Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                await clearDeadFiles();
-                setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 completed();
             }
         });
@@ -936,6 +989,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         setTimeout(async () => {
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
+            }
+            if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
+                await findEpisodeItems();
             }
             await findBackupItems();
         }, 30000)
