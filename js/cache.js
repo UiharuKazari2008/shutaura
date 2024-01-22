@@ -918,7 +918,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function clearDeadFiles() {
         // SELECT path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records);
-        const removedItems = await db.query(`SELECT eid, path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
+        const removedItems = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             removedItems.rows.map(async deleteItem => {
                 if (deleteItem.mfull_hint) {
