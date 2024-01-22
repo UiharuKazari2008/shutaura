@@ -427,8 +427,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     returnedImage(null)
                 } else {
                     const imageBuffer = Buffer.from(body)
-                    const fileSizeInMegabytes = imageBuffer.byteLength / 1000000.0;
-                    if (fileSizeInMegabytes > 7.8) {
+                    if (imageBuffer.byteLength >= 8178892) {
                         returnedImage(await resizeImage(imageBuffer))
                     } else {
                         returnedImage(imageBuffer.toString('base64'))

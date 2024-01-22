@@ -1423,7 +1423,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							})
 						})
 					}
-					if (imageSize.length / 1000000 > 5 ){
+					if (imageSize.length >= 8178892 ){
 						Logger.printLine("TwitterMedia", `Account ${twitterUser}: File is to large for Twitter, will resize it down`, "info", imageSize)
 						const scaleSize = 2500 // Lets Shoot for 2100?
 						let resizeParam = {
