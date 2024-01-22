@@ -871,7 +871,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                    WHERE season_num > 0 AND episode_num <= ${systemglobal.CDN_PreFetch_Episodes || 3}) episodes
                                                       INNER JOIN (SELECT s.*
                                                                   FROM (SELECT * FROM kongou_shows) s
-                                                                           INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND media_group IN (' + systemglobal.CDN_Focus_Media_Groups.join(', ') + ')' : ''}) g
+                                                                           INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND (' + systemglobal.CDN_Focus_Media_Groups.map(e => 'media_group = "' + e + '"').join(' OR ') + ')' : ''}) g
                                                                                       ON (g.media_group = s.media_group)) shows
                                                                  ON (episodes.show_id = shows.show_id))
                                  AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR
