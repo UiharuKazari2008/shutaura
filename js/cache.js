@@ -879,12 +879,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
-            await handleBackupItems(backupItems);
+            await handleBackupItems(backupItems, true);
             setTimeout(findEpisodeItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
             return null;
         }
     }
-    async function handleBackupItems(backupItems) {
+    async function handleBackupItems(backupItems, allow_master) {
         return new Promise(async completed => {
             runCount++;
             if (backupItems.rows.length > 0) {
@@ -899,7 +899,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }
                             resolve(ok)
                             m = null
-                        }, false)
+                        }, false, allow_master)
                     }))
                 }, Promise.resolve());
                 requests.then(async () => {
