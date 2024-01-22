@@ -30,6 +30,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const fs = require("fs");
     const minimist = require("minimist");
     let args = minimist(process.argv.slice(2));
+    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
@@ -312,7 +313,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (systemglobal.CDN_Focus_Channels)
             await validateStorage(systemglobal.CDN_Focus_Channels);
         await validateStorage();
+        await sleep(5000);
     } else {
-        Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
+        Logger.printLine("Init", "Unable to start client, no directory setup!", "error")
     }
 })()
