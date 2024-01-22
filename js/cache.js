@@ -824,7 +824,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL AND channel NOT IN (${systemglobal.CDN_Ignore_Master_Channels.join(', ')})))`
                 return `AND (channel IN (${focus_list.join(', ')})) AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL))`
             }
-            return 'AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL))'
+            return 'AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)'
         })()
         const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
                        FROM (SELECT rec.*, ext.data
