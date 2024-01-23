@@ -802,7 +802,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await backupCompleted(`${message.server}/${message.channel}`);
                     cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 } else {
-                    await backupMessage(message, cb, true);
+                    cb(true);
                 }
             });
         } else {
