@@ -724,11 +724,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0)
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
-                cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
+                cb(true);
             });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
-            cb(requested_remotely || false)
+            cb(false)
         }
     }
     async function moveMessage (previous, message, cb, requested_remotely) {
