@@ -840,8 +840,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
             await handleBackupItems(backupItems);
+            if (!focus_list)
+                setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
             await clearDeadFiles();
-            setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
             return null;
         }
     }
@@ -980,13 +981,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
         console.log("Waiting 30sec before normal tasks..")
         setTimeout(async () => {
-            if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
-                await findEpisodeItems();
-            }
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
             }
             await findBackupItems();
+            if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
+                await findEpisodeItems();
+            }
         }, 30000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
