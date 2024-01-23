@@ -2152,7 +2152,6 @@ This code is publicly released and is restricted by its project license
                         }
                         break;
                     default:
-                        SendMessage("No Matching Command for " + MessageContents.messageAction, "Command", (ChannelData) ? ChannelData.guild.id : "main", "warn")
                         if (MessageContents.messageReturn === true) {
                             mqClient.sendData(MessageContents.fromClient, failcase, function (ok) {
 
