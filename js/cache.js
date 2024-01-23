@@ -927,7 +927,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("CDN Manager", `Delete master copy: ${deleteItem.eid}`, "info");
                     } catch (e) {
                         Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
-                        console.error(e);
+                        //console.error(e);
                     }
                 }
                 if (deleteItem.full_hint) {
@@ -936,7 +936,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
                     } catch (e) {
                         Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
-                        console.error(e);
+                        //console.error(e);
                     }
                 }
                 if (deleteItem.preview_hint) {
@@ -945,7 +945,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "info");
                     } catch (e) {
                         Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
-                        console.error(e);
+                        //console.error(e);
                     }
                 }
                 if (deleteItem.ext_0_hint) {
@@ -954,7 +954,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
                     } catch (e) {
                         Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
-                        console.error(e);
+                        //console.error(e);
                     }
                 }
                 await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
