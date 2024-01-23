@@ -840,10 +840,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
             await handleBackupItems(backupItems);
-            if (!focus_list)
+            if (!focus_list) {
                 setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-            await clearDeadFiles();
-            return null;
+                await clearDeadFiles();
+            }
         }
     }
     async function findEpisodeItems() {
@@ -984,10 +984,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.CDN_Focus_Channels) {
                 await findBackupItems(systemglobal.CDN_Focus_Channels);
             }
-            await findBackupItems();
             if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                 await findEpisodeItems();
             }
+            await findBackupItems();
+            console.log("First Pass OK")
         }, 30000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
