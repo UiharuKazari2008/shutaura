@@ -953,7 +953,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         }
                     ];
                 }
-                let requests = actionList.rows.reduce((promiseChain, releaseCollection, i, a) => {
+                let requests = actionList.reduce((promiseChain, releaseCollection, i, a) => {
                     return promiseChain.then(() => new Promise(async(tweetOK) => {
                         let keyIndex = -1;
                         if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
