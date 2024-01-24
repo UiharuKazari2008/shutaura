@@ -1323,7 +1323,7 @@ This code is publicly released and is restricted by its project license
                                 cb(true);
                             })
                         break;
-                    /*case 'CacheColor':
+                    case 'CacheColor':
                         const messageData = await db.query(`SELECT id, channel, attachment_name, attachment_hash, cache_proxy FROM kanmi_records WHERE id = ? AND channel = ?`, [MessageContents.messageID, MessageContents.messageChannelID])
                         if (messageData.error) {
                             printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
@@ -1338,7 +1338,7 @@ This code is publicly released and is restricted by its project license
                             Logger.printLine("Discord", `Unable to cache item ${MessageContents.messageID}!`, "warn")
                             cb(true);
                         }
-                        break;*/
+                        break;
                     case 'CacheImage':
                     case 'CacheVideo':
                         discordClient.getMessage(ChannelID, MessageContents.messageID)
