@@ -229,7 +229,7 @@ const fs = require("fs");
 
                 const postName = $('[itemprop="headline"]')[0].innerText
                 const userName = $('div[class="picture-object"] > div[class="object-meta"] > a')[0].innerText
-                const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].title
+                const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].attribs.title
                 const description = $('div[class="user-expression"] > div[class="user-expression-content"] > div[class="bbcode"]')
                 const descri_meta = $('div[class="user-expression"] > a[class="avatar"]')
                 let text = []
@@ -241,7 +241,7 @@ const fs = require("fs");
                                     case 'br':
                                         break;
                                     case 'a':
-                                        text.push(e.href);
+                                        text.push(e.attribs.href);
                                         break;
                                     default:
                                         text.push(e.data);
@@ -256,7 +256,7 @@ const fs = require("fs");
                 } else if (description[0]) {
                     text.push(description[0].innerText);
                 }
-                const imageUrl = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].src
+                const imageUrl = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].attribs.src
                 let postText = `**🌠 ${userName}**`
                 if (postName)
                     postText += ' - ***' + postName + '***'
