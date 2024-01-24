@@ -233,7 +233,7 @@ const fs = require("fs");
                 const description = $('div[class="user-expression"] > div[class="user-expression-content"] > div[class="bbcode"]')
                 const descri_meta = $('div[class="user-expression"] > a[class="avatar"]')
                 let text = []
-                if (description[0].children) {
+                if (description[0] && description[0].children) {
                     description[0].children.map(e => {
                         switch (e.type) {
                             case 'tag':
