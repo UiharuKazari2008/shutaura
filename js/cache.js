@@ -555,6 +555,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             } else {
                                 Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
+                                if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount !== part_urls.length) {
+                                    await db.query(`UPDATE kanmi_records SET flagged = 1 WHERE eid = ?`, [message.eid])
+                                }
                                 res[k] = false;
                             }
                             blockOk();
@@ -828,7 +831,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })()
         const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
                        FROM (SELECT rec.*, ext.data
-                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0  AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
@@ -860,7 +863,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    FROM (SELECT rec.*, ext.data
                          FROM (SELECT *
                                FROM kanmi_records
-                               WHERE source = 0 AND hidden = 0 
+                               WHERE source = 0 AND flagged = 0  AND hidden = 0 
                                  AND eid IN (SELECT eid
                                              FROM (SELECT eid, episode_num, show_id
                                                    FROM kongou_episodes
