@@ -5383,7 +5383,7 @@ This code is publicly released and is restricted by its project license
                     "value": `${discordClient.guilds.size}`.substring(0, 1024),
                     "inline": true
                 })
-            } else {
+            } else if (!systemglobal.Coop_Worker) {
                 embed.fields.push({
                     "name": "📤 Outbox",
                     "value": `${discordMQMessages}`.substring(0, 1024),

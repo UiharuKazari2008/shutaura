@@ -227,13 +227,13 @@ const fs = require("fs");
                 const pulledItemPage = await got(post.url)
                 const $ = cheerio.load(pulledItemPage.body); // Parse Response
 
-                const postName = $('span[itemprop="headline"]')[0].attribs.title
-                const userName = $('div[class="picture-object"] > div[class="object-meta"] > a')[0].children[1].data
-                const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].attribs.title
-                const description = $('div[class="user-expression"] > div[class="expression"] > div[class="content"] > div[class="bbcode"]')
+                const postName = $('[itemprop="headline"]')[0].innerText
+                const userName = $('div[class="picture-object"] > div[class="object-meta"] > a')[0].innerText
+                const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].title
+                const description = $('div[class="user-expression"] > div[class="user-expression-content"] > div[class="bbcode"]')
                 const descri_meta = $('div[class="user-expression"] > a[class="avatar"]')
                 let text = []
-                if (description[0] && descri_meta[0] && descri_meta[0].attribs.href.split('/').pop().toLowerCase() === userName.toLowerCase()) {
+                if (description[0].children) {
                     description[0].children.map(e => {
                         switch (e.type) {
                             case 'tag':
@@ -241,7 +241,7 @@ const fs = require("fs");
                                     case 'br':
                                         break;
                                     case 'a':
-                                        text.push(e.attribs.href);
+                                        text.push(e.href);
                                         break;
                                     default:
                                         text.push(e.data);
@@ -253,8 +253,10 @@ const fs = require("fs");
                                 break;
                         }
                     })
+                } else if (description[0]) {
+                    text.push(description[0].innerText);
                 }
-                const imageUrl = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].attribs.src
+                const imageUrl = $('div[class="picture-object"] > div > div[class="the-picture"] > a > img')[0].src
                 let postText = `**🌠 ${userName}**`
                 if (postName)
                     postText += ' - ***' + postName + '***'
