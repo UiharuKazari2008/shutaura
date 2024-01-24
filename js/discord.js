@@ -5107,7 +5107,7 @@ This code is publicly released and is restricted by its project license
 
             let embed = {
                 "footer": {
-                    "text": `${(!enableListening) ? "Worker Status (" + systemglobal.SystemName + ")" : "System Status"}`,
+                    "text": `${(!enableListening) ? ((systemglobal.Coop_Worker) ? "Co-Op Node" : "Worker") + " Status (" + systemglobal.SystemName + ")" : "System Status"}`,
                     "icon_url": discordClient.guilds.get(guildID).iconURL
                 },
                 "timestamp": (new Date().toISOString()) + "",
@@ -5143,120 +5143,53 @@ This code is publicly released and is restricted by its project license
                 "color": 1473771,
                 "fields": []
             }
-            try {
-                const promisifiedRequest = function (options) {
-                    return new Promise((resolve, reject) => {
-                        request(options, (error, response, body) => {
-                            if (response) {
-                                return resolve(response);
-                            }
-                            if (error) {
-                                return reject(error);
-                            }
+            if (!(systemglobal.Coop_Worker && !enableListening)) {
+                try {
+                    const promisifiedRequest = function (options) {
+                        return new Promise((resolve, reject) => {
+                            request(options, (error, response, body) => {
+                                if (response) {
+                                    return resolve(response);
+                                }
+                                if (error) {
+                                    return reject(error);
+                                }
+                            });
                         });
-                    });
-                };
-                const ampqResponse = await promisifiedRequest({
-                    url: `http://${systemglobal.MQServer}:15672/api/queues`,
-                    headers: {
-                        'content-type': "application/json",
-                        "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
-                    }
-                })
-                let ampqJSON = [];
-                if (!ampqResponse.err && ampqResponse.body) {
-                    ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
-                } else if (ampqResponse.err) {
-                    console.error(ampqResponse.err)
-                }
-                await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
-                    UndeliveredMQ = e.messages;
-                })
-                await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
-                    discordMQMessages = discordMQMessages + e.messages
-                    let _name = ''
-                    let _return = '';
-                    let id = 0;
-                    switch (e.name.split('.')[0].toLowerCase()) {
-                        case 'inbox':
-                            _name += '📥'
-                            id = id + 10
-                            break;
-                        case 'outbox':
-                            _name += '📤'
-                            break;
-                        default:
-                            break;
-                    }
-                    switch (e.name.split('.discord').pop().toLowerCase()) {
-                        case '':
-                            _name += '⭐ Standard'
-                            id = id + 1
-                            break;
-                        case '.priority':
-                            _name += '💨 Priority'
-                            break;
-                        case '.package.priority':
-                            _name += '💨 Packaged Priority'
-                            break;
-                        case '.package':
-                            _name += '💨 Packaged'
-                            break;
-                        case '.backlog':
-                            _name += '☃ Backlog'
-                            id = id + 2
-                            break;
-                        case '.sequenzia':
-                            _name += '📋 Sequenzia'
-                            id = id + 2
-                            break;
-                        default:
-                            _name = e.name
-                            break;
-                    }
-                    if (e.messages > 0) {
-                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                    }
-                    if (e.message_bytes >= 1000000000) {
-                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                    } else if (e.message_bytes >= 1000000) {
-                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                    } else if (e.message_bytes >= 1000) {
-                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                    } else if (e.message_bytes > 100) {
-                        _return += `📦: ${e.message_bytes}B\n`
-                    }
-                    if (e.message_stats) {
-                        if (e.message_stats.publish > 1000000) {
-                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                        } else if (e.message_stats.publish > 1000) {
-                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                        } else if (e.message_stats.publish > 0) {
-                            _return += `📈: ▶${e.message_stats.publish}`
-                        } else {
-                            _return += `Never Activated`
+                    };
+                    const ampqResponse = await promisifiedRequest({
+                        url: `http://${systemglobal.MQServer}:15672/api/queues`,
+                        headers: {
+                            'content-type': "application/json",
+                            "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
                         }
-                        if (e.message_stats.publish > 0) {
-                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                        }
+                    })
+                    let ampqJSON = [];
+                    if (!ampqResponse.err && ampqResponse.body) {
+                        ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
+                    } else if (ampqResponse.err) {
+                        console.error(ampqResponse.err)
                     }
-                    if (e.messages > 2) {
-                        return [id, {
-                            "name": _name,
-                            "value": _return.substring(0, 1024),
-                        }]
-                    }
-                    return null
-                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                    discordMQ.fields.push(e[1])
-                })
-                if (MQWorkerMugino) {
-                    await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
+                    await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
+                        UndeliveredMQ = e.messages;
+                    })
+                    await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
                         discordMQMessages = discordMQMessages + e.messages
-                        let _name = '🛃'
+                        let _name = ''
                         let _return = '';
                         let id = 0;
-                        switch (e.name.split('.mugino').pop().toLowerCase()) {
+                        switch (e.name.split('.')[0].toLowerCase()) {
+                            case 'inbox':
+                                _name += '📥'
+                                id = id + 10
+                                break;
+                            case 'outbox':
+                                _name += '📤'
+                                break;
+                            default:
+                                break;
+                        }
+                        switch (e.name.split('.discord').pop().toLowerCase()) {
                             case '':
                                 _name += '⭐ Standard'
                                 id = id + 1
@@ -5264,8 +5197,18 @@ This code is publicly released and is restricted by its project license
                             case '.priority':
                                 _name += '💨 Priority'
                                 break;
+                            case '.package.priority':
+                                _name += '💨 Packaged Priority'
+                                break;
+                            case '.package':
+                                _name += '💨 Packaged'
+                                break;
                             case '.backlog':
                                 _name += '☃ Backlog'
+                                id = id + 2
+                                break;
+                            case '.sequenzia':
+                                _name += '📋 Sequenzia'
                                 id = id + 2
                                 break;
                             default:
@@ -5308,68 +5251,127 @@ This code is publicly released and is restricted by its project license
                     }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
                         discordMQ.fields.push(e[1])
                     })
+                    if (MQWorkerMugino) {
+                        await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
+                            discordMQMessages = discordMQMessages + e.messages
+                            let _name = '🛃'
+                            let _return = '';
+                            let id = 0;
+                            switch (e.name.split('.mugino').pop().toLowerCase()) {
+                                case '':
+                                    _name += '⭐ Standard'
+                                    id = id + 1
+                                    break;
+                                case '.priority':
+                                    _name += '💨 Priority'
+                                    break;
+                                case '.backlog':
+                                    _name += '☃ Backlog'
+                                    id = id + 2
+                                    break;
+                                default:
+                                    _name = e.name
+                                    break;
+                            }
+                            if (e.messages > 0) {
+                                _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                            }
+                            if (e.message_bytes >= 1000000000) {
+                                _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                            } else if (e.message_bytes >= 1000000) {
+                                _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                            } else if (e.message_bytes >= 1000) {
+                                _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                            } else if (e.message_bytes > 100) {
+                                _return += `📦: ${e.message_bytes}B\n`
+                            }
+                            if (e.message_stats) {
+                                if (e.message_stats.publish > 1000000) {
+                                    _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                                } else if (e.message_stats.publish > 1000) {
+                                    _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                                } else if (e.message_stats.publish > 0) {
+                                    _return += `📈: ▶${e.message_stats.publish}`
+                                } else {
+                                    _return += `Never Activated`
+                                }
+                                if (e.message_stats.publish > 0) {
+                                    _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                                }
+                            }
+                            if (e.messages > 2) {
+                                return [id, {
+                                    "name": _name,
+                                    "value": _return.substring(0, 1024),
+                                }]
+                            }
+                            return null
+                        }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                            discordMQ.fields.push(e[1])
+                        })
+                    }
+                    await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
+                        let _name = ''
+                        let _return = '';
+                        let id = 0;
+                        switch (e.name.split('.').pop().toLowerCase()) {
+                            case 'fileworker':
+                                _name += '⚙ Remote Requests'
+                                break;
+                            case 'backlog':
+                                _name += '⚙ Backlog Requests'
+                                id = id + 1
+                                break;
+                            case 'local':
+                                const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
+                                _name += '💽 ' + hostname + ' File Uploads'
+                                id = hostname
+                                break;
+                            default:
+                                _name += e.name
+                                break;
+                        }
+                        if (e.messages > 0) {
+                            _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                        }
+                        if (e.message_bytes >= 1000000000) {
+                            _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                        } else if (e.message_bytes >= 1000000) {
+                            _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                        } else if (e.message_bytes >= 1000) {
+                            _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                        } else if (e.message_bytes > 100) {
+                            _return += `📦: ${e.message_bytes}B\n`
+                        }
+                        if (e.message_stats) {
+                            if (e.message_stats.publish > 1000000) {
+                                _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                            } else if (e.message_stats.publish > 1000) {
+                                _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                            } else if (e.message_stats.publish > 0) {
+                                _return += `📈: ▶${e.message_stats.publish}`
+                            } else {
+                                _return += `Never Activated`
+                            }
+                            if (e.message_stats.publish > 0) {
+                                _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                            }
+                        }
+                        if (e.messages > 2) {
+                            return [id, {
+                                "name": _name,
+                                "value": _return.substring(0, 1024),
+                            }]
+                        }
+                        return null
+                    }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                        fileworkerMQ.fields.push(e[1])
+                    })
+                } catch (e) {
+                    console.error(e);
                 }
-                await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
-                    let _name = ''
-                    let _return = '';
-                    let id = 0;
-                    switch (e.name.split('.').pop().toLowerCase()) {
-                        case 'fileworker':
-                            _name += '⚙ Remote Requests'
-                            break;
-                        case 'backlog':
-                            _name += '⚙ Backlog Requests'
-                            id = id + 1
-                            break;
-                        case 'local':
-                            const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
-                            _name += '💽 ' + hostname + ' File Uploads'
-                            id = hostname
-                            break;
-                        default:
-                            _name += e.name
-                            break;
-                    }
-                    if (e.messages > 0) {
-                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                    }
-                    if (e.message_bytes >= 1000000000) {
-                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                    } else if (e.message_bytes >= 1000000) {
-                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                    } else if (e.message_bytes >= 1000) {
-                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                    } else if (e.message_bytes > 100) {
-                        _return += `📦: ${e.message_bytes}B\n`
-                    }
-                    if (e.message_stats) {
-                        if (e.message_stats.publish > 1000000) {
-                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                        } else if (e.message_stats.publish > 1000) {
-                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                        } else if (e.message_stats.publish > 0) {
-                            _return += `📈: ▶${e.message_stats.publish}`
-                        } else {
-                            _return += `Never Activated`
-                        }
-                        if (e.message_stats.publish > 0) {
-                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                        }
-                    }
-                    if (e.messages > 2) {
-                        return [id, {
-                            "name": _name,
-                            "value": _return.substring(0, 1024),
-                        }]
-                    }
-                    return null
-                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                    fileworkerMQ.fields.push(e[1])
-                })
-            } catch (e) {
-                console.error(e);
+                console.log(`Getting RabbitMQ Stats...`)
             }
-            console.log(`Getting RabbitMQ Stats...`)
             if (enableListening) {
                 embed.fields.push({
                     "name": "🏘 Servers",
@@ -5434,19 +5436,20 @@ This code is publicly released and is restricted by its project license
                     _ud.push("🅰 " + (`${(binChannel < 5) ? "🆕" : "🚨"} ${(binChannel < 5) ? binChannel : "5+"} Items Waiting`))
                 if (UndeliveredMQ > 0)
                     _ud.push("🅱 " + (`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`));
-            } else {
+            } else if (!systemglobal.Coop_Worker) {
                 if (UndeliveredMQ >= 5) {
                     systemFault = true;
                 }
                 if (UndeliveredMQ > 0)
                     _ud.push(`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`);
             }
-            embed.fields.push({
-                "name": "✉ Undelivered",
-                "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`.substring(0, 1024),
-                "inline": true
-            })
-
+            if (!(systemglobal.Coop_Worker && !enableListening)) {
+                embed.fields.push({
+                    "name": "✉ Undelivered",
+                    "value": `${(_ud.length > 0) ? _ud.join('\n') : '✅ None'}`.substring(0, 1024),
+                    "inline": true
+                })
+            }
             let _bt = '❔ Unknown'
             let _bc = null;
 
@@ -5928,10 +5931,10 @@ This code is publicly released and is restricted by its project license
                         };
                     }))
             }
-            if (discordMQ.fields.length > 0) {
+            if (discordMQ.fields.length > 0 && !(systemglobal.Coop_Worker && !enableListening)) {
                 embdedArray.push(discordMQ)
             }
-            if (fileworkerMQ.fields.length > 0) {
+            if (fileworkerMQ.fields.length > 0 && !(systemglobal.Coop_Worker && !enableListening)) {
                 embdedArray.push(fileworkerMQ)
             }
             if (systemFault || bannerFault.length > 0) {
