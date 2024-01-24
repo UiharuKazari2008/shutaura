@@ -386,11 +386,11 @@ const fs = require("fs");
                                             })
                                         })
                                     }))
-                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [postURL])
                                 } catch (err) {
                                     Logger.printLine('MPZeroPull-Post', `Failed to pull the Blog post page "${postURL}" - ${err.message}`, 'error');
                                     console.log(err);
                                 }
+                                await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [postURL])
                             });
                         }
                     }))
