@@ -840,6 +840,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
             await handleBackupItems(backupItems);
+            console.log("Done Parsing")
             if (!focus_list) {
                 setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 await clearDeadFiles();
