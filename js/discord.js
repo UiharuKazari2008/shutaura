@@ -341,6 +341,11 @@ This code is publicly released and is restricted by its project license
                     systemglobal.DiscordPrefix = _discord_values[0].param_data.prefix;
 
             }
+            const _discord_system = systemparams_sql.filter(e => e.param_key === 'discord.system');
+            if (_discord_system.length > 0 && _discord_system[0].param_data) {
+                if (_discord_system[0].param_data.coop_worker)
+                    systemglobal.Coop_Worker = _discord_system[0].param_data.coop_worker;
+            }
             // Discord Bot Info (Shown in Help)
             // DiscordOwner = "Yukimi Kazari"
             // DiscordDescription = "My Discord Bot"
