@@ -869,92 +869,92 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Overflow Condition, Releasing ${overFlowValuse} Tweets!`, "warn");
 		}
 		const twit = twitterAccounts.get(twitterUser)
-		for (let i = 0; i <= overFlowValuse; i +=1) {
-            const _tweetQueue = await db.query(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser]);
-            if (_tweetQueue.rows && _tweetQueue.rows.length > 0) {
-                const tweetQueue = _tweetQueue.rows;
-                let actionList = [];
-                if (action) {
-                    switch (action) {
-                        case 'send':
-                            actionList = [
-                                {
-                                    action: 'SendTweet',
-                                    type: 4,
-                                    tweets: tweetQueue.filter(e => { return e.action === 4 })
-                                }
-                            ];
-                            break;
-                        case 'rt':
-                            actionList = [
-                                {
-                                    action: ['add-Like', 'add-Retweet'],
-                                    type: 1,
-                                    tweets: tweetQueue.filter(e => { return e.action === 1 })
-                                },
-                                {
-                                    action: ['add-Retweet'],
-                                    type: 2,
-                                    tweets: tweetQueue.filter(e => { return e.action === 2 })
-                                },
-                                {
-                                    action: ['add-Like'],
-                                    type: 3,
-                                    tweets: tweetQueue.filter(e => { return e.action === 3 })
-                                }
-                            ];
-                            break;
-                        default:
-                            actionList = [
-                                {
-                                    action: ['add-Like', 'add-Retweet'],
-                                    type: 1,
-                                    tweets: tweetQueue.filter(e => { return e.action === 1 })
-                                },
-                                {
-                                    action: ['add-Retweet'],
-                                    type: 2,
-                                    tweets: tweetQueue.filter(e => { return e.action === 2 })
-                                },
-                                {
-                                    action: ['add-Like'],
-                                    type: 3,
-                                    tweets: tweetQueue.filter(e => { return e.action === 3 })
-                                },
-                                {
-                                    action: [],
-                                    type: 4,
-                                    tweets: tweetQueue.filter(e => { return e.action === 4 })
-                                }
-                            ];
-                            break;
-                    }
-                } else {
-                    actionList = [
-                        {
-                            action: ['add-Like', 'add-Retweet'],
-                            type: 1,
-                            tweets: tweetQueue.filter(e => { return e.action === 1 })
-                        },
-                        {
-                            action: ['add-Retweet'],
-                            type: 2,
-                            tweets: tweetQueue.filter(e => { return e.action === 2 })
-                        },
-                        {
-                            action: ['add-Like'],
-                            type: 3,
-                            tweets: tweetQueue.filter(e => { return e.action === 3 })
-                        },
-                        {
-                            action: [],
-                            type: 4,
-                            tweets: tweetQueue.filter(e => { return e.action === 4 })
+        setTimeout(() => {
+            db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
+                if (err) {
+                    Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
+                } else if (tweetQueue && tweetQueue.length > 0) {
+                    let actionList = [];
+                    if (action) {
+                        switch (action) {
+                            case 'send':
+                                actionList = [
+                                    {
+                                        action: 'SendTweet',
+                                        type: 4,
+                                        tweets: tweetQueue.filter(e => { return e.action === 4 })
+                                    }
+                                ];
+                                break;
+                            case 'rt':
+                                actionList = [
+                                    {
+                                        action: ['add-Like', 'add-Retweet'],
+                                        type: 1,
+                                        tweets: tweetQueue.filter(e => { return e.action === 1 })
+                                    },
+                                    {
+                                        action: ['add-Retweet'],
+                                        type: 2,
+                                        tweets: tweetQueue.filter(e => { return e.action === 2 })
+                                    },
+                                    {
+                                        action: ['add-Like'],
+                                        type: 3,
+                                        tweets: tweetQueue.filter(e => { return e.action === 3 })
+                                    }
+                                ];
+                                break;
+                            default:
+                                actionList = [
+                                    {
+                                        action: ['add-Like', 'add-Retweet'],
+                                        type: 1,
+                                        tweets: tweetQueue.filter(e => { return e.action === 1 })
+                                    },
+                                    {
+                                        action: ['add-Retweet'],
+                                        type: 2,
+                                        tweets: tweetQueue.filter(e => { return e.action === 2 })
+                                    },
+                                    {
+                                        action: ['add-Like'],
+                                        type: 3,
+                                        tweets: tweetQueue.filter(e => { return e.action === 3 })
+                                    },
+                                    {
+                                        action: [],
+                                        type: 4,
+                                        tweets: tweetQueue.filter(e => { return e.action === 4 })
+                                    }
+                                ];
+                                break;
                         }
-                    ];
-                }
-                let requests = actionList.reduce((promiseChain, releaseCollection, i, a) => {
-                    return promiseChain.then(() => new Promise(async(tweetOK) => {
+                    } else {
+                        actionList = [
+                            {
+                                action: ['add-Like', 'add-Retweet'],
+                                type: 1,
+                                tweets: tweetQueue.filter(e => { return e.action === 1 })
+                            },
+                            {
+                                action: ['add-Retweet'],
+                                type: 2,
+                                tweets: tweetQueue.filter(e => { return e.action === 2 })
+                            },
+                            {
+                                action: ['add-Like'],
+                                type: 3,
+                                tweets: tweetQueue.filter(e => { return e.action === 3 })
+                            },
+                            {
+                                action: [],
+                                type: 4,
+                                tweets: tweetQueue.filter(e => { return e.action === 4 })
+                            }
+                        ];
+                    }
+                    await Promise.all(actionList.map(async (releaseCollection) => {
                         let keyIndex = -1;
                         if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
                             /*async function tryTweet() {
@@ -989,7 +989,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             }
                             await tryTweet();*/
-                            tweetOK();
                         } else if (releaseCollection.tweets.length > 0 && releaseCollection.action.length > 0) {
                             async function tryTweet() {
                                 keyIndex++;
@@ -1054,15 +1053,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 if (results[0] === false) {
                                                     mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
                                                     Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
-                                                    tryTweet();
+                                                    tryTweet()
                                                 } else {
                                                     Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${releaseCollection.action.join('/')} to ${tweetID}: ${results}`, "info");
-                                                    tweetOK();
                                                 }
                                             } catch (e) {
                                                 Logger.printLine("TwitterInteract", `Failed to complete action for ${releaseCollection.action.join('/')} to ${id}: ${e.message}`, "error", e)
                                                 console.error(e)
-                                                tryTweet();
+                                                tryTweet()
                                             }
                                             closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
                                         } else {
@@ -1080,18 +1078,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             }
                             await tryTweet();
-                        } else {
-                            tweetOK();
                         }
                     }))
-                }, Promise.resolve());
-                requests.then(() => {
-
-                })
-            } else {
-                console.log('Empty Queue');
-            }
-		}
+                } else {
+                    console.log('Empty Queue');
+                }
+            })
+        }, (overFlowValuse - 1) * 5000)
 	}
 
 	// Twitter Functions
