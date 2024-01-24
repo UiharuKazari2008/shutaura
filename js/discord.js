@@ -2391,6 +2391,7 @@ This code is publicly released and is restricted by its project license
                         logLine: `Send Message: (${level}) Type: [${typeText}],${(MessageContents.fromDPS) ? ' PDP: ' + MessageContents.fromDPS : ''} From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
                         fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
                         tags: (MessageContents.messageTags) ? MessageContents.messageTags : undefined,
+                        safety: (MessageContents.messageSafety !== undefined && MessageContents.messageSafety !== null) ? MessageContents.messageSafety : undefined,
                         dps_host: (MessageContents.fromDPS) ? MessageContents.fromDPS: undefined,
                         extendedData: (MessageContents.extendedContent) ? MessageContents.extendedContent : undefined,
                         extendedAttachments: (MessageContents.extendedAttachments) ? MessageContents.extendedAttachments : undefined
@@ -8021,6 +8022,9 @@ This code is publicly released and is restricted by its project license
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
                             if (options && options.tags) {
                                 sqlObject.tags = options.tags;
+                            }
+                            if (options && options.safety) {
+                                sqlObject.safety = options.safety;
                             }
                             // Write to database
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
