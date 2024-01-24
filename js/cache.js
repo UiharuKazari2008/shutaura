@@ -814,7 +814,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
 
+    let activeParseing = false;
     async function findBackupItems(focus_list) {
+        activeParseing = true;
         let ignoreQuery = [];
         if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
             ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
@@ -845,12 +847,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await handleBackupItems(backupItems);
             console.log("Done Parsing")
             if (!focus_list) {
-                setTimeout(findBackupItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
                 await clearDeadFiles();
             }
         }
     }
     async function findEpisodeItems() {
+        activeParseing = true;
         const q = `SELECT x.*,
                           y.heid,
                           y.full,
@@ -885,8 +887,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
             await handleBackupItems(backupItems, true);
-            setTimeout(findEpisodeItems, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-            return null;
         }
     }
     async function handleBackupItems(backupItems, allow_master) {
@@ -992,7 +992,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 await findEpisodeItems();
             }
             await findBackupItems();
-            console.log("First Pass OK")
+            console.log("First Pass OK");
+            activeParseing = false;
+            setInterval(async () => {
+                if (activeParseing) {
+                    console.log('System Busy');
+                } else {
+                    await findBackupItems();
+                    await findEpisodeItems();
+                }
+                activeParseing = false;
+            }, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
         }, 30000)
     } else {
         Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
