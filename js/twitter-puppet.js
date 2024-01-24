@@ -2091,6 +2091,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		} catch (err) {
 			Logger.printLine("TabManager", `Failed to launch browser/tab: ${err.message}`, "error", err);
 			console.error(err);
+            if (err.message && err.message.includes("Failed to open new tab")) {
+                process.exit(100);
+            }
 			return false;
 		}
 	}
