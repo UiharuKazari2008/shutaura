@@ -223,7 +223,6 @@ const fs = require("fs");
     function sendFiguretoDiscord(post, passed) {
         blogItemLimit.removeTokens(1, async () => {
             try {
-                console.log(post.url);
                 const pulledItemPage = await got(post.url)
                 const $ = cheerio.load(pulledItemPage.body); // Parse Response
 
