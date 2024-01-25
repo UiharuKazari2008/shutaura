@@ -925,44 +925,50 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         // SELECT path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records);
         const removedItems = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
-            removedItems.rows.map(async deleteItem => {
-                if (deleteItem.mfull_hint) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
-                        Logger.printLine("CDN Manager", `Delete master copy: ${deleteItem.eid}`, "info");
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
-                        //console.error(e);
+            let requests = removedItems.rows.reduce((promiseChain, deleteItem, i, a) => {
+                return promiseChain.then(() => new Promise(async(resolve) => {
+                    if (deleteItem.mfull_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
+                            Logger.printLine("CDN Manager", `Delete master copy: ${deleteItem.eid}`, "info");
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
+                            //console.error(e);
+                        }
                     }
-                }
-                if (deleteItem.full_hint) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
-                        Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
-                        //console.error(e);
+                    if (deleteItem.full_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
+                            Logger.printLine("CDN Manager", `Delete full copy: ${deleteItem.eid}`, "info");
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
+                            //console.error(e);
+                        }
                     }
-                }
-                if (deleteItem.preview_hint) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
-                        Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "info");
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
-                        //console.error(e);
+                    if (deleteItem.preview_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
+                            Logger.printLine("CDN Manager", `Delete preview copy: ${deleteItem.eid}`, "info");
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                            //console.error(e);
+                        }
                     }
-                }
-                if (deleteItem.ext_0_hint) {
-                    try {
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
-                        Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
-                    } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
-                        //console.error(e);
+                    if (deleteItem.ext_0_hint) {
+                        try {
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
+                            Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
+                        } catch (e) {
+                            Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                            //console.error(e);
+                        }
                     }
-                }
-                await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+                    await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+                    resolve();
+                }))
+            }, Promise.resolve());
+            requests.then(() => {
+                console.log('Cleanup Complete')
             })
         }
     }
