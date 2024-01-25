@@ -970,7 +970,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 if (eids.length > 0) {
-                    if (eids.length > 150) {
+                    if (eids.length > 500) {
                         function splitArray(array, chunkSize) {
                             const result = [];
                             for (let i = 0; i < array.length; i += chunkSize) {
@@ -979,7 +979,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             return result;
                         }
 
-                        (splitArray(eids, 100)).map(async batch => {
+                        (splitArray(eids, 300)).map(async batch => {
                             await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
                             console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
                         })
