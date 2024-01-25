@@ -5383,7 +5383,7 @@ This code is publicly released and is restricted by its project license
                     "value": `${discordClient.guilds.size}`.substring(0, 1024),
                     "inline": true
                 })
-            } else if (!systemglobal.Coop_Worker) {
+            } else if (!(systemglobal.Coop_Worker && !enableListening)) {
                 embed.fields.push({
                     "name": "📤 Outbox",
                     "value": `${discordMQMessages}`.substring(0, 1024),
@@ -5441,7 +5441,7 @@ This code is publicly released and is restricted by its project license
                     _ud.push("🅰 " + (`${(binChannel < 5) ? "🆕" : "🚨"} ${(binChannel < 5) ? binChannel : "5+"} Items Waiting`))
                 if (UndeliveredMQ > 0)
                     _ud.push("🅱 " + (`${(UndeliveredMQ < 5) ? "🆕" : "🚨"} ${(UndeliveredMQ < 5) ? UndeliveredMQ : "5+"} Items Waiting`));
-            } else if (!systemglobal.Coop_Worker) {
+            } else if (!(systemglobal.Coop_Worker && !enableListening)) {
                 if (UndeliveredMQ >= 5) {
                     systemFault = true;
                 }
