@@ -925,8 +925,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         // SELECT path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records);
         const removedItems = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records) AND host = ?`, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
+            let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, deleteItem, i, a) => {
-                return promiseChain.then(() => new Promise(async(resolve) => {
+                return promiseChain.then(() => new Promise((resolve) => {
                     if (deleteItem.mfull_hint) {
                         try {
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
@@ -963,11 +964,30 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             //console.error(e);
                         }
                     }
-                    await db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
+                    eids.push(deleteItem.eid)
                     resolve();
                 }))
             }, Promise.resolve());
-            requests.then(() => {
+            requests.then(async () => {
+                if (eids.length > 0) {
+                    if (eids.length > 150) {
+                        function splitArray(array, chunkSize) {
+                            const result = [];
+                            for (let i = 0; i < array.length; i += chunkSize) {
+                                result.push(array.slice(i, i + chunkSize));
+                            }
+                            return result;
+                        }
+
+                        (splitArray(eids, 100)).map(async batch => {
+                            await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                            console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                        })
+                    } else {
+                        await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                        console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                    }
+                }
                 console.log('Cleanup Complete')
             })
         }
