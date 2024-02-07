@@ -466,7 +466,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             } else if (!message.attachment_hash.includes('/')) {
                 try {
                     const cm = await discordClient.getMessage(message.channel, message.id);
-                    auth = `?${cm.attachments[0].url.split('?')[1]}`;
+                    const a = cm.attachments[0].url.split('?')[1];
+                    let ex = null;
+                    try {
+                        let exSearch = new URLSearchParams(a);
+                        const _ex = Number('0x' + exSearch.get('ex'));
+                        ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                    } catch (err) {
+                        Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                    }
+                    auth = `?${a}`;
+                    await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE eid = ?`, [a, ex, message.eid])
                 } catch (e) {
                     console.error("Failed to get attachemnt from disocrd", e)
                 }
