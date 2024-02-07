@@ -498,7 +498,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 auth2 = `?${message.cache_auth}`
             } else {
                 try {
-                    const li = message.attachments.filter(e => e.filename.toLowerCase().includes(message.cache_proxy.toLowerCase()))
+                    const li = cm.attachments.filter(e => e.filename.toLowerCase().includes(message.cache_proxy.toLowerCase()))
                     if (li.length > 0) {
                         const as = li[0].url.split('?');
                         if (as.length === 2) {
