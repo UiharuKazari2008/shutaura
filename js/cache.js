@@ -26,6 +26,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'CDN';
 
+    const moment = require('moment');
     const eris = require('eris');
     const path = require('path');
     const amqp = require('amqplib/callback_api');
