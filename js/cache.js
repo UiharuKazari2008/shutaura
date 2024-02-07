@@ -26,6 +26,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'CDN';
 
+    const eris = require('eris');
     const path = require('path');
     const amqp = require('amqplib/callback_api');
     const RateLimiter = require('limiter').RateLimiter;
@@ -52,6 +53,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
     let runCount = 0;
+    let init = 0;
     Logger.printLine("Init", "CDN", "info");
 
     async function loadDatabaseCache() {
@@ -61,6 +63,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const systemparams_sql = _systemparams.rows.reverse();
 
         if (systemparams_sql.length > 0) {
+            const _discord_account = systemparams_sql.filter(e => e.param_key === 'cdn.login');
+            if (_discord_account.length > 0 && _discord_account[0].param_value) {
+                systemglobal.CDN_Discord_Key = _discord_account[0].param_value
+            }
+            const _discord_values = systemparams_sql.filter(e => e.param_key === 'authware.info');
+            if (_discord_values.length > 0 && _discord_values[0].param_data) {
+                if (_discord_values[0].param_data.owner)
+                    systemglobal.DiscordOwner = _discord_values[0].param_data.owner;
+                if (_discord_values[0].param_data.description)
+                    systemglobal.DiscordDescription = _discord_values[0].param_data.description;
+                if (_discord_values[0].param_data.prefix)
+                    systemglobal.DiscordPrefix = _discord_values[0].param_data.prefix;
+
+            }
             const _mq_account = systemparams_sql.filter(e => e.param_key === 'mq.login');
             if (_mq_account.length > 0 && _mq_account[0].param_data) {
                 if (_mq_account[0].param_data.host)
@@ -137,6 +153,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
+
+    const discordClient = new eris.CommandClient(systemglobal.CDN_Discord_Key, {
+        compress: true,
+        restMode: true,
+        intents: [
+            'guilds',
+            'guildMessages'
+        ],
+    }, {
+        name: "CDN",
+        description: (systemglobal.DiscordDescription) ? systemglobal.DiscordDescription : "Local Storage Framework for Sequenzia enabled servers",
+        owner: (systemglobal.DiscordOwner) ? systemglobal.DiscordOwner : "Unset",
+        prefix: (systemglobal.DiscordPrefix) ? systemglobal.DiscordPrefix + " " : "!cdn ",
+        restMode: true,
+    });
 
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;
     const MQWorker1 = systemglobal.CDN_In + '.' + systemglobal.CDN_ID;
@@ -413,7 +444,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err")
             }
         }
-        function getimageSizeParam() {
+        function getimageSizeParam(auth) {
             if (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512)) {
                 let ih = 512;
                 let iw = 512;
@@ -422,15 +453,26 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     ih = (message.sizeH * (512 / message.sizeW)).toFixed(0)
                 }
-                return `?width=${iw}&height=${ih}`
+                return `?width=${iw}&height=${ih}&` + (auth || '')
             } else {
-                return ''
+                return auth || ''
             }
         }
 
+        let auth = ''
         if (message.attachment_hash) {
+            if (message.attachment_auth) {
+                auth = `?${message.attachment_auth}`
+            } else if (!message.attachment_hash.includes('/')) {
+                try {
+                    const cm = await discordClient.getMessage(message.channel, message.id);
+                    auth = `?${cm.attachments[0].url.split('?')[1]}`;
+                } catch (e) {
+                    console.error("Failed to get attachemnt from disocrd", e)
+                }
+            }
             attachements['full'] = {
-                src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`),
+                src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
                 dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
             }
         }
@@ -442,13 +484,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
             attachements['preview'] = {
-                src: `https://media.discordapp.net/attachments/` + ((message.attachment_hash.includes('/')) ? `${message.attachment_hash}${getimageSizeParam()}` : `${message.channel}/${message.attachment_hash}/${message.attachment_name}${getimageSizeParam()}`),
+                src: `https://media.discordapp.net/attachments/` + ((message.attachment_hash.includes('/')) ? `${message.attachment_hash}${getimageSizeParam(auth)}` : `${message.channel}/${message.attachment_hash}/${message.attachment_name}${getimageSizeParam(auth)}`),
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
         } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1)) {
             attachements['preview'] = {
-                src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`),
+                src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
@@ -993,6 +1035,52 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
 
+    discordClient.on("ready", async () => {
+        Logger.printLine("Discord", "Connected successfully to Discord!", "debug")
+        Logger.printLine("Discord", `Using Account: ${discordClient.user.username} (${discordClient.user.id})`, "debug")
+        const gatewayURL = new URL(discordClient.gatewayURL);
+        Logger.printLine("Discord", `Gateway: ${gatewayURL.host} using v${gatewayURL.searchParams.getAll('v').pop()}`, "debug")
+        if (init === 0) {
+            discordClient.editStatus( "dnd", {
+                name: 'Initializing System',
+                type: 0
+            })
+            if (systemglobal.CDN_Base_Path) {
+                start();
+                console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
+                console.log("Waiting 30sec before normal tasks..")
+                setTimeout(async () => {
+                    if (systemglobal.CDN_Focus_Channels) {
+                        await findBackupItems(systemglobal.CDN_Focus_Channels);
+                    }
+                    if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
+                        await findEpisodeItems();
+                    }
+                    await findBackupItems();
+                    console.log("First Pass OK");
+                    activeParseing = false;
+                    setInterval(async () => {
+                        if (activeParseing) {
+                            console.log('System Busy');
+                        } else {
+                            await findBackupItems();
+                            await findEpisodeItems();
+                        }
+                        activeParseing = false;
+                    }, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
+                }, 30000)
+            } else {
+                Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
+            }
+        }
+        init = 1;
+    });
+    discordClient.on("error", (err) => {
+        Logger.printLine("Discord", "Shard Error, Rebooting...", "error", err);
+        console.error(err);
+        discordClient.connect();
+    });
+
     process.on('uncaughtException', function(err) {
         Logger.printLine("uncaughtException", err.message, "critical", err)
         console.log(err)
@@ -1001,36 +1089,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }, 3000)
     });
 
-
     if (process.send && typeof process.send === 'function') {
         process.send('ready');
     }
 
-    if (systemglobal.CDN_Base_Path) {
-        start();
-        console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
-        console.log("Waiting 30sec before normal tasks..")
-        setTimeout(async () => {
-            if (systemglobal.CDN_Focus_Channels) {
-                await findBackupItems(systemglobal.CDN_Focus_Channels);
-            }
-            if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
-                await findEpisodeItems();
-            }
-            await findBackupItems();
-            console.log("First Pass OK");
-            activeParseing = false;
-            setInterval(async () => {
-                if (activeParseing) {
-                    console.log('System Busy');
-                } else {
-                    await findBackupItems();
-                    await findEpisodeItems();
-                }
-                activeParseing = false;
-            }, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-        }, 30000)
-    } else {
-        Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
-    }
+    discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 })()
