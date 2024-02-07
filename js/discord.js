@@ -7018,8 +7018,8 @@ This code is publicly released and is restricted by its project license
         if (database_vales.length > 0 && database_vales[0].attachement_hash && database_vales[0].attachement_name) {
             Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
             let auth = '';
-            if (database_vales[0].attachement_auth) {
-                auth = `?${database_vales[0].attachement_auth}`
+            if (database_vales[0].attachment_auth) {
+                auth = `?${database_vales[0].attachment_auth}`
             } else {
                 try {
                     const refreshedMessage = await discordClient.getMessage(database_vales[0].channel, database_vales[0].id);
@@ -8009,12 +8009,12 @@ This code is publicly released and is restricted by its project license
                                     sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
                                     sqlObject.attachment_name = (urlParts[1].split('/')[2]).split('?')[0]
                                     const as = urlParts[1].split('?');
-                                    sqlObject.attachement_auth = as[1];
+                                    sqlObject.attachment_auth = as[1];
                                     try {
                                         let exSearch = new URLSearchParams(as[1]);
                                         const ex = Number('0x' + exSearch.get('ex'));
                                         const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
-                                        sqlObject.attachement_auth_ex = exTime;
+                                        sqlObject.attachment_auth_ex = exTime;
                                     } catch (err) {
                                         Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                     }
@@ -8455,12 +8455,12 @@ This code is publicly released and is restricted by its project license
                     sqlObject.attachment_name = urlParts[1].split('/')[2].split('?')[0]
                     const as = urlParts[1].split('?');
                     if (as.length === 2) {
-                        sqlObject.attachement_auth = as[1];
+                        sqlObject.attachment_auth = as[1];
                         try {
                             let exSearch = new URLSearchParams(as[1]);
                             const ex = Number('0x' + exSearch.get('ex'));
                             const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
-                            sqlObject.attachement_auth_ex = exTime;
+                            sqlObject.attachment_auth_ex = exTime;
                         } catch (err) {
                             Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                         }
