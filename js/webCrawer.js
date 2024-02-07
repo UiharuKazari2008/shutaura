@@ -225,13 +225,10 @@ const fs = require("fs");
             try {
                 const pulledItemPage = await got(post.url)
                 const $ = cheerio.load(pulledItemPage.body); // Parse Response
-
-                console.log($('[itemprop="headline"]')[0])
                 const postName = $('[itemprop="headline"]')[0].children[0].data
                 const userName = $('div[class="picture-object"] > div[class="object-meta"] > a')[0].children[0].data
                 const date = $('div[class="picture-object"] > div[class="object-meta"] > span > span[title]')[0].attribs.title
                 const description = $('section > div[class="results"] > div[class="result"] > div[class="result-wrapper"] > div[class="user-expression-wrapper"] > div[class="user-expression"] > div[class="user-expression-content"] > div[class="bbcode"]')
-                const descri_meta = $('div[class="user-expression"] > a[class="avatar"]')
                 let text = []
                 if (description[0] && description[0].children) {
                     description[0].children.map(e => {

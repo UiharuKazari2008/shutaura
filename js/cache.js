@@ -531,7 +531,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
                                 const data = await new Promise(ok => {
-                                    const url = u.url.split('?')[0].toString();
+                                    const url = u.url;
                                     //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
                                     request.get({
                                         url,
