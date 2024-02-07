@@ -1403,7 +1403,17 @@ This code is publicly released and is restricted by its project license
                                                                     })
                                                                         .then((data) => {
                                                                             cacheColor(message.id, data.attachments[0].proxy_url)
-                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], message.id], (err, result) => {
+                                                                            let url = data.attachments[0].url.split('/attachments').pop().split('?')
+                                                                            let auth = url[1]
+                                                                            let ex
+                                                                            try {
+                                                                                let exSearch = new URLSearchParams(auth);
+                                                                                const _ex = Number('0x' + exSearch.get('ex'));
+                                                                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                            } catch (err) {
+                                                                                Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                                            }
+                                                                            db.safe(`UPDATE kanmi_records SET cache_proxy = ?, cache_auth = ?, cache_auth_ex = ? WHERE id = ? AND source = 0`, [url[0], auth, ex, message.id], (err, result) => {
                                                                                 if (err) {
                                                                                     SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                 } else {
@@ -1543,10 +1553,22 @@ This code is publicly released and is restricted by its project license
                                                                         })
                                                                             .then((data) => {
                                                                                 cacheColor(message.id, data.attachments[0].proxy_url)
+                                                                                let url = data.attachments[0].proxy_url.split('/attachments').pop().split('?')
+                                                                                let auth = url[1]
+                                                                                let ex
+                                                                                try {
+                                                                                    let exSearch = new URLSearchParams(auth);
+                                                                                    const _ex = Number('0x' + exSearch.get('ex'));
+                                                                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                                } catch (err) {
+                                                                                    Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                                                }
                                                                                 db.safe(`UPDATE kanmi_records
-                                                                                     SET cache_proxy = ?
+                                                                                     SET cache_proxy = ?,
+                                                                                         cache_auth = ?,
+                                                                                         cache_auth_ex = ?
                                                                                      WHERE id = ?
-                                                                                       AND source = 0`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], message.id], (err, result) => {
+                                                                                       AND source = 0`, [url[0], auth, ex, message.id], (err, result) => {
                                                                                     if (err) {
                                                                                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                                     } else {
@@ -1722,7 +1744,7 @@ This code is publicly released and is restricted by its project license
                                                         name: `${show.data.background.pop().split('/').pop()}`
                                                     })
                                                         .then((data) => {
-                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], show.show_id])
+                                                            db.query(`UPDATE kongou_shows SET background = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
                                                             setTimeout(() => {
                                                                 resolve(true);
                                                             }, 1000)
@@ -1773,7 +1795,7 @@ This code is publicly released and is restricted by its project license
                                                         name: `${show.data.poster.pop().split('/').pop()}`
                                                     })
                                                         .then((data) => {
-                                                            db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], show.show_id])
+                                                            db.query(`UPDATE kongou_shows SET poster = ? WHERE show_id = ?`, [data.attachments[0].url.split('/attachments').pop(), show.show_id])
                                                             setTimeout(() => {
                                                                 resolve(true);
                                                             }, 1000)
@@ -1821,7 +1843,17 @@ This code is publicly released and is restricted by its project license
                                                 })
                                                     .then((data) => {
                                                         cacheColor(MessageContents.messageID, data.attachments[0].url)
-                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ? AND source = 0`, [data.attachments[0].url.split('/attachments').pop().split('?')[0], MessageContents.messageID], (err, result) => {
+                                                        let url = data.attachments[0].url.split('/attachments').pop().split('?')
+                                                        let auth = url[1]
+                                                        let ex
+                                                        try {
+                                                            let exSearch = new URLSearchParams(auth);
+                                                            const _ex = Number('0x' + exSearch.get('ex'));
+                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                        } catch (err) {
+                                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                        }
+                                                        db.safe(`UPDATE kanmi_records SET cache_proxy = ?. cache_auth = ?, cache_auth_ex = ? WHERE id = ? AND source = 0`, [url[0], auth, ex, MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                 cb(false);
@@ -1853,16 +1885,27 @@ This code is publicly released and is restricted by its project license
                                                     .then((data) => {
                                                         cacheColor(MessageContents.messageID, data.attachments[0].proxy_url)
                                                         let filename
-                                                        let filehash
-                                                        const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`).split('?')[0]
+                                                        let ilehash
+                                                        let auth
+                                                        let ex = null
+                                                        const urlParts = data.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
                                                         if (urlParts.length === 2) {
                                                             filehash = (urlParts[1].startsWith(`${MessageContents.messageChannelID}/`)) ? urlParts[1].split('/')[1] : urlParts[1];
-                                                            filename = urlParts[1].split('/')[2]
+                                                            filename = urlParts[1].split('/')[2].split('?')[0]
+                                                            auth = urlParts[1].split('/')[2].split('?')[1]
                                                         } else {
-                                                            filehash = data.attachments[0].url
-                                                            filename = data.attachments[0].filename
+                                                            filehash = data.attachments[0].url.split('?')[0]
+                                                            filename = data.attachments[0].filename.split('?')[0]
+                                                            auth = data.attachments[0].url.split('?')[1]
                                                         }
-                                                        db.safe(`UPDATE kanmi_records SET attachment_hash = ?, attachment_name = ? WHERE id = ? AND source = 0`, [filehash, filename, MessageContents.messageID], (err, result) => {
+                                                        try {
+                                                            let exSearch = new URLSearchParams(auth);
+                                                            const _ex = Number('0x' + exSearch.get('ex'));
+                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                        } catch (err) {
+                                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                        }
+                                                        db.safe(`UPDATE kanmi_records SET attachment_hash = ?, attachment_name = ?, attachment_auth = ?, attachment_auth_ex = ? WHERE id = ? AND source = 0`, [filehash, filename, auth, ex, MessageContents.messageID], (err, result) => {
                                                             if (err) {
                                                                 SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", err)
                                                                 cb(false);
@@ -1925,9 +1968,18 @@ This code is publicly released and is restricted by its project license
                                                             file: Buffer.from(MessageContents.extendedAttachments[fileIndex].file, 'base64')
                                                         })
                                                         if (data && data.attachments.length > 0) {
-                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0]
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')
                                                             if (attachmentUrl) {
-                                                                jsonData[ext_key] = attachmentUrl
+                                                                jsonData[ext_key] = attachmentUrl[0]
+                                                                jsonData[ext_key + '_auth'] = attachmentUrl[1]
+                                                                try {
+                                                                    let exSearch = new URLSearchParams(attachmentUrl[1]);
+                                                                    const ex = Number('0x' + exSearch.get('ex'));
+                                                                    const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                    jsonData[ext_key + '_auth_ex'] = exTime;
+                                                                } catch (err) {
+                                                                    Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                                }
                                                             }
                                                         }
                                                     } catch (err) {
@@ -2366,7 +2418,18 @@ This code is publicly released and is restricted by its project license
                 if (MessageContents.messageRefrance && MessageContents.messageRefrance.action && MessageContents.messageRefrance.action === 'jfsMove' ) {
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
-                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ? WHERE id = ?`, [data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0], MessageContents.messageOriginalID])
+                    const url = data.attachments[0].proxy_url.split('/attachments').pop().split('?')
+                    let exTime = null;
+                    if (url.length === 2) {
+                        try {
+                            let exSearch = new URLSearchParams(url[1]);
+                            const ex = Number('0x' + exSearch.get('ex'));
+                            exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                        } catch (err) {
+                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                        }
+                    }
+                    const updatedMessage = await db.query(`UPDATE kanmi_records SET cache_proxy = ?, cache_auth = ?, cache_auth_ex = ? WHERE id = ?`, [url[0], url[1], exTime, MessageContents.messageOriginalID])
                     if (updatedMessage.error) {
                         SendMessage("SQL Error occurred when adding polyfills to the message cache", "err", 'main', "SQL", updatedMessage.error)
                     } else {
@@ -6950,20 +7013,43 @@ This code is publicly released and is restricted by its project license
     // Discord Framework - File Systems Tasks
     async function jfsMove(message, moveTo, cb, delay) {
         await activeTasks.set(`JFSMOVE_${message.id}`, { started: Date.now().valueOf() });
-        const database_vales = (await db.query(`SELECT * FROM kanmi_records WHERE id = ? LIMIT 1`, [message.id])).rows
+        const database_vales = (await db.query(`SELECT y.cache, x.* FROM (SELECT * FROM kanmi_records WHERE id = ? LIMIT 1) x LEFT JOIN (SELECT * FROM discord_cache) y ON (x.id = y.id)`, [message.id])).rows
         let attachments = message.attachments;
         if (database_vales.length > 0 && database_vales[0].attachement_hash && database_vales[0].attachement_name) {
             Logger.printLine("Move", `Message ${message.id} has had its contents replaced and will be used as the attachments`, "info")
+            let auth = '';
+            if (database_vales[0].attachement_auth) {
+                auth = `?${database_vales[0].attachement_auth}`
+            } else {
+                try {
+                    const refreshedMessage = await discordClient.getMessage(database_vales[0].channel, database_vales[0].id);
+                    auth = `?${refreshedMessage.attachments[0].url.split('?')[1]}`
+                } catch (e) {
+                    Logger.printLine("Discord", `Failed to get latest message URL!`, "error", e);
+                }
+            }
             attachments = [
                 {
-                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash.split('?')[0] : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name.split('?')[0]}`),
+                    url: `https://cdn.discordapp.com/attachments` + ((database_vales[0].attachment_hash.includes('/')) ? database_vales[0].attachment_hash : `/${database_vales[0].channel}/${database_vales[0].attachment_hash}/${database_vales[0].attachment_name}`) + auth,
                     filename: database_vales[0].attachment_name.split('?')[0]
                 }
             ]
             if (database_vales[0].cache_proxy) {
+                let cache_auth = '';
+                if (database_vales[0].cache_auth) {
+                    cache_auth = `?${database_vales[0].cache_auth}`
+                } else if (database_vales[0].cache) {
+                    try {
+                        const channel = database_vales[0].cache_proxy.split('/')[1]
+                        const refreshedMessage = await discordClient.getMessage(channel, database_vales[0].cache);
+                        cache_auth = `?${refreshedMessage.attachments[0].url.split('?')[1]}`
+                    } catch (e) {
+                        Logger.printLine("Discord", `Failed to get latest message URL!`, "error", e);
+                    }
+                }
                 const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}`
                 attachments.push({
-                    url: cache_url.split('?')[0],
+                    url: cache_url.split('?')[0] +  + auth,
                     filename: cache_url.split('/').pop().split('?')[0]
                 })
             }
@@ -7849,6 +7935,7 @@ This code is publicly released and is restricted by its project license
                                 content_full: msg.content,
                                 hash: (options && options.hash) ? options.hash : undefined,
                             };
+                            let authStrings = [];
                             // Extract FileID, Name, and Size
                             if (options && options.fileData) {
                                 if (options.fileData.name)
@@ -7921,6 +8008,18 @@ This code is publicly released and is restricted by its project license
                                 if (urlParts.length === 2) {
                                     sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
                                     sqlObject.attachment_name = (urlParts[1].split('/')[2]).split('?')[0]
+                                    const as = urlParts[1].split('/')[1].split('?');
+                                    if (as.length === 2) {
+                                        sqlObject.attachement_auth = as[1];
+                                        try {
+                                            let exSearch = new URLSearchParams(as[1]);
+                                            const ex = Number('0x' + exSearch.get('ex'));
+                                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                            sqlObject.attachement_auth_ex = exTime;
+                                        } catch (err) {
+                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                        }
+                                    }
                                 } else {
                                     sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
                                     sqlObject.attachment_name = msg.attachments[0].filename.split('?')[0]
@@ -7952,8 +8051,32 @@ This code is publicly released and is restricted by its project license
                                 }
                                 if (options && options.preview) {
                                     sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url.split('/attachments').pop().split('?')[0]
+                                    const as = msg.attachments[options.preview].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                    if (as.length === 2) {
+                                        sqlObject.cache_auth = as[1];
+                                        try {
+                                            let exSearch = new URLSearchParams(as[1]);
+                                            const ex = Number('0x' + exSearch.get('ex'));
+                                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                            sqlObject.cache_auth_ex = exTime;
+                                        } catch (err) {
+                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                        }
+                                    }
                                 } else if (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).length > 0) {
                                     sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments').pop().split('?')[0];
+                                    const as =  msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                    if (as.length === 2) {
+                                        sqlObject.cache_auth = as[1];
+                                        try {
+                                            let exSearch = new URLSearchParams(as[1]);
+                                            const ex = Number('0x' + exSearch.get('ex'));
+                                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                            sqlObject.cache_auth_ex = exTime;
+                                        } catch (err) {
+                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                        }
+                                    }
                                 } else if (msg.attachments.length > 0 && accepted_cache_types.indexOf(msg.attachments.pop().filename.toLowerCase().split('.')[0]) !== -1 ) {
                                     mqClient.sendData(MQWorker3, {
                                         fromClient : `return.Discord.${systemglobal.SystemName}`,
@@ -7981,7 +8104,7 @@ This code is publicly released and is restricted by its project license
                                             }
                                         })
                                     })
-                                    _fileextra.push([msg.attachments[index].filename, msg.attachments[index].url.split('?')[0], msg.attachments[index].proxy_url.split('?')[0], _filesize])
+                                    _fileextra.push([msg.attachments[index].filename, msg.attachments[index].url, msg.attachments[index].proxy_url, _filesize])
                                 }
                                 sqlObject.attachment_extra = JSON.stringify(_fileextra).toString()
                             }
@@ -8095,7 +8218,7 @@ This code is publicly released and is restricted by its project license
                                         if ((sqlObject.attachment_hash || sqlObject.cache_proxy) &&
                                             ['jpg','png','gif','jfif','jpeg'].indexOf(((sqlObject.cache_proxy) ? sqlObject.cache_proxy : sqlObject.attachment_name).split('?')[0].split('.').pop().toLowerCase()) !== -1) {
                                             embed[(sqlObject.fileid) ? "thumbnail" : "image"] = {
-                                                "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name.split('?')[0]}`)
+                                                "url": (sqlObject.cache_proxy) ? `${(!sqlObject.cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${sqlObject.cache_proxy}` : `https://cdn.discordapp.com/attachments/` + ((sqlObject.attachment_hash.includes('/')) ? sqlObject.attachment_hash : `${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
                                             }
                                         }
                                         if (systemglobal.base_url)
@@ -8130,6 +8253,18 @@ This code is publicly released and is restricted by its project license
                                                             const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0]
                                                             if (attachmentUrl) {
                                                                 jsonData[ext_key] = attachmentUrl
+                                                            }
+                                                            const as =  data.attachments[0].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                                            if (as.length === 2) {
+                                                                jsonData[ext_key + '_auth'] = as[1];
+                                                                try {
+                                                                    let exSearch = new URLSearchParams(as[1]);
+                                                                    const ex = Number('0x' + exSearch.get('ex'));
+                                                                    const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                    jsonData[ext_key + '_auth_ex'] = exTime;
+                                                                } catch (err) {
+                                                                    Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                                                }
                                                             }
                                                         }
                                                     } catch (err) {
@@ -8320,6 +8455,18 @@ This code is publicly released and is restricted by its project license
                 if (urlParts.length === 2) {
                     sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
                     sqlObject.attachment_name = urlParts[1].split('/')[2].split('?')[0]
+                    const as = urlParts[1].split('/')[1].split('?');
+                    if (as.length === 2) {
+                        sqlObject.attachement_auth = as[1];
+                        try {
+                            let exSearch = new URLSearchParams(as[1]);
+                            const ex = Number('0x' + exSearch.get('ex'));
+                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                            sqlObject.attachement_auth_ex = exTime;
+                        } catch (err) {
+                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                        }
+                    }
                 } else {
                     sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
                     sqlObject.attachment_name = msg.attachments[0].filename.split('?')[0]
@@ -8334,6 +8481,18 @@ This code is publicly released and is restricted by its project license
 
                 if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
                     sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop().split('?')[0];
+                    const as = msg.attachments[1].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                    if (as.length === 2) {
+                        sqlObject.cache_auth = as[1];
+                        try {
+                            let exSearch = new URLSearchParams(as[1]);
+                            const ex = Number('0x' + exSearch.get('ex'));
+                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                            sqlObject.cache_auth_ex = exTime;
+                        } catch (err) {
+                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                        }
+                    }
                 }
             } else if (msg.attachments && msg.attachments.length > 1) {
                 sqlObject.attachment_name = null
