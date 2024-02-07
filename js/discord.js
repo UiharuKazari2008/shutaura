@@ -1553,7 +1553,7 @@ This code is publicly released and is restricted by its project license
                                                                         })
                                                                             .then((data) => {
                                                                                 cacheColor(message.id, data.attachments[0].proxy_url)
-                                                                                let url = data.attachments[0].proxy_url.split('/attachments').pop().split('?')
+                                                                                let url = data.attachments[0].url.split('/attachments').pop().split('?')
                                                                                 let auth = url[1]
                                                                                 let ex
                                                                                 try {
@@ -1968,7 +1968,7 @@ This code is publicly released and is restricted by its project license
                                                             file: Buffer.from(MessageContents.extendedAttachments[fileIndex].file, 'base64')
                                                         })
                                                         if (data && data.attachments.length > 0) {
-                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].url.split('/attachments').pop().split('?')
                                                             if (attachmentUrl) {
                                                                 jsonData[ext_key] = attachmentUrl[0]
                                                                 jsonData[ext_key + '_auth'] = attachmentUrl[1]
@@ -2418,7 +2418,7 @@ This code is publicly released and is restricted by its project license
                 if (MessageContents.messageRefrance && MessageContents.messageRefrance.action && MessageContents.messageRefrance.action === 'jfsMove' ) {
                     await messageUpdate(data, MessageContents.messageRefrance)
                 } else if (MessageContents.messageOriginalID && MessageContents.fromClient.includes('return.Sequenzia.Polyfills.')) {
-                    const url = data.attachments[0].proxy_url.split('/attachments').pop().split('?')
+                    const url = data.attachments[0].url.split('/attachments').pop().split('?')
                     let exTime = null;
                     if (url.length === 2) {
                         try {
@@ -8004,21 +8004,19 @@ This code is publicly released and is restricted by its project license
                             }
                             // Get Attachments Details
                             if (msg.attachments.length === 1 || msg.attachments.length > 1 && ((options && options.preview) || msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview')).length > 0)) {
-                                const urlParts = msg.attachments[0].url.split(`https://cdn.discordapp.com/attachments/`)
+                                const urlParts = msg.attachments[0].url.split(`/attachments/`)
                                 if (urlParts.length === 2) {
                                     sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
                                     sqlObject.attachment_name = (urlParts[1].split('/')[2]).split('?')[0]
-                                    const as = urlParts[1].split('/')[1].split('?');
-                                    if (as.length === 2) {
-                                        sqlObject.attachement_auth = as[1];
-                                        try {
-                                            let exSearch = new URLSearchParams(as[1]);
-                                            const ex = Number('0x' + exSearch.get('ex'));
-                                            const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
-                                            sqlObject.attachement_auth_ex = exTime;
-                                        } catch (err) {
-                                            Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
-                                        }
+                                    const as = urlParts[1].split('?');
+                                    sqlObject.attachement_auth = as[1];
+                                    try {
+                                        let exSearch = new URLSearchParams(as[1]);
+                                        const ex = Number('0x' + exSearch.get('ex'));
+                                        const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                        sqlObject.attachement_auth_ex = exTime;
+                                    } catch (err) {
+                                        Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                     }
                                 } else {
                                     sqlObject.attachment_hash = msg.attachments[0].url.split('?')[0]
@@ -8050,8 +8048,8 @@ This code is publicly released and is restricted by its project license
                                     sqlObject.sizeR = (msg.attachments[0].height / msg.attachments[0].width);
                                 }
                                 if (options && options.preview) {
-                                    sqlObject.cache_proxy = msg.attachments[options.preview].proxy_url.split('/attachments').pop().split('?')[0]
-                                    const as = msg.attachments[options.preview].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                    sqlObject.cache_proxy = msg.attachments[options.preview].url.split('/attachments').pop().split('?')[0]
+                                    const as = msg.attachments[options.preview].url.split('?');
                                     if (as.length === 2) {
                                         sqlObject.cache_auth = as[1];
                                         try {
@@ -8064,8 +8062,8 @@ This code is publicly released and is restricted by its project license
                                         }
                                     }
                                 } else if (msg.attachments.length > 1 && msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).length > 0) {
-                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments').pop().split('?')[0];
-                                    const as =  msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                    sqlObject.cache_proxy = msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().url.split('/attachments').pop().split('?')[0];
+                                    const as =  msg.attachments.filter(e => e.filename.toLowerCase().includes('-t9-preview-video')).pop().url.split('?');
                                     if (as.length === 2) {
                                         sqlObject.cache_auth = as[1];
                                         try {
@@ -8250,11 +8248,11 @@ This code is publicly released and is restricted by its project license
                                                             file: Buffer.from(options.extendedAttachments[fileIndex].file, 'base64')
                                                         })
                                                         if (data && data.attachments.length > 0) {
-                                                            const attachmentUrl = '/attachments' + data.attachments[0].proxy_url.split('/attachments').pop().split('?')[0]
+                                                            const attachmentUrl = '/attachments' + data.attachments[0].url.split('/attachments').pop().split('?')[0]
                                                             if (attachmentUrl) {
                                                                 jsonData[ext_key] = attachmentUrl
                                                             }
-                                                            const as =  data.attachments[0].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                                                            const as =  data.attachments[0].url.split('?');
                                                             if (as.length === 2) {
                                                                 jsonData[ext_key + '_auth'] = as[1];
                                                                 try {
@@ -8455,7 +8453,7 @@ This code is publicly released and is restricted by its project license
                 if (urlParts.length === 2) {
                     sqlObject.attachment_hash = ((urlParts[1].startsWith(`${msg.channel.id}/`)) ? urlParts[1].split('/')[1] : urlParts[1]).split('?')[0];
                     sqlObject.attachment_name = urlParts[1].split('/')[2].split('?')[0]
-                    const as = urlParts[1].split('/')[1].split('?');
+                    const as = urlParts[1].split('?');
                     if (as.length === 2) {
                         sqlObject.attachement_auth = as[1];
                         try {
@@ -8480,8 +8478,8 @@ This code is publicly released and is restricted by its project license
                 }
 
                 if (msg.attachments.length > 1 && msg.attachments[1].filename.toLowerCase().includes('-t9-preview')) {
-                    sqlObject.cache_proxy = msg.attachments[1].proxy_url.split('/attachments').pop().split('?')[0];
-                    const as = msg.attachments[1].proxy_url.split('/attachments/').pop().split('/')[1].split('?');
+                    sqlObject.cache_proxy = msg.attachments[1].url.split('/attachments').pop().split('?')[0];
+                    const as = msg.attachments[1].url.split('?');
                     if (as.length === 2) {
                         sqlObject.cache_auth = as[1];
                         try {
