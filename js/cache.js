@@ -460,13 +460,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
 
+        let cm;
+        try {
+            cm = await discordClient.getMessage(message.channel, message.id);
+        } catch (e) {
+            console.error("Failed to get attachemnt from discord", e)
+        }
         let auth = ''
         if (message.attachment_hash) {
             if (message.attachment_auth) {
                 auth = `?${message.attachment_auth}`
             } else if (!message.attachment_hash.includes('/')) {
                 try {
-                    const cm = await discordClient.getMessage(message.channel, message.id);
                     const a = cm.attachments[0].url.split('?')[1];
                     let ex = null;
                     try {
@@ -479,7 +484,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     auth = `?${a}`;
                     await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE eid = ?`, [a, ex, message.eid])
                 } catch (e) {
-                    console.error("Failed to get attachemnt from disocrd", e)
+                    console.error(e)
                 }
             }
             attachements['full'] = {
@@ -488,8 +493,33 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (message.cache_proxy) {
+            let auth2 = '';
+            if (message.cache_auth) {
+                auth2 = `?${message.cache_auth}`
+            } else {
+                try {
+                    const li = message.attachments.filter(e => e.filename.toLowerCase().includes(message.cache_proxy.toLowerCase()))
+                    if (li.length > 0) {
+                        const as = li[0].url.split('?');
+                        if (as.length === 2) {
+                            let ex = null;
+                            try {
+                                let exSearch = new URLSearchParams(as[1]);
+                                const _ex = Number('0x' + exSearch.get('ex'));
+                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                            } catch (err) {
+                                Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                            }
+                            auth2 = `?${as[1]}`;
+                            await db.query(`UPDATE kanmi_records SET cache_auth = ?, cache_auth_ex = ? WHERE eid = ?`, [as[1], ex, message.eid])
+                        }
+                    }
+                } catch (e) {
+                    console.error(e)
+                }
+            }
             attachements['preview'] = {
-                src: message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`,
+                src: (message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`) + auth2,
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: message.cache_proxy.split('?')[0].split('.').pop()
             }
@@ -516,7 +546,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (message.fileid && (allow_master_files || !(systemglobal.CDN_Ignore_Master_Channels && systemglobal.CDN_Ignore_Master_Channels.indexOf(message.channel) !== -1))) {
             const master_urls = await db.query(`SELECT url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
             if (master_urls.rows.length > 0) {
-
                 attachements['mfull'] = {
                     id: message.fileid,
                     filename: message.real_filename,

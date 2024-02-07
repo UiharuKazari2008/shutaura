@@ -6428,6 +6428,9 @@ This code is publicly released and is restricted by its project license
             }
         }
     }
+    async function attachMissingCacheIDs() {
+
+    }
     // Discord Framework - Remote Management
     async function sendTwitterAction(body, type, action, media, chid, guildid, embed, overide) {
         let channelNsfw = false
@@ -7047,7 +7050,7 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("Discord", `Failed to get latest message URL!`, "error", e);
                     }
                 }
-                const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}`
+                const cache_url = `${(!database_vales[0].cache_proxy.startsWith('http') ? 'https://cdn.discordapp.com/attachments' : '')}${database_vales[0].cache_proxy}${cache_auth}`
                 attachments.push({
                     url: cache_url.split('?')[0] +  + auth,
                     filename: cache_url.split('/').pop().split('?')[0]
@@ -7935,7 +7938,7 @@ This code is publicly released and is restricted by its project license
                                 content_full: msg.content,
                                 hash: (options && options.hash) ? options.hash : undefined,
                             };
-                            let authStrings = [];
+                            let cacheId = null;
                             // Extract FileID, Name, and Size
                             if (options && options.fileData) {
                                 if (options.fileData.name)
