@@ -545,7 +545,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (message.fileid && (allow_master_files || !(systemglobal.CDN_Ignore_Master_Channels && systemglobal.CDN_Ignore_Master_Channels.indexOf(message.channel) !== -1))) {
-            const master_urls = await db.query(`SELECT url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
+            const master_urls = await db.query(`SELECT channelid, messageid, url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
             if (master_urls.rows.length > 0) {
                 attachements['mfull'] = {
                     id: message.fileid,
