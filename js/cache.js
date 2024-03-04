@@ -572,37 +572,47 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let part_urls = [];
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
-                                const data = await new Promise(ok => {
-                                    const url = u.url;
-                                    //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
-                                    request.get({
-                                        url,
-                                        headers: {
-                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                            'accept-language': 'en-US,en;q=0.9',
-                                            'cache-control': 'max-age=0',
-                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                            'sec-ch-ua-mobile': '?0',
-                                            'sec-fetch-dest': 'document',
-                                            'sec-fetch-mode': 'navigate',
-                                            'sec-fetch-site': 'none',
-                                            'sec-fetch-user': '?1',
-                                            'upgrade-insecure-requests': '1',
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                        },
-                                    }, async (err, res, body) => {
-                                        if (err || res && res.statusCode && res.statusCode !== 200) {
-                                            if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
-                                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                                await db.query(`UPDATE discord_multipart_files SET valid = 0 WHERE url = ?`, [u.url])
+                                const data = await new Promise(async ok => {
+                                    let pm;
+                                    try {
+                                        pm = await discordClient.getMessage(u.channelid, u.messageid);
+                                    } catch (e) {
+                                        console.error("Failed to get parity attachemnt from discord", e)
+                                    }
+                                    if (pm && pm.attachments && pm.attachments.length > 0) {
+                                        const url = pm.attachments[0].url;
+                                        //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
+                                        request.get({
+                                            url,
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                                    await db.query(`UPDATE discord_multipart_files SET valid = 0 WHERE url = ?`, [u.url])
+                                                } else {
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                }
+                                                ok(false)
                                             } else {
-                                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                ok(body);
                                             }
-                                            ok(false)
-                                        } else {
-                                            ok(body);
-                                        }
-                                    })
+                                        })
+                                    } else {
+                                        ok(false)
+                                    }
                                 })
                                 if (data) {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
