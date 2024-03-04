@@ -25,6 +25,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
         systemglobal.SystemName = process.env.SYSTEM_NAME.trim()
     const facilityName = 'CDN';
+    let backupSystemName;
 
     const moment = require('moment');
     const eris = require('eris');
