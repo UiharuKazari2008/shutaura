@@ -682,21 +682,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 if (err || res && res.statusCode && res.statusCode !== 200) {
                                     if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
                                         Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                        mqClient.sendData(systemglobal.Discord_Out, {
-                                            fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                            messageReturn: false,
-                                            messageID: message.id,
-                                            messageChannelID: message.channel,
-                                            messageServerID: message.server,
-                                            messageType: 'command',
-                                            messageAction: 'ValidateMessage'
-                                        }, function (callback) {
-                                            if (callback) {
-                                                Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                            } else {
-                                                Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                            }
-                                        });
                                     } else {
                                         Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                     }
@@ -751,7 +736,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }, async (err, res, body) => {
                                     if (err || res && res.statusCode && res.statusCode !== 200) {
                                         if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
-                                            Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
                                             mqClient.sendData(systemglobal.Discord_Out, {
                                                 fromClient: `return.CDN.${systemglobal.SystemName}`,
                                                 messageReturn: false,
@@ -768,7 +753,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 }
                                             });
                                         } else {
-                                            Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                         }
                                         ok(false)
                                     } else {
