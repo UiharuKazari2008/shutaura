@@ -724,6 +724,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
                                     await sleep(5000);
                                     let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
                                     return om.embeds[0].thumbnail.url
                                 } catch (e) {
                                     console.error("Failed to get parity attachemnt from discord", e)
