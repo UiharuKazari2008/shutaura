@@ -9410,7 +9410,6 @@ This code is publicly released and is restricted by its project license
                     })
                 } else {
                     let filelist = [];
-                    console.log(cacheresponse)
                     let part_download = cacheresponse.reduce((promiseChainParts, u, i) => {
                         return promiseChainParts.then(() => new Promise(async (partOk) => {
                             let pm;
@@ -9428,7 +9427,6 @@ This code is publicly released and is restricted by its project license
                         }))
                     }, Promise.resolve());
                     part_download.then(async () => {
-                        console.log(filelist)
                         if (cacheresponse[0].paritycount && filelist.length !== cacheresponse[0].paritycount) {
                             res.status(501).json({
                                 error: false,
@@ -9438,8 +9436,8 @@ This code is publicly released and is restricted by its project license
                             res.status(200).json({
                                 error: false,
                                 parts: filelist,
-                                expected_parts: file.paritycount || files.length,
-                                filename: file.real_filename
+                                expected_parts: cacheresponse[0].paritycount || cacheresponse[0].length,
+                                filename: cacheresponse[0].real_filename
                             })
                         }
                     });
