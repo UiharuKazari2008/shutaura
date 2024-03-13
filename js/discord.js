@@ -9397,12 +9397,12 @@ This code is publicly released and is restricted by its project license
                         error: true,
                         message: "Record Not Found"
                     })
-                } else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
+                } else if (cacheresponse.filter(e => e.valid === 0).length !== 0) {
                     res.status(500).json({
                         error: true,
                         message: "Some files are not valid and will need to be revalidated or repaired!"
                     })
-                } else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
+                } else if (cacheresponse.filter(e => e.valid === 1).length !== cacheresponse[0].paritycount) {
                     res.status(500).json({
                         error: true,
                         message: "The expected number of parity files were not available."
