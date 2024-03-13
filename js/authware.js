@@ -143,6 +143,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (_seq_config[0].param_data.review_channels)
                     systemglobal.review_channels = _seq_config[0].param_data.review_channels;
             }
+            const _backup_config = systemparams_sql.filter(e => e.param_key === 'seq.cdn');
+            if (_backup_config.length > 0 && _backup_config[0].param_data) {
+                if (_backup_config[0].param_data.id)
+                    systemglobal.CDN_ID = _backup_config[0].param_data.id;
+                if (_backup_config[0].param_data.local_access)
+                    systemglobal.CDN_LocalURL = _backup_config[0].param_data.local_access;
+                if (_backup_config[0].param_data.remote_access)
+                    systemglobal.CDN_RemoteURL = _backup_config[0].param_data.remote_access;
+            }
             const _exchange_config = systemparams_sql.filter(e => e.param_key === 'exchange.local');
             if (_exchange_config.length > 0 && _exchange_config[0].param_data) {
                 if (_exchange_config[0].param_data.config)
@@ -1198,8 +1207,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 let SidebarArray = [];
                 const sidebarObject = await db.query(`SELECT * FROM kanmi_sidebar_${userId}`)
                 const customChannelObject = await db.query(`SELECT * FROM sequenzia_custom_channels`)
-                const userAlbums = await db.query('SELECT x.aid, x.name, x.uri, x.owner, x.privacy, y.* FROM (SELECT x.*, y.eid FROM (SELECT DISTINCT * FROM sequenzia_albums WHERE owner = ? ORDER BY name ASC) AS x LEFT JOIN (SELECT *, ROW_NUMBER() OVER(PARTITION BY aid ORDER BY RAND()) AS RowNo FROM sequenzia_album_items) AS y ON x.aid = y.aid AND y.RowNo=1) x LEFT JOIN (SELECT eid, channel, attachment_hash, attachment_name, cache_proxy FROM kanmi_records) y ON y.eid = x.eid ORDER BY name ASC', [userId])
-                const userArtists = await db.query(`SELECT * FROM (SELECT kanmi_records.attachment_hash, kanmi_records.attachment_name, kanmi_records.cache_proxy, kanmi_records.sizeH, kanmi_records.sizeW, kanmi_records.sizeR, kanmi_records.colorR, kanmi_records.colorG, kanmi_records.colorB, sequenzia_index_artists.id AS artist_id, sequenzia_index_artists.artist, sequenzia_index_artists.name AS artist_full_name, sequenzia_index_artists.url AS artist_url, sequenzia_index_artists.search AS artist_search, sequenzia_index_artists.count AS artist_count, sequenzia_index_artists.last AS artist_last, sequenzia_index_artists.source AS artist_source, sequenzia_index_artists.confidence AS artist_confidence, sequenzia_index_artists.rating AS artist_rating, kanmi_auth_${userId}.* FROM kanmi_records,kanmi_auth_${userId}, sequenzia_index_artists  WHERE (sequenzia_index_artists.channelid = kanmi_auth_${userId}.channelid AND kanmi_records.eid = sequenzia_index_artists.last AND kanmi_records.channel = kanmi_auth_${userId}.channelid)) x INNER JOIN (SELECT id AS fav_id, date AS fav_date FROM sequenzia_artists_favorites WHERE userid = "${userId}") y ON x.artist_id = y.fav_id ORDER BY x.artist_last DESC`)
+                const selectCDN = `SELECT * FROM kanmi_records_cdn WHERE (full = 1 OR mfull = 1) AND ( host = ${systemglobal.CDN_ID})`
+                const userAlbums = await db.query('SELECT rec.*, cdn.host AS cdn_host, cdn.path_hint, cdn.mfull_hint, cdn.full_hint, cdn.preview_hint, cdn.ext_0_hint FROM (SELECT x.aid, x.name, x.uri, x.owner, x.privacy, y.* FROM (SELECT x.*, y.eid FROM (SELECT DISTINCT * FROM sequenzia_albums WHERE owner = ? ORDER BY name ASC) AS x LEFT JOIN (SELECT *, ROW_NUMBER() OVER(PARTITION BY aid ORDER BY RAND()) AS RowNo FROM sequenzia_album_items) AS y ON x.aid = y.aid AND y.RowNo=1) x LEFT JOIN (SELECT eid, channel, attachment_hash, attachment_name, cache_proxy FROM kanmi_records) y ON y.eid = x.eid ORDER BY name ASC) rec LEFT OUTER JOIN (${selectCDN}) cdn ON (rec.eid = cdn.eid)', [userId])
+                const userArtists = await db.query(`SELECT rec.*, cdn.host AS cdn_host, cdn.path_hint, cdn.mfull_hint, cdn.full_hint, cdn.preview_hint, cdn.ext_0_hint FROM (SELECT * FROM (SELECT kanmi_records.attachment_hash, kanmi_records.attachment_name, kanmi_records.cache_proxy, kanmi_records.sizeH, kanmi_records.sizeW, kanmi_records.sizeR, kanmi_records.colorR, kanmi_records.colorG, kanmi_records.colorB, sequenzia_index_artists.id AS artist_id, sequenzia_index_artists.artist, sequenzia_index_artists.name AS artist_full_name, sequenzia_index_artists.url AS artist_url, sequenzia_index_artists.search AS artist_search, sequenzia_index_artists.count AS artist_count, sequenzia_index_artists.last AS artist_last, sequenzia_index_artists.source AS artist_source, sequenzia_index_artists.confidence AS artist_confidence, sequenzia_index_artists.rating AS artist_rating, kanmi_auth_${userId}.* FROM kanmi_records,kanmi_auth_${userId}, sequenzia_index_artists  WHERE (sequenzia_index_artists.channelid = kanmi_auth_${userId}.channelid AND kanmi_records.eid = sequenzia_index_artists.last AND kanmi_records.channel = kanmi_auth_${userId}.channelid)) x INNER JOIN (SELECT id AS fav_id, date AS fav_date FROM sequenzia_artists_favorites WHERE userid = "${userId}") y ON x.artist_id = y.fav_id ORDER BY x.artist_last DESC) rec LEFT OUTER JOIN (${selectCDN}) cdn ON (rec.eid = cdn.eid)`)
 
                 const libraryLists = await db.query(`SELECT g.* FROM (SELECT * FROM kongou_media_groups) g INNER JOIN (SELECT media_group FROM kanmi_auth_${userId}) a ON (g.media_group = a.media_group) GROUP BY g.media_group`)
 
@@ -1364,7 +1374,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                     if (userAlbums && userAlbums.rows.length > 0) {
                         userAccount.albums = userAlbums.rows.map(e => {
-                            let ranImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
+                            let ranImage = (e.preview_hint) ? `${systemglobal.CDN_RemoteURL}preview/${e.path_hint}/${e.preview_hint}` : ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channel}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
                             return {
                                 ...e,
                                 image: ranImage
@@ -1373,7 +1383,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     if (userArtists && userArtists.rows.length > 0) {
                         userAccount.artists = userArtists.rows.map(e => {
-                            let latestImage = ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
+                            let latestImage = (e.preview_hint) ? `${systemglobal.CDN_RemoteURL}preview/${e.path_hint}/${e.preview_hint}` : ( e.cache_proxy) ? e.cache_proxy.startsWith('http') ? e.cache_proxy : `https://media.discordapp.net/attachments${e.cache_proxy}` : (e.attachment_hash && e.attachment_name) ? `https://media.discordapp.net/attachments/` + ((e.attachment_hash.includes('/')) ? e.attachment_hash : `${e.channelid}/${e.attachment_hash}/${e.attachment_name.split('?')[0]}`) : undefined
                             return {
                                 ...e,
                                 image: latestImage

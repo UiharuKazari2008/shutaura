@@ -986,7 +986,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         })()
         const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
                        FROM (SELECT rec.*, ext.data
-                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0  AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
@@ -1005,6 +1005,44 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
     async function findEpisodeItems() {
+        activeParseing = true;
+        const q = `SELECT x.*,
+                          y.heid,
+                          y.full,
+                          y.mfull,
+                          y.preview,
+                          y.ext_0,
+                          y.ext_1,
+                          y.ext_2,
+                          y.ext_3
+                   FROM (SELECT rec.*, ext.data
+                         FROM (SELECT *
+                               FROM kanmi_records
+                               WHERE source = 0 AND flagged = 0  AND hidden = 0 
+                                 AND eid IN (SELECT eid
+                                             FROM (SELECT eid, episode_num, show_id
+                                                   FROM kongou_episodes
+                                                   WHERE season_num > 0 AND episode_num <= ${systemglobal.CDN_PreFetch_Episodes || 3}) episodes
+                                                      INNER JOIN (SELECT s.*
+                                                                  FROM (SELECT * FROM kongou_shows) s
+                                                                           INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND (' + systemglobal.CDN_Focus_Media_Groups.map(e => 'media_group = "' + e + '"').join(' OR ') + ')' : ''}) g
+                                                                                      ON (g.media_group = s.media_group)) shows
+                                                                 ON (episodes.show_id = shows.show_id))
+                                 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)) rec
+                                  LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                            LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                   WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
+                   ORDER BY RAND()
+                   LIMIT ?`;
+        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
+        } else {
+            await handleBackupItems(backupItems, true);
+        }
+    }
+    async function findShowData() {
         activeParseing = true;
         const q = `SELECT x.*,
                           y.heid,
