@@ -661,6 +661,428 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         });
                     } else {
                         const data = await new Promise(ok => {
+                            if (val.src && val.src.includes("ex=")) {
+                                const url = val.src;
+                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                request.get({
+                                    url,
+                                    headers: {
+                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                        'accept-language': 'en-US,en;q=0.9',
+                                        'cache-control': 'max-age=0',
+                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                        'sec-ch-ua-mobile': '?0',
+                                        'sec-fetch-dest': 'document',
+                                        'sec-fetch-mode': 'navigate',
+                                        'sec-fetch-site': 'none',
+                                        'sec-fetch-user': '?1',
+                                        'upgrade-insecure-requests': '1',
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                    },
+                                }, async (err, res, body) => {
+                                    if (err || res && res.statusCode && res.statusCode !== 200) {
+                                        if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
+                                            Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                        } else {
+                                            Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                        }
+                                        ok(false)
+                                    } else {
+                                        ok(body);
+                                    }
+                                })
+                            } else {
+                                return false;
+                            }
+                        })
+                        if (data) {
+                            fsEx.ensureDirSync(path.join(val.dest));
+                            const write = await new Promise(ok => {
+                                fs.writeFile(path.join(val.dest, destName), data, async (err) => {
+                                    if (err) {
+                                        Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                    }
+                                    ok(!err);
+                                })
+                            });
+                            res[k] = (write) ? destName : null;
+                            blockOk();
+                        } else {
+                            const pm = await (async () => {
+                                try {
+                                    let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
+                                    await sleep(5000);
+                                    let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
+                                    return om.embeds[0].thumbnail.url
+                                } catch (e) {
+                                    console.error("Failed to get parity attachemnt from discord", e)
+                                }
+                            })()
+                            const dataTake2 = await new Promise(ok => {
+                                const url = pm;
+                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                request.get({
+                                    url,
+                                    headers: {
+                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                        'accept-language': 'en-US,en;q=0.9',
+                                        'cache-control': 'max-age=0',
+                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                        'sec-ch-ua-mobile': '?0',
+                                        'sec-fetch-dest': 'document',
+                                        'sec-fetch-mode': 'navigate',
+                                        'sec-fetch-site': 'none',
+                                        'sec-fetch-user': '?1',
+                                        'upgrade-insecure-requests': '1',
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                    },
+                                }, async (err, res, body) => {
+                                    if (err || res && res.statusCode && res.statusCode !== 200) {
+                                        if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
+                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                            mqClient.sendData(systemglobal.Discord_Out, {
+                                                fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                                messageReturn: false,
+                                                messageID: message.id,
+                                                messageChannelID: message.channel,
+                                                messageServerID: message.server,
+                                                messageType: 'command',
+                                                messageAction: 'ValidateMessage'
+                                            }, function (callback) {
+                                                if (callback) {
+                                                    Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                                } else {
+                                                    Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                                }
+                                            });
+                                        } else {
+                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                        }
+                                        ok(false)
+                                    } else {
+                                        ok(body);
+                                    }
+                                })
+                            })
+                            if (dataTake2) {
+                                fsEx.ensureDirSync(path.join(val.dest));
+                                const write = await new Promise(ok => {
+                                    fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                        if (err) {
+                                            Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                        }
+                                        ok(!err);
+                                    })
+                                });
+                                res[k] = (write) ? destName : null;
+                                blockOk();
+                            } else {
+                                Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                                if (k === 'extended_preview' || val['src'].includes('t9-preview')) {
+                                    mqClient.sendData(systemglobal.Discord_Out, {
+                                        messageReturn: false,
+                                        messageType: 'command',
+                                        messageAction: (destName.split('.').pop().toLowerCase() === 'gif') ? 'CacheVideo' : 'CacheImage',
+                                        fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                        messageID: message.id,
+                                        messageChannelID: message.channel,
+                                        messageServerID: message.server,
+                                    }, function (callback) {
+                                        if (callback) {
+                                            Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                        } else {
+                                            Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                        }
+                                    });
+                                    res[k] = false;
+                                    blockOk();
+                                } else if (k === 'preview') {
+                                    const full_data = await new Promise(ok => {
+                                        const url = attachements.full.src;
+                                        Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} (Sharp Convert) ${destName}...`, "debug")
+                                        request.get({
+                                            url,
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                ok(false)
+                                            } else {
+                                                ok(body);
+                                            }
+                                        })
+                                    })
+                                    if (full_data) {
+                                        let resizeParam = {
+                                            fit: sharp.fit.inside,
+                                            withoutEnlargement: true,
+                                            width: 512,
+                                            height: 512
+                                        }
+                                        if (message.sizeW >= message.sizeH) {
+                                            resizeParam.width = parseInt((message.sizeW * (512 / message.sizeH)).toFixed(0).toString())
+                                        } else {
+                                            resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
+                                        }
+                                        if (isNaN(resizeParam.width))
+                                            resizeParam.width = 512;
+                                        if (isNaN(resizeParam.height))
+                                            resizeParam.height = 512;
+                                        res[k] = (await new Promise(image_saved => {
+                                            sharp(full_data)
+                                                .resize(resizeParam)
+                                                .toFormat(destName.split('.').pop().toLowerCase())
+                                                .withMetadata()
+                                                .toFile(path.join(val.dest, destName), function (err) {
+                                                    if (err) {
+                                                        Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err);
+                                                        console.error(err);
+                                                        if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
+                                                            fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
+                                                                if (err) {
+                                                                    Logger.printLine("CopyFile", `Failed to write full/preview ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                                                }
+                                                                image_saved((!err) ? destName : false);
+                                                            })
+                                                        } else {
+                                                            image_saved(false);
+                                                        }
+                                                    } else {
+                                                        image_saved(destName);
+                                                    }
+                                                })
+                                        }));
+                                        blockOk();
+                                    } else {
+                                        Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
+                                        res[k] = false;
+                                        blockOk();
+                                    }
+                                } else {
+                                    res[k] = false;
+                                    blockOk();
+                                }
+                            }
+                        }
+                    }
+                }))
+            }, Promise.resolve());
+            requests.then(async () => {
+                Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
+                if (Object.values(res).filter(f => !f).length === 0)
+                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
+                cb(true);
+            });
+        } else {
+            Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
+            cb(false)
+        }
+    }
+    async function backupShowMeta (message, cb, requested_remotely, allow_master_files) {
+        let attachements = {};
+
+        async function backupCompleted(path, preview, full, ext_0, master) {
+            if (message.id) {
+                const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
+                                                  SET hrid         = ?,
+                                                      eid          = ?,
+                                                      host         = ?,
+                                                      id_hint      = ?,
+                                                      path_hint    = ?,
+                                                      preview      = ?,
+                                                      preview_hint = ?,
+                                                      full         = ?,
+                                                      full_hint    = ?,
+                                                      mfull        = ?,
+                                                      mfull_hint   = ?,
+                                                      ext_0        = ?,
+                                                      ext_0_hint   = ? 
+                                                  ON DUPLICATE KEY UPDATE
+                                                      id_hint      = ?,
+                                                      path_hint    = ?,
+                                                      preview      = ?,
+                                                      preview_hint = ?,
+                                                      full         = ?,
+                                                      full_hint    = ?,
+                                                      mfull        = ?,
+                                                      mfull_hint   = ?,
+                                                      ext_0        = ?,
+                                                      ext_0_hint   = ?`, [
+                    (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                    message.eid,
+                    systemglobal.CDN_ID,
+                    message.id,
+                    path,
+                    (!!preview) ? 1 : 0,
+                    (!!preview) ? preview : null,
+                    (!!full) ? 1 : 0,
+                    (!!full) ? full : null,
+                    (!!master) ? 1 : 0,
+                    (!!master) ? master : null,
+                    (!!ext_0) ? 1 : 0,
+                    (!!ext_0) ? ext_0 : null,
+                    message.id,
+                    path,
+                    (!!preview) ? 1 : 0,
+                    (!!preview) ? preview : null,
+                    (!!full) ? 1 : 0,
+                    (!!full) ? full : null,
+                    (!!master) ? 1 : 0,
+                    (!!master) ? master : null,
+                    (!!ext_0) ? 1 : 0,
+                    (!!ext_0) ? ext_0 : null,
+                ])
+                if (saveBackupSQL.error) {
+                    Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
+                }
+            } else {
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err")
+            }
+        }
+        function getimageSizeParam(auth) {
+            if (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512)) {
+                let ih = 512;
+                let iw = 512;
+                if (message.sizeW >= message.sizeH) {
+                    iw = (message.sizeW * (512 / message.sizeH)).toFixed(0)
+                } else {
+                    ih = (message.sizeH * (512 / message.sizeW)).toFixed(0)
+                }
+                return ((auth) ? auth + "&" : '?') + `width=${iw}&height=${ih}`
+            } else {
+                return auth || ''
+            }
+        }
+
+        if (message.background) {
+            attachements['kongou_bg'] = {
+                src: `https://cdn.discordapp.com/attachments${message.background}`,
+                dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'backdrop'),
+                ext: message.background.split('?')[0].split('.').pop()
+            }
+        }
+        if (message.poster) {
+            attachements['kongou_poster'] = {
+                rc: `https://cdn.discordapp.com/attachments${message.poster}`,
+                dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'poster'),
+                ext: message.poster.split('?')[0].split('.').pop()
+            }
+        }
+
+        if (Object.keys(attachements).length > 0) {
+            let res = {};
+            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                return promiseChain.then(() => new Promise(async (blockOk) => {
+                    const val = attachements[k];
+                    let destName = `${message.eid}`
+                    if (val.ext) {
+                        destName += '.' + val.ext;
+                    } else if (message.attachment_name) {
+                        destName += '.' + message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
+                    }
+                    if (k === 'mfull') {
+                        let part_urls = [];
+                        let part_download = val.src.reduce((promiseChainParts, u, i) => {
+                            return promiseChainParts.then(() => new Promise(async (partOk) => {
+                                const data = await new Promise(async ok => {
+                                    let pm;
+                                    try {
+                                        pm = await discordClient.getMessage(u.channelid, u.messageid);
+                                    } catch (e) {
+                                        console.error("Failed to get parity attachemnt from discord", e)
+                                    }
+                                    if (pm && pm.attachments && pm.attachments.length > 0) {
+                                        const url = pm.attachments[0].url;
+                                        //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
+                                        request.get({
+                                            url,
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                                    await db.query(`UPDATE discord_multipart_files SET valid = 0 WHERE url = ?`, [u.url])
+                                                } else {
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                }
+                                                ok(false)
+                                            } else {
+                                                ok(body);
+                                            }
+                                        })
+                                    } else {
+                                        ok(false)
+                                    }
+                                })
+                                if (data) {
+                                    fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
+                                    const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString(), u.url.split('?')[0].split('/').pop());
+                                    const write = await new Promise(ok => {
+                                        fs.writeFile(filepath, data, async (err) => {
+                                            if (err) {
+                                                Logger.printLine("CopyFile", `Failed to write download ${u.url.split('?')[0].split('/').pop()} for ${message.eid}`, "err", err)
+                                            }
+                                            ok(!err);
+                                        })
+                                    });
+                                    part_urls[i] = (write) ? filepath : null;
+                                    partOk();
+                                } else {
+                                    Logger.printLine("DownloadFile", `Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
+                                    part_urls[i] = false;
+                                    partOk();
+                                }
+                            }))
+                        }, Promise.resolve());
+                        part_download.then(async () => {
+                            if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
+                                const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
+                                fsEx.ensureDirSync(path.join(val.dest));
+                                fsEx.removeSync(path.join(val.dest, destName));
+                                await splitFile.mergeFiles(files, path.join(val.dest, destName));
+                                fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
+                                try {
+                                    res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
+                                    Logger.printLine("BackupFile", `Download Master File ${message.real_filename}`, "debug")
+                                } catch (e) {
+                                    res[k] = false;
+                                }
+                            } else {
+                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
+                                if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount !== part_urls.length) {
+                                    await db.query(`UPDATE kanmi_records SET flagged = 1 WHERE eid = ?`, [message.eid])
+                                }
+                                res[k] = false;
+                            }
+                            blockOk();
+                        });
+                    } else {
+                        const data = await new Promise(ok => {
                             const url = val.src;
                             //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
                             request.get({
@@ -1045,31 +1467,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function findShowData() {
         activeParseing = true;
         const q = `SELECT x.*,
-                          y.heid,
-                          y.full,
-                          y.mfull,
-                          y.preview,
-                          y.ext_0,
-                          y.ext_1,
-                          y.ext_2,
-                          y.ext_3
-                   FROM (SELECT rec.*, ext.data
-                         FROM (SELECT *
-                               FROM kanmi_records
-                               WHERE source = 0 AND flagged = 0  AND hidden = 0 
-                                 AND eid IN (SELECT eid
-                                             FROM (SELECT eid, episode_num, show_id
-                                                   FROM kongou_episodes
-                                                   WHERE season_num > 0 AND episode_num <= ${systemglobal.CDN_PreFetch_Episodes || 3}) episodes
-                                                      INNER JOIN (SELECT s.*
-                                                                  FROM (SELECT * FROM kongou_shows) s
-                                                                           INNER JOIN (SELECT * FROM kongou_media_groups WHERE type = 2 ${(systemglobal.CDN_Focus_Media_Groups) ? 'AND (' + systemglobal.CDN_Focus_Media_Groups.map(e => 'media_group = "' + e + '"').join(' OR ') + ')' : ''}) g
-                                                                                      ON (g.media_group = s.media_group)) shows
-                                                                 ON (episodes.show_id = shows.show_id))
-                                 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)) rec
-                                  LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
-                            LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
-                   WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
+                          y.hrid, y.host, y.record_int, y.record_id, id_hint, path_hint, dat_0, dat_0_hint, dat_1, dat_1_hint
+                   FROM (SELECT * FROM kongou_shows) x
+                            LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.show_id = y.record_int)
+                   WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
         Logger.printLine("Prefeatch", `Preparing Search....`, "info");
@@ -1077,7 +1478,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
-            await handleBackupItems(backupItems, true);
+            await handleBackupShowMeta(backupItems);
         }
     }
     async function handleBackupItems(backupItems, allow_master) {
@@ -1096,6 +1497,38 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             resolve(ok)
                             m = null
                         }, false, allow_master)
+                    }))
+                }, Promise.resolve());
+                requests.then(async () => {
+                    if (total > 0) {
+                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
+                    } else {
+                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                    }
+                    completed();
+                })
+            } else {
+                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                completed();
+            }
+        });
+    }
+    async function handleBackupShowMeta(backupItems) {
+        return new Promise(async completed => {
+            runCount++;
+            if (backupItems.rows.length > 0) {
+                let total = backupItems.rows.length
+                let ticks = 0
+                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
+                    return promiseChain.then(() => new Promise(async (resolve) => {
+                        await backupShowMeta(m, async ok => {
+                            ticks++
+                            if (ticks >= 100 || a.length <= 100) {
+                                ticks = 0
+                            }
+                            resolve(ok)
+                            m = null
+                        }, false)
                     }))
                 }, Promise.resolve());
                 requests.then(async () => {
