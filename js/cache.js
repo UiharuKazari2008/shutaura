@@ -1038,7 +1038,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.name}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0)
-                    await backupCompleted(hash, res.preview, res.kongou_poster, res.kongou_bg);
+                    await backupCompleted(hash, res.kongou_poster, res.kongou_bg);
                 cb(true);
             });
         } else {
