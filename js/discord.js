@@ -9382,6 +9382,7 @@ This code is publicly released and is restricted by its project license
         if (req.query && req.query.uuid) {
             db.safe(`SELECT kanmi_records.eid,
                                   kanmi_records.fileid,
+                                  kanmi_records.real_filename,
                                   kanmi_records.paritycount,
                                   discord_multipart_files.messageid,
                                   discord_multipart_files.channelid,
@@ -9402,7 +9403,7 @@ This code is publicly released and is restricted by its project license
                         error: true,
                         message: "Some files are not valid and will need to be revalidated or repaired!"
                     })
-                } else if (cacheresponse.filter(e => e.valid === 1).length !== cacheresponse[0].paritycount) {
+                } else if (cacheresponse[0].paritycount && cacheresponse.filter(e => e.valid === 1).length !== cacheresponse[0].paritycount) {
                     res.status(500).json({
                         error: true,
                         message: "The expected number of parity files were not available."
@@ -9428,7 +9429,7 @@ This code is publicly released and is restricted by its project license
                     }, Promise.resolve());
                     part_download.then(async () => {
                         console.log(filelist)
-                        if (filelist.length !== cacheresponse[0].paritycount) {
+                        if (cacheresponse[0].paritycount && filelist.length !== cacheresponse[0].paritycount) {
                             res.status(501).json({
                                 error: false,
                                 message: "The expected number of parity files were not available."
@@ -9436,7 +9437,9 @@ This code is publicly released and is restricted by its project license
                         } else {
                             res.status(200).json({
                                 error: false,
-                                message: "The expected number of parity files were not available."
+                                parts: files,
+                                expected_parts: file.paritycount || files.length,
+                                filename: file.real_filename
                             })
                         }
                     });
