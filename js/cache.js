@@ -1312,40 +1312,53 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
                             async function backupCompleted(hash, avatar, background) {
                                 if (message.hash) {
-                                    const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
-                                                  SET hrid         = ?,
-                                                      record_int = ?,
+                                    const foundRecord = (await db.query(`SELECT hrid FROM kanmi_aux_cdn WHERE record_ref = ? AND path_hint = 'user' AND host = ?`, [message.id, systemglobal.CDN_ID])).rows
+                                    if (foundRecord.length > 0) {
+                                        const saveBackupSQL = await db.query(`UPDATE kanmi_aux_cdn
+                                                  SET record_id = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ? WHERE hrid = ?`, [
+                                            hash,
+                                            (!!avatar) ? 1 : 0,
+                                            (!!avatar) ? avatar : null,
+                                            (!!background) ? 1 : 0,
+                                            (!!background) ? background : null,
+                                            foundRecord[0].hrid
+                                        ])
+                                        if (saveBackupSQL.error) {
+                                            Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                        }
+                                    } else {
+                                        const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
+                                                  SET record_ref = ?,
                                                       host = ?,
                                                       record_id = ?,
                                                       path_hint = ?,
                                                       dat_0 = ?,
                                                       dat_0_hint = ?,
                                                       dat_1 = ?,
-                                                      dat_1_hint = ?
-                                                  ON DUPLICATE KEY UPDATE
-                                                      record_id = ?,
-                                                      dat_0 = ?,
-                                                      dat_0_hint = ?,
-                                                      dat_1 = ?,
                                                       dat_1_hint = ?`, [
-                                        (parseInt(message.id.toString()) * parseInt(systemglobal.CDN_ID.toString())),
-                                        message.id,
-                                        systemglobal.CDN_ID,
-                                        hash,
-                                        "user",
-                                        (!!avatar) ? 1 : 0,
-                                        (!!avatar) ? avatar : null,
-                                        (!!background) ? 1 : 0,
-                                        (!!background) ? background : null,
-                                        hash,
-                                        (!!avatar) ? 1 : 0,
-                                        (!!avatar) ? avatar : null,
-                                        (!!background) ? 1 : 0,
-                                        (!!background) ? background : null,
-                                    ])
-                                    if (saveBackupSQL.error) {
-                                        Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                            message.id,
+                                            systemglobal.CDN_ID,
+                                            hash,
+                                            "user",
+                                            (!!avatar) ? 1 : 0,
+                                            (!!avatar) ? avatar : null,
+                                            (!!background) ? 1 : 0,
+                                            (!!background) ? background : null,
+                                            hash,
+                                            (!!avatar) ? 1 : 0,
+                                            (!!avatar) ? avatar : null,
+                                            (!!background) ? 1 : 0,
+                                            (!!background) ? background : null,
+                                        ])
+                                        if (saveBackupSQL.error) {
+                                            Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                        }
                                     }
+
                                 } else {
                                     Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN: No Message ID passed`, "err")
                                 }
