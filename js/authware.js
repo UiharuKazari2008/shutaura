@@ -961,7 +961,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         ].join(', ');
 
 
-        const selectAuxUserCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'user' ${(config.local_cdn_list && config.local_cdn_list.length > 0) ? ' AND ' + config.local_cdn_list.map(e => 'host = ' + e.id).join(' OR ') : ''}`;
+        const selectAuxUserCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'user' AND host = ${systemglobal.CDN_ID}`;
         const allUsers = (await db.query(`SELECT rec.*, cdn.host AS cdn_host, cdn.dat_0_hint, cdn.dat_1_hint FROM (SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.2fa_key, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, 2fa_key FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id) rec LEFT OUTER JOIN (${selectAuxUserCDN}) cdn ON (rec.id = cdn.record_int)`)).rows;
         const allUserIds = [...new Set(allUsers.filter(e => !!e.id).map(e => e.id))];
         const extraLinks = (await db.query(`SELECT * FROM sequenzia_homelinks ORDER BY position`)).rows
@@ -1092,8 +1092,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 user: {
                     id: userId,
                     username: (users[0].nice_name) ? users[0].nice_name : users[0].username,
-                    avatar: (users[0].avatar_custom) ? `/full_attachments${users[0].avatar_custom}` : (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
-                    banner: (users[0].banner_custom) ? `/full_attachments${users[0].banner_custom}` : (users[0].banner) ? `https://cdn.discordapp.com/banners/${userId}/${users[0].banner}.${(users[0].banner && users[0].banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
+                    avatar: (users[0].avatar_custom && users[0].dat_0_hint) ?`${systemglobal.CDN_RemoteURL}/user/avatar/${users[0].dat_0_hint}` : (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
+                    banner: (users[0].banner_custom && users[0].dat_1_hint) ?`${systemglobal.CDN_RemoteURL}/user/banner/${users[0].dat_1_hint}` : (users[0].banner) ? `https://cdn.discordapp.com/banners/${userId}/${users[0].banner}.${(users[0].banner && users[0].banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
                 },
                 server_list: [],
                 cache: {
