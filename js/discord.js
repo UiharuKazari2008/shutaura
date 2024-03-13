@@ -9437,7 +9437,7 @@ This code is publicly released and is restricted by its project license
                         } else {
                             res.status(200).json({
                                 error: false,
-                                parts: files,
+                                parts: filelist,
                                 expected_parts: file.paritycount || files.length,
                                 filename: file.real_filename
                             })
