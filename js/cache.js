@@ -961,7 +961,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         if (message.poster) {
             attachements['kongou_poster'] = {
-                rc: `https://cdn.discordapp.com/attachments${message.poster}`,
+                src: `https://cdn.discordapp.com/attachments${message.poster}`,
                 dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'poster'),
                 ext: message.poster.split('?')[0].split('.').pop()
             }
