@@ -9394,21 +9394,12 @@ This code is publicly released and is restricted by its project license
                              AND kanmi_records.source = 0
                              AND kanmi_records.fileid = discord_multipart_files.fileid`, [req.query.uuid], function (err, cacheresponse) {
                 if (err || cacheresponse.length === 0) {
-                    res.status(404).json({
-                        error: true,
-                        message: "Record Not Found"
-                    })
+                    res.status(404).json("File not found")
                 } else if (cacheresponse.filter(e => e.valid === 0).length !== 0) {
-                    res.status(500).json({
-                        error: true,
-                        message: "Some files are not valid and will need to be revalidated or repaired!"
-                    })
+                    res.status(415).send('This content is not streamable or is damaged!')
                 } else if (cacheresponse[0].paritycount && cacheresponse.filter(e => e.valid === 1).length !== cacheresponse[0].paritycount) {
-                    res.status(500).json({
-                        error: true,
-                        message: "The expected number of parity files were not available."
-                    })
-                } else {
+                    res.status(415).send('This content is not streamable or is damaged!')
+                } else if (cacheresponse.length > 1) {
                     let filelist = [];
                     let part_download = cacheresponse.reduce((promiseChainParts, u, i) => {
                         return promiseChainParts.then(() => new Promise(async (partOk) => {
@@ -9428,10 +9419,7 @@ This code is publicly released and is restricted by its project license
                     }, Promise.resolve());
                     part_download.then(async () => {
                         if (cacheresponse[0].paritycount && filelist.length !== cacheresponse[0].paritycount) {
-                            res.status(501).json({
-                                error: false,
-                                message: "The expected number of parity files were not available."
-                            })
+                            res.status(415).send('This content is not streamable or is damaged!')
                         } else {
                             res.status(200).json({
                                 error: false,
@@ -9441,13 +9429,12 @@ This code is publicly released and is restricted by its project license
                             })
                         }
                     });
+                } else {
+                    res.status(415).send('This content is not streamable')
                 }
             })
         } else {
-            res.status(400).json({
-                error: true,
-                message: "Record Not Found"
-            })
+            res.status(400).send('Invalid Request')
         }
     })
 
