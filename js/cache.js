@@ -1568,10 +1568,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
                 console.log("Waiting 30sec before normal tasks..")
                 setTimeout(async () => {
+                    await findShowData();
                     if (systemglobal.CDN_Focus_Channels) {
                         await findBackupItems(systemglobal.CDN_Focus_Channels);
                     }
-                    await findShowData();
+                    await findUserData();
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
@@ -1582,6 +1583,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (activeParseing) {
                             console.log('System Busy');
                         } else {
+                            await findUserData();
                             await findBackupItems();
                             await findShowData();
                             await findEpisodeItems();
