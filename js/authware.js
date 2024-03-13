@@ -961,7 +961,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         ].join(', ');
 
 
-        const allUsers = (await db.query("SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.`2fa_key`, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, `2fa_key` FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id")).rows
+        const selectAuxUserCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'user' ${(config.local_cdn_list && config.local_cdn_list.length > 0) ? ' AND ' + config.local_cdn_list.map(e => 'host = ' + e.id).join(' OR ') : ''}`;
+        const allUsers = (await db.query(`SELECT rec.*, cdn.host AS cdn_host, cdn.dat_0_hint, cdn.dat_1_hint FROM (SELECT x.* FROM (SELECT x.serveruserid, x.server, x.username, x.avatar, x.banner, x.color, x.2fa_key, y.* FROM (SELECT serveruserid, id, server, username, avatar, banner, color, 2fa_key FROM discord_users) x LEFT JOIN (SELECT * FROM discord_users_extended) y ON (x.id = y.id)) x LEFT JOIN (SELECT discord_servers.position, discord_servers.authware_enabled, discord_servers.name, discord_servers.serverid FROM discord_servers) y ON x.server = y.serverid ORDER BY y.authware_enabled, y.position, x.id) rec LEFT OUTER JOIN (${selectAuxUserCDN}) cdn ON (rec.id = cdn.record_int)`)).rows;
         const allUserIds = [...new Set(allUsers.filter(e => !!e.id).map(e => e.id))];
         const extraLinks = (await db.query(`SELECT * FROM sequenzia_homelinks ORDER BY position`)).rows
         const allUserPermissions = (await db.query("SELECT DISTINCT role, type, userid, color, text, serverid FROM discord_users_permissons")).rows
@@ -1149,7 +1150,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 const tempLastEpisode = await db.query(`SELECT Max(y.eid) AS eid, MAX(y.show_id) AS show_id FROM (SELECT * FROM kanmi_system.kongou_watch_history WHERE user = '${userId}' ORDER BY date DESC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_episodes) y ON (x.eid = y.eid);`)
 
                 if (tempLastEpisode.rows.length > 0) {
-                    const nextEpisodeView = await db.query(`SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id);`)
+                    const selectAuxCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'kongou' ${(config.local_cdn_list && config.local_cdn_list.length > 0) ? ' AND ' + config.local_cdn_list.map(e => 'host = ' + e.id).join(' OR ') : ''}`
+                    const nextEpisodeView = await db.query(`SELECT rec.*, cdn.host AS cdn_host, cdn.dat_0_hint, cdn.dat_1_hint FROM (SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id)) rec LEFT OUTER JOIN (${selectAuxCDN}) cdn ON (rec.show_id = cdn.record_int);`)
                     userAccount.kongou_next_episode = nextEpisodeView.rows[0];
                 }
 

@@ -1218,6 +1218,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await handleBackupShowMeta(backupItems);
         }
     }
+    async function findUserData() {
+        activeParseing = true;
+        const q = `SELECT x.* ,
+                          y.hrid, y.host, y.record_int, y.record_id, id_hint, path_hint, dat_0, dat_0_hint, dat_1, dat_1_hint
+                   FROM (SELECT id, avatar_custom, banner_custom, md5(CONCAT(COALESCE(avatar_custom,''), COALESCE(banner_custom,''))) as hash FROM discord_users_extended WHERE (banner_custom IS NOT NULL OR avatar_custom IS NOT NULL)) x
+                            LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.hash = y.record_id)
+                   WHERE (y.hrid IS NULL)
+                   ORDER BY RAND()
+                   LIMIT ?`;
+        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
+        } else {
+            await handleBackupUserData(backupItems);
+        }
+    }
     async function handleBackupItems(backupItems, allow_master) {
         return new Promise(async completed => {
             runCount++;
@@ -1266,6 +1283,188 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             resolve(ok)
                             m = null
                         }, false)
+                    }))
+                }, Promise.resolve());
+                requests.then(async () => {
+                    if (total > 0) {
+                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
+                    } else {
+                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                    }
+                    completed();
+                })
+            } else {
+                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                completed();
+            }
+        });
+    }
+    async function handleBackupUserData(backupItems) {
+        return new Promise(async completed => {
+            runCount++;
+            if (backupItems.rows.length > 0) {
+                let total = backupItems.rows.length
+                let ticks = 0
+                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
+                    return promiseChain.then(() => new Promise(async (resolve) => {
+                        await (async (message, cb) => {
+                            let attachements = {};
+
+                            async function backupCompleted(hash, avatar, background) {
+                                if (message.hash) {
+                                    const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
+                                                  SET hrid         = ?,
+                                                      record_int = ?,
+                                                      host = ?,
+                                                      record_id = ?,
+                                                      path_hint = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?
+                                                  ON DUPLICATE KEY UPDATE
+                                                      record_id = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?`, [
+                                        (parseInt(message.id.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                                        message.id,
+                                        systemglobal.CDN_ID,
+                                        hash,
+                                        "user",
+                                        (!!avatar) ? 1 : 0,
+                                        (!!avatar) ? avatar : null,
+                                        (!!background) ? 1 : 0,
+                                        (!!background) ? background : null,
+                                        hash,
+                                        (!!avatar) ? 1 : 0,
+                                        (!!avatar) ? avatar : null,
+                                        (!!background) ? 1 : 0,
+                                        (!!background) ? background : null,
+                                    ])
+                                    if (saveBackupSQL.error) {
+                                        Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                    }
+                                } else {
+                                    Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN: No Message ID passed`, "err")
+                                }
+                            }
+                            function getimageSizeParam(auth) {
+                                if (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512)) {
+                                    let ih = 512;
+                                    let iw = 512;
+                                    if (message.sizeW >= message.sizeH) {
+                                        iw = (message.sizeW * (512 / message.sizeH)).toFixed(0)
+                                    } else {
+                                        ih = (message.sizeH * (512 / message.sizeW)).toFixed(0)
+                                    }
+                                    return ((auth) ? auth + "&" : '?') + `width=${iw}&height=${ih}`
+                                } else {
+                                    return auth || ''
+                                }
+                            }
+
+                            if (message.banner_custom) {
+                                attachements['banner'] = {
+                                    src: `https://cdn.discordapp.com/attachments${message.banner_custom}`,
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'user', 'banner'),
+                                    ext: message.background.split('?')[0].split('.').pop()
+                                }
+                            }
+                            if (message.avatar_custom) {
+                                attachements['avatar'] = {
+                                    src: `https://cdn.discordapp.com/attachments${message.avatar_custom}`,
+                                    dest: path.join(systemglobal.CDN_Base_Path, 'user', 'avatar'),
+                                    ext: message.poster.split('?')[0].split('.').pop()
+                                }
+                            }
+                            const hash = md5(`${(message.avatar_custom) ? message.avatar_custom : ''}${(message.banner_custom) ? message.banner_custom : ''}`)
+
+                            if (Object.keys(attachements).length > 0) {
+                                let res = {};
+                                let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                                    return promiseChain.then(() => new Promise(async (blockOk) => {
+                                        const val = attachements[k];
+                                        let destName = `${message.id}`
+                                        if (val.ext) {
+                                            destName += '.' + val.ext;
+                                        }
+                                        const pm = await (async () => {
+                                            try {
+                                                let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
+                                                await sleep(5000);
+                                                let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                                                await discordClient.deleteMessage(pm.channel.id, pm.id)
+                                                return om.embeds[0].thumbnail.url
+                                            } catch (e) {
+                                                console.error("Failed to get parity attachemnt from discord", e)
+                                            }
+                                        })()
+                                        const dataTake2 = await new Promise(ok => {
+                                            const url = pm;
+                                            //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                            request.get({
+                                                url,
+                                                headers: {
+                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                    'accept-language': 'en-US,en;q=0.9',
+                                                    'cache-control': 'max-age=0',
+                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                    'sec-ch-ua-mobile': '?0',
+                                                    'sec-fetch-dest': 'document',
+                                                    'sec-fetch-mode': 'navigate',
+                                                    'sec-fetch-site': 'none',
+                                                    'sec-fetch-user': '?1',
+                                                    'upgrade-insecure-requests': '1',
+                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                },
+                                            }, async (err, res, body) => {
+                                                if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                    ok(false)
+                                                } else {
+                                                    ok(body);
+                                                }
+                                            })
+                                        })
+                                        if (dataTake2) {
+                                            fsEx.ensureDirSync(path.join(val.dest));
+                                            const write = await new Promise(ok => {
+                                                fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                                    if (err) {
+                                                        Logger.printLine("CopyFile", `Failed to write download ${message.name} for ${k}`, "err", err)
+                                                    }
+                                                    ok(!err);
+                                                })
+                                            });
+                                            res[k] = (write) ? destName : null;
+                                            blockOk();
+                                        } else {
+                                            Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                                            res[k] = false;
+                                            blockOk();
+                                        }
+                                    }))
+                                }, Promise.resolve());
+                                requests.then(async () => {
+                                    Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
+                                    if (Object.values(res).filter(f => !f).length === 0)
+                                        await backupCompleted(hash, res.avatar, res.banner);
+                                    cb(true);
+                                });
+                            } else {
+                                Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
+                                cb(false)
+                            }
+                        })(m, async ok => {
+                            ticks++
+                            if (ticks >= 100 || a.length <= 100) {
+                                ticks = 0
+                            }
+                            resolve(ok)
+                            m = null
+                        })
                     }))
                 }, Promise.resolve());
                 requests.then(async () => {
