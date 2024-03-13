@@ -113,6 +113,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Interval_Min = _backup_config[0].param_data.interval_min;
                 if (_backup_config[0].param_data.items_per_backup)
                     systemglobal.CDN_N_Per_Interval = _backup_config[0].param_data.items_per_backup;
+                if (_backup_config[0].param_data.items_per_backup)
+                    systemglobal.CDN_N_Episodes_Per_Interval = _backup_config[0].param_data.episodes_per_backup;
                 if (_backup_config[0].param_data.base_path)
                     systemglobal.CDN_Base_Path = _backup_config[0].param_data.base_path;
                 if (_backup_config[0].param_data.download_path)
@@ -987,314 +989,64 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
-                    let destName = `${message.eid}`
+                    let destName = `${message.show_id}`
                     if (val.ext) {
                         destName += '.' + val.ext;
-                    } else if (message.attachment_name) {
-                        destName += '.' + message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()
                     }
-                    if (k === 'mfull') {
-                        let part_urls = [];
-                        let part_download = val.src.reduce((promiseChainParts, u, i) => {
-                            return promiseChainParts.then(() => new Promise(async (partOk) => {
-                                const data = await new Promise(async ok => {
-                                    let pm;
-                                    try {
-                                        pm = await discordClient.getMessage(u.channelid, u.messageid);
-                                    } catch (e) {
-                                        console.error("Failed to get parity attachemnt from discord", e)
-                                    }
-                                    if (pm && pm.attachments && pm.attachments.length > 0) {
-                                        const url = pm.attachments[0].url;
-                                        //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
-                                        request.get({
-                                            url,
-                                            headers: {
-                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                                'accept-language': 'en-US,en;q=0.9',
-                                                'cache-control': 'max-age=0',
-                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                                'sec-ch-ua-mobile': '?0',
-                                                'sec-fetch-dest': 'document',
-                                                'sec-fetch-mode': 'navigate',
-                                                'sec-fetch-site': 'none',
-                                                'sec-fetch-user': '?1',
-                                                'upgrade-insecure-requests': '1',
-                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                            },
-                                        }, async (err, res, body) => {
-                                            if (err || res && res.statusCode && res.statusCode !== 200) {
-                                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                                    await db.query(`UPDATE discord_multipart_files SET valid = 0 WHERE url = ?`, [u.url])
-                                                } else {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                                }
-                                                ok(false)
-                                            } else {
-                                                ok(body);
-                                            }
-                                        })
-                                    } else {
-                                        ok(false)
-                                    }
-                                })
-                                if (data) {
-                                    fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
-                                    const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString(), u.url.split('?')[0].split('/').pop());
-                                    const write = await new Promise(ok => {
-                                        fs.writeFile(filepath, data, async (err) => {
-                                            if (err) {
-                                                Logger.printLine("CopyFile", `Failed to write download ${u.url.split('?')[0].split('/').pop()} for ${message.eid}`, "err", err)
-                                            }
-                                            ok(!err);
-                                        })
-                                    });
-                                    part_urls[i] = (write) ? filepath : null;
-                                    partOk();
-                                } else {
-                                    Logger.printLine("DownloadFile", `Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
-                                    part_urls[i] = false;
-                                    partOk();
-                                }
-                            }))
-                        }, Promise.resolve());
-                        part_download.then(async () => {
-                            if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
-                                const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
-                                fsEx.ensureDirSync(path.join(val.dest));
-                                fsEx.removeSync(path.join(val.dest, destName));
-                                await splitFile.mergeFiles(files, path.join(val.dest, destName));
-                                fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
-                                try {
-                                    res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                    Logger.printLine("BackupFile", `Download Master File ${message.real_filename}`, "debug")
-                                } catch (e) {
-                                    res[k] = false;
-                                }
-                            } else {
-                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
-                                if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount !== part_urls.length) {
-                                    await db.query(`UPDATE kanmi_records SET flagged = 1 WHERE eid = ?`, [message.eid])
-                                }
-                                res[k] = false;
-                            }
-                            blockOk();
-                        });
-                    } else {
-                        const data = await new Promise(ok => {
-                            const url = val.src;
-                            //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
-                            request.get({
-                                url,
-                                headers: {
-                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                    'accept-language': 'en-US,en;q=0.9',
-                                    'cache-control': 'max-age=0',
-                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                    'sec-ch-ua-mobile': '?0',
-                                    'sec-fetch-dest': 'document',
-                                    'sec-fetch-mode': 'navigate',
-                                    'sec-fetch-site': 'none',
-                                    'sec-fetch-user': '?1',
-                                    'upgrade-insecure-requests': '1',
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                },
-                            }, async (err, res, body) => {
-                                if (err || res && res.statusCode && res.statusCode !== 200) {
-                                    if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
-                                        Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                    } else {
-                                        Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                    }
-                                    ok(false)
-                                } else {
-                                    ok(body);
-                                }
-                            })
-                        })
-                        if (data) {
-                            fsEx.ensureDirSync(path.join(val.dest));
-                            const write = await new Promise(ok => {
-                                fs.writeFile(path.join(val.dest, destName), data, async (err) => {
-                                    if (err) {
-                                        Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
-                                    }
-                                    ok(!err);
-                                })
-                            });
-                            res[k] = (write) ? destName : null;
-                            blockOk();
-                        } else {
-                            const pm = await (async () => {
-                                try {
-                                    let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
-                                    await sleep(5000);
-                                    let om = await discordClient.getMessage(pm.channel.id, pm.id)
-                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
-                                    return om.embeds[0].thumbnail.url
-                                } catch (e) {
-                                    console.error("Failed to get parity attachemnt from discord", e)
-                                }
-                            })()
-                            const dataTake2 = await new Promise(ok => {
-                                const url = pm;
-                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
-                                request.get({
-                                    url,
-                                    headers: {
-                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                        'accept-language': 'en-US,en;q=0.9',
-                                        'cache-control': 'max-age=0',
-                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                        'sec-ch-ua-mobile': '?0',
-                                        'sec-fetch-dest': 'document',
-                                        'sec-fetch-mode': 'navigate',
-                                        'sec-fetch-site': 'none',
-                                        'sec-fetch-user': '?1',
-                                        'upgrade-insecure-requests': '1',
-                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                    },
-                                }, async (err, res, body) => {
-                                    if (err || res && res.statusCode && res.statusCode !== 200) {
-                                        if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && k === 'full' && !requested_remotely) {
-                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                            mqClient.sendData(systemglobal.Discord_Out, {
-                                                fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                                messageReturn: false,
-                                                messageID: message.id,
-                                                messageChannelID: message.channel,
-                                                messageServerID: message.server,
-                                                messageType: 'command',
-                                                messageAction: 'ValidateMessage'
-                                            }, function (callback) {
-                                                if (callback) {
-                                                    Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                                } else {
-                                                    Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                                }
-                                            });
-                                        } else {
-                                            Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                        }
-                                        ok(false)
-                                    } else {
-                                        ok(body);
-                                    }
-                                })
-                            })
-                            if (dataTake2) {
-                                fsEx.ensureDirSync(path.join(val.dest));
-                                const write = await new Promise(ok => {
-                                    fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
-                                        if (err) {
-                                            Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
-                                        }
-                                        ok(!err);
-                                    })
-                                });
-                                res[k] = (write) ? destName : null;
-                                blockOk();
-                            } else {
-                                Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                                if (k === 'extended_preview' || val['src'].includes('t9-preview')) {
-                                    mqClient.sendData(systemglobal.Discord_Out, {
-                                        messageReturn: false,
-                                        messageType: 'command',
-                                        messageAction: (destName.split('.').pop().toLowerCase() === 'gif') ? 'CacheVideo' : 'CacheImage',
-                                        fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                        messageID: message.id,
-                                        messageChannelID: message.channel,
-                                        messageServerID: message.server,
-                                    }, function (callback) {
-                                        if (callback) {
-                                            Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                        } else {
-                                            Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                        }
-                                    });
-                                    res[k] = false;
-                                    blockOk();
-                                } else if (k === 'preview') {
-                                    const full_data = await new Promise(ok => {
-                                        const url = attachements.full.src;
-                                        Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} (Sharp Convert) ${destName}...`, "debug")
-                                        request.get({
-                                            url,
-                                            headers: {
-                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                                'accept-language': 'en-US,en;q=0.9',
-                                                'cache-control': 'max-age=0',
-                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                                'sec-ch-ua-mobile': '?0',
-                                                'sec-fetch-dest': 'document',
-                                                'sec-fetch-mode': 'navigate',
-                                                'sec-fetch-site': 'none',
-                                                'sec-fetch-user': '?1',
-                                                'upgrade-insecure-requests': '1',
-                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                            },
-                                        }, async (err, res, body) => {
-                                            if (err || res && res.statusCode && res.statusCode !== 200) {
-                                                Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                                ok(false)
-                                            } else {
-                                                ok(body);
-                                            }
-                                        })
-                                    })
-                                    if (full_data) {
-                                        let resizeParam = {
-                                            fit: sharp.fit.inside,
-                                            withoutEnlargement: true,
-                                            width: 512,
-                                            height: 512
-                                        }
-                                        if (message.sizeW >= message.sizeH) {
-                                            resizeParam.width = parseInt((message.sizeW * (512 / message.sizeH)).toFixed(0).toString())
-                                        } else {
-                                            resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
-                                        }
-                                        if (isNaN(resizeParam.width))
-                                            resizeParam.width = 512;
-                                        if (isNaN(resizeParam.height))
-                                            resizeParam.height = 512;
-                                        res[k] = (await new Promise(image_saved => {
-                                            sharp(full_data)
-                                                .resize(resizeParam)
-                                                .toFormat(destName.split('.').pop().toLowerCase())
-                                                .withMetadata()
-                                                .toFile(path.join(val.dest, destName), function (err) {
-                                                    if (err) {
-                                                        Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err);
-                                                        console.error(err);
-                                                        if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
-                                                            fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
-                                                                if (err) {
-                                                                    Logger.printLine("CopyFile", `Failed to write full/preview ${message.id} in ${message.channel} for ${k}`, "err", err)
-                                                                }
-                                                                image_saved((!err) ? destName : false);
-                                                            })
-                                                        } else {
-                                                            image_saved(false);
-                                                        }
-                                                    } else {
-                                                        image_saved(destName);
-                                                    }
-                                                })
-                                        }));
-                                        blockOk();
-                                    } else {
-                                        Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
-                                        res[k] = false;
-                                        blockOk();
-                                    }
-                                } else {
-                                    res[k] = false;
-                                    blockOk();
-                                }
-                            }
+                    const pm = await (async () => {
+                        try {
+                            let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
+                            await sleep(5000);
+                            let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                            await discordClient.deleteMessage(pm.channel.id, pm.id)
+                            return om.embeds[0].thumbnail.url
+                        } catch (e) {
+                            console.error("Failed to get parity attachemnt from discord", e)
                         }
+                    })()
+                    const dataTake2 = await new Promise(ok => {
+                        const url = pm;
+                        //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                        request.get({
+                            url,
+                            headers: {
+                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                'accept-language': 'en-US,en;q=0.9',
+                                'cache-control': 'max-age=0',
+                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                'sec-ch-ua-mobile': '?0',
+                                'sec-fetch-dest': 'document',
+                                'sec-fetch-mode': 'navigate',
+                                'sec-fetch-site': 'none',
+                                'sec-fetch-user': '?1',
+                                'upgrade-insecure-requests': '1',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                            },
+                        }, async (err, res, body) => {
+                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                ok(false)
+                            } else {
+                                ok(body);
+                            }
+                        })
+                    })
+                    if (dataTake2) {
+                        fsEx.ensureDirSync(path.join(val.dest));
+                        const write = await new Promise(ok => {
+                            fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                if (err) {
+                                    Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                }
+                                ok(!err);
+                            })
+                        });
+                        res[k] = (write) ? destName : null;
+                        blockOk();
+                    } else {
+                        Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                        res[k] = false;
+                        blockOk();
                     }
                 }))
             }, Promise.resolve());
@@ -1457,7 +1209,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    ORDER BY RAND()
                    LIMIT ?`;
         Logger.printLine("Prefeatch", `Preparing Search....`, "info");
-        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Episodes_Per_Interval) ? systemglobal.CDN_N_Episodes_Per_Interval : 150])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
