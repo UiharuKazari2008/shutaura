@@ -9423,7 +9423,7 @@ This code is publicly released and is restricted by its project license
                         } else {
                             res.status(200).json({
                                 error: false,
-                                parts: filelist,
+                                parts: filelist.map(e => `${(req.query && req.query.proxy) ? decodeURIComponent(req.query.proxy) : ''}/attachments${e}`).sort((x, y) => (x.split('.').pop().split('?')[0] < y.split('.').pop().split('?')[0]) ? -1 : (y.split('.').pop().split('?')[0] > x.split('.').pop().split('?')[0]) ? 1 : 0),
                                 expected_parts: cacheresponse[0].paritycount || cacheresponse[0].length,
                                 filename: cacheresponse[0].real_filename
                             })
