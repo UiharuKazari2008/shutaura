@@ -9380,6 +9380,7 @@ This code is publicly released and is restricted by its project license
     // SBI Interfaces
     app.get('/get/spanned_file', async (req, res) => {
         if (req.query && req.query.uuid) {
+            Logger.printLine("SBI SpannedFileRequest", `Request for file ${req.query.uuid}`, "info");
             db.safe(`SELECT kanmi_records.eid,
                                   kanmi_records.fileid,
                                   kanmi_records.real_filename,
@@ -9394,11 +9395,14 @@ This code is publicly released and is restricted by its project license
                              AND kanmi_records.source = 0
                              AND kanmi_records.fileid = discord_multipart_files.fileid`, [req.query.uuid], function (err, cacheresponse) {
                 if (err || cacheresponse.length === 0) {
-                    res.status(404).json("File not found")
+                    res.status(404).json("File not found");
+                    Logger.printLine("SBI SpannedFileRequest", `File ${req.query.uuid} not found!`, "error");
                 } else if (cacheresponse.filter(e => e.valid === 0).length !== 0) {
                     res.status(415).send('This content is not streamable or is damaged!')
+                    Logger.printLine("SBI SpannedFileRequest", `File ${req.query.uuid} has invalid file parts`, "error");
                 } else if (cacheresponse[0].paritycount && cacheresponse.filter(e => e.valid === 1).length !== cacheresponse[0].paritycount) {
                     res.status(415).send('This content is not streamable or is damaged!')
+                    Logger.printLine("SBI SpannedFileRequest", `File ${req.query.uuid} is missing parity parts`, "error");
                 } else if (cacheresponse.length > 1) {
                     let filelist = [];
                     let part_download = cacheresponse.reduce((promiseChainParts, u, i) => {
@@ -9407,7 +9411,7 @@ This code is publicly released and is restricted by its project license
                             try {
                                 pm = await discordClient.getMessage(u.channelid, u.messageid);
                             } catch (e) {
-                                console.error("Failed to get parity attachemnt from discord", e)
+                                Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${u.messageid}" for file ${req.query.uuid}`, "error", e);
                             }
                             if (pm && pm.attachments && pm.attachments.length > 0) {
                                 filelist.push(pm.attachments[0].url);
@@ -9419,7 +9423,8 @@ This code is publicly released and is restricted by its project license
                     }, Promise.resolve());
                     part_download.then(async () => {
                         if (cacheresponse[0].paritycount && filelist.length !== cacheresponse[0].paritycount) {
-                            res.status(415).send('This content is not streamable or is damaged!')
+                            res.status(415).send('This content is not streamable or is damaged!');
+                            Logger.printLine("SBI SpannedFileRequest", `File ${req.query.uuid} is missing parity parts from discord`, "error");
                         } else {
                             res.status(200).json({
                                 error: false,
@@ -9431,10 +9436,12 @@ This code is publicly released and is restricted by its project license
                     });
                 } else {
                     res.status(415).send('This content is not streamable')
+                    Logger.printLine("SBI SpannedFileRequest", `File ${req.query.uuid} is not a spanned file`, "error");
                 }
             })
         } else {
-            res.status(400).send('Invalid Request')
+            res.status(400).send('Invalid Request');
+            Logger.printLine("SBI SpannedFileRequest", `Invalid Request`, "error");
         }
     })
 
