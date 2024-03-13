@@ -1227,7 +1227,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        Logger.printLine("Cac", `Preparing Search....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1568,11 +1568,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
                 console.log("Waiting 30sec before normal tasks..")
                 setTimeout(async () => {
+                    await findUserData();
                     await findShowData();
                     if (systemglobal.CDN_Focus_Channels) {
                         await findBackupItems(systemglobal.CDN_Focus_Channels);
                     }
-                    await findUserData();
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
