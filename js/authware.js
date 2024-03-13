@@ -1150,7 +1150,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 const tempLastEpisode = await db.query(`SELECT Max(y.eid) AS eid, MAX(y.show_id) AS show_id FROM (SELECT * FROM kanmi_system.kongou_watch_history WHERE user = '${userId}' ORDER BY date DESC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_episodes) y ON (x.eid = y.eid);`)
 
                 if (tempLastEpisode.rows.length > 0) {
-                    const selectAuxCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'kongou' ${(config.local_cdn_list && config.local_cdn_list.length > 0) ? ' AND ' + config.local_cdn_list.map(e => 'host = ' + e.id).join(' OR ') : ''}`
+                    const selectAuxCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'kongou' AND host = ${systemglobal.CDN_ID}`
                     const nextEpisodeView = await db.query(`SELECT rec.*, cdn.host AS cdn_host, cdn.dat_0_hint, cdn.dat_1_hint FROM (SELECT * FROM  (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT * FROM kanmi_system.kongou_shows) y ON (x.show_id = y.show_id)) rec LEFT OUTER JOIN (${selectAuxCDN}) cdn ON (rec.show_id = cdn.record_int);`)
                     userAccount.kongou_next_episode = nextEpisodeView.rows[0];
                 }
