@@ -1205,7 +1205,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         activeParseing = true;
         const q = `SELECT x.* ,
                           y.hrid, y.host, y.record_int, y.record_id, id_hint, path_hint, dat_0, dat_0_hint, dat_1, dat_1_hint
-                   FROM (SELECT show_id, media_group, name, background, poster, md5(CONCAT(COALESCE(background,''), COALESCE(poster,''), show_id)) as hash FROM kongou_shows) x
+                   FROM (SELECT show_id, media_group, name, background, poster, md5(COALESCE(poster,''), CONCAT(COALESCE(background,''), show_id)) as hash FROM kongou_shows) x
                             LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.hash = y.record_id)
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
@@ -1369,14 +1369,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 attachements['banner'] = {
                                     src: `https://cdn.discordapp.com/attachments${message.banner_custom}`,
                                     dest: path.join(systemglobal.CDN_Base_Path, 'user', 'banner'),
-                                    ext: message.background.split('?')[0].split('.').pop()
+                                    ext: message.banner_custom.split('?')[0].split('.').pop()
                                 }
                             }
                             if (message.avatar_custom) {
                                 attachements['avatar'] = {
                                     src: `https://cdn.discordapp.com/attachments${message.avatar_custom}`,
                                     dest: path.join(systemglobal.CDN_Base_Path, 'user', 'avatar'),
-                                    ext: message.poster.split('?')[0].split('.').pop()
+                                    ext: message.avatar_custom.split('?')[0].split('.').pop()
                                 }
                             }
                             const hash = md5(`${(message.avatar_custom) ? message.avatar_custom : ''}${(message.banner_custom) ? message.banner_custom : ''}`)
