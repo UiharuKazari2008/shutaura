@@ -41,6 +41,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const fs = require("fs");
     const minimist = require("minimist");
     const sharp = require("sharp");
+    const md5 = require("md5");
     let args = minimist(process.argv.slice(2));
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp'];
@@ -896,62 +897,44 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function backupShowMeta (message, cb, requested_remotely, allow_master_files) {
         let attachements = {};
 
-        async function backupCompleted(path, preview, full, ext_0, master) {
+        async function backupCompleted(hash, poster, background) {
             if (message.id) {
                 const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
                                                   SET hrid         = ?,
-                                                      eid          = ?,
-                                                      host         = ?,
-                                                      id_hint      = ?,
-                                                      path_hint    = ?,
-                                                      preview      = ?,
-                                                      preview_hint = ?,
-                                                      full         = ?,
-                                                      full_hint    = ?,
-                                                      mfull        = ?,
-                                                      mfull_hint   = ?,
-                                                      ext_0        = ?,
-                                                      ext_0_hint   = ? 
+                                                      record_int = ?,
+                                                      host = ?,
+                                                      record_id = ?,
+                                                      path_hint = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?
                                                   ON DUPLICATE KEY UPDATE
-                                                      id_hint      = ?,
-                                                      path_hint    = ?,
-                                                      preview      = ?,
-                                                      preview_hint = ?,
-                                                      full         = ?,
-                                                      full_hint    = ?,
-                                                      mfull        = ?,
-                                                      mfull_hint   = ?,
-                                                      ext_0        = ?,
-                                                      ext_0_hint   = ?`, [
-                    (parseInt(message.eid.toString()) * parseInt(systemglobal.CDN_ID.toString())),
-                    message.eid,
+                                                      record_id = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?`, [
+                    (parseInt(message.show_id.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                    message.show_id,
                     systemglobal.CDN_ID,
-                    message.id,
-                    path,
-                    (!!preview) ? 1 : 0,
-                    (!!preview) ? preview : null,
-                    (!!full) ? 1 : 0,
-                    (!!full) ? full : null,
-                    (!!master) ? 1 : 0,
-                    (!!master) ? master : null,
-                    (!!ext_0) ? 1 : 0,
-                    (!!ext_0) ? ext_0 : null,
-                    message.id,
-                    path,
-                    (!!preview) ? 1 : 0,
-                    (!!preview) ? preview : null,
-                    (!!full) ? 1 : 0,
-                    (!!full) ? full : null,
-                    (!!master) ? 1 : 0,
-                    (!!master) ? master : null,
-                    (!!ext_0) ? 1 : 0,
-                    (!!ext_0) ? ext_0 : null,
+                    hash,
+                    "kongou",
+                    (!!poster) ? 1 : 0,
+                    (!!poster) ? poster : null,
+                    (!!background) ? 1 : 0,
+                    (!!background) ? background : null,
+                    hash,
+                    (!!poster) ? 1 : 0,
+                    (!!poster) ? poster : null,
+                    (!!background) ? 1 : 0,
+                    (!!background) ? background : null,
                 ])
                 if (saveBackupSQL.error) {
                     Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
                 }
             } else {
-                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err")
+                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.name} as download to CDN: No Message ID passed`, "err")
             }
         }
         function getimageSizeParam(auth) {
@@ -983,6 +966,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 ext: message.poster.split('?')[0].split('.').pop()
             }
         }
+        const hash = md5(`${(message.poster) ? message.poster : ''}${(message.background) ? message.background : ''}${message.show_id}`)
 
         if (Object.keys(attachements).length > 0) {
             let res = {};
@@ -1036,7 +1020,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const write = await new Promise(ok => {
                             fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
                                 if (err) {
-                                    Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                    Logger.printLine("CopyFile", `Failed to write download ${message.name} for ${k}`, "err", err)
                                 }
                                 ok(!err);
                             })
@@ -1044,20 +1028,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         res[k] = (write) ? destName : null;
                         blockOk();
                     } else {
-                        Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                        Logger.printLine("DownloadFile", `Can't download item ${message.name}, No Data Returned`, "error")
                         res[k] = false;
                         blockOk();
                     }
                 }))
             }, Promise.resolve());
             requests.then(async () => {
-                Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
+                Logger.printLine("BackupFile", `Download ${message.name}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0)
-                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
+                    await backupCompleted(hash, res.preview, res.kongou_poster, res.kongou_bg);
                 cb(true);
             });
         } else {
-            Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
+            Logger.printLine("BackupParts", `Can't download item ${message.show_id}, No URLs Available`, "error")
             cb(false)
         }
     }
@@ -1218,10 +1202,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function findShowData() {
         activeParseing = true;
-        const q = `SELECT x.*,
+        const q = `SELECT x.* ,
                           y.hrid, y.host, y.record_int, y.record_id, id_hint, path_hint, dat_0, dat_0_hint, dat_1, dat_1_hint
-                   FROM (SELECT * FROM kongou_shows) x
-                            LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.show_id = y.record_int)
+                   FROM (SELECT show_id, media_group, name, background, poster, md5(CONCAT(COALESCE(background,''), COALESCE(poster,''), show_id)) as hash FROM kongou_shows) x
+                            LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.hash = y.record_id)
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
@@ -1387,6 +1371,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (systemglobal.CDN_Focus_Channels) {
                         await findBackupItems(systemglobal.CDN_Focus_Channels);
                     }
+                    await findShowData();
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
@@ -1398,6 +1383,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             console.log('System Busy');
                         } else {
                             await findBackupItems();
+                            await findShowData();
                             await findEpisodeItems();
                         }
                         activeParseing = false;
