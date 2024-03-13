@@ -9377,6 +9377,76 @@ This code is publicly released and is restricted by its project license
         })
     }
 
+    // SBI Interfaces
+    app.get('/get/spanned_file', async (req, res) => {
+        if (req.query && req.query.uuid) {
+            db.safe(`SELECT kanmi_records.eid,
+                                  kanmi_records.fileid,
+                                  kanmi_records.paritycount,
+                                  discord_multipart_files.messageid,
+                                  discord_multipart_files.channelid,
+                                  discord_multipart_files.serverid,
+                                  discord_multipart_files.valid
+                           FROM kanmi_records,
+                                discord_multipart_files
+                           WHERE kanmi_records.fileid = ?
+                             AND kanmi_records.source = 0
+                             AND kanmi_records.fileid = discord_multipart_files.fileid`, [req.query.uuid], function (err, cacheresponse) {
+                if (err || cacheresponse.length === 0) {
+                    res.status(404).json({
+                        error: true,
+                        message: "Record Not Found"
+                    })
+                } else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
+                    res.status(500).json({
+                        error: true,
+                        message: "Some files are not valid and will need to be revalidated or repaired!"
+                    })
+                } else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
+                    res.status(500).json({
+                        error: true,
+                        message: "The expected number of parity files were not available."
+                    })
+                } else {
+                    let filelist = [];
+                    let part_download = cacheresponse.reduce((promiseChainParts, u, i) => {
+                        return promiseChainParts.then(() => new Promise(async (partOk) => {
+                            let pm;
+                            try {
+                                pm = await discordClient.getMessage(u.channelid, u.messageid);
+                            } catch (e) {
+                                console.error("Failed to get parity attachemnt from discord", e)
+                            }
+                            if (pm && pm.attachments && pm.attachments.length > 0) {
+                                filelist.push(pm.attachments[0].url);
+                                partOk(true);
+                            } else {
+                                partOk(false);
+                            }
+                        }))
+                    }, Promise.resolve());
+                    part_download.then(async () => {
+                        if (filelist.length !== cacheresponse[0].paritycount) {
+                            res.status(501).json({
+                                error: false,
+                                message: "The expected number of parity files were not available."
+                            })
+                        } else {
+                            res.status(200).json({
+                                error: false,
+                                message: "The expected number of parity files were not available."
+                            })
+                        }
+                    });
+                }
+            })
+        } else {
+            res.status(400).json({
+                error: true,
+                message: "Record Not Found"
+            })
+        }
+    })
 
     Logger.printLine("Discord", "Settings up Discord Client...", "debug")
     const discordClient = new eris.CommandClient(systemglobal.Discord_Key, {
