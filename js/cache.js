@@ -899,7 +899,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let attachements = {};
 
         async function backupCompleted(hash, poster, background) {
-            if (message.id) {
+            if (message.hash) {
                 const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
                                                   SET hrid         = ?,
                                                       record_int = ?,
