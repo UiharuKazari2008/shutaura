@@ -1152,7 +1152,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (tempLastEpisode.rows.length > 0) {
                     const selectAuxCDN = `SELECT * FROM kanmi_aux_cdn WHERE path_hint = 'kongou' AND host = ${systemglobal.CDN_ID}`
                     const nextEpisodeView = await db.query(`SELECT * FROM (SELECT * FROM kanmi_system.kongou_episodes WHERE eid > ${tempLastEpisode.rows[0].eid} AND show_id = ${tempLastEpisode.rows[0].show_id} AND season_num > 0 ORDER BY season_num ASC, episode_num ASC LIMIT 1) x LEFT JOIN (SELECT rec.*, cdn.host AS cdn_host, cdn.dat_0_hint, cdn.dat_1_hint FROM (SELECT * FROM kanmi_system.kongou_shows) rec LEFT OUTER JOIN (${selectAuxCDN}) cdn ON (rec.show_id = cdn.record_int)) y ON (x.show_id = y.show_id);`)
-                    userAccount.kongou_next_episode = nextEpisodeView.rows[0];
+                    userAccount.kongou_next_episode = {
+                        ...nextEpisodeView.rows[0],
+                        background: (nextEpisodeView.rows[0].background) ? `${systemglobal.CDN_RemoteURL}kongou/backdrop/${nextEpisodeView.rows[0].dat_1_hint}` : null,
+                        poster: (nextEpisodeView.rows[0].poster) ? `${systemglobal.CDN_RemoteURL}kongou/poster/${nextEpisodeView.rows[0].dat_0_hint}` : null
+                    };
                 }
 
                 const serverResults = await db.query(`SELECT DISTINCT kanmi_sidebar_${userId}.serverid, kanmi_sidebar_${userId}.server_nice, kanmi_sidebar_${userId}.server_name, kanmi_sidebar_${userId}.server_short, discord_servers.position, discord_servers.authware_enabled FROM kanmi_sidebar_${userId}, discord_servers WHERE kanmi_sidebar_${userId}.serverid = discord_servers.serverid ORDER BY discord_servers.position`);
