@@ -586,6 +586,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         console.error("Failed to get parity attachemnt from discord", e)
                                     }
                                     if (pm && pm.attachments && pm.attachments.length > 0) {
+                                        await (async () => {
+                                            try {
+                                                const a = pm.attachments[0].url.split('?')[1];
+                                                let ex = null;
+                                                try {
+                                                    let exSearch = new URLSearchParams(a);
+                                                    const _ex = Number('0x' + exSearch.get('ex'));
+                                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                } catch (err) {
+                                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                                }
+                                                auth = `?${a}`;
+                                                await db.query(`UPDATE discord_multipart_files SET url = ?, auth = ?, auth_expire = ? WHERE channelid = ? AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
+                                            } catch (e) {
+                                                console.error(e)
+                                            }
+                                        })()
                                         const url = pm.attachments[0].url;
                                         Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                         request.get({
