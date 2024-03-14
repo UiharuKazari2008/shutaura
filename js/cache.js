@@ -1034,7 +1034,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
-                       WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
+                       WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                        ORDER BY RAND()
                        LIMIT ?`;
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
