@@ -43,6 +43,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const sharp = require("sharp");
     const md5 = require("md5");
     let args = minimist(process.argv.slice(2));
+    const remoteSize = require('remote-file-size');
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp'];
 
@@ -475,7 +476,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         let auth = ''
         if (message.attachment_hash) {
-            if (message.attachment_auth) {
+            if (message.attachment_auth && message.attachment_auth_valid === 1) {
                 auth = `?${message.attachment_auth}`
             } else if (!message.attachment_hash.includes('/')) {
                 try {
@@ -501,7 +502,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         if (message.cache_proxy) {
             let auth2 = '';
-            if (message.cache_auth) {
+            if (message.cache_auth && message.cache_auth_valid === 1) {
                 auth2 = `?${message.cache_auth}`
             } else {
                 try {
@@ -551,7 +552,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (message.fileid && (allow_master_files || !(systemglobal.CDN_Ignore_Master_Channels && systemglobal.CDN_Ignore_Master_Channels.indexOf(message.channel) !== -1))) {
-            const master_urls = await db.query(`SELECT channelid, messageid, url, valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
+            const master_urls = await db.query(`SELECT channelid, messageid, url, valid, auth, IF(auth_expire > NOW(), 1, 0) AS auth_valid, hash FROM discord_multipart_files WHERE fileid = ?`, [message.fileid]);
             if (master_urls.rows.length > 0) {
                 attachements['mfull'] = {
                     id: message.fileid,
@@ -579,31 +580,48 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
                                 const data = await new Promise(async ok => {
-                                    let pm;
-                                    try {
-                                        pm = await discordClient.getMessage(u.channelid, u.messageid);
-                                    } catch (e) {
-                                        console.error("Failed to get parity attachemnt from discord", e)
-                                    }
-                                    if (pm && pm.attachments && pm.attachments.length > 0) {
-                                        await (async () => {
-                                            try {
-                                                const a = pm.attachments[0].url.split('?')[1];
-                                                let ex = null;
-                                                try {
-                                                    let exSearch = new URLSearchParams(a);
-                                                    const _ex = Number('0x' + exSearch.get('ex'));
-                                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
-                                                } catch (err) {
-                                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                    let url
+                                    if (u.auth_valid === 1) {
+                                        url = await new Promise((resolve) => {
+                                            remoteSize(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`, async (err, size) => {
+                                                if (!err || (size !== undefined && size > 0)) {
+                                                    resolve(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`)
+                                                } else {
+                                                    resolve(null)
                                                 }
-                                                auth = `?${a}`;
-                                                await db.query(`UPDATE discord_multipart_files SET url = ?, auth = ?, auth_expire = ? WHERE channelid = ? AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
-                                            } catch (e) {
-                                                console.error(e)
+                                            })
+                                        })
+                                    }
+                                    if (!url) {
+                                        let pm;
+                                        try {
+                                            pm = await discordClient.getMessage(u.channelid, u.messageid);
+                                            if (pm && pm.attachments && pm.attachments.length > 0) {
+                                                (async () => {
+                                                    try {
+                                                        const a = pm.attachments[0].url.split('?')[1];
+                                                        let ex = null;
+                                                        try {
+                                                            let exSearch = new URLSearchParams(a);
+                                                            const _ex = Number('0x' + exSearch.get('ex'));
+                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                        } catch (err) {
+                                                            Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                                        }
+                                                        auth = `?${a}`;
+                                                        await db.query(`UPDATE discord_multipart_files SET url = ?, auth = ?, auth_expire = ? WHERE channelid = ? AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
+                                                    } catch (e) {
+                                                        console.error(e)
+                                                    }
+                                                })()
+                                                url = pm.attachments[0].url;
                                             }
-                                        })()
-                                        const url = pm.attachments[0].url;
+                                        } catch (e) {
+                                            console.error("Failed to get parity attachemnt from discord", e)
+                                            url = null
+                                        }
+                                    }
+                                    if (url) {
                                         Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                         request.get({
                                             url,
@@ -1011,7 +1029,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             return 'AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)'
         })()
-        const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3
+        const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3, IF(x.attachment_auth_ex > NOW(), 1, 0) AS attachment_auth_valid, IF(x.cache_auth_ex > NOW(), 1, 0) AS cache_auth_valid
                        FROM (SELECT rec.*, ext.data
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x

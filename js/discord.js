@@ -9388,7 +9388,10 @@ This code is publicly released and is restricted by its project license
                                   discord_multipart_files.messageid,
                                   discord_multipart_files.channelid,
                                   discord_multipart_files.serverid,
-                                  discord_multipart_files.valid
+                                  discord_multipart_files.valid,
+                                  discord_multipart_files.url,
+                                  discord_multipart_files.auth,
+                                  IF(discord_multipart_files.auth_expire > NOW(), 1, 0) AS auth_valid
                            FROM kanmi_records,
                                 discord_multipart_files
                            WHERE kanmi_records.fileid = ?
@@ -9407,34 +9410,50 @@ This code is publicly released and is restricted by its project license
                     let filelist = [];
                     let part_download = cacheresponse.reduce((promiseChainParts, u, i) => {
                         return promiseChainParts.then(() => new Promise(async (partOk) => {
-                            let pm;
-                            try {
-                                pm = await discordClient.getMessage(u.channelid, u.messageid);
-                            } catch (e) {
-                                Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${u.messageid}" for file ${req.query.uuid}`, "error", e);
-                            }
-                            if (pm && pm.attachments && pm.attachments.length > 0) {
-                                (async () => {
-                                    try {
-                                        const a = pm.attachments[0].url.split('?')[1];
-                                        let ex = null;
-                                        try {
-                                            let exSearch = new URLSearchParams(a);
-                                            const _ex = Number('0x' + exSearch.get('ex'));
-                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
-                                        } catch (err) {
-                                            Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                            let url
+                            if (u.auth_valid === 1) {
+                                url = await new Promise((resolve) => {
+                                    remoteSize(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`, async (err, size) => {
+                                        if (!err || (size !== undefined && size > 0)) {
+                                            resolve(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`)
+                                        } else {
+                                            resolve(null)
                                         }
-                                        auth = `?${a}`;
-                                        await db.query(`UPDATE discord_multipart_files SET url = ?, auth = ?, auth_expire = ? WHERE channelid = ? AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
-                                    } catch (e) {
-                                        console.error(e)
-                                    }
-                                })()
-                                filelist.push(pm.attachments[0].url);
-                                partOk(true);
+                                    })
+                                })
+                            }
+                            if (url) {
+                                partOk(url);
                             } else {
-                                partOk(false);
+                                let pm;
+                                try {
+                                    pm = await discordClient.getMessage(u.channelid, u.messageid);
+                                } catch (e) {
+                                    Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${u.messageid}" for file ${req.query.uuid}`, "error", e);
+                                }
+                                if (pm && pm.attachments && pm.attachments.length > 0) {
+                                    (async () => {
+                                        try {
+                                            const a = pm.attachments[0].url.split('?')[1];
+                                            let ex = null;
+                                            try {
+                                                let exSearch = new URLSearchParams(a);
+                                                const _ex = Number('0x' + exSearch.get('ex'));
+                                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                            } catch (err) {
+                                                Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                            }
+                                            auth = `?${a}`;
+                                            await db.query(`UPDATE discord_multipart_files SET url = ?, auth = ?, auth_expire = ? WHERE channelid = ? AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
+                                        } catch (e) {
+                                            console.error(e)
+                                        }
+                                    })()
+                                    filelist.push(pm.attachments[0].url);
+                                    partOk(true);
+                                } else {
+                                    partOk(false);
+                                }
                             }
                         }))
                     }, Promise.resolve());
