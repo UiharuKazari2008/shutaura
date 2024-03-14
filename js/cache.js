@@ -471,7 +471,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         try {
             cm = await discordClient.getMessage(message.channel, message.id);
         } catch (e) {
-            console.error("Failed to get attachemnt from discord", e)
+            Logger.printLine("Backup", `Failed to get attachment from Discord ${message.channel}/${message.id}: ${e.message}`, "err", e);
         }
         let auth = ''
         if (message.attachment_hash) {
@@ -587,7 +587,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                     if (pm && pm.attachments && pm.attachments.length > 0) {
                                         const url = pm.attachments[0].url;
-                                        //Logger.printLine("BackupFile", `Downloading ${url.split('/').pop()} for ${k} ${destName}...`, "debug")
+                                        Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                         request.get({
                                             url,
                                             headers: {
@@ -666,7 +666,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const data = await new Promise(ok => {
                             if (val.src && val.src.includes("ex=")) {
                                 const url = val.src;
-                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                Logger.printLine("BackupFile", `Downloading Attachment ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                 request.get({
                                     url,
                                     headers: {
@@ -725,7 +725,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             })()
                             const dataTake2 = await new Promise(ok => {
                                 const url = pm;
-                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                Logger.printLine("BackupFile", `Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                 request.get({
                                     url,
                                     headers: {
@@ -892,157 +892,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
-            cb(false)
-        }
-    }
-    async function backupShowMeta (message, cb, requested_remotely, allow_master_files) {
-        let attachements = {};
-
-        async function backupCompleted(hash, poster, background) {
-            if (message.hash) {
-                const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
-                                                  SET hrid         = ?,
-                                                      record_int = ?,
-                                                      host = ?,
-                                                      record_id = ?,
-                                                      path_hint = ?,
-                                                      dat_0 = ?,
-                                                      dat_0_hint = ?,
-                                                      dat_1 = ?,
-                                                      dat_1_hint = ?
-                                                  ON DUPLICATE KEY UPDATE
-                                                      record_id = ?,
-                                                      dat_0 = ?,
-                                                      dat_0_hint = ?,
-                                                      dat_1 = ?,
-                                                      dat_1_hint = ?`, [
-                    (parseInt(message.show_id.toString()) * parseInt(systemglobal.CDN_ID.toString())),
-                    message.show_id,
-                    systemglobal.CDN_ID,
-                    hash,
-                    "kongou",
-                    (!!poster) ? 1 : 0,
-                    (!!poster) ? poster : null,
-                    (!!background) ? 1 : 0,
-                    (!!background) ? background : null,
-                    hash,
-                    (!!poster) ? 1 : 0,
-                    (!!poster) ? poster : null,
-                    (!!background) ? 1 : 0,
-                    (!!background) ? background : null,
-                ])
-                if (saveBackupSQL.error) {
-                    Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
-                }
-            } else {
-                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.name} as download to CDN: No Message ID passed`, "err")
-            }
-        }
-        function getimageSizeParam(auth) {
-            if (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512)) {
-                let ih = 512;
-                let iw = 512;
-                if (message.sizeW >= message.sizeH) {
-                    iw = (message.sizeW * (512 / message.sizeH)).toFixed(0)
-                } else {
-                    ih = (message.sizeH * (512 / message.sizeW)).toFixed(0)
-                }
-                return ((auth) ? auth + "&" : '?') + `width=${iw}&height=${ih}`
-            } else {
-                return auth || ''
-            }
-        }
-
-        if (message.background) {
-            attachements['kongou_bg'] = {
-                src: `https://cdn.discordapp.com/attachments${message.background}`,
-                dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'backdrop'),
-                ext: message.background.split('?')[0].split('.').pop()
-            }
-        }
-        if (message.poster) {
-            attachements['kongou_poster'] = {
-                src: `https://cdn.discordapp.com/attachments${message.poster}`,
-                dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'poster'),
-                ext: message.poster.split('?')[0].split('.').pop()
-            }
-        }
-        const hash = md5(`${(message.poster) ? message.poster : ''}${(message.background) ? message.background : ''}${message.show_id}`)
-
-        if (Object.keys(attachements).length > 0) {
-            let res = {};
-            let requests = Object.keys(attachements).reduce((promiseChain, k) => {
-                return promiseChain.then(() => new Promise(async (blockOk) => {
-                    const val = attachements[k];
-                    let destName = `${message.show_id}`
-                    if (val.ext) {
-                        destName += '.' + val.ext;
-                    }
-                    const pm = await (async () => {
-                        try {
-                            let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
-                            await sleep(5000);
-                            let om = await discordClient.getMessage(pm.channel.id, pm.id)
-                            await discordClient.deleteMessage(pm.channel.id, pm.id)
-                            return om.embeds[0].thumbnail.url
-                        } catch (e) {
-                            console.error("Failed to get parity attachemnt from discord", e)
-                        }
-                    })()
-                    const dataTake2 = await new Promise(ok => {
-                        const url = pm;
-                        //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
-                        request.get({
-                            url,
-                            headers: {
-                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                'accept-language': 'en-US,en;q=0.9',
-                                'cache-control': 'max-age=0',
-                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                'sec-ch-ua-mobile': '?0',
-                                'sec-fetch-dest': 'document',
-                                'sec-fetch-mode': 'navigate',
-                                'sec-fetch-site': 'none',
-                                'sec-fetch-user': '?1',
-                                'upgrade-insecure-requests': '1',
-                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                            },
-                        }, async (err, res, body) => {
-                            if (err || res && res.statusCode && res.statusCode !== 200) {
-                                Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                ok(false)
-                            } else {
-                                ok(body);
-                            }
-                        })
-                    })
-                    if (dataTake2) {
-                        fsEx.ensureDirSync(path.join(val.dest));
-                        const write = await new Promise(ok => {
-                            fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
-                                if (err) {
-                                    Logger.printLine("CopyFile", `Failed to write download ${message.name} for ${k}`, "err", err)
-                                }
-                                ok(!err);
-                            })
-                        });
-                        res[k] = (write) ? destName : null;
-                        blockOk();
-                    } else {
-                        Logger.printLine("DownloadFile", `Can't download item ${message.name}, No Data Returned`, "error")
-                        res[k] = false;
-                        blockOk();
-                    }
-                }))
-            }, Promise.resolve());
-            requests.then(async () => {
-                Logger.printLine("BackupFile", `Download ${message.name}`, "debug")
-                if (Object.values(res).filter(f => !f).length === 0)
-                    await backupCompleted(hash, res.kongou_poster, res.kongou_bg);
-                cb(true);
-            });
-        } else {
-            Logger.printLine("BackupParts", `Can't download item ${message.show_id}, No URLs Available`, "error")
+            console.log(attachements)
+            console.log(message)
             cb(false)
         }
     }
@@ -1151,13 +1002,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                        WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                        ORDER BY RAND()
                        LIMIT ?`;
-        Logger.printLine("Search", `Preparing Search....`, "info");
+        Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
             await handleBackupItems(backupItems);
-            console.log("Done Parsing")
             if (!focus_list) {
                 await clearDeadFiles();
             }
@@ -1193,7 +1043,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        Logger.printLine("Prefetch", `Preparing Search (Episodes)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Episodes_Per_Interval) ? systemglobal.CDN_N_Episodes_Per_Interval : 150])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1210,12 +1060,176 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Prefeatch", `Preparing Search....`, "info");
+        Logger.printLine("Metadata", `Preparing Search (Show Metadata)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
-            await handleBackupShowMeta(backupItems);
+            await new Promise(async completed => {
+                runCount++;
+                if (backupItems.rows.length > 0) {
+                    let total = backupItems.rows.length
+                    let ticks = 0
+                    let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
+                        return promiseChain.then(() => new Promise(async (resolve) => {
+                            await (async (message, cb) => {
+                                let attachements = {};
+
+                                async function backupCompleted(hash, poster, background) {
+                                    if (message.hash) {
+                                        const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
+                                                  SET hrid         = ?,
+                                                      record_int = ?,
+                                                      host = ?,
+                                                      record_id = ?,
+                                                      path_hint = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?
+                                                  ON DUPLICATE KEY UPDATE
+                                                      record_id = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?`, [
+                                            (parseInt(message.show_id.toString()) * parseInt(systemglobal.CDN_ID.toString())),
+                                            message.show_id,
+                                            systemglobal.CDN_ID,
+                                            hash,
+                                            "kongou",
+                                            (!!poster) ? 1 : 0,
+                                            (!!poster) ? poster : null,
+                                            (!!background) ? 1 : 0,
+                                            (!!background) ? background : null,
+                                            hash,
+                                            (!!poster) ? 1 : 0,
+                                            (!!poster) ? poster : null,
+                                            (!!background) ? 1 : 0,
+                                            (!!background) ? background : null,
+                                        ])
+                                        if (saveBackupSQL.error) {
+                                            Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
+                                        }
+                                    } else {
+                                        Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.name} as download to CDN: No Message ID passed`, "err")
+                                    }
+                                }
+
+                                if (message.background) {
+                                    attachements['kongou_bg'] = {
+                                        src: `https://cdn.discordapp.com/attachments${message.background}`,
+                                        dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'backdrop'),
+                                        ext: message.background.split('?')[0].split('.').pop()
+                                    }
+                                }
+                                if (message.poster) {
+                                    attachements['kongou_poster'] = {
+                                        src: `https://cdn.discordapp.com/attachments${message.poster}`,
+                                        dest: path.join(systemglobal.CDN_Base_Path, 'kongou', 'poster'),
+                                        ext: message.poster.split('?')[0].split('.').pop()
+                                    }
+                                }
+                                const hash = md5(`${(message.poster) ? message.poster : ''}${(message.background) ? message.background : ''}${message.show_id}`)
+
+                                if (Object.keys(attachements).length > 0) {
+                                    let res = {};
+                                    let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                                        return promiseChain.then(() => new Promise(async (blockOk) => {
+                                            const val = attachements[k];
+                                            let destName = `${message.show_id}`
+                                            if (val.ext) {
+                                                destName += '.' + val.ext;
+                                            }
+                                            const pm = await (async () => {
+                                                try {
+                                                    let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
+                                                    await sleep(5000);
+                                                    let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
+                                                    return om.embeds[0].thumbnail.url
+                                                } catch (e) {
+                                                    Logger.printLine("Metadata", `Failed to get attachment from Discord "${val.src}": ${e.message}`, "err", e);
+                                                }
+                                            })()
+                                            const dataTake2 = await new Promise(ok => {
+                                                const url = pm;
+                                                request.get({
+                                                    url,
+                                                    headers: {
+                                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                        'accept-language': 'en-US,en;q=0.9',
+                                                        'cache-control': 'max-age=0',
+                                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                        'sec-ch-ua-mobile': '?0',
+                                                        'sec-fetch-dest': 'document',
+                                                        'sec-fetch-mode': 'navigate',
+                                                        'sec-fetch-site': 'none',
+                                                        'sec-fetch-user': '?1',
+                                                        'upgrade-insecure-requests': '1',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                    },
+                                                }, async (err, res, body) => {
+                                                    if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                        Logger.printLine("Metadata", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                        ok(false)
+                                                    } else {
+                                                        ok(body);
+                                                    }
+                                                })
+                                            })
+                                            if (dataTake2) {
+                                                fsEx.ensureDirSync(path.join(val.dest));
+                                                const write = await new Promise(ok => {
+                                                    fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                                        if (err) {
+                                                            Logger.printLine("Metadata", `Failed to write download ${message.name} for ${k}`, "err", err)
+                                                        }
+                                                        ok(!err);
+                                                    })
+                                                });
+                                                res[k] = (write) ? destName : null;
+                                                blockOk();
+                                            } else {
+                                                Logger.printLine("Metadata", `Can't download item ${message.name}, No Data Returned`, "error")
+                                                res[k] = false;
+                                                blockOk();
+                                            }
+                                        }))
+                                    }, Promise.resolve());
+                                    requests.then(async () => {
+                                        Logger.printLine("Metadata", `Download ${message.name}`, "debug")
+                                        if (Object.values(res).filter(f => !f).length === 0)
+                                            await backupCompleted(hash, res.kongou_poster, res.kongou_bg);
+                                        cb(true);
+                                    });
+                                } else {
+                                    Logger.printLine("Metadata", `Can't download item ${message.show_id}, No URLs Available`, "error")
+                                    cb(false)
+                                }
+                            })(m, async ok => {
+                                ticks++
+                                if (ticks >= 100 || a.length <= 100) {
+                                    ticks = 0
+                                }
+                                resolve(ok)
+                                m = null
+                            }, false)
+                        }))
+                    }, Promise.resolve());
+                    requests.then(async () => {
+                        if (total > 0) {
+                            Logger.printLine("Metadata", `Completed Download #${runCount} with ${total} files`, "info");
+                        } else {
+                            Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "info");
+                        }
+                        completed();
+                    })
+                } else {
+                    Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "info");
+                    completed();
+                }
+            })
         }
     }
     async function findUserData() {
@@ -1227,12 +1241,190 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Cac", `Preparing Search....`, "info");
+        Logger.printLine("Cache", `Preparing Search (User Metadata)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
         } else {
-            await handleBackupUserData(backupItems);
+            await new Promise(async completed => {
+                runCount++;
+                if (backupItems.rows.length > 0) {
+                    let total = backupItems.rows.length
+                    let ticks = 0
+                    let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
+                        return promiseChain.then(() => new Promise(async (resolve) => {
+                            await (async (message, cb) => {
+                                let attachements = {};
+
+                                async function backupCompleted(hash, avatar, background) {
+                                    if (message.hash) {
+                                        const foundRecord = (await db.query(`SELECT hrid FROM kanmi_aux_cdn WHERE record_ref = ? AND path_hint = 'user' AND host = ?`, [message.id, systemglobal.CDN_ID])).rows
+                                        if (foundRecord.length > 0) {
+                                            const saveBackupSQL = await db.query(`UPDATE kanmi_aux_cdn
+                                                  SET record_id = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ? WHERE hrid = ?`, [
+                                                hash,
+                                                (!!avatar) ? 1 : 0,
+                                                (!!avatar) ? avatar : null,
+                                                (!!background) ? 1 : 0,
+                                                (!!background) ? background : null,
+                                                foundRecord[0].hrid
+                                            ])
+                                            if (saveBackupSQL.error) {
+                                                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                            }
+                                        } else {
+                                            const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
+                                                  SET record_ref = ?,
+                                                      host = ?,
+                                                      record_id = ?,
+                                                      path_hint = ?,
+                                                      dat_0 = ?,
+                                                      dat_0_hint = ?,
+                                                      dat_1 = ?,
+                                                      dat_1_hint = ?`, [
+                                                message.id,
+                                                systemglobal.CDN_ID,
+                                                hash,
+                                                "user",
+                                                (!!avatar) ? 1 : 0,
+                                                (!!avatar) ? avatar : null,
+                                                (!!background) ? 1 : 0,
+                                                (!!background) ? background : null,
+                                                hash,
+                                                (!!avatar) ? 1 : 0,
+                                                (!!avatar) ? avatar : null,
+                                                (!!background) ? 1 : 0,
+                                                (!!background) ? background : null,
+                                            ])
+                                            if (saveBackupSQL.error) {
+                                                Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
+                                            }
+                                        }
+
+                                    } else {
+                                        Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN: No Message ID passed`, "err")
+                                    }
+                                }
+
+                                if (message.banner_custom) {
+                                    attachements['banner'] = {
+                                        src: `https://cdn.discordapp.com/attachments${message.banner_custom}`,
+                                        dest: path.join(systemglobal.CDN_Base_Path, 'user', 'banner'),
+                                        ext: message.banner_custom.split('?')[0].split('.').pop()
+                                    }
+                                }
+                                if (message.avatar_custom) {
+                                    attachements['avatar'] = {
+                                        src: `https://cdn.discordapp.com/attachments${message.avatar_custom}`,
+                                        dest: path.join(systemglobal.CDN_Base_Path, 'user', 'avatar'),
+                                        ext: message.avatar_custom.split('?')[0].split('.').pop()
+                                    }
+                                }
+                                const hash = md5(`${(message.avatar_custom) ? message.avatar_custom : ''}${(message.banner_custom) ? message.banner_custom : ''}`)
+
+                                if (Object.keys(attachements).length > 0) {
+                                    let res = {};
+                                    let requests = Object.keys(attachements).reduce((promiseChain, k) => {
+                                        return promiseChain.then(() => new Promise(async (blockOk) => {
+                                            const val = attachements[k];
+                                            let destName = `${message.id}`
+                                            if (val.ext) {
+                                                destName += '.' + val.ext;
+                                            }
+                                            const pm = await (async () => {
+                                                try {
+                                                    let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
+                                                    await sleep(5000);
+                                                    let om = await discordClient.getMessage(pm.channel.id, pm.id)
+                                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
+                                                    return om.embeds[0].thumbnail.url
+                                                } catch (e) {
+                                                    Logger.printLine("Cache", `Failed to get attachment from Discord "${val.src}": ${e.message}`, "err", e);
+                                                }
+                                            })()
+                                            const dataTake2 = await new Promise(ok => {
+                                                const url = pm;
+                                                //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
+                                                request.get({
+                                                    url,
+                                                    headers: {
+                                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                        'accept-language': 'en-US,en;q=0.9',
+                                                        'cache-control': 'max-age=0',
+                                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                        'sec-ch-ua-mobile': '?0',
+                                                        'sec-fetch-dest': 'document',
+                                                        'sec-fetch-mode': 'navigate',
+                                                        'sec-fetch-site': 'none',
+                                                        'sec-fetch-user': '?1',
+                                                        'upgrade-insecure-requests': '1',
+                                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                    },
+                                                }, async (err, res, body) => {
+                                                    if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                        Logger.printLine("Cache", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                        ok(false)
+                                                    } else {
+                                                        ok(body);
+                                                    }
+                                                })
+                                            })
+                                            if (dataTake2) {
+                                                fsEx.ensureDirSync(path.join(val.dest));
+                                                const write = await new Promise(ok => {
+                                                    fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                                        if (err) {
+                                                            Logger.printLine("Cache", `Failed to write download ${message.name} for ${k}`, "err", err)
+                                                        }
+                                                        ok(!err);
+                                                    })
+                                                });
+                                                res[k] = (write) ? destName : null;
+                                                blockOk();
+                                            } else {
+                                                Logger.printLine("Cache", `Can't download item ${message.id}, No Data Returned`, "error")
+                                                res[k] = false;
+                                                blockOk();
+                                            }
+                                        }))
+                                    }, Promise.resolve());
+                                    requests.then(async () => {
+                                        Logger.printLine("Cache", `Download ${message.id}`, "debug")
+                                        if (Object.values(res).filter(f => !f).length === 0)
+                                            await backupCompleted(hash, res.avatar, res.banner);
+                                        cb(true);
+                                    });
+                                } else {
+                                    Logger.printLine("Cache", `Can't download item ${message.id}, No URLs Available`, "error")
+                                    cb(false)
+                                }
+                            })(m, async ok => {
+                                ticks++
+                                if (ticks >= 100 || a.length <= 100) {
+                                    ticks = 0
+                                }
+                                resolve(ok)
+                                m = null
+                            })
+                        }))
+                    }, Promise.resolve());
+                    requests.then(async () => {
+                        if (total > 0) {
+                            Logger.printLine("Cache", `Completed Download #${runCount} with ${total} files`, "info");
+                        } else {
+                            Logger.printLine("Cache", `Nothing to Download #${runCount}`, "info");
+                        }
+                        completed();
+                    })
+                } else {
+                    Logger.printLine("Cache", `Nothing to Download #${runCount}`, "info");
+                    completed();
+                }
+            });
         }
     }
     async function handleBackupItems(backupItems, allow_master) {
@@ -1251,233 +1443,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             resolve(ok)
                             m = null
                         }, false, allow_master)
-                    }))
-                }, Promise.resolve());
-                requests.then(async () => {
-                    if (total > 0) {
-                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
-                    } else {
-                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                    }
-                    completed();
-                })
-            } else {
-                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                completed();
-            }
-        });
-    }
-    async function handleBackupShowMeta(backupItems) {
-        return new Promise(async completed => {
-            runCount++;
-            if (backupItems.rows.length > 0) {
-                let total = backupItems.rows.length
-                let ticks = 0
-                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
-                    return promiseChain.then(() => new Promise(async (resolve) => {
-                        await backupShowMeta(m, async ok => {
-                            ticks++
-                            if (ticks >= 100 || a.length <= 100) {
-                                ticks = 0
-                            }
-                            resolve(ok)
-                            m = null
-                        }, false)
-                    }))
-                }, Promise.resolve());
-                requests.then(async () => {
-                    if (total > 0) {
-                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
-                    } else {
-                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                    }
-                    completed();
-                })
-            } else {
-                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                completed();
-            }
-        });
-    }
-    async function handleBackupUserData(backupItems) {
-        return new Promise(async completed => {
-            runCount++;
-            if (backupItems.rows.length > 0) {
-                let total = backupItems.rows.length
-                let ticks = 0
-                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
-                    return promiseChain.then(() => new Promise(async (resolve) => {
-                        await (async (message, cb) => {
-                            let attachements = {};
-
-                            async function backupCompleted(hash, avatar, background) {
-                                if (message.hash) {
-                                    const foundRecord = (await db.query(`SELECT hrid FROM kanmi_aux_cdn WHERE record_ref = ? AND path_hint = 'user' AND host = ?`, [message.id, systemglobal.CDN_ID])).rows
-                                    if (foundRecord.length > 0) {
-                                        const saveBackupSQL = await db.query(`UPDATE kanmi_aux_cdn
-                                                  SET record_id = ?,
-                                                      dat_0 = ?,
-                                                      dat_0_hint = ?,
-                                                      dat_1 = ?,
-                                                      dat_1_hint = ? WHERE hrid = ?`, [
-                                            hash,
-                                            (!!avatar) ? 1 : 0,
-                                            (!!avatar) ? avatar : null,
-                                            (!!background) ? 1 : 0,
-                                            (!!background) ? background : null,
-                                            foundRecord[0].hrid
-                                        ])
-                                        if (saveBackupSQL.error) {
-                                            Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
-                                        }
-                                    } else {
-                                        const saveBackupSQL = await db.query(`INSERT INTO kanmi_aux_cdn
-                                                  SET record_ref = ?,
-                                                      host = ?,
-                                                      record_id = ?,
-                                                      path_hint = ?,
-                                                      dat_0 = ?,
-                                                      dat_0_hint = ?,
-                                                      dat_1 = ?,
-                                                      dat_1_hint = ?`, [
-                                            message.id,
-                                            systemglobal.CDN_ID,
-                                            hash,
-                                            "user",
-                                            (!!avatar) ? 1 : 0,
-                                            (!!avatar) ? avatar : null,
-                                            (!!background) ? 1 : 0,
-                                            (!!background) ? background : null,
-                                            hash,
-                                            (!!avatar) ? 1 : 0,
-                                            (!!avatar) ? avatar : null,
-                                            (!!background) ? 1 : 0,
-                                            (!!background) ? background : null,
-                                        ])
-                                        if (saveBackupSQL.error) {
-                                            Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN`, "err", saveBackupSQL.error)
-                                        }
-                                    }
-
-                                } else {
-                                    Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.id} as download to CDN: No Message ID passed`, "err")
-                                }
-                            }
-                            function getimageSizeParam(auth) {
-                                if (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512)) {
-                                    let ih = 512;
-                                    let iw = 512;
-                                    if (message.sizeW >= message.sizeH) {
-                                        iw = (message.sizeW * (512 / message.sizeH)).toFixed(0)
-                                    } else {
-                                        ih = (message.sizeH * (512 / message.sizeW)).toFixed(0)
-                                    }
-                                    return ((auth) ? auth + "&" : '?') + `width=${iw}&height=${ih}`
-                                } else {
-                                    return auth || ''
-                                }
-                            }
-
-                            if (message.banner_custom) {
-                                attachements['banner'] = {
-                                    src: `https://cdn.discordapp.com/attachments${message.banner_custom}`,
-                                    dest: path.join(systemglobal.CDN_Base_Path, 'user', 'banner'),
-                                    ext: message.banner_custom.split('?')[0].split('.').pop()
-                                }
-                            }
-                            if (message.avatar_custom) {
-                                attachements['avatar'] = {
-                                    src: `https://cdn.discordapp.com/attachments${message.avatar_custom}`,
-                                    dest: path.join(systemglobal.CDN_Base_Path, 'user', 'avatar'),
-                                    ext: message.avatar_custom.split('?')[0].split('.').pop()
-                                }
-                            }
-                            const hash = md5(`${(message.avatar_custom) ? message.avatar_custom : ''}${(message.banner_custom) ? message.banner_custom : ''}`)
-
-                            if (Object.keys(attachements).length > 0) {
-                                let res = {};
-                                let requests = Object.keys(attachements).reduce((promiseChain, k) => {
-                                    return promiseChain.then(() => new Promise(async (blockOk) => {
-                                        const val = attachements[k];
-                                        let destName = `${message.id}`
-                                        if (val.ext) {
-                                            destName += '.' + val.ext;
-                                        }
-                                        const pm = await (async () => {
-                                            try {
-                                                let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
-                                                await sleep(5000);
-                                                let om = await discordClient.getMessage(pm.channel.id, pm.id)
-                                                await discordClient.deleteMessage(pm.channel.id, pm.id)
-                                                return om.embeds[0].thumbnail.url
-                                            } catch (e) {
-                                                console.error("Failed to get parity attachemnt from discord", e)
-                                            }
-                                        })()
-                                        const dataTake2 = await new Promise(ok => {
-                                            const url = pm;
-                                            //Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} ${destName}...`, "debug")
-                                            request.get({
-                                                url,
-                                                headers: {
-                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                                    'accept-language': 'en-US,en;q=0.9',
-                                                    'cache-control': 'max-age=0',
-                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                                    'sec-ch-ua-mobile': '?0',
-                                                    'sec-fetch-dest': 'document',
-                                                    'sec-fetch-mode': 'navigate',
-                                                    'sec-fetch-site': 'none',
-                                                    'sec-fetch-user': '?1',
-                                                    'upgrade-insecure-requests': '1',
-                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                                },
-                                            }, async (err, res, body) => {
-                                                if (err || res && res.statusCode && res.statusCode !== 200) {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                                    ok(false)
-                                                } else {
-                                                    ok(body);
-                                                }
-                                            })
-                                        })
-                                        if (dataTake2) {
-                                            fsEx.ensureDirSync(path.join(val.dest));
-                                            const write = await new Promise(ok => {
-                                                fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
-                                                    if (err) {
-                                                        Logger.printLine("CopyFile", `Failed to write download ${message.name} for ${k}`, "err", err)
-                                                    }
-                                                    ok(!err);
-                                                })
-                                            });
-                                            res[k] = (write) ? destName : null;
-                                            blockOk();
-                                        } else {
-                                            Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
-                                            res[k] = false;
-                                            blockOk();
-                                        }
-                                    }))
-                                }, Promise.resolve());
-                                requests.then(async () => {
-                                    Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
-                                    if (Object.values(res).filter(f => !f).length === 0)
-                                        await backupCompleted(hash, res.avatar, res.banner);
-                                    cb(true);
-                                });
-                            } else {
-                                Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
-                                cb(false)
-                            }
-                        })(m, async ok => {
-                            ticks++
-                            if (ticks >= 100 || a.length <= 100) {
-                                ticks = 0
-                            }
-                            resolve(ok)
-                            m = null
-                        })
                     }))
                 }, Promise.resolve());
                 requests.then(async () => {
