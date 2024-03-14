@@ -1551,10 +1551,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (systemglobal.CDN_Focus_Channels) {
                         await findBackupItems(systemglobal.CDN_Focus_Channels);
                     }
+                    await findBackupItems();
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
-                    await findBackupItems();
                     console.log("First Pass OK");
                     activeParseing = false;
                     setInterval(async () => {
