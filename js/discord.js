@@ -9423,6 +9423,7 @@ This code is publicly released and is restricted by its project license
                                 })
                             }
                             if (url) {
+                                filelist.push(url);
                                 partOk(url);
                             } else {
                                 let pm;
