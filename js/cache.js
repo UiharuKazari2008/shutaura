@@ -1055,7 +1055,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         activeParseing = true;
         const q = `SELECT x.* ,
                           y.hrid, y.host, y.record_int, y.record_id, id_hint, path_hint, dat_0, dat_0_hint, dat_1, dat_1_hint
-                   FROM (SELECT show_id, media_group, name, background, poster, md5(CONCAT(COALESCE(poster,''), COALESCE(background,''), show_id)) as hash FROM kongou_shows) x
+                   FROM (SELECT show_id, media_group, name, background, poster, md5(CONCAT(COALESCE(poster,''), COALESCE(background,''), show_id)) as hash FROM kongou_shows WHERE (background IS NOT NULL OR poster IS NOT NULL)) x
                             LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.hash = y.record_id)
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
