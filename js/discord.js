@@ -9603,7 +9603,7 @@ This code is publicly released and is restricted by its project license
                 }
             }, 3600000);
             setInterval(async () => {
-                if (enableListening && !systemglobal.Discord_Disable_SF_Verify)
+                if (enableListening && !systemglobal.Discord_Disable_SF_Verify) {
                     verifySpannedFiles(25);
                 }
             }, 14400000);
