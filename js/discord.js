@@ -9563,7 +9563,8 @@ This code is publicly released and is restricted by its project license
                 refreshCounts();
                 setTimeout(revalidateFiles, 60000)
                 cycleThreads(true);
-                verifySpannedFiles(1);
+                if (!systemglobal.Discord_Disable_SF_Verify)
+                     verifySpannedFiles(1);
                 cleanOldMessages();
             }
             Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
@@ -9602,7 +9603,7 @@ This code is publicly released and is restricted by its project license
                 }
             }, 3600000);
             setInterval(async () => {
-                if (enableListening) {
+                if (enableListening && !systemglobal.Discord_Disable_SF_Verify) {
                     verifySpannedFiles(25);
                 }
             }, 14400000);
