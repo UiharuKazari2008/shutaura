@@ -761,6 +761,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                 } catch (e) {
                                     console.error("Failed to get parity attachemnt from discord", e)
+                                    return false
                                 }
                             })()
                             if (pm) {
