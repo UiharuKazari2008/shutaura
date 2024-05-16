@@ -582,7 +582,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
                                 const data = await new Promise(async ok => {
                                     let url
-                                    if (u.auth_valid === 1) {
+                                    /*if (u.auth_valid === 1) {
                                         url = await new Promise((resolve) => {
                                             remoteSize(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`, async (err, size) => {
                                                 if (!err || (size !== undefined && size > 0)) {
@@ -592,7 +592,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 }
                                             })
                                         })
-                                    }
+                                    }*/
                                     if (!url) {
                                         let pm;
                                         try {
