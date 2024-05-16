@@ -925,15 +925,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             } else {
                                 Logger.printLine("DownloadFile", `Can't download item ${message.id}, No URL Returned`, "error");
-                                if (systemglobal.CDN_Fast_Skip) {
-                                    await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
-                                } else {
-                                    if (!skipped[message.id])
-                                        skipped[message.id] = 0;
-                                    skipped[message.id] = skipped[message.id] + 1;
-                                    if (skipped[message.id] > 4)
-                                        await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
-                                }
                                 res[k] = false;
                                 blockOk();
                             }
@@ -949,8 +940,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
-            console.log(attachements)
-            console.log(message)
+            if (systemglobal.CDN_Fast_Skip) {
+                await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+            } else {
+                if (!skipped[message.id])
+                    skipped[message.id] = 0;
+                skipped[message.id] = skipped[message.id] + 1;
+                if (skipped[message.id] > 4)
+                    await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+            }
             cb(false)
         }
     }
