@@ -60,6 +60,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let runCount = 0;
     let init = 0;
     Logger.printLine("Init", "CDN", "info");
+    let skipped = {};
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -923,7 +924,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                 }
                             } else {
-                                Logger.printLine("DownloadFile", `Can't download item ${message.id}, No URL Returned`, "error")
+                                Logger.printLine("DownloadFile", `Can't download item ${message.id}, No URL Returned`, "error");
+                                if (systemglobal.CDN_Fast_Skip) {
+                                    await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+                                } else {
+                                    if (!skipped[message.id])
+                                        skipped[message.id] = 0;
+                                    skipped[message.id] = skipped[message.id] + 1;
+                                    if (skipped[message.id] > 4)
+                                        await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+                                }
                                 res[k] = false;
                                 blockOk();
                             }
@@ -1047,6 +1057,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
+                         AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
                        ORDER BY RAND()
                        LIMIT ?`;
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
@@ -1088,6 +1099,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                   LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                             LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                    WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
+                     AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
                    ORDER BY RAND()
                    LIMIT ?`;
         Logger.printLine("Prefetch", `Preparing Search (Episodes)....`, "info");
