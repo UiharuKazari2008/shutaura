@@ -718,7 +718,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						} else {
 							await limiter1.removeTokens(1, async function () {
-								const page = await getTwitterTab(twit, `get`, `https://twitter.com/${twit.screenName}/status/${tweet.id.toString()}`);
+								const page = await getTwitterTab(twit, `get`, `https://x.com/${twit.screenName}/status/${tweet.id.toString()}`);
 								if (page) {
 									const dead = await page.evaluate(async () => {
 										return !(document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]'));
@@ -996,7 +996,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     const tweetID = releaseCollection.tweets[keyIndex].id;
                                     await limiter1.removeTokens(1, async function () {
                                         Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
-                                        const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://twitter.com/${twit.screenName}/status/${tweetID}`, true);
+                                        const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://x.com/${twit.screenName}/status/${tweetID}`, true);
                                         if (page){
                                             try {
                                                 const results = await page.evaluate(async (rc) => {
@@ -1223,7 +1223,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										itemFileName: filename,
 										itemDateTime: tweetDate,
 										itemFileURL: media.media_url,
-										itemReferral: `https://twitter.com/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
+										itemReferral: `https://x.com/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
 										messageText: `**🎞 Twitter Video** - ***${obj.tweet.userName} (@${obj.tweet.screenName})***${(obj.tweet.text && obj.tweet.text.length > 0) ? '\n**' + obj.tweet.text + '**' : ''}`,
 										tweetMetadata: {
 											account: obj.accountid,
@@ -1485,7 +1485,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (id && activeActions.indexOf(`${id}-${message.messageAction}-${intent.join('-')}`)  === -1) {
 			activeActions.push(`${accountID}-${id}-${message.messageAction}-${intent.join('-')}`);
 			try {
-				const page = await getTwitterTab(account, `get`, `https://twitter.com/${account.screenName}/status/${id}`, true);
+				const page = await getTwitterTab(account, `get`, `https://x.com/${account.screenName}/status/${id}`, true);
 				if (page) {
 					await Promise.all(intent.map(async thisIntent => {
 						const results = await page.evaluate(async (action) => {
@@ -1608,7 +1608,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				twit.client.post('statuses/update', object, function (err, data, response) {
 					if (!err) {
 						cb(true);
-						mqClient.sendMessage(`Tweet sent successfully for account #${twitterUser}!\nhttps://twitter.com/${data.user.screen_name}/status/${data.id_str}`, "info", "Twitter")
+						mqClient.sendMessage(`Tweet sent successfully for account #${twitterUser}!\nhttps://x.com/${data.user.screen_name}/status/${data.id_str}`, "info", "Twitter")
 					} else {
 						mqClient.sendMessage(`Failed to send tweet for account #${twitterUser}!, Ticket will be dropped!`, "err", "Twitter", err)
 						cb(false);
@@ -2127,7 +2127,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			search += ' filter:media'
 		if (!list.getretweets)
 			search += ' -filter:retweets'
-		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
+		const TWITTER_LIST_URL = `https://x.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
 		const SCROLL_DELAY_MS_MIN = 100;
 		const SCROLL_DELAY_MS_MAX = 2500;
 		const MAX_TWEET_COUNT = 500;
@@ -2352,7 +2352,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 	async function doomScrollUser(user, account) {
 		const search = `(from:${user}) filter:media -filter:retweets`
-		const TWITTER_LIST_URL = `https://twitter.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
+		const TWITTER_LIST_URL = `https://x.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
 		const SCROLL_DELAY_MS_MIN = 100;
 		const SCROLL_DELAY_MS_MAX = 2500;
 
@@ -2559,7 +2559,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 	}
 	async function doomScrollFav(account) {
-		const TWITTER_LIST_URL = `https://twitter.com/${account.screenName}/likes`;
+		const TWITTER_LIST_URL = `https://x.com/${account.screenName}/likes`;
 		const SCROLL_DELAY_MS_MIN = 100;
 		const SCROLL_DELAY_MS_MAX = 2500;
 		const MAX_TWEET_COUNT = 250;
@@ -2758,7 +2758,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function getTweet(user, id, account) {
 		Logger.printLine("HTDSv1", `Retrieving tweet ${user}/${id}...`, "info");
 
-		const page = await getTwitterTab(account, `get`, `https://twitter.com/${user}/status/${id}`, true)
+		const page = await getTwitterTab(account, `get`, `https://x.com/${user}/status/${id}`, true)
 		if (page) {
 			await page.waitForTimeout(1200);
 
@@ -2933,12 +2933,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			);
 			Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
 			await page.setCookie(...account.cookie);
-			await page.goto('https://twitter.com/');
+			await page.goto('https://x.com/');
 			await page.setRequestInterception(true);
 			page.on('request', req => {
 				const url = req.url();
 				const headers = req.headers();
-				if (url.includes('https://twitter.com/i/api/graphql/') && url.includes('TweetDetail')) {
+				if (url.includes('https://x.com/i/api/graphql/') && url.includes('TweetDetail')) {
 					tGraphQL = url.split('graphql/').pop().split('/')[0];
 					tAuthorization = headers['authorization'];
 					Logger.printLine("AuthManager", `Got required request data to start!`, "info")
