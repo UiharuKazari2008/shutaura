@@ -470,10 +470,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
 
         let cm;
-        try {
-            cm = await discordClient.getMessage(message.channel, message.id);
-        } catch (e) {
-            Logger.printLine("Backup", `Failed to get attachment from Discord ${message.channel}/${message.id}: ${e.message}`, "err", e);
+        if (message && message.channel && message.id) {
+            try {
+                cm = await discordClient.getMessage(message.channel, message.id);
+            } catch (e) {
+                Logger.printLine("Backup", `Failed to get attachment from Discord ${message.channel}/${message.id}: ${e.message}`, "err", e);
+            }
         }
         let auth = undefined
         if (message.attachment_hash) {
