@@ -397,9 +397,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         let attachements = {};
         let message = { ...input };
 
-        if ((!message.channel || !message.server) && input.eid) {
+        if ((!input.channel || !input.server || !input.id) && input.eid) {
             const _md = await db.query(`SELECT channel, server FROM kanmi_records WHERE eid = ? LIMIT 1`, [input.eid]);
-            if (_md && _md.length > 0 && _md[0].channel) {
+            console.log(_md)
+            if (_md && _md.length > 0) {
+                if (!message.id)
+                    message.id = _md[0].id;
                 message.channel = _md[0].channel;
                 message.server = _md[0].server;
             }
