@@ -393,8 +393,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         console.error('Failed to create the temp folder, not a issue if your using docker');
         console.error(e);
     }
-    async function backupMessage (message, cb, requested_remotely, allow_master_files) {
+    async function backupMessage (input, cb, requested_remotely, allow_master_files) {
         let attachements = {};
+        let message = { ...input };
+
+        if ((!message.channel || !message.server) && input.eid) {
+            const _md = await db.query(`SELECT channel, server FROM kanmi_records WHERE eid = ? LIMIT 1`, [input.eid]);
+            if (_md && _md.length > 0 && _md[0].channel) {
+                message.channel = _md[0].channel;
+                message.server = _md[0].server;
+            }
+        }
 
         async function backupCompleted(path, preview, full, ext_0, master) {
             if (message.id) {
