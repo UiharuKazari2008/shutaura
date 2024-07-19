@@ -475,11 +475,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         } catch (e) {
             Logger.printLine("Backup", `Failed to get attachment from Discord ${message.channel}/${message.id}: ${e.message}`, "err", e);
         }
-        let auth = ''
+        let auth = undefined
         if (message.attachment_hash) {
             if (message.attachment_auth && message.attachment_auth_valid === 1) {
                 auth = `?${message.attachment_auth}`
-            } else if (!message.attachment_hash.includes('/')) {
+            } else if (cm && !message.attachment_hash.includes('/')) {
                 try {
                     const a = cm.attachments[0].url.split('?')[1];
                     let ex = null;
@@ -496,16 +496,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.error(e)
                 }
             }
-            attachements['full'] = {
-                src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
-                dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
+            if (auth) {
+                attachements['full'] = {
+                    src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
+                    dest: path.join(systemglobal.CDN_Base_Path, 'full', message.server, message.channel),
+                }
             }
         }
         if (message.cache_proxy) {
-            let auth2 = '';
+            let auth2 = undefined;
             if (message.cache_auth && message.cache_auth_valid === 1) {
                 auth2 = `?${message.cache_auth}`
-            } else {
+            } else if (cm) {
                 try {
                     const li = cm.attachments.filter(e => e.filename.toLowerCase().includes(message.cache_proxy.toLowerCase()))
                     if (li.length > 0) {
@@ -527,10 +529,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.error(e)
                 }
             }
-            attachements['preview'] = {
-                src: (message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`) + auth2,
-                dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
-                ext: message.cache_proxy.split('?')[0].split('.').pop()
+            if (auth2) {
+                attachements['preview'] = {
+                    src: (message.cache_proxy.startsWith('http') ? message.cache_proxy : `https://media.discordapp.net/attachments${message.cache_proxy}`) + auth2,
+                    dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
+                    ext: message.cache_proxy.split('?')[0].split('.').pop()
+                }
             }
         } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1 && (message.sizeH > 512 || message.sizeW > 512))) {
             attachements['preview'] = {
