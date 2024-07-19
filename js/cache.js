@@ -980,6 +980,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             });
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
+            console.log(message)
             if (message && message.server && message.channel && message.id) {
                 if (systemglobal.CDN_Fast_Skip) {
                     await db.query(`INSERT INTO kanmi_cdn_skipped
