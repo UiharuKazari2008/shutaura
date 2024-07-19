@@ -991,6 +991,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         } else {
             Logger.printLine("BackupParts", `Can't download item ${message.id}, Missing data`, "error")
+            console.log(message)
             cb(false)
         }
     }
