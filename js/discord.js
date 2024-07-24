@@ -7057,7 +7057,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
         }
-        if (attachments.length === 0 || (attachments.length > 0 && attachments.filter(e => e.size > 7900000).length === 0)) {
+        if (attachments.length === 0 || (attachments.length > 0 && attachments.filter(e => e.size > 24900000).length === 0)) {
             Logger.printLine("Move", `Need to move ${message.id}`, "debug")
             let emotesToAdd = []
             Object.keys(message.reactions).forEach(function (key) {

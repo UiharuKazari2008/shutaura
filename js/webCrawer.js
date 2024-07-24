@@ -160,7 +160,7 @@ const fs = require("fs");
             } else {
                 const imageBuffer = Buffer.from(body)
                 const fileSizeInMegabytes = imageBuffer.byteLength / 1000000.0;
-                if (fileSizeInMegabytes > 7.8) {
+                if (fileSizeInMegabytes > 24.8) {
                     resizeImage(imageBuffer, function (data) {
                         if (data !== false) {
                             returnedImage(data)

@@ -721,7 +721,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function encodeVideo(filename, intent) {
 		return await new Promise(function (fulfill) {
 			const possiblePreview = path.join(path.dirname(filename), 'PREVIEW-' + path.basename(filename, path.extname(filename)) + '.mp4')
-			if (fs.existsSync(possiblePreview) && fileSize(possiblePreview) < '7.999') {
+			if (fs.existsSync(possiblePreview) && parseFloat(fileSize(possiblePreview).toString()) < 24.899) {
 				try {
 					const output = fs.readFileSync(possiblePreview, {encoding: 'base64'})
 					deleteFile(possiblePreview, function (ready) {
@@ -761,7 +761,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					scriptOutput += data;
 				});
 				child.on('close', function (code) {
-					if (code.toString() === '0' && fileSize(outputfile) < '7.999') {
+					if (code.toString() === '0' && parseFloat(fileSize(outputfile).toString()) < 24.899) {
 						try {
 							const output = fs.readFileSync(outputfile, {encoding: 'base64'})
 							deleteFile(outputfile, function (ready) {
@@ -2051,7 +2051,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 				if (systemglobal.UseJSSplit) {
 					Logger.printLine("MPFGen", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
-					splitFile.splitFileBySize(object.FilePath.toString(), 7500000)
+					splitFile.splitFileBySize(object.FilePath.toString(), 24500000)
 						.then((names) => {
 							postSplit(names)
 						})
@@ -2060,7 +2060,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							cb(true);
 						});
 				} else {
-					expectedParityParts = (fileSize(object.FilePath.toString()) / 7.5)
+					expectedParityParts = (fileSize(object.FilePath.toString()) / 24.5)
 
 					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" in to ${expectedParityParts} parts as "${filepartsid}"...`, "info")
 					try {
@@ -2091,7 +2091,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												let parityList = [];
 												let requests = nativeParts.reduce((promiseChain, msf) => {
 													return promiseChain.then(() => new Promise((resolve) => {
-														const nativeSplitParts = spawn("split", ["-b", "7500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
+														const nativeSplitParts = spawn("split", ["-b", "24500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
 
 														nativeSplitParts.stderr.on("data", data => { Logger.printLine("MPFGen-Native", `${data}`, "info") });
 
@@ -2149,7 +2149,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						} else {
 							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
 							const FileName = path.basename(object.FilePath.toString())
-							const nativeSplit = spawn("split", ["-b", "7500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
+							const nativeSplit = spawn("split", ["-b", "24500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
 							nativeSplit.stderr.on("data", data => {
 								Logger.printLine("MPFGen-Native", `${data}`, "info")
