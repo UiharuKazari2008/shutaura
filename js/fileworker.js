@@ -2194,7 +2194,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 
 			const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
-			if (fileSize(object.FilePath.toString()) > 7.8 && object.Type.toString() !== "Proxy") {
+			if (fileSize(object.FilePath.toString()) > 24.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 12 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {
 						if (path.extname(object.FileName.toString()).split(".").pop().toLowerCase() !== "png") {
