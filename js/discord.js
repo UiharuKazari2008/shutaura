@@ -3227,7 +3227,7 @@ This code is publicly released and is restricted by its project license
                             break;
                         case 'verify':
                             SendMessage(`✅ Started Filesystem Verify${(args.length > 1) ? ' for ' + args[1] + ' Files' : ''}...`, "system", msg.guildID, "RepairFileSystem");
-                            verifySpannedFiles((args.length > 1) ? args[1] : undefined);
+                            //verifySpannedFiles((args.length > 1) ? args[1] : undefined);
                             break;
                         case 'update':
                             SendMessage(`✅ Started Filesystem Update...`, "system", msg.guildID, "RepairFileSystem");
@@ -7641,7 +7641,7 @@ This code is publicly released and is restricted by its project license
                                 while (j < 3) {
                                     j++
                                     lastResult = await new Promise((resolve) => {
-                                        remoteSize(part.url, async (err, size) => {
+                                        remoteSize(((part.url.startsWith('/')) ? 'https://cdn.discordapp.com/' : '') + part.url, async (err, size) => {
                                             if (!err || (size !== undefined && size > 5)) {
                                                 resolve({
                                                     url: part.url,
@@ -9563,8 +9563,8 @@ This code is publicly released and is restricted by its project license
                 refreshCounts();
                 setTimeout(revalidateFiles, 60000)
                 cycleThreads(true);
-                if (!systemglobal.Discord_Disable_SF_Verify)
-                     verifySpannedFiles(1);
+                /*if (!systemglobal.Discord_Disable_SF_Verify)
+                     verifySpannedFiles(1);*/
                 cleanOldMessages();
             }
             Logger.printLine("Discord", "Registering Scheduled Tasks", "debug")
@@ -9602,11 +9602,11 @@ This code is publicly released and is restricted by its project license
                     cleanOldMessages();
                 }
             }, 3600000);
-            setInterval(async () => {
+            /*setInterval(async () => {
                 if (enableListening && !systemglobal.Discord_Disable_SF_Verify) {
                     verifySpannedFiles(25);
                 }
-            }, 14400000);
+            }, 14400000);*/
             Logger.printLine("Discord", "Registering Commands", "debug")
             registerCommands();
             await reloadLocalCache();
