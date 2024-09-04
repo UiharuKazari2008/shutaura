@@ -1110,6 +1110,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
                        ORDER BY RAND()
                        LIMIT ?`;
+        console.log(q)
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
