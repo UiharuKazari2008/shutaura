@@ -1577,7 +1577,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             return '';
         }
         )()
-        const removedItems = await db.query(`SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE (eid NOT IN (SELECT eid FROM kanmi_records)${ignore}) AND host = ?`, [systemglobal.CDN_ID])
+        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE (eid NOT IN (SELECT eid FROM kanmi_records)${ignore}) AND host = ?`;
+        console.log(q);
+        const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, deleteItem, i, a) => {
