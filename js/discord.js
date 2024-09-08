@@ -6989,7 +6989,7 @@ This code is publicly released and is restricted by its project license
                         resolve(false);
                         activeTasks.delete(`CACHE_COLOR_${msgid}`);
                     } else if (!body || (body && body.length < 100)) {
-                        SendMessage(`Failed to download message attachments from discord for color cache - No Data`, "err", 'main', "Polyfill")
+                        SendMessage(`Failed to download message attachments from discord for color cache - No Data\n${url}`, "err", 'main', "Polyfill")
                         resolve(false);
                         activeTasks.delete(`CACHE_COLOR_${msgid}`);
                     } else {
