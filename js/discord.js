@@ -9009,6 +9009,7 @@ This code is publicly released and is restricted by its project license
                                                     }
                                                     const _timer = setTimeout(function () {
                                                         deleteAbove(fullmsg.channel.id, fullmsg.id);
+                                                        discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id, 'Request to delete old messages')
                                                     }, 15000);
                                                     clearTimers.set(fullmsg.channel.id, _timer);
                                                     Logger.printLine("CleanTimer", `Started Clean Timer for ${fullmsg.channel.id}`, "debug");
