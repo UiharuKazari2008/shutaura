@@ -1323,7 +1323,7 @@ This code is publicly released and is restricted by its project license
                                 cb(true);
                             })
                         break;
-                    case 'CacheColor':
+                    case '_CacheColor':
                         const messageData = await db.query(`SELECT id, channel, attachment_name, attachment_hash, cache_proxy FROM kanmi_records WHERE id = ? AND channel = ?`, [MessageContents.messageID, MessageContents.messageChannelID])
                         if (messageData.error) {
                             printLine('SQL', `Failed to get message from database for ${MessageContents.messageID}`, 'error');
@@ -2210,7 +2210,7 @@ This code is publicly released and is restricted by its project license
                         break;
                     default:
                         if (MessageContents.messageReturn === true) {
-                            mqClient.sendData(MessageContents.fromClient, failcase, function (ok) {
+                            mqClient.sendData(MessageContents.fromClient, false, function (ok) {
 
                             });
                         }
