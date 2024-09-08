@@ -1187,8 +1187,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 											resolve();
 										})
-										if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
-											const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+										if (index === 0 && twitterNotify.has(obj.tweet.screenName.toLowerCase())) {
+											const notifyChannel = twitterNotify.get(obj.tweet.screenName.toLowerCase())
 											mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfileext',
