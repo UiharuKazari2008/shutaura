@@ -684,14 +684,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 post_history.unshift(post.postID.toString());
                                 if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
                                     const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
-                                    const image = await getImagetoB64(images[0])
+                                    const image = await getImagetoB64(images[0]);
+                                    const filename = getIDfromText(images[0]);
                                     mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
                                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                                         messageType: 'sfileext',
                                         messageReturn: false,
                                         messageLink: post.link,
                                         itemFileData: image,
-                                        itemFileName: getIDfromText(images[0]),
+                                        itemFileName: filename,
                                         messageChannelID: notifyChan,
                                         messageText: '',
                                         messageObject: {
