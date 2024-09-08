@@ -8530,7 +8530,7 @@ This code is publicly released and is restricted by its project license
                     messageUpdate: {
                         ...sqlObject
                     },
-                    reCache: !(refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate'))
+                    reCache: !(refrance && refrance.action && (refrance.action === 'jfsMove'))
                 })
             } else {
                 await messageCreate(msg, {
