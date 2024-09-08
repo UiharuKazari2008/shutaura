@@ -1187,19 +1187,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 											resolve();
 										})
-										/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
+										if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
 											const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
-											mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+											mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfileext',
 												messageReturn: false,
 												messageChannelID : notifyChannel,
 												itemFileData: image,
 												itemFileName: filename,
-												messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
-												messageObject: {...messageObject, title: _title}
+												messageText: `New Tweet from @${obj.tweet.screenName}`
 											})
-										}*/
+										}
 									})
 								} else if (obj.channelid !== null) {
 									resolve();
@@ -1234,19 +1233,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									})
 									resolve();
 								})
-								/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
-                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
-                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
-                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-                                        messageType : 'sfileext',
-                                        messageReturn: false,
-                                        messageChannelID : notifyChannel,
-                                        itemFileData: image,
-                                        itemFileName: filename,
-                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
-                                        messageObject: {...messageObject, title: _title}
-                                    })
-                                }*/
 							})
 						} else {
 							Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.screenName} - RT: ${rt_stat}`, "error", {
