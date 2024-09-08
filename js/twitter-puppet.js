@@ -1196,7 +1196,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												messageChannelID : notifyChannel,
 												itemFileData: image,
 												itemFileName: filename,
-												messageText: `New Tweet from @${obj.tweet.screenName}`
+												messageText: '',
+												messageObject: {
+													"type": "image",
+													"title": `📨 New Tweet from ${obj.tweet.userName} (@${obj.tweet.screenName})`,
+													"description": (obj.tweet.text && obj.tweet.text.length > 0) ? obj.tweet.text : undefined,
+													"url": `https://x.com/${(obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName}/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
+													"color": 44799,
+													"timestamp": moment(obj.tweet.date).format('YYYY-MM-DDTHH:mm:ssZ'),
+													"image": {
+														"url": `attachment://${filename}`
+													}
+												},
+												addButtons: ["RemoveFile", "Download"]
 											})
 										}
 									})

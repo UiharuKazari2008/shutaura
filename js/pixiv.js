@@ -684,12 +684,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 post_history.unshift(post.postID.toString());
                                 if ((pixivNotify.has(item.user.id.toString()) || pixivNotify.has(item.user.account.toString().toLowerCase())) && channel === 'new') {
                                     const notifyChan = pixivNotify.get(item.user.id.toString()) || pixivNotify.get(item.user.account.toString().toLowerCase())
-                                    const notifMessage = await sendEmbed(post, level, followUser, true, false, notifyChan);
+                                    const image = await getImagetoB64(images[0])
                                     mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
-                                        ...notifMessage,
+                                        fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                                        messageType: 'sfileext',
+                                        messageReturn: false,
+                                        messageLink: post.link,
+                                        itemFileData: image,
+                                        itemFileName: getIDfromText(images[0]),
                                         messageChannelID: notifyChan,
-                                        messageText: `New Illustration from ${item.user.name}`,
-                                        addButtons: []
+                                        messageText: '',
+                                        messageObject: {
+                                            "type": "image",
+                                            "title": `🎆 New Illustrations from ${post.userName} (${post.userNameID})`,
+                                            "description": (post.description) ? post.description : undefined,
+                                            "url": `https://pixiv.net/en/artworks/${item.id}`,
+                                            "color": post.color,
+                                            "timestamp": post.postDate,
+                                            "image": {
+                                                "url": `attachment://${filename}`
+                                            }
+                                        },
+                                        addButtons: ["RemoveFile", "Download"]
                                     }, async(ok) => {
                                     })
                                 }
