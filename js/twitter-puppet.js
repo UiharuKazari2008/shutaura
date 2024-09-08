@@ -167,7 +167,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			twitterNotify.set(e.username.toLowerCase(), e.channel)
 		});
 		Array.from(twitterNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => twitterNotify.delete(e));
-		console.log(`Notification enabled for ${twitterNotify.size} users`);
+		console.log(`Notification enabled for ${twitterNotify.size} users\n${Array.from(twitterNotify.keys())}`);
 	}
 	await loadDatabaseCache();
 	if (args.whost) {
@@ -1187,7 +1187,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 											resolve();
 										})
-										if (index === 0 && twitterNotify.has(obj.tweet.screenName.toLowerCase())) {
+										if (index === 0 && Array.from(twitterNotify.keys()).indexOf(obj.tweet.screenName.toLowerCase()) !== -1) {
 											const notifyChannel = twitterNotify.get(obj.tweet.screenName.toLowerCase())
 											mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
