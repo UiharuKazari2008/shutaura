@@ -1178,7 +1178,7 @@ This code is publicly released and is restricted by its project license
                         removeFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
                         break;
                     case 'MovePost':
-                        if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData))) {
+                        if (MessageContents.messageData !== undefined && !isNaN(parseInt(MessageContents.messageData.dest))) {
                             discordClient.getMessage(ChannelID, MessageContents.messageID)
                                 .then(function(fullmsg) {
                                     (async () => {
