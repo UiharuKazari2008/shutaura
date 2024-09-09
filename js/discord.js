@@ -7109,7 +7109,8 @@ This code is publicly released and is restricted by its project license
                             }
                         ];
                         if (obj.deg) {
-                            const newImage = await new Promise(async (resolve) => {
+                            await new Promise(async (resolve) => {
+                                Logger.printLine("MovePost+Rotate", `Rotate post ${message.id} by ${obj.deg}deg`, "info");
                                 sharp(Buffer.from(body))
                                     .rotate(parseInt(obj.deg.toString()))
                                     .toBuffer((err, buffer) => {
@@ -7118,13 +7119,16 @@ This code is publicly released and is restricted by its project license
                                             console.error(err);
                                             resolve(false)
                                         } else {
+                                            messagefiles = [
+                                                {
+                                                    file: buffer,
+                                                    name: attachments[0].filename
+                                                }
+                                            ];
                                             resolve(buffer);
                                         }
                                     })
                             })
-                            if (!newImage)
-                                messagefiles[0].file = newImage;
-                        }
                         if (colorSearchFormats.indexOf(attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
                             try {
                                 _color = await getAverageColor(body, {mode: 'precision'})
