@@ -7129,6 +7129,7 @@ This code is publicly released and is restricted by its project license
                                         }
                                     })
                             })
+                        }
                         if (colorSearchFormats.indexOf(attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
                             try {
                                 _color = await getAverageColor(body, {mode: 'precision'})
