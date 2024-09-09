@@ -1978,7 +1978,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						messageReturn: false,
 						messageChannelID: tweet.channelid,
 						messageID: tweet.messageid,
-						messageData: list.remote_saveid
+						messageData: { dest: list.remote_saveid }
 					}, async function (ok) {
 						if (ok) {
 							Logger.printLine("TwitterDownload", `Tweet ${tweet.tweetid} was requested to move`, "info", {

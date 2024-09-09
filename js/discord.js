@@ -3005,7 +3005,7 @@ This code is publicly released and is restricted by its project license
                                                 messageServerID: e.server,
                                                 messageType: 'command',
                                                 messageAction: 'MovePost',
-                                                messageData: channelnumber
+                                                messageData: { dest: channelnumber }
                                             }, function (callback) {
                                                 if (!callback) {
                                                     Logger.printLine("Move", `Failed to request message ${e.id} to move`, "error")
@@ -7014,7 +7014,8 @@ This code is publicly released and is restricted by its project license
         })
     }
     // Discord Framework - File Systems Tasks
-    async function jfsMove(message, moveTo, cb, delay) {
+    async function jfsMove(message, obj, cb, delay) {
+        const moveTo = obj.dest;
         await activeTasks.set(`JFSMOVE_${message.id}`, { started: Date.now().valueOf() });
         const database_vales = (await db.query(`SELECT y.cache, x.* FROM (SELECT * FROM kanmi_records WHERE id = ? LIMIT 1) x LEFT JOIN (SELECT * FROM discord_cache) y ON (x.id = y.id)`, [message.id])).rows
         let attachments = message.attachments;
@@ -7107,6 +7108,23 @@ This code is publicly released and is restricted by its project license
                                 name: attachments[0].filename
                             }
                         ];
+                        if (obj.deg) {
+                            const newImage = await new Promise(async (resolve) => {
+                                sharp(Buffer.from(body))
+                                    .rotate(parseInt(obj.deg.toString()))
+                                    .toBuffer((err, buffer) => {
+                                        if (err) {
+                                            Logger.printLine("MovePost+Rotate", `Failed to rotate ${message.id}`, "err", err);
+                                            console.error(err);
+                                            resolve(false)
+                                        } else {
+                                            resolve(buffer);
+                                        }
+                                    })
+                            })
+                            if (!newImage)
+                                messagefiles[0].file = newImage;
+                        }
                         if (colorSearchFormats.indexOf(attachments[0].filename.split('.').pop().toLowerCase()) !== -1) {
                             try {
                                 _color = await getAverageColor(body, {mode: 'precision'})
@@ -7159,6 +7177,7 @@ This code is publicly released and is restricted by its project license
                                 timestamp: (message.full_timestamp) ? message.full_timestamp : undefined,
                                 delay: (delay),
                                 color: _color,
+                                reload_cdn: !!(obj.deg)
                             })
                             if (data.content && data.content.includes('🏷 Name:')) {
                                 mqClient.sendData(`${systemglobal.Discord_Out}.backlog`, {
@@ -8530,7 +8549,7 @@ This code is publicly released and is restricted by its project license
                     messageUpdate: {
                         ...sqlObject
                     },
-                    reCache: !(refrance && refrance.action && (refrance.action === 'jfsMove'))
+                    reCache: !(refrance && refrance.action && refrance.action === 'jfsMove') || refrance.reload_cdn
                 })
             } else {
                 await messageCreate(msg, {
