@@ -977,7 +977,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 name: e.name,
                 nice_name: e.nice_name,
                 short_name: e.short_name,
-                icon: `https://cdn.discordapp.com/icons/${e.serverid}/${e.avatar}.png?size=4096`,
+                icon: `https://cdn.discordapp.com/icons/${e.serverid}/${e.avatar}.png?size=2048`,
                 login: (e.authware_enabled),
                 usage: e.total_data,
                 count: e.total_count
@@ -1092,7 +1092,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 user: {
                     id: userId,
                     username: (users[0].nice_name) ? users[0].nice_name : users[0].username,
-                    avatar: (users[0].avatar_custom && users[0].dat_0_hint) ?`${systemglobal.CDN_RemoteURL}user/avatar/${users[0].dat_0_hint}` : (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : `https://cdn.discordapp.com/embed/avatars/0.png?size=4096`,
+                    avatar: (users[0].avatar_custom && users[0].dat_0_hint) ?`${systemglobal.CDN_RemoteURL}user/avatar/${users[0].dat_0_hint}` : (users[0].avatar) ? `https://cdn.discordapp.com/avatars/${userId}/${users[0].avatar}.${(users[0].avatar && users[0].avatar.startsWith('a_')) ? 'gif' : 'jpg'}?size=1024` : `https://cdn.discordapp.com/embed/avatars/0.png?size=512`,
                     banner: (users[0].banner_custom && users[0].dat_1_hint) ?`${systemglobal.CDN_RemoteURL}user/banner/${users[0].dat_1_hint}` : (users[0].banner) ? `https://cdn.discordapp.com/banners/${userId}/${users[0].banner}.${(users[0].banner && users[0].banner.startsWith('a_')) ? 'gif' : 'jpg'}?size=4096` : undefined
                 },
                 server_list: [],
