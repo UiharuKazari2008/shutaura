@@ -152,6 +152,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const _limiter3 = systemparams_sql.filter(e => e.param_key === 'twitter.limiter.get_mention');
 			if (_limiter3.length > 0 && _limiter3[0].param_value)
 				systemglobal.Twitter_Mention_Pull = _limiter3[0].param_value
+			const _twitter_pull = systemparams_sql.filter(e => e.param_key === 'twitter.pull' && e.param_data);
+			if (_twitter_pull.length > 0) {
+				if (_twitter_pull[0].param_data.scroll_wait_min)
+					systemglobal.Twitter_Min_Scroll_Wait = _twitter_pull[0].param_data.scroll_wait_min;
+				if (_twitter_pull[0].param_data.scroll_wait_max)
+					systemglobal.Twitter_Max_Scroll_Wait = _twitter_pull[0].param_data.scroll_wait_max;
+				if (_twitter_pull[0].param_data.max_count)
+					systemglobal.Twitter_Max_Tweet_Count = _twitter_pull[0].param_data.max_count;
+			}
 		}
 
 		Logger.printLine("SQL", "Getting Discord Accounts (Selective Fields)", "debug")
@@ -2126,9 +2135,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (!list.getretweets)
 			search += ' -filter:retweets'
 		const TWITTER_LIST_URL = `https://x.com/search?q=${encodeURIComponent(search)}&src=typed_query&f=live`;
-		const SCROLL_DELAY_MS_MIN = 100;
-		const SCROLL_DELAY_MS_MAX = 2500;
-		const MAX_TWEET_COUNT = 500;
+		const SCROLL_DELAY_MS_MIN = systemglobal.Twitter_Min_Scroll_Wait || 100;
+		const SCROLL_DELAY_MS_MAX = systemglobal.Twitter_Max_Scroll_Wait || 2500;
+		const MAX_TWEET_COUNT = systemglobal.Twitter_Max_Tweet_Count || 500;
 
 		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
 		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL, true)
