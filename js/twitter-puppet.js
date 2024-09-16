@@ -380,17 +380,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                 resizeParam.height = scaleSize
                                                         }
                                                         sharp(Buffer.from(media))
-                                                                .resize(resizeParam)
-                                                                .toFormat('jpg')
-                                                                .withMetadata()
-                                                                .toBuffer({resolveWithObject: true})
-                                                                .then(({data, info}) => {
-                                                                        resultImage(data.toString('base64'));
-                                                                })
-                                                                .catch(err => {
-                                                                        Logger.printLine("TwitterMedia", `File failed to resize media for sending Tweet! ${url}`, "error", err)
-                                                                        resultImage(false);
-                                                                })
+                                                            .resize(resizeParam)
+                                                            .toFormat('jpg')
+                                                            .withMetadata()
+                                                            .toBuffer({resolveWithObject: true})
+                                                            .then(({data, info}) => {
+                                                                    resultImage(data.toString('base64'));
+                                                            })
+                                                            .catch(err => {
+                                                                    Logger.printLine("TwitterMedia", `File failed to resize media for sending Tweet! ${url}`, "error", err)
+                                                                    resultImage(false);
+                                                            })
                                                 } else {
                                                         resultImage(media.toString('base64'));
                                                 }
@@ -438,10 +438,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         }
                                                 })
                                         })
-                                                .catch(err => {
-                                                        Logger.printLine("TwitterMedia", `File failed to resize media for storing Tweet! ${MessageContents.messageFileData[0].url}`, "error", err);
-                                                        cb(true);
-                                                })
+                                            .catch(err => {
+                                                    Logger.printLine("TwitterMedia", `File failed to resize media for storing Tweet! ${MessageContents.messageFileData[0].url}`, "error", err);
+                                                    cb(true);
+                                            })
                                 }
                         } else if (twit.flowcontrol && MessageContents.messageIntent && MessageContents.messageAction === "add" && (MessageContents.messageIntent === 'Like' || MessageContents.messageIntent === 'Retweet' || MessageContents.messageIntent === 'LikeRT')) {
                                 let id = undefined
@@ -869,222 +869,222 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Overflow Condition, Releasing ${overFlowValuse} Tweets!`, "warn");
                 }
                 const twit = twitterAccounts.get(twitterUser)
-        setTimeout(() => {
-            db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
-                if (err) {
-                    Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
-                } else if (tweetQueue && tweetQueue.length > 0) {
-                    let actionList = [];
-                    if (action) {
-                        switch (action) {
-                            case 'send':
-                                actionList = [
-                                    {
-                                        action: 'SendTweet',
-                                        type: 4,
-                                        tweets: tweetQueue.filter(e => { return e.action === 4 })
-                                    }
-                                ];
-                                break;
-                            case 'rt':
-                                actionList = [
-                                    {
-                                        action: ['add-Like', 'add-Retweet'],
-                                        type: 1,
-                                        tweets: tweetQueue.filter(e => { return e.action === 1 })
-                                    },
-                                    {
-                                        action: ['add-Retweet'],
-                                        type: 2,
-                                        tweets: tweetQueue.filter(e => { return e.action === 2 })
-                                    },
-                                    {
-                                        action: ['add-Like'],
-                                        type: 3,
-                                        tweets: tweetQueue.filter(e => { return e.action === 3 })
-                                    }
-                                ];
-                                break;
-                            default:
-                                actionList = [
-                                    {
-                                        action: ['add-Like', 'add-Retweet'],
-                                        type: 1,
-                                        tweets: tweetQueue.filter(e => { return e.action === 1 })
-                                    },
-                                    {
-                                        action: ['add-Retweet'],
-                                        type: 2,
-                                        tweets: tweetQueue.filter(e => { return e.action === 2 })
-                                    },
-                                    {
-                                        action: ['add-Like'],
-                                        type: 3,
-                                        tweets: tweetQueue.filter(e => { return e.action === 3 })
-                                    },
-                                    {
-                                        action: [],
-                                        type: 4,
-                                        tweets: tweetQueue.filter(e => { return e.action === 4 })
-                                    }
-                                ];
-                                break;
-                        }
-                    } else {
-                        actionList = [
-                            {
-                                action: ['add-Like', 'add-Retweet'],
-                                type: 1,
-                                tweets: tweetQueue.filter(e => { return e.action === 1 })
-                            },
-                            {
-                                action: ['add-Retweet'],
-                                type: 2,
-                                tweets: tweetQueue.filter(e => { return e.action === 2 })
-                            },
-                            {
-                                action: ['add-Like'],
-                                type: 3,
-                                tweets: tweetQueue.filter(e => { return e.action === 3 })
-                            },
-                            {
-                                action: [],
-                                type: 4,
-                                tweets: tweetQueue.filter(e => { return e.action === 4 })
-                            }
-                        ];
-                    }
-                    await Promise.all(actionList.map(async (releaseCollection) => {
-                        let keyIndex = -1;
-                        if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
-                            /*async function tryTweet() {
-                                keyIndex++;
-                                if (releaseCollection.tweets[keyIndex].data !== null) {
-                                    const json = JSON.parse(releaseCollection.tweets[keyIndex].data);
-                                    sendTweet(twitterUser, json, async (ok) => {
-                                        await db.safe(`DELETE
-                                                   FROM twitter_tweet_queue
-                                                   WHERE taccount = ?
-                                                     AND id = ?
-                                                     AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
-                                            if (err) {
-                                                Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
-                                            }
-                                        });
-                                        if (!ok) {
-                                            tryTweet();
-                                        }
-                                    })
-                                } else {
-                                    await db.safe(`DELETE
-                                               FROM twitter_tweet_queue
-                                               WHERE taccount = ?
-                                                 AND id = ?
-                                                 AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
-                                        if (err) {
-                                            Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
-                                        }
-                                    });
-                                    tryTweet();
-                                }
-                            }
-                            await tryTweet();*/
-                        } else if (releaseCollection.tweets.length > 0 && releaseCollection.action.length > 0) {
-                            async function tryTweet() {
-                                keyIndex++;
-                                if (releaseCollection.tweets.length - 1 >= keyIndex && releaseCollection.tweets[keyIndex]) {
-                                    const tweetID = releaseCollection.tweets[keyIndex].id;
-                                    await limiter1.removeTokens(1, async function () {
-                                        Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
-                                        const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://x.com/${twit.screenName}/status/${tweetID}`, true);
-                                        if (page){
-                                            try {
-                                                const results = await page.evaluate(async (rc) => {
-                                                    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-                                                    return await Promise.all(rc.map(async (ai) => {
-                                                        return await new Promise(async res => {
-                                                            if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
-                                                                const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
-                                                                const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
-                                                                link.click();
-                                                                while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
-                                                                    await sleep(1000);
-                                                                }
-                                                            }
-                                                            const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
-                                                            if (twt) {
-                                                                try {
-                                                                    switch (ai) {
-                                                                        case "add-Like":
-                                                                            if (twt.querySelector('div[data-testid="like"]')) {
-                                                                                twt.querySelector('div[data-testid="like"]').click();
-                                                                                await sleep(1500);
-                                                                                res(!!(twt.querySelector('div[data-testid="unlike"]')));
-                                                                            } else {
-                                                                                res(1);
-                                                                            }
-                                                                            break;
-                                                                        case "add-Retweet":
-                                                                            if (twt.querySelector('div[data-testid="retweet"]')) {
-                                                                                twt.querySelector('div[data-testid="retweet"]').click();
-                                                                                await sleep(250);
-                                                                                document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
-                                                                                await sleep(1500);
-                                                                                res(!!(twt.querySelector('div[data-testid="unretweet"]')));
-                                                                            } else {
-                                                                                res(1);
-                                                                            }
-                                                                            break;
-                                                                        default:
-                                                                            res(false);
-                                                                            break;
-                                                                    }
-                                                                } catch (e) {
-                                                                    console.error(`Failed to interact with tweets`);
-                                                                    res(false);
-                                                                }
-                                                            } else {
-                                                                res(false);
-                                                            }
-                                                        })
-                                                    }));
-                                                }, releaseCollection.action)
-                                                console.log(results)
-                                                if (results[0] === false) {
-                                                    mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
-                                                    Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
-                                                    tryTweet()
-                                                } else {
-                                                    Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${releaseCollection.action.join('/')} to ${tweetID}: ${results}`, "info");
+                setTimeout(() => {
+                        db.safe(`SELECT * FROM twitter_tweet_queue WHERE taccount = ?${(!enablePullData) ? ' AND system_id = "' + systemglobal.SystemName + '" AND action = "4"' : ''} ORDER BY RAND() LIMIT 100`, [twitterUser], async (err, tweetQueue) => {
+                                if (err) {
+                                        Logger.printLine(`Collector`, `Failed to get tweet from collector due to an SQL error`, `error`, err);
+                                } else if (tweetQueue && tweetQueue.length > 0) {
+                                        let actionList = [];
+                                        if (action) {
+                                                switch (action) {
+                                                        case 'send':
+                                                                actionList = [
+                                                                        {
+                                                                                action: 'SendTweet',
+                                                                                type: 4,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 4 })
+                                                                        }
+                                                                ];
+                                                                break;
+                                                        case 'rt':
+                                                                actionList = [
+                                                                        {
+                                                                                action: ['add-Like', 'add-Retweet'],
+                                                                                type: 1,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 1 })
+                                                                        },
+                                                                        {
+                                                                                action: ['add-Retweet'],
+                                                                                type: 2,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 2 })
+                                                                        },
+                                                                        {
+                                                                                action: ['add-Like'],
+                                                                                type: 3,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 3 })
+                                                                        }
+                                                                ];
+                                                                break;
+                                                        default:
+                                                                actionList = [
+                                                                        {
+                                                                                action: ['add-Like', 'add-Retweet'],
+                                                                                type: 1,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 1 })
+                                                                        },
+                                                                        {
+                                                                                action: ['add-Retweet'],
+                                                                                type: 2,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 2 })
+                                                                        },
+                                                                        {
+                                                                                action: ['add-Like'],
+                                                                                type: 3,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 3 })
+                                                                        },
+                                                                        {
+                                                                                action: [],
+                                                                                type: 4,
+                                                                                tweets: tweetQueue.filter(e => { return e.action === 4 })
+                                                                        }
+                                                                ];
+                                                                break;
                                                 }
-                                            } catch (e) {
-                                                Logger.printLine("TwitterInteract", `Failed to complete action for ${releaseCollection.action.join('/')} to ${id}: ${e.message}`, "error", e)
-                                                console.error(e)
-                                                tryTweet()
-                                            }
-                                            closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
                                         } else {
-                                            mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
-                                            Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
-                                            tryTweet();
+                                                actionList = [
+                                                        {
+                                                                action: ['add-Like', 'add-Retweet'],
+                                                                type: 1,
+                                                                tweets: tweetQueue.filter(e => { return e.action === 1 })
+                                                        },
+                                                        {
+                                                                action: ['add-Retweet'],
+                                                                type: 2,
+                                                                tweets: tweetQueue.filter(e => { return e.action === 2 })
+                                                        },
+                                                        {
+                                                                action: ['add-Like'],
+                                                                type: 3,
+                                                                tweets: tweetQueue.filter(e => { return e.action === 3 })
+                                                        },
+                                                        {
+                                                                action: [],
+                                                                type: 4,
+                                                                tweets: tweetQueue.filter(e => { return e.action === 4 })
+                                                        }
+                                                ];
                                         }
+                                        await Promise.all(actionList.map(async (releaseCollection) => {
+                                                let keyIndex = -1;
+                                                if (releaseCollection.tweets.length > 0 && releaseCollection.type === 4) {
+                                                        /*async function tryTweet() {
+                                                            keyIndex++;
+                                                            if (releaseCollection.tweets[keyIndex].data !== null) {
+                                                                const json = JSON.parse(releaseCollection.tweets[keyIndex].data);
+                                                                sendTweet(twitterUser, json, async (ok) => {
+                                                                    await db.safe(`DELETE
+                                                                               FROM twitter_tweet_queue
+                                                                               WHERE taccount = ?
+                                                                                 AND id = ?
+                                                                                 AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
+                                                                        if (err) {
+                                                                            Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+                                                                        }
+                                                                    });
+                                                                    if (!ok) {
+                                                                        tryTweet();
+                                                                    }
+                                                                })
+                                                            } else {
+                                                                await db.safe(`DELETE
+                                                                           FROM twitter_tweet_queue
+                                                                           WHERE taccount = ?
+                                                                             AND id = ?
+                                                                             AND action = ?`, [twitterUser, releaseCollection.tweets[keyIndex].id, releaseCollection.type], (err, results) => {
+                                                                    if (err) {
+                                                                        Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
+                                                                    }
+                                                                });
+                                                                tryTweet();
+                                                            }
+                                                        }
+                                                        await tryTweet();*/
+                                                } else if (releaseCollection.tweets.length > 0 && releaseCollection.action.length > 0) {
+                                                        async function tryTweet() {
+                                                                keyIndex++;
+                                                                if (releaseCollection.tweets.length - 1 >= keyIndex && releaseCollection.tweets[keyIndex]) {
+                                                                        const tweetID = releaseCollection.tweets[keyIndex].id;
+                                                                        await limiter1.removeTokens(1, async function () {
+                                                                                Logger.printLine(`Collector`, `Account ${twitterUser}: Releasing Tweet ${tweetID} from collector`, `info`);
+                                                                                const page = await getTwitterTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`, `https://x.com/${twit.screenName}/status/${tweetID}`, true);
+                                                                                if (page){
+                                                                                        try {
+                                                                                                const results = await page.evaluate(async (rc) => {
+                                                                                                        const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+                                                                                                        return await Promise.all(rc.map(async (ai) => {
+                                                                                                                return await new Promise(async res => {
+                                                                                                                        if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
+                                                                                                                                const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
+                                                                                                                                const link = newTweet.parentNode.parentNode.parentNode.querySelector('a');
+                                                                                                                                link.click();
+                                                                                                                                while (!document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]')) {
+                                                                                                                                        await sleep(1000);
+                                                                                                                                }
+                                                                                                                        }
+                                                                                                                        const twt = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]');
+                                                                                                                        if (twt) {
+                                                                                                                                try {
+                                                                                                                                        switch (ai) {
+                                                                                                                                                case "add-Like":
+                                                                                                                                                        if (twt.querySelector('div[data-testid="like"]')) {
+                                                                                                                                                                twt.querySelector('div[data-testid="like"]').click();
+                                                                                                                                                                await sleep(1500);
+                                                                                                                                                                res(!!(twt.querySelector('div[data-testid="unlike"]')));
+                                                                                                                                                        } else {
+                                                                                                                                                                res(1);
+                                                                                                                                                        }
+                                                                                                                                                        break;
+                                                                                                                                                case "add-Retweet":
+                                                                                                                                                        if (twt.querySelector('div[data-testid="retweet"]')) {
+                                                                                                                                                                twt.querySelector('div[data-testid="retweet"]').click();
+                                                                                                                                                                await sleep(250);
+                                                                                                                                                                document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+                                                                                                                                                                await sleep(1500);
+                                                                                                                                                                res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+                                                                                                                                                        } else {
+                                                                                                                                                                res(1);
+                                                                                                                                                        }
+                                                                                                                                                        break;
+                                                                                                                                                default:
+                                                                                                                                                        res(false);
+                                                                                                                                                        break;
+                                                                                                                                        }
+                                                                                                                                } catch (e) {
+                                                                                                                                        console.error(`Failed to interact with tweets`);
+                                                                                                                                        res(false);
+                                                                                                                                }
+                                                                                                                        } else {
+                                                                                                                                res(false);
+                                                                                                                        }
+                                                                                                                })
+                                                                                                        }));
+                                                                                                }, releaseCollection.action)
+                                                                                                console.log(results)
+                                                                                                if (results[0] === false) {
+                                                                                                        mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+                                                                                                        Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
+                                                                                                        tryTweet()
+                                                                                                } else {
+                                                                                                        Logger.printLine("TwitterInteract", `Account ${twitterUser}: Sent command ${releaseCollection.action.join('/')} to ${tweetID}: ${results}`, "info");
+                                                                                                }
+                                                                                        } catch (e) {
+                                                                                                Logger.printLine("TwitterInteract", `Failed to complete action for ${releaseCollection.action.join('/')} to ${id}: ${e.message}`, "error", e)
+                                                                                                console.error(e)
+                                                                                                tryTweet()
+                                                                                        }
+                                                                                        closeTab(twit, `flowctrlrelease-${releaseCollection.tweets[keyIndex].uid}`);
+                                                                                } else {
+                                                                                        mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
+                                                                                        Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector (No Interface), retrying...`, `error`);
+                                                                                        tryTweet();
+                                                                                }
 
-                                        await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [twitterUser, tweetID, releaseCollection.type], (err, results) => {
-                                            if (err) {
-                                                Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to delete tweet from collector due to an SQL error`, `error`, err);
-                                            }
-                                        });
-                                    });
+                                                                                await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [twitterUser, tweetID, releaseCollection.type], (err, results) => {
+                                                                                        if (err) {
+                                                                                                Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to delete tweet from collector due to an SQL error`, `error`, err);
+                                                                                        }
+                                                                                });
+                                                                        });
+                                                                }
+                                                        }
+                                                        await tryTweet();
+                                                }
+                                        }))
+                                } else {
+                                        console.log('Empty Queue');
                                 }
-                            }
-                            await tryTweet();
-                        }
-                    }))
-                } else {
-                    console.log('Empty Queue');
-                }
-            })
-        }, (overFlowValuse - 1) * 5000)
+                        })
+                }, (overFlowValuse - 1) * 5000)
         }
 
         // Twitter Functions
@@ -1102,12 +1102,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         resizeParam.height = scaleSize
                 }
                 sharp(fileBuffer)
-                        .resize(resizeParam)
-                        .toFormat('jpg')
-                        .withMetadata()
-                        .toBuffer({resolveWithObject: true})
-                        .then(({data, info}) => { callback(data.toString('base64')) })
-                        .catch((err) => { callback(false) });
+                    .resize(resizeParam)
+                    .toFormat('jpg')
+                    .withMetadata()
+                    .toBuffer({resolveWithObject: true})
+                    .then(({data, info}) => { callback(data.toString('base64')) })
+                    .catch((err) => { callback(false) });
         }
         function getImagetoB64(imageURL, referer, returnedImage) {
                 request.get({
@@ -1189,17 +1189,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                         resolve();
                                                                                 })
                                                                                 /*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
-                                                                                        const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
-                                                                                        mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
-                                                                                                fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-                                                                                                messageType : 'sfileext',
-                                                                                                messageReturn: false,
-                                                                                                messageChannelID : notifyChannel,
-                                                                                                itemFileData: image,
-                                                                                                itemFileName: filename,
-                                                                                                messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
-                                                                                                messageObject: {...messageObject, title: _title}
-                                                                                        })
+                                                                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+                                                                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+                                                                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+                                                                                        messageType : 'sfileext',
+                                                                                        messageReturn: false,
+                                                                                        messageChannelID : notifyChannel,
+                                                                                        itemFileData: image,
+                                                                                        itemFileName: filename,
+                                                                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+                                                                                        messageObject: {...messageObject, title: _title}
+                                                                                    })
                                                                                 }*/
                                                                         })
                                                                 } else if (obj.channelid !== null) {
@@ -1236,18 +1236,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                         resolve();
                                                                 })
                                                                 /*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
-                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
-                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
-                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-                                        messageType : 'sfileext',
-                                        messageReturn: false,
-                                        messageChannelID : notifyChannel,
-                                        itemFileData: image,
-                                        itemFileName: filename,
-                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
-                                        messageObject: {...messageObject, title: _title}
-                                    })
-                                }*/
+                                                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+                                                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+                                                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+                                                                        messageType : 'sfileext',
+                                                                        messageReturn: false,
+                                                                        messageChannelID : notifyChannel,
+                                                                        itemFileData: image,
+                                                                        itemFileName: filename,
+                                                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+                                                                        messageObject: {...messageObject, title: _title}
+                                                                    })
+                                                                }*/
                                                         })
                                                 } else {
                                                         Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.screenName} - RT: ${rt_stat}`, "error", {
@@ -1412,7 +1412,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         switch (message.messageIntent) {
                                 case "send":
                                         //sendTweet((message.accountID) ? message.accountID : 1, message, (ok) => {
-                                        //      cb(true);
+                                        //	cb(true);
                                         //});
                                         cb(true);
                                         break;
@@ -1438,13 +1438,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         break;
                                 case "SendTweet":
                                         //sendTweet((message.accountID) ? message.accountID : 1, message, (ok) => {
-                                        //      cb(true);
+                                        //	cb(true);
                                         //});
                                         cb(true);
                                         break;
                                 case "Reply":
                                         //sendTweet((message.accountID) ? message.accountID : 1, message, (ok) => {
-                                        //      cb(true);
+                                        //	cb(true);
                                         //});
                                         cb(true);
                                         break;
@@ -1628,28 +1628,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         cb(false)
                                 } else {
                                         sendMedia([results], "raw")
-                                                .then(function (moremediakeys) {
-                                                        if (moremediakeys) {
-                                                                params.media_ids = moremediakeys.concat(params.media_ids)
-                                                                const URLs = getURLfromText(message.messageText)
-                                                                if (URLs.length > 0) {
-                                                                        let messageFinalText = ""
-                                                                        for (let index in URLs) {
-                                                                                messageFinalText = messageFinalText + URLs[index] + "\n"
-                                                                                if (parseInt(index) === URLs.length-1) {
-                                                                                        params.status = messageFinalText
-                                                                                        send(params);
-                                                                                }
-                                                                        }
-                                                                } else {
-                                                                        params.status = ""
-                                                                        send(params);
-                                                                }
-                                                        } else {
-                                                                mqClient.sendMessage(`Did not get second set of media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
-                                                                cb(false);
-                                                        }
-                                                })
+                                            .then(function (moremediakeys) {
+                                                    if (moremediakeys) {
+                                                            params.media_ids = moremediakeys.concat(params.media_ids)
+                                                            const URLs = getURLfromText(message.messageText)
+                                                            if (URLs.length > 0) {
+                                                                    let messageFinalText = ""
+                                                                    for (let index in URLs) {
+                                                                            messageFinalText = messageFinalText + URLs[index] + "\n"
+                                                                            if (parseInt(index) === URLs.length-1) {
+                                                                                    params.status = messageFinalText
+                                                                                    send(params);
+                                                                            }
+                                                                    }
+                                                            } else {
+                                                                    params.status = ""
+                                                                    send(params);
+                                                            }
+                                                    } else {
+                                                            mqClient.sendMessage(`Did not get second set of media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
+                                                            cb(false);
+                                                    }
+                                            })
                                 }
                         })
                 }
@@ -1688,17 +1688,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         resizeParam.height = scaleSize
                                                 }
                                                 sharp(Buffer.from(media))
-                                                        .resize(resizeParam)
-                                                        .toFormat('jpg')
-                                                        .withMetadata()
-                                                        .toBuffer({resolveWithObject: true})
-                                                        .then(({data, info}) => {
-                                                                uploadFile(data, numOfMedia)
-                                                        })
-                                                        .catch(err => {
-                                                                Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${url}`, "error", err)
-                                                                fulfill(null);
-                                                        })
+                                                    .resize(resizeParam)
+                                                    .toFormat('jpg')
+                                                    .withMetadata()
+                                                    .toBuffer({resolveWithObject: true})
+                                                    .then(({data, info}) => {
+                                                            uploadFile(data, numOfMedia)
+                                                    })
+                                                    .catch(err => {
+                                                            Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${url}`, "error", err)
+                                                            fulfill(null);
+                                                    })
                                         } else {
                                                 uploadFile(media, numOfMedia)
                                         }
@@ -1733,10 +1733,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                         }
                                                                 })
                                                         })
-                                                                .catch(err => {
-                                                                        Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${media_array[key].url}`, "error", err);
-                                                                        fulfill(null);
-                                                                })
+                                                            .catch(err => {
+                                                                    Logger.printLine("TwitterMedia", `Account ${twitterUser}: File failed to resize media for sending Tweet! ${media_array[key].url}`, "error", err);
+                                                                    fulfill(null);
+                                                            })
                                                 }
                                                 break;
                                         case 'raw':
@@ -1820,32 +1820,32 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         parameters.in_reply_to_status_id = getIDfromText(message.messageText);
                                 }
                                 inputText = message.messageText
-                                        .split("\n<@!>").pop()
-                                        .replace('/^[ ]+|[ ]+$/g','')
-                                        .split("***").join("")
-                                        .split("**").join("")
-                                        .split("`").join("")
-                                        .split("__").join("")
-                                        .split("~~").join("")
-                                        .split("||").join("")
-                                        .split("<#").join("")
-                                        .split("<!@").join("")
-                                        .split(">").join("")
+                                    .split("\n<@!>").pop()
+                                    .replace('/^[ ]+|[ ]+$/g','')
+                                    .split("***").join("")
+                                    .split("**").join("")
+                                    .split("`").join("")
+                                    .split("__").join("")
+                                    .split("~~").join("")
+                                    .split("||").join("")
+                                    .split("<#").join("")
+                                    .split("<!@").join("")
+                                    .split(">").join("")
                                 Logger.printLine("TwitterSend", `Account ${twitterUser}: Preparing to send Reply`, "debug", {
                                         tweetText: inputText,
                                         tweetLength: inputText.length
                                 })
                         } else {
                                 inputText = message.messageText
-                                        .split("***").join("")
-                                        .split("**").join("")
-                                        .split("`").join("")
-                                        .split("__").join("")
-                                        .split("~~").join("")
-                                        .split("||").join("")
-                                        .split("<#").join("")
-                                        .split("<!@").join("")
-                                        .split(">").join("")
+                                    .split("***").join("")
+                                    .split("**").join("")
+                                    .split("`").join("")
+                                    .split("__").join("")
+                                    .split("~~").join("")
+                                    .split("||").join("")
+                                    .split("<#").join("")
+                                    .split("<!@").join("")
+                                    .split(">").join("")
                                 Logger.printLine("TwitterSend", `Account ${twitterUser}: Preparing to send Tweet`, "debug", {
                                         tweetText: inputText,
                                         tweetLength: inputText.length
@@ -1853,15 +1853,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         }
                         if (message.messageFileData[0]) {
                                 sendMedia(message.messageFileData, message.messageFileType)
-                                        .then((mediakeys) => {
-                                                if (mediakeys) {
-                                                        parameters.media_ids = mediakeys
-                                                        sendAction(parameters);
-                                                } else {
-                                                        mqClient.sendMessage(`Did not get media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
-                                                        cb(false);
-                                                }
-                                        })
+                                    .then((mediakeys) => {
+                                            if (mediakeys) {
+                                                    parameters.media_ids = mediakeys
+                                                    sendAction(parameters);
+                                            } else {
+                                                    mqClient.sendMessage(`Did not get media keys for tweet, Ticket will be dropped!`, "err", "SendTweet")
+                                                    cb(false);
+                                            }
+                                    })
                         } else {
                                 sendAction(parameters);
                         }
@@ -1882,27 +1882,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let listRequests = twitterlist.rows.reduce((promiseChain, list) => {
                                 return promiseChain.then(() => new Promise((listResolve) => {
                                         limiter1.removeTokens(1, async function () {
-                                        const tweets = await doomScrollList(list, twit)
-                                        let tweetRequests = tweets.reduce((promiseChain1, tweet) => {
-                                                return promiseChain1.then(() => new Promise(async (tweetResolve) => {
-                                                        const _tweetID = (tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id;
-                                                        const lasttweet = await db.query(`SELECT * FROM twitter_history_inbound WHERE tweetid = ? OR tweetid = ?`, [_tweetID, tweet.id]);
-                                                        const blocked = (tweet.text && tweet.text.length > 1) ? twitterblockedwords.rows.filter(e => tweet.text.includes(e.word)).map(e => e.word) : [];
+                                                const tweets = await doomScrollList(list, twit)
+                                                let tweetRequests = tweets.reduce((promiseChain1, tweet) => {
+                                                        return promiseChain1.then(() => new Promise(async (tweetResolve) => {
+                                                                const _tweetID = (tweet.retweeted && tweet.retweeted_id) ? tweet.retweeted_id : tweet.id;
+                                                                const lasttweet = await db.query(`SELECT * FROM twitter_history_inbound WHERE tweetid = ? OR tweetid = ?`, [_tweetID, tweet.id]);
+                                                                const blocked = (tweet.text && tweet.text.length > 1) ? twitterblockedwords.rows.filter(e => tweet.text.includes(e.word)).map(e => e.word) : [];
 
-                                                        if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length === 0) {
-                                                                /*if (tweet.text.includes("RT @") && list.blockselfrt === 1 && tweet.user.screen_name.includes(tweet.text.split('RT @').pop().split(': ')[0])) {
-                                                                        Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because its a self RT`, "warn", tweet)
-                                                                        db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
+                                                                if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length === 0) {
+                                                                        /*if (tweet.text.includes("RT @") && list.blockselfrt === 1 && tweet.user.screen_name.includes(tweet.text.split('RT @').pop().split(': ')[0])) {
+                                                                            Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because its a self RT`, "warn", tweet)
+                                                                            db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
                                                                                 if (err) { Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", err) }
-                                                                        });
-                                                                        tweetResolve(false);
-                                                                } else if (tweet.text.includes("RT @") && list.blockselfrt === 1 && twitterusers.rows.filter(e => { return e.username.toLowerCase() === tweet.text.split('RT @').pop().split(': ')[0].toLowerCase() }).length > 0) {
-                                                                        Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because @${tweet.user.screen_name} can't RT a list member (@${tweet.text.split('RT @').pop().split(': ')[0]})`, "warn", tweet)
-                                                                        db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
+                                                                            });
+                                                                            tweetResolve(false);
+                                                                        } else if (tweet.text.includes("RT @") && list.blockselfrt === 1 && twitterusers.rows.filter(e => { return e.username.toLowerCase() === tweet.text.split('RT @').pop().split(': ')[0].toLowerCase() }).length > 0) {
+                                                                            Logger.printLine("Twitter", `Account ${id}: Tweet was blocked because @${tweet.user.screen_name} can't RT a list member (@${tweet.text.split('RT @').pop().split(': ')[0]})`, "warn", tweet)
+                                                                            db.safe(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid], function (err) {
                                                                                 if (err) { Logger.printLine("SQL", `SQL Error when writing to the Twitter history records`, "emergency", err) }
-                                                                        });
-                                                                        tweetResolve(false);
-                                                                } else {*/
+                                                                            });
+                                                                            tweetResolve(false);
+                                                                        } else {*/
                                                                         const competedTweet = await sendTweetToDiscordv2({
                                                                                 channelid: (list.channelid_rt && tweet.text.includes("RT @")) ? list.channelid_rt : list.channelid,
                                                                                 saveid: list.saveid,
@@ -1929,22 +1929,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                 }
                                                                                 if (sent)
                                                                                         await db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid]);
-                                                                                        db.query(`INSERT IGNORE INTO twitter_list_users SET username = ?, listid = ?`, [tweet.screenName, list.listid]);
+                                                                                db.query(`INSERT IGNORE INTO twitter_list_users SET username = ?, listid = ?`, [tweet.screenName, list.listid]);
                                                                         }
                                                                         tweetResolve(true);
-                                                        /*} else if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length > 0 ) {
-                                                                Logger.printLine("TwitterInbound", `Account ${id}: Tweet was blocked because it contained the word [ ${blocked.join(', ')} ]`, "warn", tweet)
-                                                                db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
-                                                                tweetResolve(false);*/
-                                                        } else {
-                                                                tweetResolve(false);
-                                                        }
-                                                }));
-                                        }, Promise.resolve());
-                                        tweetRequests.then((ok) => {
-                                                Logger.printLine("TwitterIngest", `Account ${id}: List Complete - ${list.listid}`, "info")
-                                                listResolve(true);
-                                        });
+                                                                        /*} else if (!lasttweet.error && lasttweet.rows.length === 0 && blocked.length > 0 ) {
+                                                                            Logger.printLine("TwitterInbound", `Account ${id}: Tweet was blocked because it contained the word [ ${blocked.join(', ')} ]`, "warn", tweet)
+                                                                            db.query(`INSERT IGNORE INTO twitter_history_inbound VALUES (?, ?, NOW())`, [_tweetID, list.listid])
+                                                                            tweetResolve(false);*/
+                                                                } else {
+                                                                        tweetResolve(false);
+                                                                }
+                                                        }));
+                                                }, Promise.resolve());
+                                                tweetRequests.then((ok) => {
+                                                        Logger.printLine("TwitterIngest", `Account ${id}: List Complete - ${list.listid}`, "info")
+                                                        listResolve(true);
+                                                });
                                         });
                                 }))
                         }, Promise.resolve());
@@ -2056,14 +2056,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         deviceScaleFactor: 1,
                                 });
                                 await page.setUserAgent(
-                                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
+                                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
                                 );
                                 await page.setCookie(...account.cookie);
                                 /*page.on('console', msg => {
-                    for (let i = 0; i < msg.args().length; i++) {
-                        console.log(msg.args()[i]);
-                    }
-                });*/
+                                    for (let i = 0; i < msg.args().length; i++) {
+                                        console.log(msg.args()[i]);
+                                    }
+                                });*/
                                 if (wait_for_tweet) {
                                         await page.goto(url);
                                         let i = 0;
@@ -2090,9 +2090,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } catch (err) {
                         Logger.printLine("TabManager", `Failed to launch browser/tab: ${err.message}`, "error", err);
                         console.error(err);
-            if (err.message && err.message.includes("Failed to open new tab")) {
-                process.exit(100);
-            }
+                        if (err.message && err.message.includes("Failed to open new tab")) {
+                                process.exit(100);
+                        }
                         return false;
                 }
         }
@@ -2184,14 +2184,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 if (has_video) {
                                                         let _json = await fetchJson(status_id);
                                                         if (_json) {
-                                                                 console.log(_json);
-                                                                 let tweet = _json.legacy;
-                                                                 let addedData = [];
-                                                                 if (_json.card) {
-                                                                         let tweetCard = _json.card.legacy;
-                                                                         const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
-                                                                         if (cardEntity)
-                                                                                 addedData = Object.values(JSON.parse(cardEntity).media_entities);
+                                                                console.log(_json);
+                                                                let tweet = _json.legacy;
+                                                                let addedData = [];
+                                                                if (_json.card) {
+                                                                        let tweetCard = _json.card.legacy;
+                                                                        const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
+                                                                        if (cardEntity)
+                                                                                addedData = Object.values(JSON.parse(cardEntity).media_entities);
                                                                 }
                                                                 let medias = [].concat(tweet.extended_entities && tweet.extended_entities.media ? tweet.extended_entities.media : [], addedData || []);
                                                                 if (medias && medias.length > 0) {
@@ -2904,14 +2904,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 "longform_notetweets_inline_media_enabled": true,
                                                 "responsive_web_media_download_video_enabled": false,
                                                 "responsive_web_enhance_cards_enabled": false,
-                                                        "c9s_tweet_anatomy_moderator_badge_enabled": false,
-                                                        "communities_web_enable_tweet_community_results_fetch": false,
-                                                        "rweb_tipjar_consumption_enabled": false,
-                                                        "rweb_video_timestamps_enabled": false,
-                                                        "creator_subscriptions_quote_tweet_preview_enabled": false,
-                                                        "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
-                                                        "articles_preview_enabled": false,
-                                                        "rweb_lists_timeline_redesign_enabled": false
+                                                "c9s_tweet_anatomy_moderator_badge_enabled": false,
+                                                "communities_web_enable_tweet_community_results_fetch": false,
+                                                "rweb_tipjar_consumption_enabled": false,
+                                                "rweb_video_timestamps_enabled": false,
+                                                "creator_subscriptions_quote_tweet_preview_enabled": false,
+                                                "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
+                                                "articles_preview_enabled": false,
+                                                "rweb_lists_timeline_redesign_enabled": false
 
                                         };
                                         const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
@@ -2993,31 +2993,31 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 deviceScaleFactor: 1,
                         });
                         await page.setUserAgent(
-                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
+                            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
                         );
                         Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
-//                      await page.setCookie(...account.cookie);
-//                      await page.goto('https://x.com/');
-//                      await page.setRequestInterception(true);
+//			await page.setCookie(...account.cookie);
+//			await page.goto('https://x.com/');
+//			await page.setRequestInterception(true);
                         tGraphQL = "https://x.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail".split('graphql/').pop().split('/')[0];
                         tAuthorization = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA';
-/*                      page.on('request', req => {
-                                const url = req.url();
-                                const headers = req.headers();
-                                if (url.includes('https://x.com/i/api/graphql/') && url.includes('TweetDetail')) {
-                                        tGraphQL = url.split('graphql/').pop().split('/')[0];
-                                        tAuthorization = headers['authorization'];
-                                        Logger.printLine("AuthManager", `Got required request data to start!`, "info")
-                                }
-//                              req.continue().catch(e => e );
-                        });*/
-//                      await page.waitForSelector('article');
-//                      const tweet = await page.$('article');
-//                      await tweet.click();
-//                      while (tAuthorization === undefined) {
-//                              await page.waitForTimeout(500);
-//                      }
-//                      await page.close();
+                        /*			page.on('request', req => {
+                                        const url = req.url();
+                                        const headers = req.headers();
+                                        if (url.includes('https://x.com/i/api/graphql/') && url.includes('TweetDetail')) {
+                                            tGraphQL = url.split('graphql/').pop().split('/')[0];
+                                            tAuthorization = headers['authorization'];
+                                            Logger.printLine("AuthManager", `Got required request data to start!`, "info")
+                                        }
+                        //				req.continue().catch(e => e );
+                                    });*/
+//			await page.waitForSelector('article');
+//			const tweet = await page.$('article');
+//			await tweet.click();
+//			while (tAuthorization === undefined) {
+//				await page.waitForTimeout(500);
+//			}
+//			await page.close();
                 } catch (e) {
                         Logger.printLine("TabManager", `Failed to load inital page!`, "emergency");
                 }
