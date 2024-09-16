@@ -1754,6 +1754,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (externalMetadata.messageText) {
 				parameters.messageText = externalMetadata.messageText;
 			}
+			if (externalMetadata.itemFileName) {
+				parameters.itemFileName = externalMetadata.itemFileName;
+			}
 
 			// Resize Image Files
 			function resizeImageFile(filename, callback) {
