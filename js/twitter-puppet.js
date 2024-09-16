@@ -176,7 +176,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			twitterNotify.set(e.username.toLowerCase(), e.channel)
 		});
 		Array.from(twitterNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => twitterNotify.delete(e));
-		console.log(`Notification enabled for ${twitterNotify.size} users\n${Array.from(twitterNotify.keys())}`);
+		console.log(`Notification enabled for ${twitterNotify.size} users`);
 	}
 	await loadDatabaseCache();
 	if (args.whost) {
@@ -1142,7 +1142,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			} else {
 				const imageBuffer = Buffer.from(body)
 				const fileSizeInMegabytes = imageBuffer.byteLength / 1000000.0;
-				if (fileSizeInMegabytes > 24.8) {
+				if (fileSizeInMegabytes > 7.8) {
 					resizeImage(imageBuffer, function (data) {
 						if (data !== false) {
 							returnedImage(data)
@@ -1160,6 +1160,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	function sendTweetToDiscordv2(obj) {
 		return new Promise(cb => {
 			const twit = twitterAccounts.get(obj.accountid);
+                        console.log(obj.tweet);
 			if (obj.tweet.images && obj.tweet.images.length > 0) {
 				let messageArray = [];
 				let requests = obj.tweet.images.reduce((promiseChain, media, index, array) => {
@@ -1196,30 +1197,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 											})
 											resolve();
 										})
-										if (index === 0 && Array.from(twitterNotify.keys()).indexOf(obj.tweet.screenName.toLowerCase()) !== -1) {
-											const notifyChannel = twitterNotify.get(obj.tweet.screenName.toLowerCase())
-											mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
+										/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
+											const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+											mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
 												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
 												messageType : 'sfileext',
 												messageReturn: false,
 												messageChannelID : notifyChannel,
 												itemFileData: image,
 												itemFileName: filename,
-												messageText: '',
-												messageObject: {
-													"type": "image",
-													"title": `📨 New Tweet from ${obj.tweet.userName} (@${obj.tweet.screenName})`,
-													"description": (obj.tweet.text && obj.tweet.text.length > 0) ? obj.tweet.text : undefined,
-													"url": `https://x.com/${(obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName}/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
-													"color": 44799,
-													"timestamp": moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss'),
-													"image": {
-														"url": `attachment://${filename}`
-													}
-												},
-												addButtons: ["RemoveFile", "Download"]
+												messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+												messageObject: {...messageObject, title: _title}
 											})
-										}
+										}*/
 									})
 								} else if (obj.channelid !== null) {
 									resolve();
@@ -1254,6 +1244,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									})
 									resolve();
 								})
+								/*if (index === 0 && twitterNotify.has(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())) {
+                                    const notifyChannel = twitterNotify.get(((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName).toLowerCase())
+                                    mqClient.publishData(`${systemglobal.Discord_Out}${(list.channelid_rt && tweet.text.includes("RT @")) ? '' : '.priority'}`, {
+                                        fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+                                        messageType : 'sfileext',
+                                        messageReturn: false,
+                                        messageChannelID : notifyChannel,
+                                        itemFileData: image,
+                                        itemFileName: filename,
+                                        messageText: `New Tweet from @${((obj.tweet.retweeted_status && obj.tweet.retweeted_status.user.screen_name)) ? obj.tweet.retweeted_status.user.screen_name : obj.tweet.user.screen_name}`,
+                                        messageObject: {...messageObject, title: _title}
+                                    })
+                                }*/
 							})
 						} else {
 							Logger.printLine("Twitter", `Account ${obj.accountid}: Unhandled Media Type "${media.type}" for Tweet in ${obj.fromname} from ${obj.tweet.screenName} - RT: ${rt_stat}`, "error", {
@@ -2190,9 +2193,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (has_video) {
 							let _json = await fetchJson(status_id);
 							if (_json) {
-								let tweet = _json.legacy;
-								let medias = tweet.extended_entities && tweet.extended_entities.media;
-								if (medias.length > 0) {
+	       	                                                 console.log(_json);
+       		                                                 let tweet = _json.legacy;
+       	        	                                         let addedData = [];
+       	                	                                 if (_json.card) {
+       	                        	                                 let tweetCard = _json.card.legacy;
+       	                                	                         const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
+       	                                        	                 if (cardEntity)
+       	                                                	                 addedData = Object.values(JSON.parse(cardEntity).media_entities);
+       	                                                 	}
+                                                        	let medias = [].concat(tweet.extended_entities && tweet.extended_entities.media ? tweet.extended_entities.media : [], addedData || []);
+								if (medias && medias.length > 0) {
 									const media_array = medias.map(media => {
 										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
 										return {
@@ -2266,7 +2277,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							"longform_notetweets_rich_text_read_enabled": true,
 							"longform_notetweets_inline_media_enabled": true,
 							"responsive_web_media_download_video_enabled": false,
-							"responsive_web_enhance_cards_enabled": false
+							"responsive_web_enhance_cards_enabled": false,
+                                                        "c9s_tweet_anatomy_moderator_badge_enabled": false,
+                                                        "communities_web_enable_tweet_community_results_fetch": false,
+                                                        "rweb_tipjar_consumption_enabled": false,
+                                                        "rweb_video_timestamps_enabled": false,
+                                                        "creator_subscriptions_quote_tweet_preview_enabled": false,
+                                                        "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
+							"articles_preview_enabled": false,
+                                                        "rweb_lists_timeline_redesign_enabled": false
+
 						};
 						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
 						const cookies = (() => {
@@ -2399,9 +2419,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (has_video) {
 							let _json = await fetchJson(status_id);
 							if (_json) {
-								let tweet = _json.legacy;
-								let medias = tweet.extended_entities && tweet.extended_entities.media;
-								if (medias.length > 0) {
+        	                                                console.log(_json);
+	                                                        let tweet = _json.legacy;
+                                                        	let addedData = [];
+                                                	        if (_json.card) {
+                                        	                        let tweetCard = _json.card.legacy;
+                                	                                const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
+                        	                                        if (cardEntity)
+                	                                                        addedData = Object.values(JSON.parse(cardEntity).media_entities);
+        	                                                }
+	                                                        let medias = [].concat(tweet.extended_entities && tweet.extended_entities.media ? tweet.extended_entities.media : [], addedData || []);
+								if (medias && medias.length > 0) {
 									const media_array = medias.map(media => {
 										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
 										return {
@@ -2475,7 +2503,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							"longform_notetweets_rich_text_read_enabled": true,
 							"longform_notetweets_inline_media_enabled": true,
 							"responsive_web_media_download_video_enabled": false,
-							"responsive_web_enhance_cards_enabled": false
+							"responsive_web_enhance_cards_enabled": false,
+                                                        "c9s_tweet_anatomy_moderator_badge_enabled": false,
+                                                        "communities_web_enable_tweet_community_results_fetch": false,
+                                                        "rweb_tipjar_consumption_enabled": false,
+                                                        "rweb_video_timestamps_enabled": false,
+                                                        "creator_subscriptions_quote_tweet_preview_enabled": false,
+                                                        "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
+							"articles_preview_enabled": false,
+                                                        "rweb_lists_timeline_redesign_enabled": false
+
 						};
 						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
 						const cookies = (() => {
@@ -2604,9 +2641,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						if (has_video) {
 							let _json = await fetchJson(status_id);
 							if (_json) {
-								let tweet = _json.legacy;
-								let medias = tweet.extended_entities && tweet.extended_entities.media;
-								if (medias.length > 0) {
+	                                                        console.log(_json);
+        	                                                let tweet = _json.legacy;
+                	                                        let addedData = [];
+                        	                                if (_json.card) {
+                                	                                let tweetCard = _json.card.legacy;
+                                        	                        const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
+                                                	                if (cardEntity)
+                                                        	                addedData = Object.values(JSON.parse(cardEntity).media_entities);
+	                                                        }
+        	                                                let medias = [].concat(tweet.extended_entities && tweet.extended_entities.media ? tweet.extended_entities.media : [], addedData || []);
+								if (medias && medias.length > 0) {
 									const media_array = medias.map(media => {
 										const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
 										return {
@@ -2680,7 +2725,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							"longform_notetweets_rich_text_read_enabled": true,
 							"longform_notetweets_inline_media_enabled": true,
 							"responsive_web_media_download_video_enabled": false,
-							"responsive_web_enhance_cards_enabled": false
+							"responsive_web_enhance_cards_enabled": false,
+                                                        "c9s_tweet_anatomy_moderator_badge_enabled": false,
+                                                        "communities_web_enable_tweet_community_results_fetch": false,
+                                                        "rweb_tipjar_consumption_enabled": false,
+                                                        "rweb_video_timestamps_enabled": false,
+                                                        "creator_subscriptions_quote_tweet_preview_enabled": false,
+                                                        "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
+							"articles_preview_enabled": false,
+                                                        "rweb_lists_timeline_redesign_enabled": false
+
 						};
 						const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
 						const cookies = (() => {
@@ -2770,152 +2824,164 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			await page.waitForTimeout(1200);
 
 			const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
-                try {
-                    async function getMediaURL(status_id, images, has_video) {
-                        if (has_video) {
-                            let _json = await fetchJson(status_id);
-                            if (_json) {
-                                let tweet = _json.legacy;
-                                let medias = tweet.extended_entities && tweet.extended_entities.media;
-                                if (medias.length > 0) {
-                                    const media_array = medias.map(media => {
-                                        const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
-                                        return {
-                                            media_url: url,
-                                            format: url.split('.').pop().split(':')[0].split('?')[0],
-                                            type: media.type
-                                        }
-                                    })
-                                    return {
-                                        images: media_array,
-                                        data: _json
-                                    };
-                                } else {
-                                    return {
-                                        images: [],
-                                        data: _json
-                                    };
-                                }
-                            } else {
-                                return {
-                                    images: [],
-                                    data: _json
-                                };
-                            }
-                        } else {
-                            return {
-                                images
-                            }
-                        }
-                    }
+				async function getMediaURL(status_id, images, has_video) {
+					if (has_video) {
+						let _json = await fetchJson(status_id);
+						if (_json) {
+							console.log(_json);
+							let tweet = _json.legacy;
+							let addedData = [];
+							if (_json.card) {
+								let tweetCard = _json.card.legacy;
+								const cardEntity = tweetCard.binding_values.find(item => item.key === "unified_card").value.string_value;
+								if (cardEntity)
+									addedData = Object.values(JSON.parse(cardEntity).media_entities);
+							}
+							let medias = [].concat(tweet.extended_entities && tweet.extended_entities.media ? tweet.extended_entities.media : [], addedData || []);
+							if (medias && medias.length > 0) {
+								const media_array = medias.map(media => {
+									const url = media.type == 'photo' ? media.media_url_https + ':orig' : media.video_info.variants.filter(n => n.content_type == 'video/mp4').sort((a, b) => b.bitrate - a.bitrate)[0].url;
+									return {
+										media_url: url,
+										format: url.split('.').pop().split(':')[0].split('?')[0],
+										type: media.type
+									}
+								})
+								return {
+									images: media_array,
+									data: _json
+								};
+							} else {
+								return {
+									images: [],
+									data: _json
+								};
+							}
+						} else {
+							return {
+								images: [],
+								data: _json
+							};
+						}
+					} else {
+						return {
+							images
+						}
+					}
+				}
 
-                    let lastAPIAccessTime = null;
-                    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+				let lastAPIAccessTime = null;
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
-                    async function fetchJson(status_id) {
-                        if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-                            console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
-                            await sleep(30000);
-                        }
-                        lastAPIAccessTime = Date.now();
-                        const host = location.hostname;
-                        const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
-                        const variables = {
-                            "focalTweetId": status_id,
-                            "referrer": "tweet",
-                            "with_rux_injections": false,
-                            "includePromotedContent": true,
-                            "withCommunity": true,
-                            "withQuickPromoteEligibilityTweetFields": true,
-                            "withBirdwatchNotes": true,
-                            "withVoice": true,
-                            "withV2Timeline": true
-                        };
-                        const features = {
-                            "responsive_web_graphql_exclude_directive_enabled": true,
-                            "verified_phone_label_enabled": false,
-                            "responsive_web_home_pinned_timelines_enabled": false,
-                            "creator_subscriptions_tweet_preview_api_enabled": true,
-                            "responsive_web_graphql_timeline_navigation_enabled": true,
-                            "responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
-                            "tweetypie_unmention_optimization_enabled": true,
-                            "responsive_web_edit_tweet_api_enabled": true,
-                            "graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
-                            "view_counts_everywhere_api_enabled": true,
-                            "longform_notetweets_consumption_enabled": true,
-                            "responsive_web_twitter_article_tweet_consumption_enabled": false,
-                            "tweet_awards_web_tipping_enabled": false,
-                            "freedom_of_speech_not_reach_fetch_enabled": true,
-                            "standardized_nudges_misinfo": true,
-                            "tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
-                            "longform_notetweets_rich_text_read_enabled": true,
-                            "longform_notetweets_inline_media_enabled": true,
-                            "responsive_web_media_download_video_enabled": false,
-                            "responsive_web_enhance_cards_enabled": false
-                        };
-                        const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
-                        const cookies = (() => {
-                            let _cookies = {};
-                            document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
-                                n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
-                                    _cookies[name.trim()] = value.trim();
-                                });
-                            });
-                            return name ? _cookies[name] : _cookies;
-                        })()
-                        const headers = {
-                            'authorization': auth,
-                            'x-twitter-active-user': 'yes',
-                            'x-twitter-client-language': cookies.lang,
-                            'x-csrf-token': cookies.ct0
-                        };
-                        if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
-                        const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-                        console.log(tweet_detail);
-                        if (!tweet_detail.data)
-                            return false
-                        const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
-                        const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
-                        return tweet_result.tweet || tweet_result;
-                    }
+				async function fetchJson(status_id) {
+					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
+						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						await sleep(30000);
+					}
+					lastAPIAccessTime = Date.now();
+					const host = location.hostname;
+					const base_url = `https://${host}/i/api/graphql/${gql}/TweetDetail`;
+					const variables = {
+						"focalTweetId": status_id,
+						"referrer": "tweet",
+						"with_rux_injections": false,
+						"includePromotedContent": true,
+						"withCommunity": true,
+						"withQuickPromoteEligibilityTweetFields": true,
+						"withBirdwatchNotes": true,
+						"withVoice": true,
+						"withV2Timeline": true
+					};
+					const features = {
+						"responsive_web_graphql_exclude_directive_enabled": true,
+						"verified_phone_label_enabled": false,
+						"responsive_web_home_pinned_timelines_enabled": false,
+						"creator_subscriptions_tweet_preview_api_enabled": true,
+						"responsive_web_graphql_timeline_navigation_enabled": true,
+						"responsive_web_graphql_skip_user_profile_image_extensions_enabled": false,
+						"tweetypie_unmention_optimization_enabled": true,
+						"responsive_web_edit_tweet_api_enabled": true,
+						"graphql_is_translatable_rweb_tweet_is_translatable_enabled": true,
+						"view_counts_everywhere_api_enabled": true,
+						"longform_notetweets_consumption_enabled": true,
+						"responsive_web_twitter_article_tweet_consumption_enabled": false,
+						"tweet_awards_web_tipping_enabled": false,
+						"freedom_of_speech_not_reach_fetch_enabled": true,
+						"standardized_nudges_misinfo": true,
+						"tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled": true,
+						"longform_notetweets_rich_text_read_enabled": true,
+						"longform_notetweets_inline_media_enabled": true,
+						"responsive_web_media_download_video_enabled": false,
+						"responsive_web_enhance_cards_enabled": false,
+                                                        "c9s_tweet_anatomy_moderator_badge_enabled": false,
+                                                        "communities_web_enable_tweet_community_results_fetch": false,
+                                                        "rweb_tipjar_consumption_enabled": false,
+                                                        "rweb_video_timestamps_enabled": false,
+                                                        "creator_subscriptions_quote_tweet_preview_enabled": false,
+                                                        "tweet_with_visibility_results_prefer_gql_media_interstitial_enabled": false,
+							"articles_preview_enabled": false,
+                                                        "rweb_lists_timeline_redesign_enabled": false
 
-                    const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
-                    const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length === 1))
-                    return await Promise.all(img_tweets.map(async a => {
-                        const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
-                            const url = e.src.split('?');
-                            const sq = new URLSearchParams(url[1]);
-                            sq.delete('name')
-                            sq.set('name', 'large')
-                            return {
-                                media_url: url[0] + '?' + sq.valueOf(),
-                                format: sq.getAll('format')[0],
-                                type: "photo"
-                            }
-                        });
-                        const json = await getMediaURL(tweet_id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
-                        let tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
-                        const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
-                        const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
-                        const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
-                        const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
-                        const date = a.querySelector('time').attributes['datetime'].value
+					};
+					const url = encodeURI(`${base_url}?variables=${JSON.stringify(variables)}&features=${JSON.stringify(features)}`);
+					const cookies = (() => {
+						let _cookies = {};
+						document.cookie.split(';').filter(n => n.indexOf('=') > 0).forEach(n => {
+							n.replace(/^([^=]+)=(.+)$/, (match, name, value) => {
+								_cookies[name.trim()] = value.trim();
+							});
+						});
+						return name ? _cookies[name] : _cookies;
+					})()
+					const headers = {
+						'authorization': auth,
+						'x-twitter-active-user': 'yes',
+						'x-twitter-client-language': cookies.lang,
+						'x-csrf-token': cookies.ct0
+					};
+					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
+					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
+					console.log(tweet_detail);
+					if (!tweet_detail.data)
+						return false
+					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
+					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
+					return tweet_result.tweet || tweet_result;
+				}
 
-                        return {
-                            id: tweet_id,
-                            date,
-                            userName,
-                            screenName,
-                            text,
-                            images: json.images,
-                            retweeted: false,
-                            is_api_backed: !!tweet
-                        };
-                    }));
-                } catch (e) {
-                    console.error(e);
-                    return [];
-                }
+				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
+				const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length >= 1))
+				return await Promise.all(img_tweets.map(async a => {
+					const images = Array.from(a.querySelectorAll('img[src*="/media/"]')).map(e => {
+						const url = e.src.split('?');
+						const sq = new URLSearchParams(url[1]);
+						sq.delete('name')
+						sq.set('name', 'large')
+						return {
+							media_url: url[0] + '?' + sq.valueOf(),
+							format: sq.getAll('format')[0],
+							type: "photo"
+						}
+					});
+					const json = await getMediaURL(tweet_id, images, ((a.querySelectorAll('div[data-testid="videoComponent"], div[aria-label="Embedded video"]')).length > 0));
+					let tweet = (json && json.core && json.core.user_results && json.core.user_results.result && json.core.user_results.result.legacy) ? json.core.user_results : undefined;
+					const userDiv = (tweet) ? undefined : Array.from(a.querySelectorAll(`div[data-testid="User-Name"] a span:not(:empty):not(:has(*))`)).map(e => e.innerText)
+					const screenName = (tweet) ? tweet.screen_name : userDiv.filter(e => e.includes('@')).pop().substring(1);
+					const userName = (tweet) ? tweet.name : userDiv.filter(e => !e.includes('@')).pop()
+					const text = (json && json.legacy && json.legacy.full_text) ? json.legacy.full_text : (a.querySelector(`div[data-testid="tweetText"]`)) ? Array.from(a.querySelector(`div[data-testid="tweetText"]`).childNodes).map(e => ((e.nodeName === 'IMG') ? e.alt : e.innerText)).join('') : ''
+					const date = a.querySelector('time').attributes['datetime'].value
+
+					return {
+						id: tweet_id,
+						date,
+						userName,
+						screenName,
+						text,
+						images: json.images,
+						retweeted: false,
+						is_api_backed: !!tweet
+					};
+				}));
 				// Add RT support here
 			}, id, tGraphQL, tAuthorization)
 			closeTab(account, `get`);
@@ -2939,10 +3005,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
 			);
 			Logger.printLine("AuthManager", `Searching for graphql request...`, "warn")
-			await page.setCookie(...account.cookie);
-			await page.goto('https://x.com/');
-			await page.setRequestInterception(true);
-			page.on('request', req => {
+//			await page.setCookie(...account.cookie);
+//			await page.goto('https://x.com/');
+//			await page.setRequestInterception(true);
+			tGraphQL = "https://x.com/i/api/graphql/NmCeCgkVlsRGS1cAwqtgmw/TweetDetail".split('graphql/').pop().split('/')[0];
+			tAuthorization = 'Bearer AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA';
+/*			page.on('request', req => {
 				const url = req.url();
 				const headers = req.headers();
 				if (url.includes('https://x.com/i/api/graphql/') && url.includes('TweetDetail')) {
@@ -2950,15 +3018,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					tAuthorization = headers['authorization'];
 					Logger.printLine("AuthManager", `Got required request data to start!`, "info")
 				}
-				req.continue().catch(e => e /* not intercepting */);
-			});
-			await page.waitForSelector('article');
-			const tweet = await page.$('article');
-			await tweet.click();
-			while (tAuthorization === undefined) {
-				await page.waitForTimeout(500);
-			}
-			await page.close();
+//				req.continue().catch(e => e );
+			});*/
+//			await page.waitForSelector('article');
+//			const tweet = await page.$('article');
+//			await tweet.click();
+//			while (tAuthorization === undefined) {
+//				await page.waitForTimeout(500);
+//			}
+//			await page.close();
 		} catch (e) {
 			Logger.printLine("TabManager", `Failed to load inital page!`, "emergency");
 		}
