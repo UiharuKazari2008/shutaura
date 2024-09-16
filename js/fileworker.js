@@ -1693,6 +1693,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					// If no valid Path is found, just send it to the Default Data folder
 					parameters.messageChannelID = FolderPairs.get("Data").id;
 				}
+				console.log(object.OriginPath.toString() + '.metadata', fs.existsSync(object.OriginPath.toString() + '.metadata'));
 				if (fs.existsSync(object.OriginPath.toString() + '.metadata')) {
 					try {
 						const json = JSON.parse(fs.readFileSync(object.OriginPath.toString() + '.metadata').toString());
