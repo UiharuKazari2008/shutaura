@@ -541,7 +541,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						ignoreInitial: false
 					});
 					datawatcher1.on('add', function (filePath) {
-						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-'))) {
+						if (!(filePath.includes('HOLD-') || filePath.includes('PREVIEW-') || filePath.includes('FILEATT-') || filePath.includes(".metadata"))) {
 							onboardFileAdd(slash(filePath), "1")
 						}
 					})
@@ -1647,7 +1647,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		try {
 			// Get Snowflake
 			globalItemNumber++
-			const itemID = globalRunKey + "-" + globalItemNumber.toString().padStart(5, '0')
+			const itemID = globalRunKey + "-" + globalItemNumber.toString().padStart(5, '0');
+			let externalMetadata = {};
 			// Generate Initial Parameter Object
 			let parameters = {
 				itemID: itemID,
@@ -1692,7 +1693,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					// If no valid Path is found, just send it to the Default Data folder
 					parameters.messageChannelID = FolderPairs.get("Data").id;
 				}
-				Logger.printLine("FileProcessor", `Processing Local File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
+				if (fs.existsSync(object.OriginPath.toString() + '.metadata')) {
+					try {
+						const json = JSON.parse(fs.readFileSync(object.OriginPath.toString() + '.metadata').toString());
+						Logger.printLine("FileProcessor", `Processing Metadata File : ${object.FileName.split("?")[0].toString()}`, "info", json);
+						externalMetadata = json;
+						fs.unlinkSync(object.OriginPath.toString() + '.metadata');
+					} catch (e) {
+						Logger.printLine("FileProcessor", `Failed to Metadata : ${object.FileName.split("?")[0].toString()}.metadata`, "error");
+					}
+				}
+				Logger.printLine("FileProcessor", `Processing Local File : ${object.FileName.split("?")[0].toString()}`, "info", parameters);
 			} else if (object.Type.toString() === "Proxy") {
 				// Proxy - File has been sent from a remote FileWorker but requires this server to send
 				//         the file to its final destination, No processing is required for the file
@@ -1712,19 +1723,35 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			//  If not going to the Twitter Compose channel, Add the Buttons
 			parameters.addButtons = ["Pin"]
+			if (externalMetadata.addButtons) {
+				parameters.addButtons.push(externalMetadata.addButtons);
+			}
 			if (parameters.messageChannelID === discordServers.get('homeGuild').chid_download) {
-				parameters.addButtons.push("RemoveFile")
+				parameters.addButtons.push("RemoveFile");
 			}
 
-			if (parameters.prioritySend || (systemglobal.FW_Priority_Channels && systemglobal.FW_Priority_Channels.length > 0 && systemglobal.FW_Priority_Channels.indexOf(parameters.messageChannelID) !== -1)) {
+			if (externalMetadata.prioritySend || parameters.prioritySend || (systemglobal.FW_Priority_Channels && systemglobal.FW_Priority_Channels.length > 0 && systemglobal.FW_Priority_Channels.indexOf(parameters.messageChannelID) !== -1)) {
 				parameters.sendTo = systemglobal.Discord_Out + '.priority';
 			}
-			parameters.addButtons.push("Archive", "MoveMessage")
-			if (object.UserID) {
-				parameters.messageUserID = object.UserID
+			parameters.addButtons.push("Archive", "MoveMessage");
+			if (externalMetadata.UserID) {
+				parameters.messageUserID = externalMetadata.UserID;
+			} else if (object.UserID) {
+				parameters.messageUserID = object.UserID;
 			}
-			if (object.messageRefrance) {
+			if (externalMetadata.messageRefrance) {
+				parameters.messageRefrance = externalMetadata.messageRefrance;
+			} else if (object.messageRefrance) {
 				parameters.messageRefrance = object.messageRefrance;
+			}
+			if (externalMetadata.itemDateTime) {
+				parameters.itemDateTime = externalMetadata.itemDateTime;
+			}
+			if (externalMetadata.tweetMetadata) {
+				parameters.tweetMetadata = externalMetadata.tweetMetadata;
+			}
+			if (externalMetadata.messageText) {
+				parameters.messageText = externalMetadata.messageText;
 			}
 
 			// Resize Image Files
@@ -2451,7 +2478,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			console.error(err);
 			cb(true);
 		}
-
 	}
 	start()
 
