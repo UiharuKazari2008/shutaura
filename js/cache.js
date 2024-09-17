@@ -1619,7 +1619,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         )()
         const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE (eid NOT IN (SELECT eid FROM kanmi_records)${ignore}) AND host = ?`;
-        console.log(q);
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             let eids = [];
@@ -1636,15 +1635,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         path.join(systemglobal.CDN_Base_Path, 'master', channel, deleteItem.mfull_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'master', channel, deleteItem.mfull_hint))
                                 } catch (e) {
-                                    Logger.printLine("CDN Manager", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
+                                    Logger.printLine("CDN Cleaner", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
                                     fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                                 }
                             } else {
                                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                             }
-                            Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
-                            Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
+                            Logger.printLine("CDN Cleaner", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
                             //console.error(e);
                         }
                     }
@@ -1657,15 +1656,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         path.join(systemglobal.CDN_Base_Path, 'full', channel, deleteItem.full_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'full', channel, deleteItem.full_hint))
                                 } catch (e) {
-                                    Logger.printLine("CDN Manager", `Failed to Trash full copy: ${deleteItem.eid}: ${e.message}`, "error");
+                                    Logger.printLine("CDN Cleaner", `Failed to Trash full copy: ${deleteItem.eid}: ${e.message}`, "error");
                                     fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                                 }
                             } else {
                                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                             }
-                            Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
-                            Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
+                            Logger.printLine("CDN Cleaner", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
                             //console.error(e);
                         }
                     }
@@ -1678,24 +1677,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         path.join(systemglobal.CDN_Base_Path, 'preview', channel, deleteItem.preview_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'preview', channel, deleteItem.preview_hint))
                                 } catch (e) {
-                                    Logger.printLine("CDN Manager", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
+                                    Logger.printLine("CDN Cleaner", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
                                     fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                                 }
                             } else {
                                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                             }
-                            Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
-                            Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
+                            Logger.printLine("CDN Cleaner", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
                             //console.error(e);
                         }
                     }
                     if (deleteItem.ext_0_hint) {
                         try {
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
-                            Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `Delete extended preview copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
-                            Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
+                            Logger.printLine("CDN Cleaner", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
                             //console.error(e);
                         }
                     }
