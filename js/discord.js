@@ -8624,7 +8624,7 @@ This code is publicly released and is restricted by its project license
 
             }
         }
-        //mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg.id }, messageUpdate: {  } });
+        mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg.id }, messageUpdate: {  } });
         if (!bulk)
             activeTasks.delete(`DEL_MSG_${msg.id}`);
     }
