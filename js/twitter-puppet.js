@@ -134,6 +134,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_chrome_path.length > 0 && _chrome_path[0].param_value) {
 				systemglobal.Chrome_Exec = _chrome_path[0].param_value;
 			}
+			const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+			if (_seq_config.length > 0 && _seq_config[0].param_data) {
+				if (_seq_config[0].param_data.base_url)
+					systemglobal.base_url = _seq_config[0].param_data.base_url;
+			}
 			const _twitter_account = systemparams_sql.filter(e => e.param_key === 'twitter.account' && e.param_data && e.account);
 			if (_twitter_account.length > 0)
 				systemglobal.Twitter_Accounts = _twitter_account.map(e => {
@@ -1210,7 +1215,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													"type": "image",
 													"title": `📨 New Tweet from ${obj.tweet.userName} (@${obj.tweet.screenName})`,
 													"description": (obj.tweet.text && obj.tweet.text.length > 0) ? obj.tweet.text : undefined,
-													"url": `https://x.com/${(obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName}/status/${((obj.tweet.retweeted && obj.tweet.retweeted_id)) ? obj.tweet.retweeted_id : obj.tweet.id}`,
+													"url": `${systemglobal.base_url}juneOS#/gallery?channel=${(!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid}&search=${encodeURIComponent("artist:" + ((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName))}&review_mode=true`,
 													"color": 44799,
 													"timestamp": moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss'),
 													"image": {

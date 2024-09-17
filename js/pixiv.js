@@ -113,6 +113,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const _mq_pixiv_in = systemparams_sql.filter(e => e.param_key === 'mq.pixiv.in');
             if (_mq_pixiv_in.length > 0 && _mq_pixiv_in[0].param_value)
                 systemglobal.Pixiv_In = _mq_pixiv_in[0].param_value;
+            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+            if (_seq_config.length > 0 && _seq_config[0].param_data) {
+                if (_seq_config[0].param_data.base_url)
+                    systemglobal.base_url = _seq_config[0].param_data.base_url;
+            }
         }
 
         const _illuhistory = await db.query(`SELECT illu_id FROM pixiv_history_illu`);
@@ -687,6 +692,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     const image = await getImagetoB64(images[0]);
                                     const filename = getIDfromText(images[0]);
                                     mqClient.sendData(`${systemglobal.Discord_Out}.priority`, {
+                                        // https://737.jp.net/juneOS#/gallery?channel=966235278534660146&search=artist%3A33760407
                                         fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                                         messageType: 'sfileext',
                                         messageReturn: false,
@@ -699,7 +705,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             "type": "image",
                                             "title": `🎆 New Illustrations from ${post.userName} (${post.userNameID})`,
                                             "description": (post.description) ? post.description : undefined,
-                                            "url": `https://pixiv.net/en/artworks/${item.id}`,
+                                            "url": `${systemglobal.base_url}juneOS#/gallery?channel=${(post.channelID) ? post.channelID : post.saveID}&search=${encodeURIComponent("artist:" + post.userNameID)}&review_mode=true`,
                                             "color": post.color,
                                             "timestamp": post.postDate,
                                             "image": {
