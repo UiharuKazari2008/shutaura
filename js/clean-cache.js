@@ -109,6 +109,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
 
+    const filterTinyFiles = (dirPath) => {
+        return fs.existsSync(dirPath)
+            ? fs.readdirSync(dirPath).filter(file => {
+                const filePath = path.join(dirPath, file);
+                const stats = fs.statSync(filePath);
+                return stats.size > 1024; // Only return files larger than 1KB
+            })
+            : [];
+    };
+
     async function validateStorage(channel) {
         return new Promise(async (completed) => {
             const channels = await db.query(`SELECT channelid, serverid FROM kanmi_channels WHERE source = 0 ${(channel) ? 'AND channelid IN (' + channel.join(', ') + ')' : ''}`)
@@ -118,8 +128,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_ext_previews = path.join(systemglobal.CDN_Base_Path, 'extended_preview', c.serverid, c.channelid);
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
                     const dir_mfull = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
-                    let previews = (fs.existsSync(dir_previews)) ? fs.readdirSync(dir_previews) : [];
-                    let ext_previews = (fs.existsSync(dir_ext_previews)) ? fs.readdirSync(dir_ext_previews) : [];
+
+                    let previews = filterTinyFiles(dir_previews);
+                    let ext_previews = filterTinyFiles(dir_ext_previews);
                     let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
                     let mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
 
