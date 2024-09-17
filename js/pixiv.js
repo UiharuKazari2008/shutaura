@@ -833,6 +833,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                         await sleep(15000)
                     } catch (err) {
+                        console.error(err)
                         Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
                         Logger.printLine("getNewIllust", `Returned items for new illustrations (Caught err)`, "debug")
                         break;
