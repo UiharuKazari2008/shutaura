@@ -328,21 +328,20 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     async function deleteCacheItem(deleteItem, deleteRow) {
         let deletedAction = false;
         const shouldTrash = (systemglobal.CDN_Trash_Path && systemglobal.CDN_Trash_Channels && systemglobal.CDN_Trash_Channels.length > 0) ? systemglobal.CDN_Trash_Channels.indexOf(deleteItem.path_hint.split('/')[1]) !== -1 : false;
+        const channel = deleteItem.path_hint.split('/')[1];
         if (deleteItem.mfull_hint) {
             try {
                 if (shouldTrash) {
                     try {
-                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'master', deleteItem.path_hint.split('/')[1]));
-                        fs.renameSync(
-                            path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint.split('/')[1], deleteItem.mfull_hint),
-                            path.join(systemglobal.CDN_Trash_Path, 'master', deleteItem.path_hint.split('/')[1], deleteItem.mfull_hint))
+                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'master', channel));
+                        fs.copyFileSync(
+                            path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint),
+                            path.join(systemglobal.CDN_Trash_Path, 'master', channel, deleteItem.mfull_hint))
                     } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
+                        Logger.printLine("CDN Cleaner", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
                     }
-                } else {
-                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                 }
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                 Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
@@ -354,17 +353,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             try {
                 if (shouldTrash) {
                     try {
-                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'full', deleteItem.path_hint.split('/')[1]));
-                        fs.renameSync(
-                            path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint.split('/')[1], deleteItem.full_hint),
-                            path.join(systemglobal.CDN_Trash_Path, 'full', deleteItem.path_hint.split('/')[1], deleteItem.full_hint))
+                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'full', channel));
+                        fs.copyFileSync(
+                            path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint),
+                            path.join(systemglobal.CDN_Trash_Path, 'full', channel, deleteItem.full_hint))
                     } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to Trash full copy: ${deleteItem.eid}: ${e.message}`, "error");
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
+                        Logger.printLine("CDN Cleaner", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
                     }
-                } else {
-                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                 }
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                 Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
@@ -376,17 +373,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             try {
                 if (shouldTrash) {
                     try {
-                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'preview', deleteItem.path_hint.split('/')[1]));
-                        fs.renameSync(
-                            path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint.split('/')[1], deleteItem.preview_hint),
-                            path.join(systemglobal.CDN_Trash_Path, 'preview', deleteItem.path_hint.split('/')[1], deleteItem.preview_hint))
+                        fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'preview', channel));
+                        fs.copyFileSync(
+                            path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint),
+                            path.join(systemglobal.CDN_Trash_Path, 'preview', channel, deleteItem.preview_hint))
                     } catch (e) {
-                        Logger.printLine("CDN Manager", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
-                        fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
+                        Logger.printLine("CDN Cleaner", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
                     }
-                } else {
-                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                 }
+                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                 Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
                 deletedAction = true;
             } catch (e) {
