@@ -1633,16 +1633,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (shouldTrash) {
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'master', channel));
-                                    fs.renameSync(
+                                    fs.copyFileSync(
                                         path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'master', channel, deleteItem.mfull_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
-                                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                                 }
-                            } else {
-                                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                             }
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
@@ -1654,16 +1652,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (shouldTrash) {
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'full', channel));
-                                    fs.renameSync(
+                                    fs.copyFileSync(
                                         path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'full', channel, deleteItem.full_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash full copy: ${deleteItem.eid}: ${e.message}`, "error");
-                                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                                 }
-                            } else {
-                                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                             }
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
@@ -1675,16 +1671,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (shouldTrash) {
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'preview', channel));
-                                    fs.renameSync(
+                                    fs.copyFileSync(
                                         path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'preview', channel, deleteItem.preview_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
-                                    fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                                 }
-                            } else {
-                                fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                             }
+                            fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
@@ -1706,7 +1700,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 if (eids.length > 0) {
-                    if (eids.length > 500) {
+                    if (eids.length > 500)  {
                         function splitArray(array, chunkSize) {
                             const result = [];
                             for (let i = 0; i < array.length; i += chunkSize) {
