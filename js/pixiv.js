@@ -706,7 +706,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             "type": "image",
                                             "title": `🎆 New Illustrations from ${post.userName} (${post.userNameID})`,
                                             "description": (post.description) ? post.description : undefined,
-                                            "url": `${systemglobal.base_url}juneOS#/gallery?channel=${(post.channelID) ? post.channelID : post.saveID}&search=${encodeURIComponent("artist:" + post.userNameID)}&review_mode=true`,
+                                            "url": `${systemglobal.base_url}juneOS#/gallery?channel=${(post.channelID) ? post.channelID : post.saveID}&search=${encodeURIComponent("artist:" + post.userID)}&review_mode=true`,
                                             "color": post.color,
                                             "timestamp": post.postDate,
                                             "image": {
