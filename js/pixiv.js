@@ -43,6 +43,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let enablePullData = true;
     let post_history = [];
     let pixivNotify = new Map();
+    const tx2 = require('tx2');
 
     const { getIDfromText } = require('./utils/tools');
     const Logger = require('./utils/logSystem')(facilityName);

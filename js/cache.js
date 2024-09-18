@@ -42,6 +42,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const minimist = require("minimist");
     const sharp = require("sharp");
     const md5 = require("md5");
+    const tx2 = require('tx2');
     let args = minimist(process.argv.slice(2));
     const remoteSize = require('remote-file-size');
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
@@ -1633,7 +1634,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'master', channel));
                                     fs.renameSync(
-                                        path.join(systemglobal.CDN_Base_Path, 'master', channel, deleteItem.mfull_hint),
+                                        path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'master', channel, deleteItem.mfull_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash master copy: ${deleteItem.eid}: ${e.message}`, "error");
@@ -1654,7 +1655,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'full', channel));
                                     fs.renameSync(
-                                        path.join(systemglobal.CDN_Base_Path, 'full', channel, deleteItem.full_hint),
+                                        path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'full', channel, deleteItem.full_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash full copy: ${deleteItem.eid}: ${e.message}`, "error");
@@ -1675,7 +1676,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 try {
                                     fsEx.ensureDirSync(path.join(systemglobal.CDN_Trash_Path, 'preview', channel));
                                     fs.renameSync(
-                                        path.join(systemglobal.CDN_Base_Path, 'preview', channel, deleteItem.preview_hint),
+                                        path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint),
                                         path.join(systemglobal.CDN_Trash_Path, 'preview', channel, deleteItem.preview_hint))
                                 } catch (e) {
                                     Logger.printLine("CDN Cleaner", `Failed to Trash preview copy: ${deleteItem.eid}: ${e.message}`, "error");
@@ -1789,6 +1790,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (process.send && typeof process.send === 'function') {
         process.send('ready');
     }
+
+    tx2.action('clean', async (reply) => {
+        await clearDeadFiles();
+        reply({ answer : 'started' });
+    });
 
     discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 })()

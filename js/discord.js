@@ -87,6 +87,7 @@ This code is publicly released and is restricted by its project license
     let musicFolders = [];
     let addClearButton = [];
     let fileTicker = [];
+    let ignoreDelete = [];
     let staticChID = {};
     let discordServers = new Map();
     let discordChannels = new Map();

@@ -38,7 +38,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const minimist = require('minimist');
 	const cron = require('node-cron');
 	let args = minimist(process.argv.slice(2));
-	const tx2 = require('tx2')
+	const tx2 = require('tx2');
 
 	let amqpConn = null;
 	const RateLimiter = require('limiter').RateLimiter;
@@ -2980,6 +2980,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	tx2.action('pull', async (reply) => {
 		await getTweets();
 		reply({ answer : 'done' });
-	})
+	});
 	start();
 })()
