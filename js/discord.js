@@ -1321,6 +1321,7 @@ This code is publicly released and is restricted by its project license
                                         SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", err)
                                     }
                                 })
+                                mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: MessageContents.messageID }, messageUpdate: {  } });
                                 cb(true);
                             })
                         break;
@@ -4799,7 +4800,10 @@ This code is publicly released and is restricted by its project license
                         if (bulkMessages.length > 0) {
                             const count = bulkMessages.length
                             try {
-                                await discordClient.deleteMessages(channel.channelid, bulkMessages, 'Request to delete old messages')
+                                await discordClient.deleteMessages(channel.channelid, bulkMessages, 'Request to delete old messages');
+                                await Promise.all(bulkMessages.map(async msg => {
+                                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
+                                }))
                                 Logger.printLine("AutoClean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
                             } catch (err) {
                                 Logger.printLine("AutoClean", `Error Deleting old messages`, 'error', err)
@@ -4810,6 +4814,7 @@ This code is publicly released and is restricted by its project license
                             await Promise.all(oboMessages.map(async msg => {
                                 try {
                                     await discordClient.deleteMessage(channel.channelid, msg, 'Request to delete old messages')
+                                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
                                 } catch (err) {
                                     Logger.printLine("AutoClean", `Error Deleting old messages`, 'error', err)
                                 }
@@ -4845,7 +4850,8 @@ This code is publicly released and is restricted by its project license
                     if (lastmsg && lastmsg.length > 0) {
                         if (lastmsg.pop().id === last) {
                             try {
-                                await discordClient.deleteMessage(channel, last, 'Request to delete old messages')
+                                await discordClient.deleteMessage(channel, last, 'Request to delete old messages');
+                                mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: last }, messageUpdate: {  } });
                             } catch (err) {
                                 Logger.printLine("Clean", `Error Deleting old messages`, 'error', err);
                             }
@@ -4863,7 +4869,10 @@ This code is publicly released and is restricted by its project license
                 if (_bulkMessages.length > 0) {
                     const count = _bulkMessages.length
                     try {
-                        await discordClient.deleteMessages(channel, _bulkMessages, 'Request to delete old messages')
+                        await discordClient.deleteMessages(channel, _bulkMessages, 'Request to delete old messages');
+                        await Promise.all(_bulkMessages.map(async msg => {
+                            mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
+                        }))
                         Logger.printLine("Clean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
                     } catch (err) {
                         Logger.printLine("Clean", `Failed to delete ${count} messages`, 'error', err)
@@ -4873,6 +4882,7 @@ This code is publicly released and is restricted by its project license
                     await Promise.all(oboMessages.map(async (msg) => {
                         try {
                             await discordClient.deleteMessage(channel, msg, 'Request to delete old messages')
+                            mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
                         } catch (err) {
                             Logger.printLine("Clean", `Error Deleting old messages`, 'error', err)
                         }
@@ -7565,6 +7575,9 @@ This code is publicly released and is restricted by its project license
             jfsRemoveSF(fullmsg.channel.id, fullmsg.id, fullmsg.guildID)
         } else {
             discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id)
+                .then(ok => {
+                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: fullmsg.id }, messageUpdate: {  } });
+                })
                 .catch((er) => {
                     SendMessage("There was a error removing the message", "err", fullmsg.guildID, "CleanPost", er)
                 })
@@ -7592,7 +7605,7 @@ This code is publicly released and is restricted by its project license
                             SendMessage("SQL Error occurred when retrieving the Spanned File lookup table", "err", 'main', "SQL", deletedPart.error)
                         }
                         try {
-                            await discordClient.deleteMessage(messagepart.channelid, messagepart.messageid, "Cleanup Message Parts")
+                            await discordClient.deleteMessage(messagepart.channelid, messagepart.messageid, "Cleanup Message Parts");
                         } catch (er) {
                             if (er && !er.message.includes("Unknown"))
                                 SendMessage("Failed to delete the fileparts from the storage channel", "err", guildid, "SFrm", er)
@@ -7605,6 +7618,7 @@ This code is publicly released and is restricted by its project license
             if (channelnumber && messsageid) {
                 try {
                     await discordClient.deleteMessage(channelnumber, messsageid)
+                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: messsageid }, messageUpdate: {  } });
                     if (channelnumber !== discordServers.get(guildid).chid_download) {
                         SendMessage(`🗑 Deleted the Multi-Part File`, "info", guildid, "RMSF")
                     }
