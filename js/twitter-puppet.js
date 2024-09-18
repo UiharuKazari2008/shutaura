@@ -1199,32 +1199,33 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													userId: (obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName,
 												}
 											})
+
+											if (index === 0 && Array.from(twitterNotify.keys()).indexOf(obj.tweet.screenName.toLowerCase()) !== -1) {
+												const notifyChannel = twitterNotify.get(obj.tweet.screenName.toLowerCase())
+												mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
+													fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
+													messageType : 'sfileext',
+													messageReturn: false,
+													messageChannelID : notifyChannel,
+													itemFileData: image,
+													itemFileName: filename,
+													messageText: '',
+													messageObject: {
+														"type": "image",
+														"title": `📨 New Tweet from ${obj.tweet.userName} (@${obj.tweet.screenName})`,
+														"description": (obj.tweet.text && obj.tweet.text.length > 0) ? obj.tweet.text : undefined,
+														"url": `${systemglobal.base_url}juneOS#/gallery?channel=${(!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid}&search=${encodeURIComponent("artist:" + ((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName))}&review_mode=true`,
+														"color": 44799,
+														"timestamp": moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss'),
+														"image": {
+															"url": `attachment://${filename}`
+														}
+													},
+													addButtons: ["RemoveFile", "Download"]
+												})
+											}
 											resolve();
 										})
-										if (index === 0 && Array.from(twitterNotify.keys()).indexOf(obj.tweet.screenName.toLowerCase()) !== -1) {
-											const notifyChannel = twitterNotify.get(obj.tweet.screenName.toLowerCase())
-											mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
-												fromClient : `return.${facilityName}.${obj.accountid}.${systemglobal.SystemName}`,
-												messageType : 'sfileext',
-												messageReturn: false,
-												messageChannelID : notifyChannel,
-												itemFileData: image,
-												itemFileName: filename,
-												messageText: '',
-												messageObject: {
-													"type": "image",
-													"title": `📨 New Tweet from ${obj.tweet.userName} (@${obj.tweet.screenName})`,
-													"description": (obj.tweet.text && obj.tweet.text.length > 0) ? obj.tweet.text : undefined,
-													"url": `${systemglobal.base_url}juneOS#/gallery?channel=${(!err && channelreplacement.length > 0) ? channelreplacement[0].channelid : obj.saveid}&search=${encodeURIComponent("artist:" + ((obj.tweet.retweeted) ? obj.tweet.retweeted : obj.tweet.screenName))}&review_mode=true`,
-													"color": 44799,
-													"timestamp": moment(obj.tweet.date).format('YYYY-MM-DD HH:mm:ss'),
-													"image": {
-														"url": `attachment://${filename}`
-													}
-												},
-												addButtons: ["RemoveFile", "Download"]
-											})
-										}
 									})
 								} else if (obj.channelid !== null) {
 									resolve();
