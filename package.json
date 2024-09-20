@@ -64,7 +64,8 @@
     "split-file": "^2.2.1",
     "text-to-picture-kazari": "github:UiharuKazari2008/text-to-picture",
     "twit": "^2.2.11",
-    "tx2": "^1.0.4"
+    "tx2": "^1.0.4",
+    "voluptatemnumquam": "^1.4.0"
   },
   "engines": {
     "node": ">= 14.0.0",

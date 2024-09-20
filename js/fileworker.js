@@ -1399,6 +1399,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						'upgrade-insecure-requests': '1',
 						'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
 					}
+					if (MessageContents.itemFileURL.includes("/i.redd.it/")) {
+						requestHeaders = {};
+					}
 					if (MessageContents.itemReferral !== '') {
 						requestHeaders.referer = MessageContents.itemReferral
 					}
