@@ -571,74 +571,112 @@ This code is publicly released and is restricted by its project license
         })
 
     }
+    async function getSankakuPosts(galleryURL, history) {
+        let meta = {}
+        let posts = [];
+        let i = 1;
+        while (true) {
+            try {
+                const _data = await podcastFeedParser.getPodcastFromURL(`${galleryURL}feed/?paged=${i}`);
+                if (!meta.title) {
+                    meta = {
+                        ..._data,
+                        episodes: undefined
+                    }
+                }
+                const results = _data.episodes.filter(f => history.filter(e => e.url === f.link).length === 0);
+                posts.push(...results);
+                if (i > 2 && (results.length === 0 || results.length < 24)) {
+                    Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
+                    break;
+                } else {
+                    Logger.printLine("SankakuGalleryGET", `${galleryURL} => ${results.length} Articles (Page ${i})`, "debug")
+                }
+                i++
+            } catch (err) {
+                Logger.printLine("SankakuGalleryGET", "Error pulling more pages from Sankaku", "warn", err)
+                Logger.printLine("SankakuGalleryGET", `Returned ${posts.length} items (Caught err)`, "debug");
+                console.error(err);
+                break;
+            }
+        }
+        return {
+            ...meta,
+            episodes: posts
+        };
+    }
     async function getSankakuGallery(galleryURL, destionation) {
         try {
-            const galleryFeed = await podcastFeedParser.getPodcastFromURL(`${galleryURL}feed/`)
-            if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
-                let counter = 0
-                const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`)
-                await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
-                    if (thisArticle.link && thisArticleIndex <= 1000 && !history.error && history.rows.filter(e => e.url === thisArticle.link).length === 0) {
-                        let backlog = false;
-                        if (counter > 3) {
-                            backlog = true
-                            Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title} (BACKLOGGED)"`, "info", thisArticle)
-                        } else {
-                            Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title}"`, "info", thisArticle)
-                        }
-                        try {
-                            const pageResults = await got(thisArticle.link);
-                            const $ = await cheerio.load(pageResults.body); // Parse Response
-                            let images = []
-                            await $('.entry-content > p > a:contains(wp-content)')
-                                .each((thisPostIndex, thisPost) => {
-                                    if (images.indexOf(thisPost.attribs.href) === -1) {
-                                        images.push(thisPost.attribs.href)
-                                    }
-                                })
-                            if (images.length > 0) {
-                                await Promise.all(images.map(async (image) => {
-                                    let title = `${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}\n` + '`' + thisArticle.link + '`'
-                                    let MessageParameters = {
-                                        messageChannelID: destionation,
-                                        messageText: title,
-                                        itemFileName: image.split('/').pop(),
-                                        itemFileURL: image,
-                                        itemReferral: thisArticle.link,
-                                        backlogRequest: backlog
-                                    }
-                                    let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
-                                    if (episodeDate.includes('Invalid')) {
-                                        console.error('Invalid episode date returned');
-                                    } else {
-                                        MessageParameters.itemDateTime = episodeDate;
-                                    }
-                                    let sendTo = systemglobal.FileWorker_In
-                                    if (backlog) {
-                                        sendTo += '.backlog'
-                                    }
-
-                                    mqClient.sendData(sendTo, MessageParameters, (ok) => {
-                                        if (!ok) {
-                                            mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", err, thisArticle);
-                                        }
-                                    });
-                                }));
-                                await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.link]);
+            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`);
+            if (!history.error) {
+                const galleryFeed = await getSankakuPosts(`${galleryURL}feed/`, history)
+                if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
+                    let counter = 0
+                    await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
+                        if (thisArticle.link && thisArticleIndex <= 1000 && history.rows.filter(e => e.url === thisArticle.link).length === 0) {
+                            let backlog = false;
+                            if (counter > 3) {
+                                backlog = true
+                                Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title} (BACKLOGGED)"`, "info", thisArticle)
                             } else {
-                                Logger.printLine('SankakuGallery', `No Images found for "${thisArticle.title}"`, 'error');
+                                Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title}"`, "info", thisArticle)
                             }
-                        } catch (err) {
-                            Logger.printLine('SankakuGallery', `Failed to pull the article - ${err.message}`, 'error', err);
-                            console.log(err);
+                            try {
+                                const pageResults = await got(thisArticle.link);
+                                const $ = await cheerio.load(pageResults.body); // Parse Response
+                                let images = []
+                                await $('.entry-content > p > a:contains(wp-content)')
+                                    .each((thisPostIndex, thisPost) => {
+                                        if (images.indexOf(thisPost.attribs.href) === -1) {
+                                            images.push(thisPost.attribs.href)
+                                        }
+                                    })
+                                if (images.length > 0) {
+                                    await Promise.all(images.map(async (image) => {
+                                        let title = `${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}\n` + '`' + thisArticle.link + '`'
+                                        let MessageParameters = {
+                                            messageChannelID: destionation,
+                                            messageText: title,
+                                            itemFileName: image.split('/').pop(),
+                                            itemFileURL: image,
+                                            itemReferral: thisArticle.link,
+                                            backlogRequest: backlog
+                                        }
+                                        let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
+                                        if (episodeDate.includes('Invalid')) {
+                                            console.error('Invalid episode date returned');
+                                        } else {
+                                            MessageParameters.itemDateTime = episodeDate;
+                                        }
+                                        let sendTo = systemglobal.FileWorker_In
+                                        if (backlog) {
+                                            sendTo += '.backlog'
+                                        }
+
+                                        mqClient.sendData(sendTo, MessageParameters, (ok) => {
+                                            if (!ok) {
+                                                mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", err, thisArticle);
+                                            }
+                                        });
+                                    }));
+                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.link]);
+                                } else {
+                                    Logger.printLine('SankakuGallery', `No Images found for "${thisArticle.title}"`, 'error');
+                                }
+                            } catch (err) {
+                                Logger.printLine('SankakuGallery', `Failed to pull the article - ${err.message}`, 'error', err);
+                                console.log(err);
+                            }
+                            counter++;
                         }
-                        counter++;
-                    }
-                }))
-            } else if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title) {
-                Logger.printLine("SankakuGallery", `Failed to get the any articles for "${galleryFeed.meta.title}"`, "warn")
+                    }))
+                } else if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title) {
+                    Logger.printLine("SankakuGallery", `Failed to get the any articles for "${galleryFeed.meta.title}"`, "warn")
+                } else {
+                    Logger.printLine("SankakuGallery", `Failed to get the gallery: ${galleryURL}, please manually correct this!`, "warn")
+                }
             } else {
-                Logger.printLine("SankakuGallery", `Failed to get the gallery: ${galleryURL}, please manually correct this!`, "warn")
+                Logger.printLine("SankakuGallery", `Failed to get history for ${galleryURL}, Update Canceled!`, "warn")
             }
         } catch (err) {
             Logger.printLine("SankakuGallery", `Failed to fetch gallery "${galleryURL}"`, "error", err)
@@ -915,7 +953,6 @@ This code is publicly released and is restricted by its project license
         } else {
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
         }
-
     }
     // KemonoParty
     if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
