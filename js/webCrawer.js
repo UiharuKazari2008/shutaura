@@ -676,7 +676,6 @@ This code is publicly released and is restricted by its project license
                                     Logger.printLine("KemonoParty", `New Post from "${userProfile.name}" - "${thisArticle.title}"`, "info", thisArticle)
                                 }
                                 try {
-                                    console.log(thisArticle)
                                     await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
                                         let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
                                         if (thisArticle.content) {
