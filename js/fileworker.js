@@ -41,6 +41,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const splitFile = require('split-file');
 	const crypto = require("crypto");
 	const slash = require('slash');
+	const md5 = require("md5");
 	const { DiscordSnowflake } = require('@sapphire/snowflake');
 	const globalRunKey = crypto.randomBytes(5).toString("hex");
 	let globalItemNumber = 0;
@@ -1383,7 +1384,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						break;
 				}
 			} else if (MessageContents.itemFileName) {
-				let tempFilePath = path.join(systemglobal.TempFolder, MessageContents.itemFileName.split("?")[0]);
+				let tempFilePath = path.join(systemglobal.TempFolder, md5(MessageContents.itemFileName.split("?")[0]));
 				if (MessageContents.itemFileURL) { // Download a normal URL
 					// Download File from URL
 					let requestHeaders = {
