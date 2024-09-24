@@ -1384,7 +1384,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						break;
 				}
 			} else if (MessageContents.itemFileName) {
-				let tempFilePath = path.join(systemglobal.TempFolder, md5(MessageContents.itemFileName.split("?")[0]));
+				let tempFilePath = path.join(systemglobal.TempFolder, (md5(MessageContents.itemFileName.split("?")[0]) + "." + MessageContents.itemFileName.split("?")[0].split(".").pop().toLowerCase()));
 				if (MessageContents.itemFileURL) { // Download a normal URL
 					// Download File from URL
 					let requestHeaders = {
@@ -1407,7 +1407,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						requestHeaders.referer = MessageContents.itemReferral
 					}
 					let requestOptions = {
-						url: MessageContents.itemFileURL,
+						url: encodeURI(MessageContents.itemFileURL),
 						headers: requestHeaders
 					}
 					if (MessageContents.itemCookies !== '') {
