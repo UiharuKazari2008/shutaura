@@ -205,6 +205,7 @@ This code is publicly released and is restricted by its project license
                                 ok(null);
                             }
                         } else {
+                            console.log(body.toString())
                             ok(null);
                         }
                     }
@@ -712,10 +713,10 @@ This code is publicly released and is restricted by its project license
                         Logger.printLine("KemonoParty", `Failed to get "${artist}" via ${source}, please manually correct this!`, "warn")
                     }
                 } else {
-                    Logger.printLine("KemonoParty", `Failed to get history table for "${artist}" via ${source}, Update Cancelled!`, "error")
+                    Logger.printLine("KemonoParty", `Failed to get user profile for "${artist}" via ${source}, Update Cancelled!`, "error")
                 }
             } else {
-                Logger.printLine("KemonoParty", `Failed to get user profile for "${artist}" via ${source}, Update Cancelled!`, "error")
+                Logger.printLine("KemonoParty", `Failed to get history table for "${artist}" via ${source}, Update Cancelled!`, "error")
             }
         } catch (err) {
             Logger.printLine("KemonoParty", `Failed to fetch "${artist}" via ${source}: ${err.message}`, "error", err)
