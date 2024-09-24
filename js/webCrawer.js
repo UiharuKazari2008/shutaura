@@ -35,6 +35,9 @@ This code is publicly released and is restricted by its project license
     const postImageLimit = new RateLimiter(1, 500);
     const kemonoJSONLimit = new RateLimiter(1, 2000);
     const minimist = require("minimist");
+    const { CookieJar } = require('tough-cookie');
+    const { ddosGuardBypass } = require('axios-ddos-guard-bypass');
+    const { axios } = require('axios');
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
@@ -42,6 +45,12 @@ This code is publicly released and is restricted by its project license
     let pullDeepMFCPage = 0;
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
+
+    let cookieJar = new CookieJar();
+    let agent = axios.create({
+        jar: cookieJar
+    });
+    ddosGuardBypass(agent);
     const kemonoAPI = "https://kemono.su/api/v1/";
     const kemonoCDN = "https://n3.kemono.su/data";
 
@@ -184,32 +193,39 @@ This code is publicly released and is restricted by its project license
     async function getKemonoJSON(url) {
         return new Promise(ok => {
             kemonoJSONLimit.removeTokens(1, async function () {
-                request.get({
-                    url: kemonoAPI + url,
-                    headers: {
-                        'accept': 'application/json',
-                        'User-Agent': 'Sequenzia/24.0'
-                    },
-                }, function (err, res, body) {
+                try {
+                    const response = await agent({
+                        url: kemonoAPI + url,
+                        headers: {
+                            'accept': 'application/json',
+                            'Referer': 'https://kemono.su/' + url
+                        },
+                    })
                     if (err) {
                         console.error(err);
                         ok(null);
                     } else {
-                        const data = body.toString();
-                        if (data.startsWith("{") || data.startsWith("[")) {
-                            try {
-                                const json = JSON.parse(data);
-                                ok(json);
-                            } catch (e) {
-                                console.error(e);
-                                ok(null);
-                            }
+                        if (response.headers['content-type'].includes('application/json')) {
+                            ok(response.data);
                         } else {
-                            console.log(body.toString())
+                            console.error(`Unexpected content type: ${response.headers['content-type']}`);
                             ok(null);
                         }
                     }
-                })
+                } catch (error) {
+                    Logger.printLine("KemonoPartyJSON", `Failed to call API ${url}: Catched Error`, "error");
+                    if (error.response) {
+                        // The request was made, but the server responded with a status code
+                        console.error(`Error: ${error.message} | Status code: ${error.response.status}`);
+                    } else if (error.request) {
+                        // The request was made, but no response was received
+                        console.error('No response received:', error.message);
+                    } else {
+                        // Something happened in setting up the request that triggered an Error
+                        console.error('Error in setting up request:', error.message);
+                    }
+                    ok(null);
+                }
             });
         })
     }
@@ -219,6 +235,7 @@ This code is publicly released and is restricted by its project license
         let firstResults = _data.map(e => {
             return {
                 ...e,
+                real_url: `https://kemono.su/${url}/post/${e.id}`,
                 url: `${kemonoAPI}${url}/post/${e.id}`
             }
         }).filter(f => history.filter(e => e.url === f.url).length === 0)
@@ -231,6 +248,7 @@ This code is publicly released and is restricted by its project license
                     const results = _data.map(e => {
                         return {
                             ...e,
+                            real_url: `https://kemono.su/${url}/post/${e.id}`,
                             url: `${kemonoAPI}${url}/post/${e.id}`
                         }
                     }).filter(f => history.filter(e => e.url === f.url).length === 0);
@@ -673,18 +691,18 @@ This code is publicly released and is restricted by its project license
                                         if (thisArticle.content > 0) {
                                             let text = stripHtml(thisArticle.content);
                                             if ((title.length + text.length) > 2000) {
-                                                const maxLinksLength = 2000 - text.length - (thisArticle.url.length + 4 + 6);
+                                                const maxLinksLength = 2000 - text.length - (thisArticle.real_url.length + 4 + 6);
                                                 text = text.slice(0, maxLinksLength) + " (...)";
                                             }
                                             title += text + '\n';
                                         }
-                                        title += thisArticle.url;
+                                        title += thisArticle.real_url;
                                         let MessageParameters = {
                                             messageChannelID: destionation,
                                             messageText: title,
                                             itemFileName: image.name,
                                             itemFileURL: kemonoCDN + image.path,
-                                            itemReferral: thisArticle.url,
+                                            itemReferral: thisArticle.real_url,
                                             itemDateTime: thisArticle.published || thisArticle.added,
                                             backlogRequest: backlog
                                         }

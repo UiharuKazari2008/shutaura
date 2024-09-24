@@ -17,6 +17,8 @@
     "@sapphire/snowflake": "^3.4.0",
     "2fa": "^0.1.2",
     "amqplib": "*",
+    "axios": "^1.7.7",
+    "axios-ddos-guard-bypass": "^1.0.3",
     "body-parser": "^1.20.1",
     "cheerio": "^1.0.0-rc.5",
     "chokidar": "*",
@@ -63,6 +65,7 @@
     "slash": "^3.0.0",
     "split-file": "^2.2.1",
     "text-to-picture-kazari": "github:UiharuKazari2008/text-to-picture",
+    "tough-cookie": "^5.0.0",
     "twit": "^2.2.11",
     "tx2": "^1.0.4",
     "voluptatemnumquam": "^1.4.0"
