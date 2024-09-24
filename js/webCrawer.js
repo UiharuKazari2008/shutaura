@@ -677,17 +677,14 @@ This code is publicly released and is restricted by its project license
                                 }
                                 try {
                                     await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
-                                        let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
-                                        if (thisArticle.content) {
-                                            title += stripHtml(thisArticle.content);
-                                        }
+                                        let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments.length > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
                                         if (thisArticle.content > 0) {
                                             let text = stripHtml(thisArticle.content);
                                             if ((title.length + text.length) > 2000) {
                                                 const maxLinksLength = 2000 - text.length - (thisArticle.real_url.length + 4 + 6);
                                                 text = text.slice(0, maxLinksLength) + " (...)";
                                             }
-                                            title += text + '\n';
+                                            title += (text + '\n');
                                         }
                                         title += thisArticle.real_url;
                                         let MessageParameters = {
@@ -941,11 +938,10 @@ This code is publicly released and is restricted by its project license
                 Timers.set(`KMP${e.source}${e.artist}`, setInterval(async() => {
                     await getKemonoGallery(e.source, e.artist, e.channel);
                 }, parseInt(systemglobal.KemonoParty_Interval.toString())));
-                Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.url}`, 'info');
+                Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.source} / ${e.artist}`, 'info');
             });
         } else {
             Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
         }
-
     }
 })()
