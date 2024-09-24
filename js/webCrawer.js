@@ -585,8 +585,9 @@ This code is publicly released and is restricted by its project license
                     }
                 }
                 const results = _data.episodes.filter(f => history.rows.filter(e => e.url === f.link).length === 0);
+                console.log(results.map(e => e.title + " " + e.pubDate))
                 posts.push(...results);
-                if (i > 2 && (results.length === 0 || results.length < 24 || i > 200)) {
+                if (i > 2 && (results.length === 0 || results.length < 24 || i > 300)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
