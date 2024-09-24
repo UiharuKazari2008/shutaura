@@ -647,6 +647,7 @@ This code is publicly released and is restricted by its project license
                 const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
                 if (userProfile && userProfile.name) {
                     const userFeed = await getKemonoPosts(`${source}/user/${artist}`, history.rows || []);
+                    console.log(userFeed);
                     if (userFeed && userFeed.length > 0) {
                         let counter = 0
                         await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
@@ -659,6 +660,7 @@ This code is publicly released and is restricted by its project license
                                     Logger.printLine("KemonoParty", `New Post from "${userProfile.name}" - "${thisArticle.title}"`, "info", thisArticle)
                                 }
                                 try {
+                                    console.log(thisArticle)
                                     await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
                                         let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
                                         if (thisArticle.content) {
