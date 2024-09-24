@@ -226,46 +226,30 @@ This code is publicly released and is restricted by its project license
     }
     async function getKemonoPosts(url, history) {
         let posts = [];
-        let _data = await getKemonoJSON(url);
-        let firstResults = _data.map(e => {
-            return {
-                ...e,
-                real_url: `https://kemono.su/${url}/post/${e.id}`,
-                url: `${kemonoAPI}${url}/post/${e.id}`
-            }
-        }).filter(f => history.filter(e => e.url === f.url).length === 0)
-        if (firstResults && firstResults.length >= 50) {
-            posts.push(...firstResults);
-            let i = 1;
-            while (true) {
-                try {
-                    const _data = await getKemonoJSON(url + `?o=${i * 50}`);
-                    const results = _data.map(e => {
-                        return {
-                            ...e,
-                            real_url: `https://kemono.su/${url}/post/${e.id}`,
-                            url: `${kemonoAPI}${url}/post/${e.id}`
-                        }
-                    }).filter(f => history.filter(e => e.url === f.url).length === 0);
-                    posts.push(...results);
-                    if (!results.length < 50) {
-                        Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} items (End of Pages)`, "debug")
-                        break;
+        let i = 0;
+        while (true) {
+            try {
+                const _data = await getKemonoJSON(url + `?o=${i * 50}`);
+                const results = _data.map(e => {
+                    return {
+                        ...e,
+                        real_url: `https://kemono.su/${url}/post/${e.id}`,
+                        url: `${kemonoAPI}${url}/post/${e.id}`
                     }
-                    i++
-                } catch (err) {
-                    Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
-                    Logger.printLine("KemonoPartyJSON", `Returned ${posts.length} items (Caught err)`, "debug")
+                }).filter(f => history.filter(e => e.url === f.url).length === 0);
+                posts.push(...results);
+                if (!results.length < 50) {
+                    Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} items (End of Pages)`, "debug")
                     break;
                 }
+                i++
+            } catch (err) {
+                Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
+                Logger.printLine("KemonoPartyJSON", `Returned ${posts.length} items (Caught err)`, "debug")
+                break;
             }
-            return posts;
-        } else if (firstResults && firstResults.length > 0) {
-            Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} results for ${url}`, "info");
-            return firstResults;
-        } else {
-            return [];
         }
+        return posts;
     }
     function resizeImage(fileBuffer, callback) {
         // Get Image Dimentions
