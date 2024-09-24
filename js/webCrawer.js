@@ -639,7 +639,7 @@ This code is publicly released and is restricted by its project license
                                             }
                                         })
                                     if (images.length > 0) {
-                                        if (notify && counter < 10) {
+                                        if (notify && counter < 5) {
                                             mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
                                                 fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
                                                 messageType: 'sfileext',
