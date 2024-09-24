@@ -33,6 +33,7 @@ This code is publicly released and is restricted by its project license
     const backlogPageLimit = new RateLimiter(1, 90000);
     const postPageLimit = new RateLimiter(1, 5000);
     const postImageLimit = new RateLimiter(1, 500);
+    const kemonoJSONLimit = new RateLimiter(1, 500);
     const minimist = require("minimist");
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
@@ -182,31 +183,33 @@ This code is publicly released and is restricted by its project license
     }
     async function getKemonoJSON(url) {
         return new Promise(ok => {
-            request.get({
-                url: kemonoAPI + url,
-                headers: {
-                    'accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Sequenzia/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                },
-            }, function (err, res, body) {
-                if (err) {
-                    console.error(err);
-                    ok(null);
-                } else {
-                    const data = body.toString();
-                    if (data.startsWith("{") || data.startsWith("[")) {
-                        try {
-                            const json = JSON.parse(data);
-                            ok(json);
-                        } catch (e) {
-                            console.error(e);
+            kemonoJSONLimit.removeTokens(1, async function () {
+                request.get({
+                    url: kemonoAPI + url,
+                    headers: {
+                        'accept': 'application/json',
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Sequenzia/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                    },
+                }, function (err, res, body) {
+                    if (err) {
+                        console.error(err);
+                        ok(null);
+                    } else {
+                        const data = body.toString();
+                        if (data.startsWith("{") || data.startsWith("[")) {
+                            try {
+                                const json = JSON.parse(data);
+                                ok(json);
+                            } catch (e) {
+                                console.error(e);
+                                ok(null);
+                            }
+                        } else {
                             ok(null);
                         }
-                    } else {
-                        ok(null);
                     }
-                }
-            })
+                })
+            });
         })
     }
     async function getKemonoPosts(url, history) {
@@ -643,6 +646,7 @@ This code is publicly released and is restricted by its project license
     async function getKemonoGallery(source, artist, destionation) {
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${kemonoAPI}${source}/user/${artist}%'`)
+            console.log(history);
             if (!history.error) {
                 const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
                 if (userProfile && userProfile.name) {
@@ -694,13 +698,13 @@ This code is publicly released and is restricted by its project license
                                             }
                                         });
                                     }));
-                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
                                 } catch (err) {
                                     Logger.printLine('KemonoParty', `Failed to pull the article - ${err.message}`, 'error', err);
                                     console.log(err);
                                 }
                                 counter++;
                             }
+                            await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
                         }))
                     } else if (userFeed && userFeed.length === 0) {
                         Logger.printLine("KemonoParty", `Failed to return any posts for "${artist}" via ${source}`, "warn")
