@@ -37,7 +37,7 @@ This code is publicly released and is restricted by its project license
     const minimist = require("minimist");
     const { CookieJar } = require('tough-cookie');
     const { ddosGuardBypass } = require('axios-ddos-guard-bypass');
-    const { axios } = require('axios');
+    const axios = require('axios');
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
 
