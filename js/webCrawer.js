@@ -238,10 +238,10 @@ This code is publicly released and is restricted by its project license
                     }
                 }).filter(f => history.filter(e => e.url === f.url).length === 0);
                 posts.push(...results);
-                if (!results.length < 50) {
+                /*if (!results.length < 50) {
                     Logger.printLine("KemonoPartyJSON", `Returned ${results.length} items (End of Pages)`, "debug")
                     break;
-                }
+                }*/
                 i++
             } catch (err) {
                 Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
@@ -701,7 +701,7 @@ This code is publicly released and is restricted by its project license
                             await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
                         }))
                     } else if (userFeed && userFeed.length === 0) {
-                        Logger.printLine("KemonoParty", `Failed to return any posts for "${artist}" via ${source}`, "warn")
+                        //Logger.printLine("KemonoParty", `Failed to return any posts for "${artist}" via ${source}`, "warn")
                     } else {
                         Logger.printLine("KemonoParty", `Failed to get "${artist}" via ${source}, please manually correct this!`, "warn")
                     }
