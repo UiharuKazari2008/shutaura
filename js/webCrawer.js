@@ -117,7 +117,7 @@ This code is publicly released and is restricted by its project license
             // {"channel": "886085760841834516"}
             const _sankakucomplex = systemparams_sql.filter(e => e.param_key === 'webparser.sankakucomplex');
             if (_sankakucomplex.length > 0 && _sankakucomplex[0].param_data) {
-                if (_sankakucomplex[0].param_data.channel)
+                if (_sankakucomplex[0].param_data.pages)
                     systemglobal.SankakuComplex_Pages = _sankakucomplex[0].param_data.pages;
             }
             // {"pages": [{"url": "https://www.sankakucomplex.com/tag/cosplay/", "channel": "806544860311846933"}]}
@@ -605,7 +605,7 @@ This code is publicly released and is restricted by its project license
             episodes: posts
         };
     }
-    async function getSankakuGallery(galleryURL, destionation) {
+    async function getSankakuGallery(galleryURL, destionation, notify) {
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`);
             if (!history.error) {
@@ -632,9 +632,31 @@ This code is publicly released and is restricted by its project license
                                         }
                                     })
                                 if (images.length > 0) {
+                                    if (notify) {
+                                        mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
+                                            fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                                            messageType: 'sfileext',
+                                            messageReturn: false,
+                                            messageChannelID: notify,
+                                            messageText: '',
+                                            messageObject: {
+                                                "type": "image",
+                                                "title": `📨 ${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}`,
+                                                "description": (thisArticle.description.length > 0) ? thisArticle.description : undefined,
+                                                "url": `${systemglobal.base_url}juneOS#/gallery?channel=${destionation}&search=${encodeURIComponent("text:sankakucomplex")}&review_mode=true`,
+                                                "color": 16741917,
+                                                "timestamp": moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss'),
+                                                "image": {
+                                                    "url": images[0]
+                                                }
+                                            },
+                                            addButtons: ["RemoveFile", "Download"]
+                                        })
+                                    }
                                     await Promise.all(images.map(async (image) => {
                                         let title = `${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}\n` + '`' + thisArticle.link + '`'
                                         let MessageParameters = {
+                                            fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
                                             messageChannelID: destionation,
                                             messageText: title,
                                             itemFileName: image.split('/').pop(),
@@ -944,9 +966,9 @@ This code is publicly released and is restricted by its project license
     if (systemglobal.SankakuComplex_Pages && systemglobal.SankakuComplex_Interval) {
         if (systemglobal.SankakuComplex_Pages.length > 0) {
             systemglobal.SankakuComplex_Pages.filter(e => e.url.includes("sankakucomplex.com/") && e.channel ).forEach((e,i) => {
-                getSankakuGallery(e.url, e.channel);
+                getSankakuGallery(e.url, e.channel, e.notify);
                 Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
-                    await getSankakuGallery(e.url, e.channel);
+                    await getSankakuGallery(e.url, e.channel, e.notify);
                 }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
                 Logger.printLine('SankakuGallery', `SankakuComplex Enabled: ${e.url}`, 'info');
             });
