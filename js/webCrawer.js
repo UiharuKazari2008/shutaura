@@ -649,8 +649,8 @@ This code is publicly released and is restricted by its project license
                     const userFeed = await getKemonoPosts(`${source}/user/${artist}`, history.rows || []);
                     if (userFeed && userFeed.length > 0) {
                         let counter = 0
-                        console.log(userFeed);
                         await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
+                            console.log(thisArticle);
                             if (thisArticle.attachments && thisArticle.attachments > 0) {
                                 let backlog = false;
                                 if (counter > 3) {
