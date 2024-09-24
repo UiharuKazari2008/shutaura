@@ -33,7 +33,7 @@ This code is publicly released and is restricted by its project license
     const backlogPageLimit = new RateLimiter(1, 90000);
     const postPageLimit = new RateLimiter(1, 5000);
     const postImageLimit = new RateLimiter(1, 500);
-    const kemonoJSONLimit = new RateLimiter(1, 500);
+    const kemonoJSONLimit = new RateLimiter(1, 2000);
     const minimist = require("minimist");
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
