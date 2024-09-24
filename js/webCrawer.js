@@ -584,9 +584,9 @@ This code is publicly released and is restricted by its project license
                         episodes: undefined
                     }
                 }
-                const results = _data.episodes.filter(f => history.filter(e => e.url === f.link).length === 0);
+                const results = _data.episodes.filter(f => history.rows.filter(e => e.url === f.link).length === 0);
                 posts.push(...results);
-                if (i > 2 && (results.length === 0 || results.length < 24)) {
+                if (i > 2 && (results.length === 0 || results.length < 24 || i > 200)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
@@ -613,7 +613,7 @@ This code is publicly released and is restricted by its project license
                 if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
                     let counter = 0
                     await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
-                        if (thisArticle.link && thisArticleIndex <= 1000 && history.rows.filter(e => e.url === thisArticle.link).length === 0) {
+                        if (thisArticle.link) {
                             let backlog = false;
                             if (counter > 3) {
                                 backlog = true
