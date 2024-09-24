@@ -264,8 +264,8 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} results for ${url}`, "info");
             return firstResults;
         } else {
-            Logger.printLine("KemonoPartyJSON", `Returned no results for ${url}, Canceled`, "error");
-            return [];}
+            return [];
+        }
     }
     function resizeImage(fileBuffer, callback) {
         // Get Image Dimentions
