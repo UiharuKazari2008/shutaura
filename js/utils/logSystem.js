@@ -90,12 +90,18 @@ module.exports = function (facility, options) {
             if (remoteLogging1) { logger1.error(logString, logObject) }
             if (remoteLogging2) { logger2.error(logString, logObject) }
             console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgRed)
-            console.error(logObject)
+            if (object)
+                console.error(object)
+            if (object2)
+                console.error(object2)
         } else if (level === "critical" || level === "crit") {
             if (remoteLogging1) { logger1.critical(logString, logObject) }
             if (remoteLogging2) { logger2.critical(logString, logObject) }
             console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.bgMagenta)
-            console.error(logObject)
+            if (object)
+                console.error(object)
+            if (object2)
+                console.error(object2)
         } else if (level === "alert") {
             if (remoteLogging1) { logger1.alert(logString, logObject) }
             if (remoteLogging2) { logger2.alert(logString, logObject) }
@@ -105,7 +111,10 @@ module.exports = function (facility, options) {
             if (remoteLogging1) { logger1.emergency(logString, logObject) }
             if (remoteLogging2) { logger2.emergency(logString, logObject) }
             console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.bgMagenta)
-            console.error(logObject)
+            if (object)
+                console.error(object)
+            if (object2)
+                console.error(object2)
             sleep(250).then(() => {
                 process.exit(4);
             })

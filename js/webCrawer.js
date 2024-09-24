@@ -13,10 +13,6 @@ Copyright 2020
 This code is publicly released and is restricted by its project license
 ====================================================================================== */
 
-const systemglobal = require("../config.json");
-const got = require("got");
-const cheerio = require("cheerio");
-const fs = require("fs");
 (async () => {
     let systemglobal = require('../config.json');
     if (process.env.SYSTEM_NAME && process.env.SYSTEM_NAME.trim().length > 0)
@@ -30,7 +26,7 @@ const fs = require("fs");
     const sharp = require('sharp');
     const sizeOf = require('image-size');
     const moment = require('moment');
-    const podcastFeedParser = require("podcast-feed-parser")
+    const podcastFeedParser = require("podcast-feed-parser");
     const RateLimiter = require('limiter').RateLimiter;
     const blogPageLimit = new RateLimiter(1, 90000);
     const blogItemLimit = new RateLimiter(1, 3000);
@@ -45,6 +41,8 @@ const fs = require("fs");
     let pullDeepMFCPage = 0;
     let args = minimist(process.argv.slice(2));
     let Timers = new Map();
+    const kemonoAPI = "https://kemono.su/api/v1/";
+    const kemonoCDN = "https://n3.kemono.su/data";
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -97,8 +95,10 @@ const fs = require("fs");
                     systemglobal.MPZero_Interval = parseInt(_intervals[0].param_data.mpzero.toString()) * 3600000
                 if (_intervals[0].param_data.sankakucomplex)
                     systemglobal.SankakuComplex_Interval = parseInt(_intervals[0].param_data.sankakucomplex.toString()) * 3600000
+                if (_intervals[0].param_data.kemonoparty)
+                    systemglobal.KemonoParty_Interval = parseInt(_intervals[0].param_data.kemonoparty.toString()) * 3600000
             }
-            // {"mpzero": 28800000, "mixcloud": 28800000, "sankakucomplex": 28800000, "myfigurecollection": 3600000}
+            // {"mpzero": 28800000, "mixcloud": 28800000, "sankakucomplex": 28800000, "myfigurecollection": 3600000, "kemonoparty": 3600000 }
             const _myfigurecollection = systemparams_sql.filter(e => e.param_key === 'webparser.myfigurecollection');
             if (_myfigurecollection.length > 0 && _myfigurecollection[0].param_data) {
                 if (_myfigurecollection[0].param_data.channel)
@@ -111,6 +111,12 @@ const fs = require("fs");
                     systemglobal.SankakuComplex_Pages = _sankakucomplex[0].param_data.pages;
             }
             // {"pages": [{"url": "https://www.sankakucomplex.com/tag/cosplay/", "channel": "806544860311846933"}]}
+            const _kemonoparty = systemparams_sql.filter(e => e.param_key === 'webparser.kemonoparty');
+            if (_kemonoparty.length > 0 && _kemonoparty[0].param_data) {
+                if (_kemonoparty[0]._kemonoparty.channels)
+                    systemglobal.KemonoParty_Channels = _kemonoparty[0].param_data.channels;
+            }
+            // {"channels": [{"source": "patreon", "artist": "755183",  "channel": "806544860311846933"}]}
             const _mpzerocos = systemparams_sql.filter(e => e.param_key === 'webparser.mpzero');
             if (_mpzerocos.length > 0 && _mpzerocos[0].param_data) {
                 if (_mpzerocos[0].param_data.channel)
@@ -174,6 +180,76 @@ const fs = require("fs");
             }
         })
     }
+    async function getKemonoJSON(url) {
+        return new Promise(ok => {
+            request.get({
+                url: kemonoAPI + url,
+                headers: {
+                    'accept': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Sequenzia/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                },
+            }, function (err, res, body) {
+                if (err) {
+                    console.error(err);
+                    ok(null);
+                } else {
+                    const data = body.toString();
+                    if (data.startsWith("{") || data.startsWith("[")) {
+                        try {
+                            const json = JSON.parse(data);
+                            ok(json);
+                        } catch (e) {
+                            console.error(e);
+                            ok(null);
+                        }
+                    } else {
+                        ok(null);
+                    }
+                }
+            })
+        })
+    }
+    async function getKemonoPosts(url, history) {
+        let posts = [];
+        let _data = await getKemonoJSON(url);
+        let firstResults = _data.map(e => {
+            return {
+                ...e,
+                url: `${kemonoAPI}${url}/post/${e.id}`
+            }
+        }).filter(f => history.filter(e => e.url === f.url).length === 0)
+        if (firstResults && firstResults.length >= 50) {
+            posts.push(...firstResults);
+            let i = 1;
+            while (true) {
+                try {
+                    const _data = await getKemonoJSON(url + `?o=${i * 50}`);
+                    const results = _data.map(e => {
+                        return {
+                            ...e,
+                            url: `${kemonoAPI}${url}/post/${e.id}`
+                        }
+                    }).filter(f => history.filter(e => e.url === f.url).length === 0);
+                    posts.push(...results);
+                    if (!results.length < 50) {
+                        Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} items (End of Pages)`, "debug")
+                        break;
+                    }
+                    i++
+                } catch (err) {
+                    Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
+                    Logger.printLine("KemonoPartyJSON", `Returned ${posts.length} items (Caught err)`, "debug")
+                    break;
+                }
+            }
+            return posts;
+        } else if (firstResults && firstResults.length > 0) {
+            Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} results for ${url}`, "info");
+            return firstResults;
+        } else {
+            Logger.printLine("KemonoPartyJSON", `Returned no results for ${url}, Canceled`, "error");
+            return [];}
+    }
     function resizeImage(fileBuffer, callback) {
         // Get Image Dimentions
         const dimensions = sizeOf(fileBuffer);
@@ -194,6 +270,15 @@ const fs = require("fs");
             .toBuffer({resolveWithObject: true})
             .then(({data, info}) => { callback(data.toString('base64')) })
             .catch((err) => { callback(false) });
+    }
+    function stripHtml(input) {
+        // Replace all <br> tags with newline characters
+        let text = input.replace(/<br\s*\/?>/gi, '\n');
+
+        // Remove all other HTML tags
+        text = text.replace(/<[^>]*>/g, '');
+
+        return text;
     }
 
     function sendImagetoDiscord(post, backlog, passed) {
@@ -315,7 +400,6 @@ const fs = require("fs");
         }
         mqClient.sendData(sendTo, MessageParameters, cb)
     }
-
 
     async function pullMPzero(pages, uploadChannelID, backlog, ondemand) {
         const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%mpzerocos%'`)
@@ -490,7 +574,7 @@ const fs = require("fs");
                 let counter = 0
                 const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`)
                 await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
-                    if (thisArticle.link && thisArticleIndex <= 1000 && !history.error && history.filter(e => e.url === thisArticle.link).length === 0) {
+                    if (thisArticle.link && thisArticleIndex <= 1000 && !history.error && history.rows.filter(e => e.url === thisArticle.link).length === 0) {
                         let backlog = false;
                         if (counter > 3) {
                             backlog = true
@@ -554,6 +638,82 @@ const fs = require("fs");
             }
         } catch (err) {
             Logger.printLine("SankakuGallery", `Failed to fetch gallery "${galleryURL}"`, "error", err)
+        }
+    }
+    async function getKemonoGallery(source, artist, destionation) {
+        try {
+            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${kemonoAPI}${source}/user/${artist}%'`)
+            if (!history.error) {
+                const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
+                if (userProfile && userProfile.name) {
+                    const userFeed = await getKemonoPosts(`${source}/user/${artist}`, history.rows || []);
+                    if (userFeed && userFeed.length > 0) {
+                        let counter = 0
+                        await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
+                            if (thisArticle.attachments && thisArticle.attachments > 0) {
+                                let backlog = false;
+                                if (counter > 3) {
+                                    backlog = true
+                                    Logger.printLine("KemonoParty", `New Post from "${userProfile.name}" - "${thisArticle.title} (BACKLOGGED)"`, "info", thisArticle)
+                                } else {
+                                    Logger.printLine("KemonoParty", `New Post from "${userProfile.name}" - "${thisArticle.title}"`, "info", thisArticle)
+                                }
+                                try {
+                                    await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
+                                        let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
+                                        if (thisArticle.content) {
+                                            title += stripHtml(thisArticle.content);
+                                        }
+                                        if (thisArticle.content > 0) {
+                                            let text = stripHtml(thisArticle.content);
+                                            if ((title.length + text.length) > 2000) {
+                                                const maxLinksLength = 2000 - text.length - (thisArticle.url.length + 4 + 6);
+                                                text = text.slice(0, maxLinksLength) + " (...)";
+                                            }
+                                            title += text + '\n';
+                                        }
+                                        title += thisArticle.url;
+                                        let MessageParameters = {
+                                            messageChannelID: destionation,
+                                            messageText: title,
+                                            itemFileName: image.name,
+                                            itemFileURL: kemonoCDN + image.path,
+                                            itemReferral: thisArticle.url,
+                                            itemDateTime: thisArticle.published || thisArticle.added,
+                                            backlogRequest: backlog
+                                        }
+                                        let sendTo = systemglobal.FileWorker_In
+                                        if (backlog) {
+                                            sendTo += '.backlog'
+                                        }
+
+                                        mqClient.sendData(sendTo, MessageParameters, (ok) => {
+                                            if (!ok) {
+                                                mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
+                                            }
+                                        });
+                                    }));
+                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
+                                } catch (err) {
+                                    Logger.printLine('KemonoParty', `Failed to pull the article - ${err.message}`, 'error', err);
+                                    console.log(err);
+                                }
+                                counter++;
+                            }
+                        }))
+                    } else if (userFeed && userFeed.length === 0) {
+                        Logger.printLine("KemonoParty", `Failed to return any posts for "${artist}" via ${source}`, "warn")
+                    } else {
+                        Logger.printLine("KemonoParty", `Failed to get "${artist}" via ${source}, please manually correct this!`, "warn")
+                    }
+                } else {
+                    Logger.printLine("KemonoParty", `Failed to get history table for "${artist}" via ${source}, Update Cancelled!`, "error")
+                }
+            } else {
+                Logger.printLine("KemonoParty", `Failed to get user profile for "${artist}" via ${source}, Update Cancelled!`, "error")
+            }
+        } catch (err) {
+            Logger.printLine("KemonoParty", `Failed to fetch "${artist}" via ${source}: ${err.message}`, "error", err)
         }
     }
     async function getMixcloudPodcasts() {
@@ -754,5 +914,21 @@ const fs = require("fs");
         } else {
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
         }
+
+    }
+    // KemonoParty
+    if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
+        if (systemglobal.KemonoParty_Channels.length > 0) {
+            systemglobal.KemonoParty_Channels.filter(e => e.source && e.artist && e.channel).forEach((e,i) => {
+                getKemonoGallery(e.source, e.artist, e.channel);
+                Timers.set(`KMP${e.source}${e.artist}`, setInterval(async() => {
+                    await getKemonoGallery(e.source, e.artist, e.channel);
+                }, parseInt(systemglobal.KemonoParty_Interval.toString())));
+                Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.url}`, 'info');
+            });
+        } else {
+            Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
+        }
+
     }
 })()
