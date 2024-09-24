@@ -113,7 +113,7 @@ This code is publicly released and is restricted by its project license
             // {"pages": [{"url": "https://www.sankakucomplex.com/tag/cosplay/", "channel": "806544860311846933"}]}
             const _kemonoparty = systemparams_sql.filter(e => e.param_key === 'webparser.kemonoparty');
             if (_kemonoparty.length > 0 && _kemonoparty[0].param_data) {
-                if (_kemonoparty[0]._kemonoparty.channels)
+                if (_kemonoparty[0].param_data.channels)
                     systemglobal.KemonoParty_Channels = _kemonoparty[0].param_data.channels;
             }
             // {"channels": [{"source": "patreon", "artist": "755183",  "channel": "806544860311846933"}]}
