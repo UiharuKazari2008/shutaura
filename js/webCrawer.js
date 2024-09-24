@@ -188,7 +188,7 @@ This code is publicly released and is restricted by its project license
                     url: kemonoAPI + url,
                     headers: {
                         'accept': 'application/json',
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Sequenzia/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                        'User-Agent': 'Sequenzia/24.0'
                     },
                 }, function (err, res, body) {
                     if (err) {
