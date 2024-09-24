@@ -245,7 +245,8 @@ This code is publicly released and is restricted by its project license
                 i++
             } catch (err) {
                 Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
-                Logger.printLine("KemonoPartyJSON", `Returned ${posts.length} items (Caught err)`, "debug")
+                Logger.printLine("KemonoPartyJSON", `Returned ${posts.length} items (Caught err)`, "debug");
+                console.error(err);
                 break;
             }
         }
