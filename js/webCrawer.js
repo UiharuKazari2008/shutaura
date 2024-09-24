@@ -677,7 +677,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 try {
                                     await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
-                                        let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments.length > 1) ? " (" + imageIndex + 1 + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
+                                        let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments.length > 1) ? " (" + (imageIndex + 1) + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
                                         if (thisArticle.content > 0) {
                                             let text = stripHtml(thisArticle.content);
                                             if ((title.length + text.length) > 2000) {
