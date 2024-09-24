@@ -201,16 +201,11 @@ This code is publicly released and is restricted by its project license
                             'Referer': 'https://kemono.su/' + url
                         },
                     })
-                    if (err) {
-                        console.error(err);
-                        ok(null);
+                    if (response.headers['content-type'].includes('application/json')) {
+                        ok(response.data);
                     } else {
-                        if (response.headers['content-type'].includes('application/json')) {
-                            ok(response.data);
-                        } else {
-                            console.error(`Unexpected content type: ${response.headers['content-type']}`);
-                            ok(null);
-                        }
+                        console.error(`Unexpected content type: ${response.headers['content-type']}`);
+                        ok(null);
                     }
                 } catch (error) {
                     Logger.printLine("KemonoPartyJSON", `Failed to call API ${url}: Catched Error`, "error");
@@ -665,7 +660,6 @@ This code is publicly released and is restricted by its project license
     async function getKemonoGallery(source, artist, destionation) {
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${kemonoAPI}${source}/user/${artist}%'`)
-            console.log(history);
             if (!history.error) {
                 const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
                 if (userProfile && userProfile.name) {
