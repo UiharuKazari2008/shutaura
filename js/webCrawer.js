@@ -239,7 +239,7 @@ This code is publicly released and is restricted by its project license
                 }).filter(f => history.filter(e => e.url === f.url).length === 0);
                 posts.push(...results);
                 if (!results.length < 50) {
-                    Logger.printLine("KemonoPartyJSON", `Returned ${firstResults.length} items (End of Pages)`, "debug")
+                    Logger.printLine("KemonoPartyJSON", `Returned ${results.length} items (End of Pages)`, "debug")
                     break;
                 }
                 i++
