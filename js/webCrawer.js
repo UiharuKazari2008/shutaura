@@ -696,8 +696,7 @@ This code is publicly released and is restricted by its project license
                                             itemDateTime: thisArticle.published || thisArticle.added,
                                             backlogRequest: backlog
                                         }
-                                        console.log(title)
-                                        /*let sendTo = systemglobal.FileWorker_In
+                                        let sendTo = systemglobal.FileWorker_In
                                         if (backlog) {
                                             sendTo += '.backlog'
                                         }
@@ -706,7 +705,7 @@ This code is publicly released and is restricted by its project license
                                             if (!ok) {
                                                 mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
                                             }
-                                        });*/
+                                        });
                                     }));
                                 } catch (err) {
                                     Logger.printLine('KemonoParty', `Failed to pull the article - ${err.message}`, 'error', err);
@@ -714,7 +713,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 counter++;
                             }
-                            //await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
+                            await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
                         }))
                     } else if (userFeed && userFeed.length === 0) {
                         Logger.printLine("KemonoParty", `Failed to return any posts for "${artist}" via ${source}`, "warn")
