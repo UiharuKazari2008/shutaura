@@ -647,9 +647,9 @@ This code is publicly released and is restricted by its project license
                 const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
                 if (userProfile && userProfile.name) {
                     const userFeed = await getKemonoPosts(`${source}/user/${artist}`, history.rows || []);
-                    console.log(userFeed);
                     if (userFeed && userFeed.length > 0) {
                         let counter = 0
+                        console.log(userFeed);
                         await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
                             if (thisArticle.attachments && thisArticle.attachments > 0) {
                                 let backlog = false;
