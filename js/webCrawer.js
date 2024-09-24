@@ -93,7 +93,11 @@ This code is publicly released and is restricted by its project license
             } else if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
                 systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
             }
-
+            const _seq_config = systemparams_sql.filter(e => e.param_key === 'seq.common');
+            if (_seq_config.length > 0 && _seq_config[0].param_data) {
+                if (_seq_config[0].param_data.base_url)
+                    systemglobal.base_url = _seq_config[0].param_data.base_url;
+            }
 
             const _intervals = systemparams_sql.filter(e => e.param_key === 'webparser.timers');
             if (_intervals.length > 0 && _intervals[0].param_data) {
