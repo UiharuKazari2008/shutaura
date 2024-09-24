@@ -31,6 +31,7 @@ This code is publicly released and is restricted by its project license
     const blogPageLimit = new RateLimiter(1, 90000);
     const blogItemLimit = new RateLimiter(1, 3000);
     const backlogPageLimit = new RateLimiter(1, 90000);
+    const skPageLimit = new RateLimiter(1, 5000);
     const postPageLimit = new RateLimiter(1, 5000);
     const postImageLimit = new RateLimiter(1, 500);
     const kemonoJSONLimit = new RateLimiter(1, 2000);
@@ -591,7 +592,7 @@ This code is publicly released and is restricted by its project license
                 const results = _data.episodes.filter(f => history.rows.filter(e => e.url.split("sankakucomplex.com").pop() === f.link.split("sankakucomplex.com").pop()).length === 0);
                 console.log(results.map(e => e.title + " " + e.pubDate))
                 posts.push(...results);
-                if (i > 2 && (results.length === 0 || results.length < 24 || i > 300)) {
+                if (i > 10 && (results.length === 0 || results.length < 24 || i > 300)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
@@ -618,84 +619,87 @@ This code is publicly released and is restricted by its project license
                 if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
                     let counter = 0
                     await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
-                        if (thisArticle.link) {
-                            let backlog = false;
-                            if (counter > 3) {
-                                backlog = true
-                                Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title} (BACKLOGGED)"`, "info", thisArticle)
-                            } else {
-                                Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title}"`, "info", thisArticle)
-                            }
-                            try {
-                                const pageResults = await got(thisArticle.link);
-                                const $ = await cheerio.load(pageResults.body); // Parse Response
-                                let images = []
-                                await $('.entry-content > p > a:contains(wp-content)')
-                                    .each((thisPostIndex, thisPost) => {
-                                        if (images.indexOf(thisPost.attribs.href) === -1) {
-                                            images.push(thisPost.attribs.href)
-                                        }
-                                    })
-                                if (images.length > 0) {
-                                    if (notify && counter < 10) {
-                                        mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
-                                            fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
-                                            messageType: 'sfileext',
-                                            messageReturn: false,
-                                            messageChannelID: notify,
-                                            messageText: '',
-                                            messageObject: {
-                                                "type": "image",
-                                                "title": `📨 ${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}`,
-                                                "description": (thisArticle.description.length > 0) ? thisArticle.description : undefined,
-                                                "url": `${systemglobal.base_url}juneOS#/gallery?channel=${destionation}&search=${encodeURIComponent("text:sankakucomplex")}&review_mode=true`,
-                                                "color": 16741917,
-                                                "timestamp": moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss'),
-                                                "image": {
-                                                    "url": images[0]
-                                                }
-                                            },
-                                            addButtons: ["RemoveFile", "Download"]
-                                        })
-                                    }
-                                    await Promise.all(images.map(async (image) => {
-                                        let title = `${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}\n` + '`' + thisArticle.link + '`'
-                                        let MessageParameters = {
-                                            fromClient : `return.${facilityName}.${systemglobal.SystemName}`,
-                                            messageChannelID: destionation,
-                                            messageText: title,
-                                            itemFileName: image.split('/').pop(),
-                                            itemFileURL: image,
-                                            itemReferral: thisArticle.link,
-                                            backlogRequest: backlog
-                                        }
-                                        let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
-                                        if (episodeDate.includes('Invalid')) {
-                                            console.error('Invalid episode date returned');
-                                        } else {
-                                            MessageParameters.itemDateTime = episodeDate;
-                                        }
-                                        let sendTo = systemglobal.FileWorker_In
-                                        if (backlog) {
-                                            sendTo += '.backlog'
-                                        }
-
-                                        mqClient.sendData(sendTo, MessageParameters, (ok) => {
-                                            if (!ok) {
-                                                mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", err, thisArticle);
-                                            }
-                                        });
-                                    }));
-                                    await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.link]);
+                        skPageLimit.removeTokens(1, async function () {
+                            if (thisArticle.link) {
+                                let backlog = false;
+                                if (counter > 3) {
+                                    backlog = true
+                                    Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title} (BACKLOGGED)"`, "info", thisArticle)
                                 } else {
-                                    Logger.printLine('SankakuGallery', `No Images found for "${thisArticle.title}"`, 'error');
+                                    Logger.printLine("SankakuGallery", `New Article from "${galleryFeed.meta.title}" - "${thisArticle.title}"`, "info", thisArticle)
                                 }
-                            } catch (err) {
-                                Logger.printLine('SankakuGallery', `Failed to pull the article - ${err.message}`, 'error', err);
-                                console.log(err);
+                                try {
+                                    const pageResults = await got(thisArticle.link);
+                                    const $ = await cheerio.load(pageResults.body); // Parse Response
+                                    let images = []
+                                    await $('.entry-content > p > a:contains(wp-content)')
+                                        .each((thisPostIndex, thisPost) => {
+                                            if (images.indexOf(thisPost.attribs.href) === -1) {
+                                                images.push(thisPost.attribs.href)
+                                            }
+                                        })
+                                    if (images.length > 0) {
+                                        if (notify && counter < 10) {
+                                            mqClient.publishData(`${systemglobal.Discord_Out}.priority`, {
+                                                fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                                                messageType: 'sfileext',
+                                                messageReturn: false,
+                                                messageChannelID: notify,
+                                                messageText: '',
+                                                messageObject: {
+                                                    "type": "image",
+                                                    "title": `📨 ${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}`,
+                                                    "description": (thisArticle.description.length > 0) ? thisArticle.description : undefined,
+                                                    "url": `${systemglobal.base_url}juneOS#/gallery?channel=${destionation}&search=${encodeURIComponent("text:sankakucomplex")}&review_mode=true`,
+                                                    "color": 16741917,
+                                                    "timestamp": moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss'),
+                                                    "image": {
+                                                        "url": images[0]
+                                                    }
+                                                },
+                                                addButtons: ["RemoveFile", "Download"]
+                                            })
+                                        }
+                                        await Promise.all(images.map(async (image) => {
+                                            let title = `${galleryFeed.meta.title.split(' - ')[0]} - ${thisArticle.title}\n` + '`' + thisArticle.link + '`'
+                                            let MessageParameters = {
+                                                fromClient: `return.${facilityName}.${systemglobal.SystemName}`,
+                                                messageChannelID: destionation,
+                                                messageText: title,
+                                                itemFileName: image.split('/').pop(),
+                                                itemFileURL: image,
+                                                itemReferral: thisArticle.link,
+                                                backlogRequest: backlog
+                                            }
+                                            let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
+                                            if (episodeDate.includes('Invalid')) {
+                                                console.error('Invalid episode date returned');
+                                            } else {
+                                                MessageParameters.itemDateTime = episodeDate;
+                                            }
+                                            let sendTo = systemglobal.FileWorker_In
+                                            if (backlog) {
+                                                sendTo += '.backlog'
+                                            }
+
+                                            mqClient.sendData(sendTo, MessageParameters, (ok) => {
+                                                if (!ok) {
+                                                    mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", err, thisArticle);
+                                                }
+                                            });
+                                        }));
+                                        await db.query(`INSERT IGNORE INTO web_visitedpages
+                                                        VALUES (?, NOW())`, [thisArticle.link]);
+                                    } else {
+                                        Logger.printLine('SankakuGallery', `No Images found for "${thisArticle.title}"`, 'error');
+                                    }
+                                } catch (err) {
+                                    Logger.printLine('SankakuGallery', `Failed to pull the article - ${err.message}`, 'error', err);
+                                    console.log(err);
+                                }
+                                counter++;
                             }
-                            counter++;
-                        }
+                        });
                     }))
                 } else if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title) {
                     Logger.printLine("SankakuGallery", `Failed to get the any articles for "${galleryFeed.meta.title}"`, "warn")
