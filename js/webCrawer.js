@@ -241,8 +241,9 @@ This code is publicly released and is restricted by its project license
                 if (results.length === 0 || (i > 2 && results.length < 50)) {
                     Logger.printLine("KemonoPartyJSON", `Returned ${results.length} items (End of Pages)`, "debug")
                     break;
+                } else {
+                    Logger.printLine("KemonoPartyJSON", `${url} => ${results.length} items (Page ${i})`, "debug")
                 }
-                Logger.printLine("KemonoPartyJSON", `${url} => ${results.length} items (Page ${i})`, "debug")
                 i++
             } catch (err) {
                 Logger.printLine("KemonoPartyJSON", "Error pulling more pages from KemonoParty", "warn", err)
