@@ -1830,6 +1830,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         await clearDeadFiles();
         reply({ answer : 'started' });
     });
+    tx2.action('scan', async (reply) => {
+        if (activeParseing) {
+            reply({ answer : 'System Busy' });
+        } else {
+            reply({ answer : 'Task Started' });
+            await findBackupItems();
+        }
+        activeParseing = false;
+    });
 
     discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
 })()
