@@ -42,7 +42,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     if (process.env.RABBITMQ_DEFAULT_PASS && process.env.RABBITMQ_DEFAULT_PASS.trim().length > 0)
         systemglobal.MQPassword = process.env.RABBITMQ_DEFAULT_PASS.trim()
 
-    Logger.printLine("Init", "Download I/O", "info");
+    Logger.printLine("Init", "Deep Cache Validator", "info");
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -325,6 +325,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             await validateStorage(systemglobal.CDN_Focus_Channels);
         await validateStorage();
         await sleep(5000);
+        process.exit(0);
     } else {
         Logger.printLine("Init", "Unable to start client, no directory setup!", "error")
     }

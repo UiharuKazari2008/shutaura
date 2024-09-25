@@ -31,11 +31,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const eris = require('eris');
     const path = require('path');
     const amqp = require('amqplib/callback_api');
-    const RateLimiter = require('limiter').RateLimiter;
-    const limiter1 = new RateLimiter(1, 250);
-    const limiter2 = new RateLimiter(1, 250);
     const request = require('request').defaults({ encoding: null });
-    const { spawn, exec } = require("child_process");
     const fsEx = require("fs-extra");
     const splitFile = require('split-file');
     const fs = require("fs");
@@ -44,9 +40,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const md5 = require("md5");
     const tx2 = require('tx2');
     let args = minimist(process.argv.slice(2));
+    const sizeOf = require('image-size');
     const remoteSize = require('remote-file-size');
     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-    const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','webp'];
+    const Discord_CDN_Accepted_Files = ['jpg','jpeg','jfif','png','gif', 'webp'];
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
@@ -599,7 +596,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
-        } else if (message.attachment_hash && message.attachment_name && (message.sizeH && message.sizeW && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1)) {
+        } else if (message.attachment_hash && message.attachment_name) {
             attachements['preview'] = {
                 src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
@@ -715,14 +712,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
                                             },
                                         }, async (err, res, body) => {
-                                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                            if (err || (res && res.statusCode && res.statusCode !== 200)) {
                                                 if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
                                                     Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
                                                     await db.query(`UPDATE discord_multipart_files
                                                                     SET valid = 0
                                                                     WHERE url = ?`, [u.url])
                                                 } else {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'} Size: ${(body) ? body.length : 0}`, "err", (err) ? err : undefined)
                                                 }
                                                 ok(false)
                                             } else {
@@ -812,7 +809,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 return false;
                             }
                         })
-                        if (data) {
+                        let validData = true;
+                        if (data && data.length > 1000) {
+                            if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
+                                try {
+                                    const dimensions = sizeOf(data);
+                                    if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
+                                        validData = false;
+                                } catch (e) {
+                                    console.error(`Image failed to pass image validation: ${e.message}`);
+                                    validData = false;
+                                }
+                            }
+                        } else {
+                            validData = false;
+                        }
+                        if (validData) {
                             fsEx.ensureDirSync(path.join(val.dest));
                             const write = await new Promise(ok => {
                                 fs.writeFile(path.join(val.dest, destName), data, async (err) => {
@@ -889,7 +901,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }
                                     })
                                 })
-                                if (dataTake2) {
+                                let validData2 = true;
+                                if (dataTake2 && dataTake2.length > 1000) {
+                                    if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
+                                        try {
+                                            const dimensions = sizeOf(dataTake2);
+                                            if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
+                                                validData2 = false;
+                                        } catch (e) {
+                                            console.error(`Image failed to pass image validation: ${e.message}`);
+                                            validData2 = false;
+                                        }
+                                    }
+                                } else {
+                                    validData2 = false;
+                                }
+                                if (validData2) {
                                     fsEx.ensureDirSync(path.join(val.dest));
                                     const write = await new Promise(ok => {
                                         fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
@@ -949,7 +976,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 }
                                             })
                                         })
-                                        if (full_data) {
+                                        let validData3 = true;
+                                        if (full_data && full_data.length > 1000) {
+                                            if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
+                                                try {
+                                                    const dimensions = sizeOf(full_data);
+                                                    if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
+                                                        validData3 = false;
+                                                } catch (e) {
+                                                    console.error(`Image failed to pass image validation: ${e.message}`);
+                                                    validData3 = false;
+                                                }
+                                            }
+                                        } else {
+                                            validData3 = false;
+                                        }
+                                        if (validData3) {
                                             let resizeParam = {
                                                 fit: sharp.fit.inside,
                                                 withoutEnlargement: true,
