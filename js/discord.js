@@ -312,6 +312,27 @@ This code is publicly released and is restricted by its project license
             }
             // Sequenzia Common Configuration
             // seq.common = { base_url: "https://seq.moe/" }
+            const _backup_config = systemparams_sql.filter(e => e.param_key === 'seq.cdn');
+            if (_backup_config.length > 0 && _backup_config[0].param_data) {
+                if (_backup_config[0].param_data.id)
+                    systemglobal.CDN_ID = _backup_config[0].param_data.id;
+                if (_backup_config[0].param_data.local_access)
+                    systemglobal.CDN_LocalURL = _backup_config[0].param_data.local_access;
+                if (_backup_config[0].param_data.remote_access)
+                    systemglobal.CDN_RemoteURL = _backup_config[0].param_data.remote_access;
+            }
+            const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'seq_cdn.ignore');
+            if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
+                if (_backup_ignore[0].param_data.channels)
+                    systemglobal.CDN_Ignore_Channels = _backup_ignore[0].param_data.channels;
+                if (_backup_ignore[0].param_data.servers)
+                    systemglobal.CDN_Ignore_Servers = _backup_ignore[0].param_data.servers;
+                if (_backup_ignore[0].param_data.master_channels)
+                    systemglobal.CDN_Ignore_Master_Channels = _backup_ignore[0].param_data.master_channels;
+                if (_backup_ignore[0].param_data.master_servers)
+                    systemglobal.CDN_Ignore_Master_Servers = _backup_ignore[0].param_data.master_servers;
+            }
+            // Sequenzia CDN
             const _accepted_img_cache = systemparams_sql.filter(e => e.param_key === 'cache.accepted_formats');
             if (_accepted_img_cache.length > 0 && _accepted_img_cache[0].param_data) {
                 if (_accepted_img_cache[0].param_data.images)
@@ -5641,46 +5662,27 @@ This code is publicly released and is restricted by its project license
                     })
                 }
 
-                console.log(`Getting Backup counts...`)
+                console.log(`Getting CDN counts...`)
                 // Backup and Sync System
-                _bc = await Promise.all((await db.query(`SELECT DISTINCT system_name FROM kanmi_backups ORDER BY system_name`)).rows.filter(e => !(systemglobal.Omitted_Backup_Hosts && systemglobal.Omitted_Backup_Hosts.indexOf(e.system_name) !== -1)).map(async (row) => {
-                    const configForHost = await db.query(`SELECT * FROM global_parameters WHERE (system_name = ? OR system_name IS NULL) ORDER BY system_name DESC`, [row.system_name])
-                    let partsDisabled = false;
-                    let cdsAccess = false;
-                    let backupInterval = 3600000;
+                _bc = await (async () => {
                     let ignoreQuery = [];
-                    if (configForHost.rows.length > 0) {
-                        const _backup_config = configForHost.rows.filter(e => e.param_key === 'backup');
-                        if (_backup_config.length > 0 && _backup_config[0].param_data) {
-                            if (_backup_config[0].param_data.backup_parts)
-                                partsDisabled = !(_backup_config[0].param_data.backup_parts);
-                            if (_backup_config[0].param_data.interval_min)
-                                backupInterval = parseInt(_backup_config[0].param_data.interval_min.toString()) * 60000
-                            if (_backup_config[0].param_data.cache_base_path || _backup_config[0].param_data.pickup_base_path)
-                                cdsAccess = true;
-                        }
-                        const _backup_ignore = configForHost.rows.filter(e => e.param_key === 'backup.ignore');
-                        if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
-                            if (_backup_ignore[0].param_data.channels)
-                                ignoreQuery.push(..._backup_ignore[0].param_data.channels.map(e => `channel != '${e}'`))
-                            if (_backup_ignore[0].param_data.servers)
-                                ignoreQuery.push(..._backup_ignore[0].param_data.servers.map(e => `server != '${e}'`))
-                        }
-                    }
-
-
-                    const fileCounts = await db.query(`SELECT COUNT(x.eid) AS backup_needed FROM (SELECT * FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL)${(cdsAccess) ? ' OR (filecached IS NOT NULL AND filecached = 1)' : ''})${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM kanmi_backups WHERE system_name = ?) y ON (x.eid = y.eid) WHERE y.bid IS NULL`, [row.system_name]);
-                    let partCounts = {rows: []}
-                    if (!partsDisabled) {
-                        partCounts = await db.query(`SELECT COUNT(x.partmessageid) AS backup_needed FROM (SELECT kanmi_records.eid, kanmi_records.fileid, kanmi_records.source, discord_multipart_files.messageid AS partmessageid FROM discord_multipart_files, kanmi_records WHERE discord_multipart_files.fileid = kanmi_records.fileid AND discord_multipart_files.valid = 1 AND kanmi_records.source = 0${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) x LEFT OUTER JOIN (SELECT * FROM discord_multipart_backups WHERE system_name = ?) y ON (x.partmessageid = y.messageid) WHERE y.bid IS NULL`, [row.system_name]);
-                    }
+                    if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
+                        ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
+                    if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
+                        ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
+                    const q = `SELECT COUNT(x.eid) AS backup_needed
+                       FROM (SELECT rec.*, ext.data
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                                      LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                                LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                       WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))`;
+                    const backupItems = await db.query(q + " AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
+                    const skippedItems = await db.query(q + " AND x.id IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
                     return {
-                        hostname: row.system_name,
-                        files: (fileCounts.rows.length > 0) ? parseInt(fileCounts.rows[0].backup_needed.toString()) : 0,
-                        parts: (!partsDisabled) ? (fileCounts.rows.length > 0) ? parseInt(partCounts.rows[0].backup_needed.toString()) : 0 : 0,
-                        interval: backupInterval
-                    }
-                }))
+                        files: (backupItems.rows.length > 0) ? parseInt(backupItems.rows[0].backup_needed.toString()) : 0,
+                        skipped: (skippedItems.rows.length > 0) ? parseInt(skippedItems.rows[0].backup_needed.toString()) : 0
+                    };
+                })()
 
                 let extraText = [];
 
@@ -5727,7 +5729,7 @@ This code is publicly released and is restricted by its project license
                     return _bcP
                 }
 
-                const backupValues = statusData.filter(f => f.name.startsWith('syncstat_'))
+                const backupValues = statusData.filter(f => f.name.startsWith('cdn_sync_'))
                     .map((e, i, a) => {
                         const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
                         if (_bcF.length > 0) {
@@ -5794,37 +5796,44 @@ This code is publicly released and is restricted by its project license
                     }).filter(e => !(!e))
                 if (backupValues.length > 0) {
                     embed.fields.push({
-                        "name": "🗃 Backup",
+                        "name": "📔 CDN",
                         "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0, 1024),
                         "inline": true
                     })
                     embed.fields.push(...backupValues)
                 } else {
-                    const _bcF = _bc.filter(e => e.files >= 25 || e.parts >= 50)
+                    const _bcF = _bc.filter(e => e.files >= 100 || e.skipped >= 25)
                     if (_bcF.length > 0) {
-                        const length = statusData.filter(f => f.name.startsWith('syncstat_')).length
+                        const length = statusData.filter(f => f.name.startsWith('cdn_sync_')).length
                         _bt = [];
                         await _bcF.forEach((e, i) => {
                             if (e.files > 0) {
-                                _bt.push(`${getPrefix(i, length)}💾 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                                _bt.push(`📥 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
-                            if (e.parts > 0) {
-                                _bt.push(`${getPrefix(i, length)}🧩 ${e.parts.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                            if (e.skipped > 0) {
+                                _bt.push(`🚯 ${e.skipped.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                             }
-                            if (e.files >= 500 || e.parts >= 500) {
+                            if (e.files >= 1000) {
                                 systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" is degraded!`)
-                            } else if (e.files >= 100 || e.parts >= 250) {
+                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is out of sync!`)
+                            } else if (e.files >= 500) {
                                 systemWarning = true;
-                                bannerWarnings.push(`🗄 Sync System ${getPrefix(i, _bcF.length)}"${e.hostname}" may be degrading!`)
+                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is falling behind!`)
+                            }
+                            if (e.skipped >= 100) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is degraded!`)
+                            } else if (e.skipped >= 50) {
+                                systemWarning = true;
+                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} may be degrading!`)
                             }
                         })
                         _bt = _bt.join('\n')
                     } else {
-                        _bt = '✅ Complete'
+                        _bt = '✅ Live'
                     }
                     embed.fields.push({
-                        "name": "🗃 Backup",
+                        "name": "📔 CDN",
                         "value": _bt.substring(0, 1024),
                         "inline": true
                     })
