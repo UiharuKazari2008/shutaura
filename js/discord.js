@@ -5756,12 +5756,12 @@ This code is publicly released and is restricted by its project license
                     })
                     embed.fields.push(...backupValues)
                 } else {*/
-                    if (_bcF.files >= 100 || _bcF.skipped >= 25) {
+                    if (_bcF.files >= 100 || (_bcF.skipped >= 25 && !systemglobal.Ignore_CDN_Skipped_Count)) {
                         _bt = [];
                         if (_bcF.files > 0) {
                             _bt.push(`📥 ${_bcF.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                         }
-                        if (_bcF.skipped > 0) {
+                        if (_bcF.skipped > 0 && !systemglobal.Ignore_CDN_Skipped_Count) {
                             _bt.push(`🚯 ${_bcF.skipped.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
                         }
                         if (_bcF.files >= 1000) {
@@ -5771,10 +5771,10 @@ This code is publicly released and is restricted by its project license
                             systemWarning = true;
                             bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is falling behind!`)
                         }
-                        if (_bcF.skipped >= 100) {
+                        if (_bcF.skipped >= 100 && !systemglobal.Ignore_CDN_Skipped_Count) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is degraded!`)
-                        } else if (_bcF.skipped >= 50) {
+                        } else if (_bcF.skipped >= 50 && !systemglobal.Ignore_CDN_Skipped_Count) {
                             systemWarning = true;
                             bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} may be degrading!`)
                         }
