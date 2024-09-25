@@ -5551,7 +5551,7 @@ This code is publicly released and is restricted by its project license
                 })
             }
             let _bt = '❔ Unknown'
-            let _bc = null;
+            let _bcF = null;
 
             let embdedArray = [];
             if (enableListening) {
@@ -5664,7 +5664,7 @@ This code is publicly released and is restricted by its project license
 
                 console.log(`Getting CDN counts...`)
                 // Backup and Sync System
-                _bc = await (async () => {
+                _bcF = await (async () => {
                     let ignoreQuery = [];
                     if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
                         ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
@@ -5683,53 +5683,7 @@ This code is publicly released and is restricted by its project license
                         skipped: (skippedItems.rows.length > 0) ? parseInt(skippedItems.rows[0].backup_needed.toString()) : 0
                     };
                 })()
-
-                let extraText = [];
-
-                function getPrefix(index, length) {
-                    let _bcP = ''
-                    if (length > 1) {
-                        switch (index + 1) {
-                            case 1:
-                                _bcP += (length < 3) ? '🅰' : '1️⃣'
-                                break;
-                            case 2:
-                                _bcP += (length < 3) ? '🅱' : '2️⃣'
-                                break;
-                            case 3:
-                                _bcP += '3️⃣'
-                                break;
-                            case 4:
-                                _bcP += '4️⃣'
-                                break;
-                            case 5:
-                                _bcP += '5️⃣'
-                                break;
-                            case 6:
-                                _bcP += '6️⃣'
-                                break;
-                            case 7:
-                                _bcP += '7️⃣'
-                                break;
-                            case 8:
-                                _bcP += '8️⃣'
-                                break;
-                            case 9:
-                                _bcP += '9️⃣'
-                                break;
-                            case 10:
-                                _bcP += '🔟'
-                                break;
-                            default:
-                                _bcP += '*️⃣'
-                                break;
-                        }
-                        _bcP += ' '
-                    }
-                    return _bcP
-                }
-
-                const backupValues = statusData.filter(f => f.name.startsWith('cdn_sync_'))
+                /*const backupValues = statusData.filter(f => f.name.startsWith('cdn_sync_'))
                     .map((e, i, a) => {
                         const _bcF = _bc.filter(f => f.hostname.startsWith(e.name.split('_').pop()))
                         if (_bcF.length > 0) {
@@ -5793,15 +5747,15 @@ This code is publicly released and is restricted by its project license
                             }
                         }
                         return false
-                    }).filter(e => !(!e))
-                if (backupValues.length > 0) {
+                    }).filter(e => !(!e))*/
+                /*if (backupValues.length > 0) {
                     embed.fields.push({
                         "name": "📔 CDN",
                         "value": `🔄 ${backupValues.length} Active${(extraText.length) ? '\n' : ''}${extraText.join('\n')}`.substring(0, 1024),
                         "inline": true
                     })
                     embed.fields.push(...backupValues)
-                } else {
+                } else {*/
                     if (_bcF.files >= 100 || _bcF.skipped >= 25) {
                         _bt = [];
                         if (_bcF.files > 0) {
@@ -5833,7 +5787,7 @@ This code is publicly released and is restricted by its project license
                         "value": _bt.substring(0, 1024),
                         "inline": true
                     })
-                }
+                //}
             }
             // Active Tasks
             let _ioT = []
