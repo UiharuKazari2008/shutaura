@@ -5802,32 +5802,28 @@ This code is publicly released and is restricted by its project license
                     })
                     embed.fields.push(...backupValues)
                 } else {
-                    const _bcF = _bc.filter(e => e.files >= 100 || e.skipped >= 25)
-                    if (_bcF.length > 0) {
-                        const length = statusData.filter(f => f.name.startsWith('cdn_sync_')).length
+                    if (_bcF.files >= 100 || _bcF.skipped >= 25) {
                         _bt = [];
-                        await _bcF.forEach((e, i) => {
-                            if (e.files > 0) {
-                                _bt.push(`📥 ${e.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                            }
-                            if (e.skipped > 0) {
-                                _bt.push(`🚯 ${e.skipped.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
-                            }
-                            if (e.files >= 1000) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is out of sync!`)
-                            } else if (e.files >= 500) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is falling behind!`)
-                            }
-                            if (e.skipped >= 100) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is degraded!`)
-                            } else if (e.skipped >= 50) {
-                                systemWarning = true;
-                                bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} may be degrading!`)
-                            }
-                        })
+                        if (_bcF.files > 0) {
+                            _bt.push(`📥 ${_bcF.files.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        }
+                        if (_bcF.skipped > 0) {
+                            _bt.push(`🚯 ${_bcF.skipped.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")}`)
+                        }
+                        if (_bcF.files >= 1000) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is out of sync!`)
+                        } else if (_bcF.files >= 500) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is falling behind!`)
+                        }
+                        if (_bcF.skipped >= 100) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} is degraded!`)
+                        } else if (_bcF.skipped >= 50) {
+                            systemWarning = true;
+                            bannerWarnings.push(`🗄 CDN Server ${systemglobal.CDN_ID} may be degrading!`)
+                        }
                         _bt = _bt.join('\n')
                     } else {
                         _bt = '✅ Live'
