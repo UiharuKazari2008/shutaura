@@ -667,7 +667,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         try {
                                             pm = await discordClient.getMessage(u.channelid, u.messageid);
                                             if (pm && pm.attachments && pm.attachments.length > 0) {
-                                                (async () => {
+                                                await (async () => {
                                                     try {
                                                         const a = pm.attachments[0].url.split('?')[1];
                                                         let ex = null;
@@ -778,7 +778,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const data = await new Promise(ok => {
                             if (val.src && val.src.includes("ex=")) {
                                 const url = val.src;
-                                Logger.printLine("BackupFile", `Downloading Attachment ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
+                                Logger.printLine("BackupFile", `Downloading Attachment ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...\n${url}`, "debug");
                                 request.get({
                                     url,
                                     headers: {
