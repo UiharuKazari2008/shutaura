@@ -134,8 +134,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     let full = filterTinyFiles(dir_full);
                     let mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
 
-                    if (channel === "726700215838703686")
-                        console.log(previews.filter( e => e === "5864357.jpg"))
+                    console.log(previews.filter( e => e === "5864357.jpg"))
 
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${mfull.length}`)
 
