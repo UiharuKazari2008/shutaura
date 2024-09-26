@@ -1066,7 +1066,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (!skipped[message.id])
                     skipped[message.id] = 0;
                 skipped[message.id] = skipped[message.id] + 1;
-                if (systemglobal.CDN_Fast_Skip && skipped[message.id] > 1) {
+                if (systemglobal.CDN_Fast_Skip) {
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
                     await db.query(`UPDATE kanmi_records
