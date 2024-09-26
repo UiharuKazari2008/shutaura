@@ -26,6 +26,7 @@ This code is publicly released and is restricted by its project license
     const sharp = require('sharp');
     const sizeOf = require('image-size');
     const moment = require('moment');
+    const tx2 = require('tx2');
     const podcastFeedParser = require("podcast-feed-parser");
     const RateLimiter = require('limiter').RateLimiter;
     const blogPageLimit = new RateLimiter(1, 90000);
@@ -979,7 +980,12 @@ This code is publicly released and is restricted by its project license
                 Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
                     await getSankakuGallery(e.url, e.channel, e.notify);
                 }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
-                Logger.printLine('SankakuGallery', `SankakuComplex Enabled: ${e.url}`, 'info');
+                Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
+
+                tx2.action('getdeep_sankaku_' + (i).toString(), async function(param, reply) {
+                    await getSankakuGallery(e.url, param || e.channel, (param) ? undefined : e.notify);
+                    reply({success : "Completed Deep Search"})
+                })
             });
         } else {
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
@@ -999,4 +1005,8 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
         }
     }
+    tx2.action('get_kemono', function(param, reply) {
+        console.log(param)
+        reply({success : param})
+    })
 })()
