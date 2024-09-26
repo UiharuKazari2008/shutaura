@@ -577,7 +577,7 @@ This code is publicly released and is restricted by its project license
         })
 
     }
-    async function getSankakuPosts(galleryURL, history) {
+    async function getSankakuPosts(galleryURL, history, deep) {
         let meta = {}
         let posts = [];
         let i = 1;
@@ -592,7 +592,7 @@ This code is publicly released and is restricted by its project license
                 }
                 const results = _data.episodes.filter(f => history.rows.filter(e => e.url.split("sankakucomplex.com").pop() === f.link.split("sankakucomplex.com").pop()).length === 0);
                 posts.push(...results);
-                if (i > 2 && (results.length === 0 || results.length < 24 || i > 300)) {
+                if ((!deep && i > 2) && (results.length === 0 || results.length < 24 || i > 300)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
@@ -611,11 +611,11 @@ This code is publicly released and is restricted by its project license
             episodes: posts
         };
     }
-    async function getSankakuGallery(galleryURL, destionation, notify) {
+    async function getSankakuGallery(galleryURL, destionation, notify, deep) {
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`);
             if (!history.error) {
-                const galleryFeed = await getSankakuPosts(`${galleryURL}feed/`, history)
+                const galleryFeed = await getSankakuPosts(`${galleryURL}feed/`, history, deep)
                 if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
                     let counter = 0
                     await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
@@ -995,7 +995,7 @@ This code is publicly released and is restricted by its project license
             try {
                 const json = JSON.parse(param);
                 if (!(json && json.tag && json.channel)) {
-                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel);
+                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined, true);
                     reply({success: `OK - Completed Request: ${param}`});
                 } else {
                     reply({success: `Error - Missing Required Parameter: ${param}`});
