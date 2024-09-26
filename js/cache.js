@@ -1906,7 +1906,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         activeParseing = false;
     });
     tx2.action('dupfiles', async (reply) => {
-        const files = Object.entries(pastFiles).filter(e => e[1] > 2).map(e => e[0]);
+        const files = Object.keys(pastFiles).filter(e => pastFiles[e] > 1);
         if (files.length > 0) {
             reply({ answer : files });
         } else {
