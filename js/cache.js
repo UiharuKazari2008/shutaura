@@ -767,9 +767,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             } else {
                                 Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
-                                await db.query(`UPDATE kanmi_records
-                                                    SET flagged = 1
-                                                    WHERE id = ?`, [message.id])
+                                if (message && message.server && message.channel && message.id) {
+                                    if (!skipped[message.id])
+                                        skipped[message.id] = 0;
+                                    skipped[message.id] = skipped[message.id] + 1;
+                                    if (systemglobal.CDN_Fast_Skip) {
+                                        await db.query(`INSERT INTO kanmi_cdn_skipped
+                                    SET id = ?`, message.id);
+                                        await db.query(`UPDATE kanmi_records
+                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                    WHERE id = ?`, message.id);
+                                    } else if (skipped[message.id] > 4) {
+                                        await db.query(`UPDATE kanmi_records
+                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                        WHERE id = ?`, message.id);
+                                        await db.query(`INSERT INTO kanmi_cdn_skipped
+                                        SET id = ?`, message.id);
+                                    }
+                                }
                                 res[k] = false;
                             }
                             blockOk();
@@ -1046,6 +1061,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             } else {
                                 Logger.printLine("DownloadFile", `Can't download item ${message.id}, No URL Returned`, "error");
+                                if (message && message.server && message.channel && message.id) {
+                                    if (!skipped[message.id])
+                                        skipped[message.id] = 0;
+                                    skipped[message.id] = skipped[message.id] + 1;
+                                    if (systemglobal.CDN_Fast_Skip) {
+                                        await db.query(`INSERT INTO kanmi_cdn_skipped
+                                    SET id = ?`, message.id);
+                                        await db.query(`UPDATE kanmi_records
+                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                    WHERE id = ?`, message.id);
+                                    } else if (skipped[message.id] > 4) {
+                                        await db.query(`UPDATE kanmi_records
+                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                        WHERE id = ?`, message.id);
+                                        await db.query(`INSERT INTO kanmi_cdn_skipped
+                                        SET id = ?`, message.id);
+                                    }
+                                }
                                 res[k] = false;
                                 blockOk();
                             }
@@ -1395,6 +1428,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     });
                                 } else {
                                     Logger.printLine("Metadata", `Can't download item ${message.show_id}, No URLs Available`, "error")
+                                    if (message && message.server && message.channel && message.id) {
+                                        if (!skipped[message.id])
+                                            skipped[message.id] = 0;
+                                        skipped[message.id] = skipped[message.id] + 1;
+                                        if (systemglobal.CDN_Fast_Skip) {
+                                            await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+                                            await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
+                                        } else if (skipped[message.id] > 4) {
+                                            await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
+                                            await db.query(`INSERT INTO kanmi_cdn_skipped SET id = ?`, message.id);
+                                        }
+                                    }
                                     cb(false)
                                 }
                             })(m, async ok => {
