@@ -633,7 +633,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
 
-        pastFiles[message.id] = (pastFiles[message.id]) ? pastFiles[message.id] + 1 : 0;
+        if (!pastFiles[message.id])
+            pastFiles[message.id] = -1;
+        pastFiles[message.id] = pastFiles[message.id] + 1;
         if (Object.keys(attachements).length > 0) {
             let res = {};
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
@@ -1890,6 +1892,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     tx2.action('clean', async (reply) => {
+        await clearDeadFiles();
         await clearDeadFiles();
         reply({ answer : 'started' });
     });
