@@ -59,6 +59,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let init = 0;
     Logger.printLine("Init", "CDN", "info");
     let skipped = {};
+    let pastFiles = {};
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -632,6 +633,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
 
+        pastFiles[message.id] = (pastFiles[message.id]) ? pastFiles[message.id] + 1 : 0;
         if (Object.keys(attachements).length > 0) {
             let res = {};
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
@@ -1065,7 +1067,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
                     await db.query(`UPDATE kanmi_records
-                                    SET flagged = 1
+                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;') 
                                     WHERE id = ?`, message.id);
                 } else {
                     if (!skipped[message.id])
@@ -1073,7 +1075,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     skipped[message.id] = skipped[message.id] + 1;
                     if (skipped[message.id] > 4) {
                         await db.query(`UPDATE kanmi_records
-                                        SET flagged = 1
+                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;') 
                                         WHERE id = ?`, message.id);
                         await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
