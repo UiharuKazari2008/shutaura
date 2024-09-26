@@ -982,7 +982,7 @@ This code is publicly released and is restricted by its project license
                 Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
 
                 tx2.action('getdeep_sankaku_' + (i).toString(), async function(param, reply) {
-                    await getSankakuGallery(e.url, param || e.channel, (param) ? undefined : e.notify);
+                    await getSankakuGallery(e.url, param || e.channel, (param) ? undefined : e.notify, true);
                     reply({success : "Completed Deep Search"})
                 })
             });
@@ -991,6 +991,23 @@ This code is publicly released and is restricted by its project license
         }
     }
     tx2.action('get_sankaku_tag', async function(param, reply) {
+        if (param) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.tag && json.channel)) {
+                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
+    tx2.action('getdeep_sankaku_tag', async function(param, reply) {
         if (param) {
             try {
                 const json = JSON.parse(param);
