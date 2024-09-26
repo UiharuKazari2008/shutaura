@@ -669,7 +669,8 @@ This code is publicly released and is restricted by its project license
                                                 itemFileName: image.split('/').pop(),
                                                 itemFileURL: image,
                                                 itemReferral: thisArticle.link,
-                                                backlogRequest: backlog
+                                                backlogRequest: backlog,
+                                                bulkRequest: (deep) ? true : false,
                                             }
                                             let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
                                             if (episodeDate.includes('Invalid')) {

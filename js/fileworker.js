@@ -1469,8 +1469,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (MessageContents.messageRefrance) {
 										Cleanedobject.messageRefrance = MessageContents.messageRefrance;
 									}
-									if (MessageContents.Bulk) {
-										Cleanedobject.Bulk = MessageContents.Bulk
+									if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+										Cleanedobject.Bulk = MessageContents.bulkRequest
 									}
 									parseFile(Cleanedobject, function (check) {
 										fs.access(tempFilePath, error => {
@@ -1520,8 +1520,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (MessageContents.messageRefrance) {
 								Cleanedobject.messageRefrance = MessageContents.messageRefrance;
 							}
-							if (MessageContents.Bulk) {
-								Cleanedobject.Bulk = MessageContents.Bulk
+							if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+								Cleanedobject.Bulk = MessageContents.bulkRequest
 							}
 							parseFile(Cleanedobject,function (check) {
 								fs.access(tempFilePath, error => {
@@ -1588,8 +1588,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										if (MessageContents.messageUserID) {
 											Cleanedobject.UserID = MessageContents.messageUserID
 										}
-										if (MessageContents.Bulk) {
-											Cleanedobject.Bulk = MessageContents.Bulk
+										if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+											Cleanedobject.Bulk = MessageContents.bulkRequest
 										}
 										parseFile(Cleanedobject, function (check) {
 											fs.access(tempFilePath, error => {
@@ -1634,8 +1634,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (MessageContents.messageUserID) {
 								Cleanedobject.UserID = MessageContents.messageUserID
 							}
-							if (MessageContents.Bulk) {
-								Cleanedobject.Bulk = MessageContents.Bulk
+							if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+								Cleanedobject.Bulk = MessageContents.bulkRequest
 							}
 							parseFile(Cleanedobject, function (check) {
 								fs.access(tempFilePath, error => {
