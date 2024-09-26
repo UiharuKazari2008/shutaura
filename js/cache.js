@@ -1063,23 +1063,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
             console.log(message)
             if (message && message.server && message.channel && message.id) {
-                if (systemglobal.CDN_Fast_Skip) {
+                if (!skipped[message.id])
+                    skipped[message.id] = 0;
+                skipped[message.id] = skipped[message.id] + 1;
+                if (systemglobal.CDN_Fast_Skip && skipped[message.id] > 1) {
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
                     await db.query(`UPDATE kanmi_records
                                     SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;') 
                                     WHERE id = ?`, message.id);
-                } else {
-                    if (!skipped[message.id])
-                        skipped[message.id] = 0;
-                    skipped[message.id] = skipped[message.id] + 1;
-                    if (skipped[message.id] > 4) {
-                        await db.query(`UPDATE kanmi_records
+                } else if (skipped[message.id] > 4) {
+                    await db.query(`UPDATE kanmi_records
                                         SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;') 
                                         WHERE id = ?`, message.id);
-                        await db.query(`INSERT INTO kanmi_cdn_skipped
+                    await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
-                    }
                 }
             }
             cb(false)
