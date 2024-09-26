@@ -5676,7 +5676,6 @@ This code is publicly released and is restricted by its project license
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))`;
-                    console.log(q);
                     const backupItems = await db.query(q + " AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
                     const skippedItems = await db.query(q + " AND x.id IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
                     return {
