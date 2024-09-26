@@ -592,7 +592,7 @@ This code is publicly released and is restricted by its project license
                 }
                 const results = _data.episodes.filter(f => history.rows.filter(e => e.url.split("sankakucomplex.com").pop() === f.link.split("sankakucomplex.com").pop()).length === 0);
                 posts.push(...results);
-                if (i > 10 && (results.length === 0 || results.length < 24 || i > 300)) {
+                if (i > 2 && (results.length === 0 || results.length < 24 || i > 300)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
