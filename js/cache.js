@@ -853,7 +853,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             });
                             res[k] = (write) ? destName : null;
                             blockOk();
-                        } else if (systemglobal.CDN_TempChannel) {
+                        } else if (systemglobal.CDN_TempChannel && !systemglobal.CDN_No_Research) {
                             const pm = await (async () => {
                                 try {
                                     let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
