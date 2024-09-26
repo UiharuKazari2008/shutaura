@@ -129,12 +129,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
                     const dir_mfull = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
 
+                    console.log(dir_previews, dir_full, dir_mfull, dir_ext_previews)
+
                     let previews = filterTinyFiles(dir_previews);
                     let ext_previews = filterTinyFiles(dir_ext_previews);
                     let full = filterTinyFiles(dir_full);
                     let mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
-
-                    console.log(previews.filter( e => e === "5864357.jpg"))
 
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${mfull.length}`)
 
