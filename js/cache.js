@@ -1842,10 +1842,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         }
                         activeParseing = false;
                     }, (systemglobal.CDN_Interval_Min) ? systemglobal.CDN_Interval_Min * 60000 : 3600000);
-                    discordClient.editStatus( "online", {
-                        name: null,
-                        type: 0
-                    });
+                    discordClient.editStatus( "online", null);
                 }, 30000)
             } else {
                 Logger.printLine("Init", "Unable to start Download client, no directory setup!", "error")
