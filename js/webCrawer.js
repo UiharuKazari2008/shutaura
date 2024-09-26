@@ -981,8 +981,8 @@ This code is publicly released and is restricted by its project license
                 }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
                 Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
 
-                tx2.action('getdeep_sankaku_' + (i).toString(), async function(param, reply) {
-                    await getSankakuGallery(e.url, param || e.channel, (param) ? undefined : e.notify, true);
+                tx2.action('getdeep_sankaku_' + (i).toString(), async function(reply) {
+                    await getSankakuGallery(e.url, e.channel, undefined, true);
                     reply({success : "Completed Deep Search"})
                 })
             });

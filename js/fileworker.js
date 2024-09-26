@@ -136,6 +136,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
 				systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
 			}
+			const _mq_pdp_out_bulk = systemparams_sql.filter(e => e.param_key === 'mq.pdp.bulk');
+			if (_mq_pdp_out_bulk.length > 0 && _mq_pdp_out_bulk[0].param_value) {
+				systemglobal.PDP_Out_Bulk = _mq_pdp_out_bulk[0].param_value;
+			}
 			const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
 			if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
 				systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
@@ -1465,6 +1469,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (MessageContents.messageRefrance) {
 										Cleanedobject.messageRefrance = MessageContents.messageRefrance;
 									}
+									if (MessageContents.Bulk) {
+										Cleanedobject.Bulk = MessageContents.Bulk
+									}
 									parseFile(Cleanedobject, function (check) {
 										fs.access(tempFilePath, error => {
 											if (!error) {
@@ -1512,6 +1519,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.messageRefrance) {
 								Cleanedobject.messageRefrance = MessageContents.messageRefrance;
+							}
+							if (MessageContents.Bulk) {
+								Cleanedobject.Bulk = MessageContents.Bulk
 							}
 							parseFile(Cleanedobject,function (check) {
 								fs.access(tempFilePath, error => {
@@ -1578,6 +1588,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										if (MessageContents.messageUserID) {
 											Cleanedobject.UserID = MessageContents.messageUserID
 										}
+										if (MessageContents.Bulk) {
+											Cleanedobject.Bulk = MessageContents.Bulk
+										}
 										parseFile(Cleanedobject, function (check) {
 											fs.access(tempFilePath, error => {
 												if (!error) {
@@ -1621,6 +1634,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (MessageContents.messageUserID) {
 								Cleanedobject.UserID = MessageContents.messageUserID
 							}
+							if (MessageContents.Bulk) {
+								Cleanedobject.Bulk = MessageContents.Bulk
+							}
 							parseFile(Cleanedobject, function (check) {
 								fs.access(tempFilePath, error => {
 									if (!error) {
@@ -1663,6 +1679,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			if (object.Backlog && object.Backlog === true) {
 				parameters.sendTo = systemglobal.Discord_Out + '.backlog'
+			}
+			if (object.Bulk && object.Bulk === true) {
+				parameters.isBulk = true
 			}
 			if (object.Type.toString() === "Remote") {
 				// Remote - File has been sent from a remote client and has been downloaded local
@@ -1856,7 +1875,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.addButtons = ["ReqFile", "Pin", "RemoveFile", "Archive", "MoveMessage"];
 					parameters.itemFileData = '' + b64Data;
 					parameters.itemFileName = filepartsid + previewSuffix;
-					const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
+					const sendTo = ((systemglobal.PDP_Out_Bulk && object.Bulk && object.Bulk === true) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out_Bulk + '.backlog' : systemglobal.PDP_Out_Bulk) : ((systemglobal.PDP_Out) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out) : parameters.sendTo));
 					mqClient.sendData(sendTo, parameters, function (callback) {
 						if (callback) {
 							Logger.printLine("KanmiMQ", `Sent to ${sendTo}`, "debug")
@@ -2228,7 +2247,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
-			const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
+			const sendTo = ((systemglobal.PDP_Out_Bulk && object.Bulk && object.Bulk === true) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out_Bulk + '.backlog' : systemglobal.PDP_Out_Bulk) : ((systemglobal.PDP_Out) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out) : parameters.sendTo));;
 			if (fileSize(object.FilePath.toString()) > 24.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 50 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {
