@@ -5672,7 +5672,7 @@ This code is publicly released and is restricted by its project license
                         ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
                     const q = `SELECT COUNT(x.eid) AS backup_needed
                        FROM (SELECT rec.*, ext.data
-                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''})) ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))`;
