@@ -990,6 +990,23 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
         }
     }
+    tx2.action('get_sankaku_tag', async function(param, reply) {
+        if (param) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.tag && json.channel)) {
+                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
     // KemonoParty
     if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
         if (systemglobal.KemonoParty_Channels.length > 0) {
