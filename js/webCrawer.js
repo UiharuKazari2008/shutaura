@@ -1004,8 +1004,21 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
         }
     }
-    tx2.action('get_kemono', function(param, reply) {
-        console.log(param)
-        reply({success : param})
+    tx2.action('get_kemono', async function(param, reply) {
+        if (param) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.source && json.artist && json.channel)) {
+                    await getKemonoGallery(json.source, json.artist, json.channel);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { source, artist, channel }"})
+        }
     })
 })()
