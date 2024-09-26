@@ -1070,11 +1070,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
                     await db.query(`UPDATE kanmi_records
-                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_SKip ? ", hidden = 1" : "")}
+                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : "")}
                                     WHERE id = ?`, message.id);
                 } else if (skipped[message.id] > 4) {
                     await db.query(`UPDATE kanmi_records
-                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_SKip ? ", hidden = 1" : "")}
+                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : "")}
                                         WHERE id = ?`, message.id);
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
