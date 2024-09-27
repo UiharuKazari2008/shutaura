@@ -667,7 +667,7 @@ This code is publicly released and is restricted by its project license
                                                 messageChannelID: destionation,
                                                 messageText: title,
                                                 itemFileName: image.split('/').pop(),
-                                                itemFileURL: (image.startsWith("//")) ? "https:" + image : image,
+                                                itemFileURL: (image.startsWith("//")) ? ("https:" + image) : (image.startsWith("/")) ? ('https://news.sankakucomplex.com' + image) : image,
                                                 itemReferral: thisArticle.link,
                                                 backlogRequest: backlog,
                                                 bulkRequest: (deep) ? true : false,
