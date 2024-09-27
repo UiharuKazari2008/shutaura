@@ -5158,6 +5158,7 @@ This code is publicly released and is restricted by its project license
                             /*Timers.set(`StatusReportCheck${guild.id}`, cron.schedule('* 0-2,9-23 * * *', () => {
                                 generateStatus(false, guild.id)
                             }))*/
+                            generateStatus(false, guild.id)
                         }
                         if (localKeys.indexOf("statusseqgen-" + guild.id) !== -1 ) {
                             Logger.printLine(`StatusGenerator`, `Initialized Timer for seq status update for "${guild.name}"`, `info`)
