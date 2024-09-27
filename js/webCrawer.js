@@ -817,7 +817,6 @@ This code is publicly released and is restricted by its project license
                     done();
                 } else {
                     await Promise.all(tracks.map(async track => {
-                        console.log(track)
                         const response = await getTrackURL(track)
                         if (!response) {
                             Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
