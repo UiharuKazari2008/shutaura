@@ -794,60 +794,91 @@ This code is publicly released and is restricted by its project license
         } else if (mixclouduser.rows.length > 0) {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%mixcloud%'`)
             await Promise.all(mixclouduser.rows.map(async user => {
-                try {
-                    const tracks = await getCloudcasts(user.username)
-                    if (tracks.length === 0) {
-                        Logger.printLine('Mixcloud-Get', `Failed to get any episodes from the Mixcloud API for ${user.username}`, 'error');
-                    } else {
-                        await Promise.all(tracks.filter(track =>  !history.error && history.rows.filter(e => track.name && !(user.search && track.name.toLowerCase().includes(user.search.toLowerCase())) && e.url === track.url).length === 0).map(async track => {
-                            console.log(track)
-                            const response = await getTrackURL(track)
-                            if (!response) {
-                                Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
-                            } else {
-                                sendMixToDiscord(user.channelid, track, response, false, async (ok) => {
-                                    if (ok) {
-                                        await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [track.url])
-                                        Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
-                                    } else {
-                                        Logger.printLine('Mixcloud-Pull', `Failed to send mixcloud download "${track.url}"`, 'error');
-                                    }
-                                })
-                            }
-                        }))
-                    }
-                } catch (err) {
-                    Logger.printLine('Mixcloud-Get', `Failed to get valid response from the Mixcloud API for ${user.username}: ${err}`, 'error');
-                }
+                await getMixcloudPodcast(user.username, user.channelid, user.search, false);
             }))
         }
     }
-    async function getCloudcasts(username) {
-        return new Promise((resolve, reject) => {
-            request({
-                url: `http://api.mixcloud.com/${username}/cloudcasts/?limit=2500`,
-                headers: {
-                    Origin: "https://www.mixcloud.com/",
-                    Referer: `https://www.mixcloud.com/${username}/`,
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
+    async function getMixcloudPodcast(username, channelid, search, deep) {
+        return new Promise(async done => {
+            try {
+                const tracks = await getCloudcasts(username, search, history, deep)
+                if (tracks.length === 0) {
+                    Logger.printLine('Mixcloud-Get', `No new tracks from the Mixcloud API for ${username}`, 'warning');
+                    done();
+                } else {
+                    await Promise.all(tracks.map(async track => {
+                        console.log(track)
+                        const response = await getTrackURL(track)
+                        if (!response) {
+                            Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
+                        } else {
+                            await sendMixToDiscord(channelid, track, response, false, async (ok) => {
+                                if (ok) {
+                                    await db.query(`INSERT IGNORE INTO web_visitedpages
+                                                    VALUES (?, NOW())`, [track.url])
+                                    Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
+                                } else {
+                                    Logger.printLine('Mixcloud-Pull', `Failed to send mixcloud download "${track.url}"`, 'error');
+                                }
+                            })
+                        }
+                    }))
+                    done();
                 }
-            }, (error, response, body) => {
-                if (error) { return reject(error) }
-                if (!body) { return resolve([]) }
-                const jsonResponse = JSON.parse(body);
-                if (!jsonResponse.data) { return resolve([]); }
-                const items = jsonResponse.data.map((obj) => {
-                    return {
-                        url: obj.url,
-                        name: obj.name,
-                        date: obj.created_time,
-                        slug: obj.slug,
-                    }
-                });
-
-                resolve(items)
-            })
+            } catch (err) {
+                Logger.printLine('Mixcloud-Get', `Failed to get valid response from the Mixcloud API for ${username}: ${err}`, 'error');
+                done();
+            }
         })
+    }
+    async function getCloudcasts(username, search, history, deep) {
+        let items = [];
+        let i = 1;
+        let nextPage = false;
+        while (true) {
+            try {
+                const _data = await new Promise((resolve, reject) => {
+                    request({
+                        url: (nextPage) ? nextPage : `http://api.mixcloud.com/${username}/cloudcasts/?limit=100`,
+                        headers: {
+                            Origin: "https://www.mixcloud.com/",
+                            Referer: `https://www.mixcloud.com/${username}/`,
+                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
+                        }
+                    }, (error, response, body) => {
+                        if (error) { return reject(error) }
+                        if (!body) { return resolve([]) }
+                        const jsonResponse = JSON.parse(body);
+                        nextPage = (jsonResponse.paging && jsonResponse.paging.next) ? jsonResponse.paging.next : false;
+                        if (!jsonResponse.data) { return resolve([]); }
+                        const items = jsonResponse.data.map((obj) => {
+                            return {
+                                url: obj.url,
+                                name: obj.name,
+                                date: obj.created_time,
+                                slug: obj.slug,
+                            }
+                        })
+                        resolve(items)
+                    })
+                })
+                const results = _data.filter(track => !history.error && history.rows.filter(e => track.name && !(search && track.name.toLowerCase().includes(search.toLowerCase())) && e.url === track.url).length === 0);
+                items.push(...results);
+                if (((deep && i > 100) || (!deep && i > 1)) && (results.length === 0 || results.length < 100 || i > 300)) {
+                    Logger.printLine("CloudcastsGET", `Returned ${results.length} Tracks (End of Pages)`, "debug")
+                    break;
+                } else {
+                    Logger.printLine("CloudcastsGET", `${username} => ${results.length} Tracks (Page ${i})`, "debug")
+                }
+                i++
+            } catch (err) {
+                Logger.printLine("CloudcastsGET", "Error pulling more pages from Mixcloud", "warn", err)
+                Logger.printLine("CloudcastsGET", `Returned ${items.length} items (Caught err)`, "debug");
+                console.error(err);
+                break;
+            }
+        }
+        return items
     }
     async function getTrackURL(track) {
         return new Promise((resolve, reject) => {
