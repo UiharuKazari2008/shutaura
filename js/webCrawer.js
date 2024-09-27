@@ -835,6 +835,7 @@ This code is publicly released and is restricted by its project license
                     done();
                 }
             } catch (err) {
+                console.error(err);
                 Logger.printLine('Mixcloud-Get', `Failed to get valid response from the Mixcloud API for ${username}: ${err}`, 'error');
                 done();
             }
