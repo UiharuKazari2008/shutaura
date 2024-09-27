@@ -817,9 +817,7 @@ This code is publicly released and is restricted by its project license
                     done();
                 } else {
                     await Promise.all(tracks.map(async track => {
-                        console.log(track);
                         const response = await getTrackURL(track)
-                        console.log(response);
                         if (!response) {
                             Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
                         } else {
@@ -899,6 +897,7 @@ This code is publicly released and is restricted by its project license
             }, (error, response, body) => {
                 try {
                     if (error) {
+                        console.error(error);
                         return reject(error)
                     }
                     if (!body) {
@@ -940,7 +939,8 @@ This code is publicly released and is restricted by its project license
                         }
                     })
                 } catch (e) {
-                    return reject(error)
+                    console.error(e);
+                    return reject(e);
                 }
             })
         })
