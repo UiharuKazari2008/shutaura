@@ -9547,13 +9547,13 @@ This code is publicly released and is restricted by its project license
                                                     auth        = ?,
                                                     auth_expire = ?
                                                 WHERE channelid = ?
-                                                  AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
+                                                  AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, cacheresponse[0].channel, cacheresponse[0].id])
                             } else {
                                 res.status(401).send('No Attachemnts (Verified from Discord)');
                                 Logger.printLine("SBI FileRequest", `Failed to any attachments from discord with ID "${cacheresponse[0].id}" for file ${req.params.eid}`, "error", e);
                             }
                         } catch (e) {
-                            Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${u.messageid}" for file ${req.params.uuid}`, "error", e);
+                            Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${cacheresponse[0].id}" for file ${req.params.uuid}`, "error", e);
                         }
                     })
                 }
