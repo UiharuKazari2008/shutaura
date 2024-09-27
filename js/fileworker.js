@@ -1102,7 +1102,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					case 'GenerateVideoPreview':
 						db.safe(`SELECT * FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
 							if (err) {
-								mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+								Logger.printLine('main', "SQL Error occurred when messages to check for cache", "error");
 								cb(true)
 							} else if (cacheresponse.length > 0) {
 								let CompleteFilename
@@ -1118,13 +1118,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									   AND kanmi_records.source = 0
 									   AND kanmi_records.fileid = discord_multipart_files.fileid) x LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID], function (err, cacheresponse) {
 											if (err || cacheresponse.length === 0) {
-												mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+												Logger.printLine('main', "SQL Error occurred when messages to check for cache", "error");
 												tempFile(false)
 											} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
-												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+												Logger.printLine('MPFDownload', `Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nSome files are not valid and will need to be revalidated or repaired!`, "error");
 												tempFile(false)
 											} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
-												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+												Logger.printLine('MPFDownload', `Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error");
 												tempFile(false)
 											} else {
 												let itemsCompleted = [];

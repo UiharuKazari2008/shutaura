@@ -201,14 +201,16 @@ module.exports = function (facility, sgoveride) {
             } else {
                 Logger.printLine(proc, message, loglevel)
             }
-            sendData(`${systemglobal.Discord_Out}.priority`, {
-                fromClient: `return.${facility}.${os.hostname()}`,
-                messageReturn: false,
-                messageType: 'stext',
-                messageChannelID: sendto,
-                messageText: message.substring(0, 255) + errmessage
-            }, function (ok) {
-            });
+            if (sendto) {
+                sendData(`${systemglobal.Discord_Out}.priority`, {
+                    fromClient: `return.${facility}.${os.hostname()}`,
+                    messageReturn: false,
+                    messageType: 'stext',
+                    messageChannelID: sendto,
+                    messageText: message.substring(0, 255) + errmessage
+                }, function (ok) {
+                });
+            }
         } else {
             console.error(`Missing Home Guild, please make sure you have set the DiscordHomeGuild parameter and the server exists in the database!`)
         }
