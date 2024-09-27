@@ -804,7 +804,7 @@ This code is publicly released and is restricted by its project license
                             if (!response) {
                                 Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
                             } else {
-                                sendMixToDiscord(user.channelid, track, response, true, async (ok) => {
+                                sendMixToDiscord(user.channelid, track, response, false, async (ok) => {
                                     if (ok) {
                                         await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [track.url])
                                         Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
