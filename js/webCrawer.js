@@ -797,6 +797,16 @@ This code is publicly released and is restricted by its project license
             }))
         }
     }
+    async function getMixcloudUser(username) {
+        const mixclouduser = await db.query(`SELECT * FROM mixcloud_watchlist WHERE username = ?`, [username])
+        if (mixclouduser.error) {
+            mqClient.sendMessage(`SQL Error when getting to the Podcast Watchlist records`, "err", "SQL", mixclouduser.error)
+        } else if (mixclouduser.rows.length > 0) {
+            await Promise.all(mixclouduser.rows.map(async user => {
+                await getMixcloudPodcast(user.username, user.channelid, user.search, false);
+            }))
+        }
+    }
     async function getMixcloudPodcast(username, channelid, search, deep) {
         return new Promise(async done => {
             try {
@@ -1023,8 +1033,20 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
         }
     }
+    tx2.action('get_mixcloud_user', async function(param, reply) {
+        if (param && param.length > 0) {
+            try {
+                await getMixcloudUser(param);
+                reply({success: `OK - Completed Request: ${param}`});
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
     tx2.action('get_sankaku_tag', async function(param, reply) {
-        if (param) {
+        if (param && param.length > 0) {
             try {
                 const json = JSON.parse(param);
                 if (!(json && json.tag && json.channel)) {
@@ -1041,7 +1063,7 @@ This code is publicly released and is restricted by its project license
         }
     })
     tx2.action('getdeep_sankaku_tag', async function(param, reply) {
-        if (param) {
+        if (param && param.length > 0) {
             try {
                 const json = JSON.parse(param);
                 if (!(json && json.tag && json.channel)) {
@@ -1072,7 +1094,7 @@ This code is publicly released and is restricted by its project license
         }
     }
     tx2.action('get_kemono', async function(param, reply) {
-        if (param) {
+        if (param && param.length > 0) {
             try {
                 const json = JSON.parse(param);
                 if (!(json && json.source && json.artist && json.channel)) {
