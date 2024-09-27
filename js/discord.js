@@ -9499,7 +9499,7 @@ This code is publicly released and is restricted by its project license
     })
     app.get('/get/file_url/:channel/:eid', async (req, res) => {
         if (req.params && req.params.channel && req.params.eid) {
-            Logger.printLine("SBI FileRequest", `Request for file ${req.params.uuid}`, "info");
+            Logger.printLine("SBI FileRequest", `Request for file ${req.params.eid}`, "info");
             db.safe(`SELECT *, IF(attachment_auth_ex > NOW(), 1, 0) AS auth_valid
                            FROM kanmi_records
                            WHERE channel = ?
