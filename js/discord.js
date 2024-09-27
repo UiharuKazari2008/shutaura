@@ -63,6 +63,7 @@ This code is publicly released and is restricted by its project license
     let init = 0;
     let gracefulShutdown = false;
     let forceShutdown = false;
+    let noCDNReload = false;
     let playingFolder = "";
     let toPlayFolder = "";
     let EncoderConf = {
@@ -5245,53 +5246,120 @@ This code is publicly released and is restricted by its project license
                 "color": 1473771,
                 "fields": []
             }
-            if (!(systemglobal.Coop_Worker && !enableListening)) {
-                try {
-                    const promisifiedRequest = function (options) {
-                        return new Promise((resolve, reject) => {
-                            request(options, (error, response, body) => {
-                                if (response) {
-                                    return resolve(response);
-                                }
-                                if (error) {
-                                    return reject(error);
-                                }
-                            });
+            try {
+                const promisifiedRequest = function (options) {
+                    return new Promise((resolve, reject) => {
+                        request(options, (error, response, body) => {
+                            if (response) {
+                                return resolve(response);
+                            }
+                            if (error) {
+                                return reject(error);
+                            }
                         });
-                    };
-                    const ampqResponse = await promisifiedRequest({
-                        url: `http://${systemglobal.MQServer}:15672/api/queues`,
-                        headers: {
-                            'content-type': "application/json",
-                            "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
-                        }
-                    })
-                    let ampqJSON = [];
-                    if (!ampqResponse.err && ampqResponse.body) {
-                        ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
-                    } else if (ampqResponse.err) {
-                        console.error(ampqResponse.err)
+                    });
+                };
+                const ampqResponse = await promisifiedRequest({
+                    url: `http://${systemglobal.MQServer}:15672/api/queues`,
+                    headers: {
+                        'content-type': "application/json",
+                        "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
                     }
-                    await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
-                        UndeliveredMQ = e.messages;
-                    })
-                    await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
+                })
+                let ampqJSON = [];
+                if (!ampqResponse.err && ampqResponse.body) {
+                    ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
+                } else if (ampqResponse.err) {
+                    console.error(ampqResponse.err)
+                }
+                await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
+                    UndeliveredMQ = e.messages;
+                })
+                await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
+                    discordMQMessages = discordMQMessages + e.messages
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.')[0].toLowerCase()) {
+                        case 'inbox':
+                            _name += '📥'
+                            id = id + 10
+                            break;
+                        case 'outbox':
+                            _name += '📤'
+                            break;
+                        default:
+                            break;
+                    }
+                    switch (e.name.split('.discord').pop().toLowerCase()) {
+                        case '':
+                            _name += '⭐ Standard'
+                            id = id + 1
+                            break;
+                        case '.priority':
+                            _name += '💨 Priority'
+                            break;
+                        case '.package.priority':
+                            _name += '💨 Packaged Priority'
+                            break;
+                        case '.package':
+                            _name += '💨 Packaged'
+                            break;
+                        case '.backlog':
+                            _name += '☃ Backlog'
+                            id = id + 2
+                            break;
+                        case '.sequenzia':
+                            _name += '📋 Sequenzia'
+                            id = id + 2
+                            break;
+                        default:
+                            _name = e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    discordMQ.fields.push(e[1])
+                })
+                if (MQWorkerMugino) {
+                    await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
                         discordMQMessages = discordMQMessages + e.messages
-                        let _name = ''
+                        let _name = '🛃'
                         let _return = '';
                         let id = 0;
-                        switch (e.name.split('.')[0].toLowerCase()) {
-                            case 'inbox':
-                                _name += '📥'
-                                id = id + 10
-                                break;
-                            case 'outbox':
-                                _name += '📤'
-                                break;
-                            default:
-                                break;
-                        }
-                        switch (e.name.split('.discord').pop().toLowerCase()) {
+                        switch (e.name.split('.mugino').pop().toLowerCase()) {
                             case '':
                                 _name += '⭐ Standard'
                                 id = id + 1
@@ -5299,18 +5367,8 @@ This code is publicly released and is restricted by its project license
                             case '.priority':
                                 _name += '💨 Priority'
                                 break;
-                            case '.package.priority':
-                                _name += '💨 Packaged Priority'
-                                break;
-                            case '.package':
-                                _name += '💨 Packaged'
-                                break;
                             case '.backlog':
                                 _name += '☃ Backlog'
-                                id = id + 2
-                                break;
-                            case '.sequenzia':
-                                _name += '📋 Sequenzia'
                                 id = id + 2
                                 break;
                             default:
@@ -5353,127 +5411,68 @@ This code is publicly released and is restricted by its project license
                     }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
                         discordMQ.fields.push(e[1])
                     })
-                    if (MQWorkerMugino) {
-                        await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
-                            discordMQMessages = discordMQMessages + e.messages
-                            let _name = '🛃'
-                            let _return = '';
-                            let id = 0;
-                            switch (e.name.split('.mugino').pop().toLowerCase()) {
-                                case '':
-                                    _name += '⭐ Standard'
-                                    id = id + 1
-                                    break;
-                                case '.priority':
-                                    _name += '💨 Priority'
-                                    break;
-                                case '.backlog':
-                                    _name += '☃ Backlog'
-                                    id = id + 2
-                                    break;
-                                default:
-                                    _name = e.name
-                                    break;
-                            }
-                            if (e.messages > 0) {
-                                _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                            }
-                            if (e.message_bytes >= 1000000000) {
-                                _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                            } else if (e.message_bytes >= 1000000) {
-                                _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                            } else if (e.message_bytes >= 1000) {
-                                _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                            } else if (e.message_bytes > 100) {
-                                _return += `📦: ${e.message_bytes}B\n`
-                            }
-                            if (e.message_stats) {
-                                if (e.message_stats.publish > 1000000) {
-                                    _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                                } else if (e.message_stats.publish > 1000) {
-                                    _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                                } else if (e.message_stats.publish > 0) {
-                                    _return += `📈: ▶${e.message_stats.publish}`
-                                } else {
-                                    _return += `Never Activated`
-                                }
-                                if (e.message_stats.publish > 0) {
-                                    _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                                }
-                            }
-                            if (e.messages > 2) {
-                                return [id, {
-                                    "name": _name,
-                                    "value": _return.substring(0, 1024),
-                                }]
-                            }
-                            return null
-                        }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                            discordMQ.fields.push(e[1])
-                        })
-                    }
-                    await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
-                        let _name = ''
-                        let _return = '';
-                        let id = 0;
-                        switch (e.name.split('.').pop().toLowerCase()) {
-                            case 'fileworker':
-                                _name += '⚙ Remote Requests'
-                                break;
-                            case 'backlog':
-                                _name += '⚙ Backlog Requests'
-                                id = id + 1
-                                break;
-                            case 'local':
-                                const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
-                                _name += '💽 ' + hostname + ' File Uploads'
-                                id = hostname
-                                break;
-                            default:
-                                _name += e.name
-                                break;
-                        }
-                        if (e.messages > 0) {
-                            _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                        }
-                        if (e.message_bytes >= 1000000000) {
-                            _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                        } else if (e.message_bytes >= 1000000) {
-                            _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                        } else if (e.message_bytes >= 1000) {
-                            _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                        } else if (e.message_bytes > 100) {
-                            _return += `📦: ${e.message_bytes}B\n`
-                        }
-                        if (e.message_stats) {
-                            if (e.message_stats.publish > 1000000) {
-                                _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                            } else if (e.message_stats.publish > 1000) {
-                                _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                            } else if (e.message_stats.publish > 0) {
-                                _return += `📈: ▶${e.message_stats.publish}`
-                            } else {
-                                _return += `Never Activated`
-                            }
-                            if (e.message_stats.publish > 0) {
-                                _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                            }
-                        }
-                        if (e.messages > 2) {
-                            return [id, {
-                                "name": _name,
-                                "value": _return.substring(0, 1024),
-                            }]
-                        }
-                        return null
-                    }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                        fileworkerMQ.fields.push(e[1])
-                    })
-                } catch (e) {
-                    console.error(e);
                 }
-                console.log(`Getting RabbitMQ Stats...`)
+                await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.').pop().toLowerCase()) {
+                        case 'fileworker':
+                            _name += '⚙ Remote Requests'
+                            break;
+                        case 'backlog':
+                            _name += '⚙ Backlog Requests'
+                            id = id + 1
+                            break;
+                        case 'local':
+                            const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
+                            _name += '💽 ' + hostname + ' File Uploads'
+                            id = hostname
+                            break;
+                        default:
+                            _name += e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    fileworkerMQ.fields.push(e[1])
+                })
+            } catch (e) {
+                console.error(e);
             }
+            console.log(`Getting RabbitMQ Stats...`)
             if (enableListening) {
                 embed.fields.push({
                     "name": "🏘 Servers",
@@ -5822,14 +5821,28 @@ This code is publicly released and is restricted by its project license
                 _ioT.push(`💤 No Active Jobs`)
             }
             if (discordMQMessages > 0) {
-                _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-                if ((!enableListening && discordMQMessages > 1000) || (enableListening && discordMQMessages > 250)) {
-                    systemFault = true;
-                    bannerFault.unshift('📨 Message Queue is actively backlogged!')
-                } else if ((!enableListening && discordMQMessages > 500) || (enableListening && discordMQMessages > 100)) {
-                    systemWarning = true;
-                    bannerWarnings.unshift('📨 Message Queue is getting congested')
+                if (!(systemglobal.Coop_Worker && !enableListening)) {
+                    _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
+                    if ((!enableListening && discordMQMessages > 3000) || (enableListening && discordMQMessages > 250)) {
+                        systemFault = true;
+                        bannerFault.unshift('🔥 Message Queue is actively overloaded!')
+                    } else if ((!enableListening && discordMQMessages > 1000) || (enableListening && discordMQMessages > 250)) {
+                        systemFault = true;
+                        bannerFault.unshift('🆘 Message Queue is actively backlogged!')
+                    } else if ((!enableListening && discordMQMessages > 500) || (enableListening && discordMQMessages > 100)) {
+                        systemWarning = true;
+                        bannerWarnings.unshift('📨 Message Queue is getting congested')
+                    }
                 }
+                if (discordMQMessages > 2000) {
+                    systemFault = true;
+                    noCDNReload = true;
+                    bannerFault.unshift('🆘 CDN Communication paused due to overload, data avalibility may be delayed!');
+                } else {
+                    noCDNReload = false;
+                }
+            } else {
+                noCDNReload = false;
             }
             embed.fields.push({
                 "name": "⚡ I/O Engine",
@@ -8179,7 +8192,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                if (!systemglobal.Discord_No_CDN_Reload)
+                                if (!systemglobal.Discord_No_CDN_Reload && !noCDNReload)
                                     mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
                                 if (chDbval.notify !== null) {
                                     try {
