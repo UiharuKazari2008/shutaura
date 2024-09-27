@@ -796,11 +796,11 @@ This code is publicly released and is restricted by its project license
             await Promise.all(mixclouduser.rows.map(async user => {
                 try {
                     const tracks = await getCloudcasts(user.username)
-                    console.log(tracks)
                     if (tracks.length === 0) {
                         Logger.printLine('Mixcloud-Get', `Failed to get any episodes from the Mixcloud API for ${user.username}`, 'error');
                     } else {
                         await Promise.all(tracks.filter(track =>  !history.error && history.rows.filter(e => track.name && !(user.search && track.name.toLowerCase().includes(user.search.toLowerCase())) && e.url === track.url).length === 0).map(async track => {
+                            console.log(track)
                             const response = await getTrackURL(track)
                             if (!response) {
                                 Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
