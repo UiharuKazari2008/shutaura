@@ -1429,15 +1429,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								.then(function (results) {
 									let fileExtension
 									if (typeof results !== "undefined") {
-										fileExtension = MessageContents.itemFileName + "." + results.ext
-										Logger.printLine("DownloadURL", `Download ${tempFilePath} (Discovered Filetype : ${results.ext})`, "debug", {
-											extension: results.ext,
-											mimeType: results.mime,
-											filename: tempFilePath,
-											url: MessageContents.itemFileURL,
-											referral: MessageContents.itemReferral,
-											cookies: MessageContents.itemCookies
-										})
+										if (!(results.ext === 'mp4' && (path.extname(MessageContents.itemFileName).startsWith('m4') || path.extname(MessageContents.itemFileName).startsWith('mp3')))) {
+											fileExtension = path.basename(MessageContents.itemFileName) + "." + results.ext
+											Logger.printLine("DownloadURL", `Download ${tempFilePath} (Discovered Filetype : ${results.ext})`, "debug", {
+												extension: results.ext,
+												mimeType: results.mime,
+												filename: tempFilePath,
+												url: MessageContents.itemFileURL,
+												referral: MessageContents.itemReferral,
+												cookies: MessageContents.itemCookies
+											})
+										}
 									} else {
 										fileExtension = MessageContents.itemFileName.split("?")[0]
 										Logger.printLine("DownloadURL", `Download ${tempFilePath} (Undiscovered Filetype)`, "debug", {
