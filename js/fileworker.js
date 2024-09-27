@@ -1167,7 +1167,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 																resolve()
 															})
 														} catch (e) {
-															mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}: ${e.message}`, "err", "MPFDownload", err)
+															mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}: ${e.message}`, "err", "MPFDownload", e)
 															resolve()
 														}
 													}))
