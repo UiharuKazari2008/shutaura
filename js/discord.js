@@ -9497,6 +9497,72 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("SBI SpannedFileRequest", `Invalid Request`, "error");
         }
     })
+    app.get('/get/file_url/:channel/:eid', async (req, res) => {
+        if (req.params && req.params.uuid) {
+            Logger.printLine("SBI FileRequest", `Request for file ${req.params.uuid}`, "info");
+            db.safe(`SELECT *, IF(attachment_auth_ex > NOW(), 1, 0) AS auth_valid
+                           FROM kanmi_records
+                           WHERE channel = ?
+                             AND eid = ?`, [req.params.channel, req.params.eid], async function (err, cacheresponse) {
+                if (err || cacheresponse.length === 0) {
+                    res.status(404).json("File not found");
+                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} not found!`, "error");
+                } else if (!(cacheresponse[0].attachment_hash && cacheresponse[0].attachment_name)) {
+                    res.status(415).send('This content is not a data file!')
+                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} is not a data file`, "error");
+                } else {
+                    if (cacheresponse[0].u.attachment_auth && cacheresponse[0].auth_valid === 1) {
+                        Logger.printLine("SBI FileRequest", `File ${req.params.eid} has valid auth hash till ${cacheresponse[0].attachment_auth_ex}: Returning URL`, "info");
+                        const valid_file = await new Promise(async resolve => {
+                            const url = `https://cdn.discordapp.com/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`
+                            remoteSize(url, async (err, size) => {
+                                if (!err || (size !== undefined && size > 10)) {
+                                    resolve(url)
+                                } else {
+                                    resolve(false)
+                                }
+                            })
+                        });
+                        if (valid_file)
+                            return res.status(200).redirect(valid_file);
+                    }
+                    const discordResponse = await new Promise(async ok => {
+                        try {
+                            pm = await discordClient.getMessage(cacheresponse[0].channel, cacheresponse[0].id);
+                            if (pm && pm.attachments && pm.attachments.length > 0) {
+                                Logger.printLine("SBI FileRequest", `File ${req.params.eid}: Returning URL`, "info");
+                                res.status(200).redirect(pm.attachments[0].url)
+                                const a = pm.attachments[0].url.split('?')[1];
+                                let ex = null;
+                                try {
+                                    let exSearch = new URLSearchParams(a);
+                                    const _ex = Number('0x' + exSearch.get('ex'));
+                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                } catch (err) {
+                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                }
+                                auth = `?${a}`;
+                                await db.query(`UPDATE discord_multipart_files
+                                                SET url         = ?,
+                                                    auth        = ?,
+                                                    auth_expire = ?
+                                                WHERE channelid = ?
+                                                  AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
+                            } else {
+                                res.status(401).send('No Attachemnts (Verified from Discord)');
+                                Logger.printLine("SBI FileRequest", `Failed to any attachments from discord with ID "${cacheresponse[0].id}" for file ${req.params.eid}`, "error", e);
+                            }
+                        } catch (e) {
+                            Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${u.messageid}" for file ${req.params.uuid}`, "error", e);
+                        }
+                    })
+                }
+            })
+        } else {
+            res.status(400).send('Invalid Request');
+            Logger.printLine("SBI FileRequest", `Invalid Request`, "error");
+        }
+    })
 
     Logger.printLine("Discord", "Settings up Discord Client...", "debug")
     const discordClient = new eris.CommandClient(systemglobal.Discord_Key, {
