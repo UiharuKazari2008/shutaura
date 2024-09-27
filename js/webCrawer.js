@@ -825,7 +825,7 @@ This code is publicly released and is restricted by its project license
     async function getCloudcasts(username) {
         return new Promise((resolve, reject) => {
             request({
-                url: `http://api.mixcloud.com/${username}/cloudcasts/`,
+                url: `http://api.mixcloud.com/${username}/cloudcasts/?limit=2500`,
                 headers: {
                     Origin: "https://www.mixcloud.com/",
                     Referer: `https://www.mixcloud.com/${username}/`,
