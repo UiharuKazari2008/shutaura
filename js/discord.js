@@ -367,6 +367,8 @@ This code is publicly released and is restricted by its project license
             if (_discord_system.length > 0 && _discord_system[0].param_data) {
                 if (_discord_system[0].param_data.coop_worker)
                     systemglobal.Coop_Worker = _discord_system[0].param_data.coop_worker;
+                if (_discord_system[0].param_data.no_cdn_reload)
+                    systemglobal.Discord_No_CDN_Reload = _discord_system[0].param_data.no_cdn_reload;
             }
             // Discord Bot Info (Shown in Help)
             // DiscordOwner = "Yukimi Kazari"
