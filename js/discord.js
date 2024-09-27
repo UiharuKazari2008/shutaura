@@ -9505,10 +9505,16 @@ This code is publicly released and is restricted by its project license
                            WHERE channel = ?
                              AND eid = ?`, [req.params.channel, req.params.eid], async function (err, cacheresponse) {
                 if (err || cacheresponse.length === 0) {
-                    res.status(404).json("File not found");
+                    res.status(200).json({
+                        status: 404,
+                        message: "File not found"
+                    });
                     Logger.printLine("SBI FileRequest", `File ${req.params.eid} not found!`, "error");
                 } else if (!(cacheresponse[0].attachment_hash && cacheresponse[0].attachment_name)) {
-                    res.status(415).send('This content is not a data file!')
+                    res.status(200).json({
+                        status: 415,
+                        message: 'This content is not a data file!'
+                    });
                     Logger.printLine("SBI FileRequest", `File ${req.params.eid} is not a data file`, "error");
                 } else {
                     if (cacheresponse[0].attachment_auth && cacheresponse[0].auth_valid === 1) {
@@ -9524,14 +9530,22 @@ This code is publicly released and is restricted by its project license
                             })
                         });
                         if (valid_file)
-                            return res.status(200).redirect(valid_file);
+                            return res.status(200).json({
+                                status: 200,
+                                message: 'OK',
+                                url: valid_file
+                            });
                     }
                     const discordResponse = await new Promise(async ok => {
                         try {
                             const pm = await discordClient.getMessage(cacheresponse[0].channel, cacheresponse[0].id);
                             if (pm && pm.attachments && pm.attachments.length > 0) {
                                 Logger.printLine("SBI FileRequest", `File ${req.params.eid}: Returning URL`, "info");
-                                res.status(200).redirect(pm.attachments[0].url)
+                                res.status(200).json({
+                                    status: 200,
+                                    message: 'OK',
+                                    url: pm.attachments[0].url
+                                });
                                 const a = pm.attachments[0].url.split('?')[1];
                                 let ex = null;
                                 try {
@@ -9548,7 +9562,10 @@ This code is publicly released and is restricted by its project license
                                                 WHERE channel = ?
                                                   AND id = ?`, [a, ex, pm.channel.id, pm.id])
                             } else {
-                                res.status(401).send('No Attachemnts (Verified from Discord)');
+                                res.status(200).json({
+                                    status: 401,
+                                    message: 'This content is not a data file!'
+                                });
                                 Logger.printLine("SBI FileRequest", `Failed to any attachments from discord with ID "${cacheresponse[0].id}" for file ${req.params.eid}`, "error", e);
                             }
                         } catch (e) {
@@ -9558,7 +9575,10 @@ This code is publicly released and is restricted by its project license
                 }
             })
         } else {
-            res.status(400).send('Invalid Request');
+            res.status(400).json({
+                status: 400,
+                message: 'Invalid Request'
+            });
             Logger.printLine("SBI FileRequest", `Invalid Request`, "error");
         }
     })
