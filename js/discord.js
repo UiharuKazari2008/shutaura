@@ -9528,7 +9528,7 @@ This code is publicly released and is restricted by its project license
                     }
                     const discordResponse = await new Promise(async ok => {
                         try {
-                            pm = await discordClient.getMessage(cacheresponse[0].channel, cacheresponse[0].id);
+                            const pm = await discordClient.getMessage(cacheresponse[0].channel, cacheresponse[0].id);
                             if (pm && pm.attachments && pm.attachments.length > 0) {
                                 Logger.printLine("SBI FileRequest", `File ${req.params.eid}: Returning URL`, "info");
                                 res.status(200).redirect(pm.attachments[0].url)
@@ -9542,12 +9542,11 @@ This code is publicly released and is restricted by its project license
                                     Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
                                 }
                                 auth = `?${a}`;
-                                await db.query(`UPDATE discord_multipart_files
-                                                SET url         = ?,
-                                                    auth        = ?,
-                                                    auth_expire = ?
-                                                WHERE channelid = ?
-                                                  AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, cacheresponse[0].channel, cacheresponse[0].id])
+                                await db.query(`UPDATE kanmi_records
+                                                SET attachment_auth = ?,
+                                                    attachment_auth_ex = ?
+                                                WHERE channel = ?
+                                                  AND id = ?`, [a, ex, pm.channel.id, pm.id])
                             } else {
                                 res.status(401).send('No Attachemnts (Verified from Discord)');
                                 Logger.printLine("SBI FileRequest", `Failed to any attachments from discord with ID "${cacheresponse[0].id}" for file ${req.params.eid}`, "error", e);
