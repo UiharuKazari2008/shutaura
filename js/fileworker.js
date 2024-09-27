@@ -1274,7 +1274,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												});
 											}
 										} else if (preview_image) {
-											mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+											mqClient.sendMessage(`Error occurred when generating animated preview the video for transport, Will try to send image!`, "warn", "")
 											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 												messageReturn: false,
@@ -1310,7 +1310,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												}
 											});
 										} else {
-											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+											mqClient.sendMessage(`Error occurred when generating preview the video for transport, Will send without preview!`)
 										}
 										cb(true);
 									} else if ((MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview') || (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
