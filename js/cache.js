@@ -127,6 +127,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Trash_Channels = _backup_config[0].param_data.trash_channels;
                 if (_backup_config[0].param_data.trash_path)
                     systemglobal.CDN_Trash_Path = _backup_config[0].param_data.trash_path;
+                if (_backup_config[0].param_data.match_latest)
+                    systemglobal.CDN_Match_Latest = _backup_config[0].param_data.match_latest;
             }
             // {"backup_parts": true, "interval_min": 5, "backup_base_path": "/mnt/backup/", "pickup_base_path": "/mnt/data/kanmi-files/", "items_per_backup" : 2500}
             const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'seq_cdn.ignore');
@@ -1243,7 +1245,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
-                       ORDER BY RAND()
+                       ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
         console.log(q)
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
@@ -1286,7 +1288,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                    WHERE (y.heid IS NULL OR (x.fileid IS NOT NULL AND y.mfull = 0))
                      AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
-                   ORDER BY RAND()
+                   ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                    LIMIT ?`;
         Logger.printLine("Prefetch", `Preparing Search (Episodes)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Episodes_Per_Interval) ? systemglobal.CDN_N_Episodes_Per_Interval : 150])
@@ -1303,7 +1305,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    FROM (SELECT show_id, media_group, name, background, poster, md5(CONCAT(COALESCE(poster,''), COALESCE(background,''), show_id)) as hash FROM kongou_shows WHERE (background IS NOT NULL OR poster IS NOT NULL)) x
                             LEFT OUTER JOIN (SELECT * FROM kanmi_aux_cdn WHERE host = ?) y ON (x.hash = y.record_id)
                    WHERE (y.hrid IS NULL)
-                   ORDER BY RAND()
+                   ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                    LIMIT ?`;
         Logger.printLine("Metadata", `Preparing Search (Show Metadata)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
