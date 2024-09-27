@@ -792,7 +792,6 @@ This code is publicly released and is restricted by its project license
         if (mixclouduser.error) {
             mqClient.sendMessage(`SQL Error when getting to the Podcast Watchlist records`, "err", "SQL", mixclouduser.error)
         } else if (mixclouduser.rows.length > 0) {
-            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%mixcloud%'`)
             await Promise.all(mixclouduser.rows.map(async user => {
                 await getMixcloudPodcast(user.username, user.channelid, user.search, false);
             }))
@@ -801,6 +800,7 @@ This code is publicly released and is restricted by its project license
     async function getMixcloudPodcast(username, channelid, search, deep) {
         return new Promise(async done => {
             try {
+                const history = await db.query(`SELECT * FROM web_visitedpages WHERE LOWER(url) LIKE LOWER('%https://www.mixcloud.com/${username}/%')`)
                 const tracks = await getCloudcasts(username, search, history, deep)
                 if (tracks.length === 0) {
                     Logger.printLine('Mixcloud-Get', `No new tracks from the Mixcloud API for ${username}`, 'warning');
