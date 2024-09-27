@@ -796,6 +796,7 @@ This code is publicly released and is restricted by its project license
             await Promise.all(mixclouduser.rows.map(async user => {
                 try {
                     const tracks = await getCloudcasts(user.username)
+                    console.log(tracks)
                     if (tracks.length === 0) {
                         Logger.printLine('Mixcloud-Get', `Failed to get any episodes from the Mixcloud API for ${user.username}`, 'error');
                     } else {
