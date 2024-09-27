@@ -874,7 +874,7 @@ This code is publicly released and is restricted by its project license
                 })
                 const results = _data.filter(track => !history.error && history.rows.filter(e => track.name && !(search && track.name.toLowerCase().includes(search.toLowerCase())) && e.url === track.url).length === 0);
                 items.push(...results);
-                if (((deep && i > 100) || (!deep && i > 1)) && (results.length === 0 || results.length < 100 || i > 300)) {
+                if (!nextPage || (!deep && (results.length === 0 || results.length < 100 || i > 300))) {
                     Logger.printLine("CloudcastsGET", `Returned ${results.length} Tracks (End of Pages)`, "debug")
                     break;
                 } else {
