@@ -905,6 +905,7 @@ This code is publicly released and is restricted by its project license
                     }
 
                     const $ = cheerio.load(body)
+                    console.log(body.toString())
                     const csrfToken = $("input[name=csrf_token]")[0].attribs.value
                     request.post({
                         url: `https://mixclouddownloader.net/download-track/`,
