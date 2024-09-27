@@ -9520,11 +9520,11 @@ This code is publicly released and is restricted by its project license
                     if (cacheresponse[0].attachment_auth && cacheresponse[0].auth_valid === 1) {
                         Logger.printLine("SBI FileRequest", `File ${req.params.eid} has valid auth hash till ${cacheresponse[0].attachment_auth_ex}: Returning URL`, "info");
                         const valid_file = await new Promise(async resolve => {
-                            const url = `https://cdn.discordapp.com/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`
-                            remoteSize(url, async (err, size) => {
+                            remoteSize(`https://cdn.discordapp.com/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`, async (err, size) => {
                                 if (!err || (size !== undefined && size > 10)) {
-                                    resolve(url)
+                                    resolve(`${(req.query && req.query.proxy) ? decodeURIComponent(req.query.proxy) : 'https://cdn.discordapp.com'}/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`)
                                 } else {
+                                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} attachment auth is invalid or inaccessable, contacting to discord...`, "warn");
                                     resolve(false)
                                 }
                             })
@@ -9544,7 +9544,7 @@ This code is publicly released and is restricted by its project license
                                 res.status(200).json({
                                     status: 200,
                                     message: 'OK',
-                                    url: pm.attachments[0].url
+                                    url: `${(req.query && req.query.proxy) ? decodeURIComponent(req.query.proxy) : 'https://cdn.discordapp.com'}/attachments${pm.attachments[0].url.split('/attachments').pop()}`
                                 });
                                 const a = pm.attachments[0].url.split('?')[1];
                                 let ex = null;
