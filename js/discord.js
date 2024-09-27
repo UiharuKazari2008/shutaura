@@ -9511,7 +9511,7 @@ This code is publicly released and is restricted by its project license
                     res.status(415).send('This content is not a data file!')
                     Logger.printLine("SBI FileRequest", `File ${req.params.eid} is not a data file`, "error");
                 } else {
-                    if (cacheresponse[0].u.attachment_auth && cacheresponse[0].auth_valid === 1) {
+                    if (cacheresponse[0].attachment_auth && cacheresponse[0].auth_valid === 1) {
                         Logger.printLine("SBI FileRequest", `File ${req.params.eid} has valid auth hash till ${cacheresponse[0].attachment_auth_ex}: Returning URL`, "info");
                         const valid_file = await new Promise(async resolve => {
                             const url = `https://cdn.discordapp.com/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`
