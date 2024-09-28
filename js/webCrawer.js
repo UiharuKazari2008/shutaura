@@ -248,6 +248,7 @@ This code is publicly released and is restricted by its project license
             try {
                 const _data = await getKemonoJSON(source, artist, i);
                 const results = _data.map(e => {
+                    console.log(`${source}/user/${artist}/post/${e.id}}`)
                     return {
                         ...e,
                         real_url: `https://${kemonoSources.indexOf(source) !== -1 ? "kemono" : "coomer"}.su/${source}/user/${artist}/post/${e.id}`,
