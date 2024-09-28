@@ -226,7 +226,7 @@ This code is publicly released and is restricted by its project license
                         ok(null);
                     }
                 } catch (error) {
-                    Logger.printLine("KemonoPartyJSON", `Failed to call API ${url}: Catched Error`, "error");
+                    Logger.printLine("KemonoPartyJSON", `Failed to call API ${source}/${artist}/${endpoint}: Catched Error`, "error");
                     if (error.response) {
                         // The request was made, but the server responded with a status code
                         console.error(`Error: ${error.message} | Status code: ${error.response.status}`);
