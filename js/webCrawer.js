@@ -248,13 +248,13 @@ This code is publicly released and is restricted by its project license
             try {
                 const _data = await getKemonoJSON(source, artist, i);
                 const results = _data.map(e => {
-                    console.log(`${source}/user/${artist}/post/${e.id}}`)
+                    console.log(`${source}/user/${artist}/post/${e.id}`)
                     return {
                         ...e,
                         real_url: `https://${kemonoSources.indexOf(source) !== -1 ? "kemono" : "coomer"}.su/${source}/user/${artist}/post/${e.id}`,
-                        url: `${kemonoSources.indexOf(source) !== -1 ? kemonoAPI : coomerAPI}/${source}/user/${artist}/post/${e.id}`
+                        url: `${kemonoSources.indexOf(source) !== -1 ? kemonoAPI : coomerAPI}${source}/user/${artist}/post/${e.id}`
                     }
-                }).filter(f => history.filter(e => e.url.endsWith(`${source}/user/${artist}/post/${e.id}`)).length === 0);
+                }).filter(f => history.filter(e => e.url === f.url).length === 0);
                 posts.push(...results);
                 if (i > 2 && (results.length === 0 || results.length < 50)) {
                     Logger.printLine("KemonoPartyJSON", `Returned ${results.length} items (End of Pages)`, "debug")
