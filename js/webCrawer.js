@@ -201,11 +201,11 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    async function getKemonoJSON(source, artist, page = 0) {
+    async function getKemonoJSON(source, artist, page = 0, endpoint = "post") {
         return new Promise(ok => {
             kemonoJSONLimit.removeTokens(1, async function () {
                 try {
-                    const url = `${source}/user/${artist}/profile`;
+                    const url = `${source}/user/${artist}/${endpoint}`;
                     let apiUrl;
                     if (kemonoSources.some(a => a === source))
                         apiUrl = kemonoAPI;
@@ -730,7 +730,7 @@ This code is publicly released and is restricted by its project license
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${source}/user/${artist}%'`)
             if (!history.error) {
-                const userProfile = await getKemonoJSON(source, artist);
+                const userProfile = await getKemonoJSON(source, artist, 0, "profile");
                 if (userProfile && userProfile.name) {
                     const userFeed = await getKemonoPosts(source, artist, history.rows || []);
                     if (userFeed && userFeed.length > 0) {
