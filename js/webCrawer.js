@@ -760,7 +760,7 @@ This code is publicly released and is restricted by its project license
                                             messageChannelID: destionation,
                                             messageText: title,
                                             itemFileName: image.name,
-                                            itemFileURL: kemonoSources.indexOf(source) !== -1 ? kemonoCDN : coomerCDN + image.path,
+                                            itemFileURL: (kemonoSources.indexOf(source) !== -1 ? kemonoCDN : coomerCDN) + image.path,
                                             itemReferral: thisArticle.real_url,
                                             itemDateTime: thisArticle.published || thisArticle.added,
                                             backlogRequest: backlog
