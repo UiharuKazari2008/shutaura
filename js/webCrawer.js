@@ -251,7 +251,7 @@ This code is publicly released and is restricted by its project license
                 const results = _data.map(e => {
                     return {
                         ...e,
-                        real_url: `https://${kemonoSources.indexOf(source) !== -1 ? "kemono" : "coomer"}.su/${url}/post/${e.id}`,
+                        real_url: `https://${kemonoSources.indexOf(source) !== -1 ? "kemono" : "coomer"}.su/${source}/user/${artist}/post/${e.id}`,
                         url: `${kemonoSources.indexOf(source) !== -1 ? kemonoAPI : coomerAPI}/${source}/user/${artist}/post/${e.id}`
                     }
                 }).filter(f => history.filter(e => e.url === f.url).length === 0);
