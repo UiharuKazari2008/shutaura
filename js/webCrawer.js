@@ -218,6 +218,7 @@ This code is publicly released and is restricted by its project license
                             'Referer': `https://${apiUrl === kemonoAPI ? "kemono" : "coomer"}.su/` + url
                         },
                     })
+                    console.log(response.data);
                     if (response.headers['content-type'].includes('application/json')) {
                         ok(response.data);
                     } else {
