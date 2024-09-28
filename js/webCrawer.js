@@ -201,7 +201,7 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    async function getKemonoJSON(source, artist, page = 0, endpoint = "post") {
+    async function getKemonoJSON(source, artist, page = 0, endpoint = "") {
         return new Promise(ok => {
             kemonoJSONLimit.removeTokens(1, async function () {
                 try {
