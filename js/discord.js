@@ -6891,7 +6891,7 @@ This code is publicly released and is restricted by its project license
                 } else if (urlItem.includes("//kemono.su/") || urlItem.includes("//coomer.su/")) {
                     mqClient.sendData(systemglobal.WebParser_In, {
                         messageChannelID: moveTo,
-                        itemFileURL: urlItem,
+                        itemURL: urlItem,
                         messageIntent: "Kemono"
                     }, function (ok) {
                         if (ok) {
