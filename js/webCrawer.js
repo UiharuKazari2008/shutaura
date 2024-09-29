@@ -56,6 +56,10 @@ This code is publicly released and is restricted by its project license
     ddosGuardBypass(agent);
     const kemonoAPI = "https://kemono.su/api/v1/";
     const kemonoCDN = "https://n3.kemono.su/data";
+    const coomerAPI = "https://coomer.su/api/v1/";
+    const coomerCDN = "https://n2.coomer.su/data";
+    const kemonoSources = ["patreon", "fanbox", "discord", "fantia", "afdian", "boosty", "gumroad", "subscribestar"];
+    const coomerSources = ["onlyfans", "fansly", "candfans"];
 
     async function loadDatabaseCache() {
         Logger.printLine("SQL", "Getting System Parameters", "debug")
@@ -197,15 +201,21 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    async function getKemonoJSON(url) {
+    async function getKemonoJSON(source, artist, page = 0, endpoint = "") {
         return new Promise(ok => {
             kemonoJSONLimit.removeTokens(1, async function () {
                 try {
+                    const url = `${source}/user/${artist}/${endpoint}`;
+                    let apiUrl;
+                    if (kemonoSources.some(a => a === source))
+                        apiUrl = kemonoAPI;
+                    if (coomerSources.some(a => a === source))
+                        apiUrl = coomerAPI;
                     const response = await agent({
-                        url: kemonoAPI + url,
+                        url: apiUrl + url + `?o=${page * 50}`,
                         headers: {
                             'accept': 'application/json',
-                            'Referer': 'https://kemono.su/' + url
+                            'Referer': `https://${apiUrl === kemonoAPI ? "kemono" : "coomer"}.su/` + url
                         },
                     })
                     if (response.headers['content-type'].includes('application/json')) {
@@ -215,7 +225,7 @@ This code is publicly released and is restricted by its project license
                         ok(null);
                     }
                 } catch (error) {
-                    Logger.printLine("KemonoPartyJSON", `Failed to call API ${url}: Catched Error`, "error");
+                    Logger.printLine("KemonoPartyJSON", `Failed to call API ${source}/${artist}/${endpoint}: Catched Error`, "error");
                     if (error.response) {
                         // The request was made, but the server responded with a status code
                         console.error(`Error: ${error.message} | Status code: ${error.response.status}`);
@@ -231,17 +241,17 @@ This code is publicly released and is restricted by its project license
             });
         })
     }
-    async function getKemonoPosts(url, history) {
+    async function getKemonoPosts(source, artist, history) {
         let posts = [];
         let i = 0;
         while (true) {
             try {
-                const _data = await getKemonoJSON(url + `?o=${i * 50}`);
+                const _data = await getKemonoJSON(source, artist, i);
                 const results = _data.map(e => {
                     return {
                         ...e,
-                        real_url: `https://kemono.su/${url}/post/${e.id}`,
-                        url: `${kemonoAPI}${url}/post/${e.id}`
+                        real_url: `https://${kemonoSources.indexOf(source) !== -1 ? "kemono" : "coomer"}.su/${source}/user/${artist}/post/${e.id}`,
+                        url: `${kemonoSources.indexOf(source) !== -1 ? kemonoAPI : coomerAPI}${source}/user/${artist}/post/${e.id}`
                     }
                 }).filter(f => history.filter(e => e.url === f.url).length === 0);
                 posts.push(...results);
@@ -249,7 +259,7 @@ This code is publicly released and is restricted by its project license
                     Logger.printLine("KemonoPartyJSON", `Returned ${results.length} items (End of Pages)`, "debug")
                     break;
                 } else {
-                    Logger.printLine("KemonoPartyJSON", `${url} => ${results.length} items (Page ${i})`, "debug")
+                    Logger.printLine("KemonoPartyJSON", `${source}/user/${artist} => ${results.length} items (Page ${i})`, "debug")
                 }
                 i++
             } catch (err) {
@@ -717,11 +727,11 @@ This code is publicly released and is restricted by its project license
     }
     async function getKemonoGallery(source, artist, destionation) {
         try {
-            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${kemonoAPI}${source}/user/${artist}%'`)
+            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${source}/user/${artist}%'`)
             if (!history.error) {
-                const userProfile = await getKemonoJSON(`${source}/user/${artist}/profile`);
+                const userProfile = await getKemonoJSON(source, artist, 0, "profile");
                 if (userProfile && userProfile.name) {
-                    const userFeed = await getKemonoPosts(`${source}/user/${artist}`, history.rows || []);
+                    const userFeed = await getKemonoPosts(source, artist, history.rows || []);
                     if (userFeed && userFeed.length > 0) {
                         let counter = 0
                         await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
@@ -749,7 +759,7 @@ This code is publicly released and is restricted by its project license
                                             messageChannelID: destionation,
                                             messageText: title,
                                             itemFileName: image.name,
-                                            itemFileURL: kemonoCDN + image.path,
+                                            itemFileURL: (kemonoSources.indexOf(source) !== -1 ? kemonoCDN : coomerCDN) + image.path,
                                             itemReferral: thisArticle.real_url,
                                             itemDateTime: thisArticle.published || thisArticle.added,
                                             backlogRequest: backlog
