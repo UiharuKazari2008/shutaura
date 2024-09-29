@@ -6904,7 +6904,7 @@ This code is publicly released and is restricted by its project license
                         }
                     })
                 } else if (urlItem.includes("//e-hentai.org/")) {
-                    mqClient.sendData(systemglobal.WebParser_In, {
+                    mqClient.sendData(systemglobal.WebParser_In + '.sync', {
                         messageChannelID: moveTo,
                         itemURL: urlItem,
                         messageIntent: "EHentai"

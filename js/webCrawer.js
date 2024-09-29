@@ -170,6 +170,7 @@ This code is publicly released and is restricted by its project license
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
     const MQWorker1 = systemglobal.WebParser_In
+    const MQWorker2 = systemglobal.WebParser_In + ".sync";
 
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
@@ -217,6 +218,43 @@ This code is publicly released and is restricted by its project license
         const MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
         parseRemoteAction(MessageContents, cb);
     }
+    function startWorker2() {
+        amqpConn.createChannel(function(err, ch) {
+            if (closeOnErr(err)) return;
+            ch.on("error", function(err) {
+                Logger.printLine("KanmiMQ", "Channel 2 Error (Synchronous)", "error", err)
+            });
+            ch.on("close", function() {
+                Logger.printLine("KanmiMQ", "Channel 2 Closed (Synchronous)", "critical")
+                start();
+            });
+            ch.prefetch(1);
+            ch.assertQueue(MQWorker2, { durable: true }, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.consume(MQWorker2, processMsg, { noAck: false });
+                Logger.printLine("KanmiMQ", "Channel 2 Worker Ready (Synchronous)", "info")
+            });
+            ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.bindQueue(MQWorker2, "kanmi.exchange", MQWorker2, [], function(err, _ok) {
+                    if (closeOnErr(err)) return;
+                    Logger.printLine("KanmiMQ", "Channel 2 Worker Bound to Exchange (Synchronous)", "debug")
+                })
+            });
+            function processMsg(msg) {
+                work(msg, function(ok) {
+                    try {
+                        if (ok)
+                            ch.ack(msg);
+                        else
+                            ch.reject(msg, true);
+                    } catch (e) {
+                        closeOnErr(e);
+                    }
+                });
+            }
+        });
+    }
     function start() {
         amqp.connect(MQServer, function(err, conn) {
             if (err) {
@@ -245,6 +283,7 @@ This code is publicly released and is restricted by its project license
     }
     async function whenConnected() {
         startWorker();
+        startWorker2();
         if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
             setInterval(() => {
                 request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
