@@ -852,7 +852,8 @@ This code is publicly released and is restricted by its project license
                 const jsonRes = await got.post("https://api.e-hentai.org/api.php", options);
 
                 if (jsonRes) {
-                    const json = JSON.parse(jsonRes.body);
+                    const _json = JSON.parse(jsonRes.body);
+                    const json = _json.gmetadata[0];
                     const title = json.title_jpn || json.title;
                     const category = json.category;
                     const uploader = json.uploader;
