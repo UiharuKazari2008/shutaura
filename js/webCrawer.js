@@ -863,8 +863,6 @@ This code is publicly released and is restricted by its project license
                     const series = tags.filter(t => t.startsWith("parody:")).map(e => e.split(":").pop()).join(" ");
                     const artist = tags.filter(t => t.startsWith("artist:")).map(e => e.split(":").pop()).join(" ");
 
-                    const text = `🐼 ${title.slice(0, 500)} ${(series) ? "(" + series + ") ": ""}- ${artist || uploader}\n\`${pageURL}\``
-
                     Logger.printLine('EHentaiGET', `Getting "${title}" (${count} images) from E-Hentai...`, 'info');
 
                     const pulledPage = await got(pageURL);
@@ -876,6 +874,7 @@ This code is publicly released and is restricted by its project license
                     let i = 0;
                     let imageUrl = images[0];
                     while (true) {
+                        i++;
                         const imagePage = await got(imageUrl)
                         const $_ = cheerio.load(imagePage.body);
                         const img = $_('#img')[0].attribs.src;
@@ -884,7 +883,7 @@ This code is publicly released and is restricted by its project license
                         let sendTo = systemglobal.FileWorker_In + '.priority'
                         mqClient.sendData(sendTo, {
                             messageChannelID: channel,
-                            messageText: text,
+                            messageText: `🐼 ${title.slice(0, 500)} ${(series) ? "(" + series + ") ": ""}- ${artist || uploader} (${i}/${count})\n\`${pageURL}\``,
                             itemFileName: img.split('/').pop().split('?')[0],
                             itemFileURL: img,
                             itemReferral: imageUrl,
@@ -894,7 +893,6 @@ This code is publicly released and is restricted by its project license
                                 mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
                             }
                         });
-                        i++;
                         if (imageUrl === next_page)
                             break;
                         imageUrl = next_page;
