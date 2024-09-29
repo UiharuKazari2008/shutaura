@@ -1686,28 +1686,40 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         return new Promise(async completed => {
             runCount++;
             if (backupItems.rows.length > 0) {
-                let total = backupItems.rows.length
-                let ticks = 0
-                let requests = backupItems.rows.reduce((promiseChain, m, i, a) => {
-                    return promiseChain.then(() => new Promise(async (resolve) => {
-                        await backupMessage(m, async ok => {
-                            ticks++
-                            if (ticks >= 100 || a.length <= 100) {
-                                ticks = 0
-                            }
-                            resolve(ok)
-                            m = null
-                        }, false, allow_master)
-                    }))
-                }, Promise.resolve());
-                requests.then(async () => {
-                    if (total > 0) {
-                        Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
-                    } else {
-                        Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
-                    }
-                    completed();
-                })
+                let total = backupItems.rows.length;
+                let ticks = 0;
+                let batchSize = 15; // Number of items to process in each batch
+
+                // Function to process a batch of items
+                async function processBatch(batch) {
+                    return Promise.all(
+                        batch.map(m => {
+                            return new Promise(async (resolve) => {
+                                await backupMessage(m, (ok) => {
+                                    ticks++;
+                                    if (ticks >= 100 || backupItems.rows.length <= 100) {
+                                        ticks = 0;
+                                    }
+                                    resolve(ok);
+                                }, false, allow_master);
+                            });
+                        })
+                    );
+                }
+
+                // Divide the items into batches and process them sequentially
+                for (let i = 0; i < backupItems.rows.length; i += batchSize) {
+                    let batch = backupItems.rows.slice(i, i + batchSize);
+                    await processBatch(batch);
+                }
+
+                // After processing all batches
+                if (total > 0) {
+                    Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
+                } else {
+                    Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                }
+                completed();
             } else {
                 Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
                 completed();
