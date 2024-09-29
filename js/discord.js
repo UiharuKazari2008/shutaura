@@ -6892,6 +6892,7 @@ This code is publicly released and is restricted by its project license
                     mqClient.sendData(systemglobal.WebParser_In, {
                         messageChannelID: moveTo,
                         itemFileURL: urlItem,
+                        messageIntent: "Kemono"
                     }, function (ok) {
                         if (ok) {
                             setTimeout(function () {
