@@ -421,8 +421,12 @@ This code is publicly released and is restricted by its project license
                     const source = _url[0];
                     const artist = _url[2];
                     const post = _url[4];
-                    if (source && artist && post) {
-                        await getKemonoPost(source, artist, post, message.messageChannelID);
+                    if (source && artist) {
+                        if (post) {
+                            await getKemonoPost(source, artist, post, message.messageChannelID);
+                        } else {
+                            await getKemonoGallery(source, artist, message.messageChannelID);
+                        }
                         complete(true);
                     } else {
                         Logger.printLine('KemonoParty', `Failed to get a valid source URL, Ignoring`, 'error');
