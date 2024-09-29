@@ -901,6 +901,8 @@ This code is publicly released and is restricted by its project license
                     const tags = json.tags
                     const series = tags.filter(t => t.startsWith("parody:")).map(e => e.split(":").pop()).join(" ");
                     const artist = tags.filter(t => t.startsWith("artist:")).map(e => e.split(":").pop()).join(" ");
+                    const cosplayer = tags.filter(t => t.startsWith("cosplayer:")).map(e => e.split(":").pop()).join(" ");
+                    const chara = tags.filter(t => t.startsWith("character:")).map(e => e.split(":").pop()).join(" ");
 
                     Logger.printLine('EHentaiGET', `Getting "${title}" (${count} images) from E-Hentai...`, 'info');
 
@@ -922,14 +924,14 @@ This code is publicly released and is restricted by its project license
                         let sendTo = systemglobal.FileWorker_In + '.priority'
                         mqClient.sendData(sendTo, {
                             messageChannelID: channel,
-                            messageText: `🐼 ${title.slice(0, 500)} ${(series) ? "(" + series + ") ": ""}- ${artist || uploader} (${i}/${count})\n\`${pageURL}\``,
+                            messageText: `🐼 ${title.slice(0, 500)} ${(series) ? "(" + ((chara) ? chara + " from " : "") + series + ") ": ((chara) ? "(" + chara + ") " : "")}- ${cosplayer || artist || uploader} (${i}/${count})\n\`${pageURL}\``,
                             itemFileName: img.split('/').pop().split('?')[0],
                             itemFileURL: img,
                             itemReferral: imageUrl,
                             itemDateTime: posted
                         }, (ok) => {
                             if (!ok) {
-                                mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
+                                mqClient.sendMessage(`Failed to send article - "${json.title}"`, "err", "SQL", json);
                             }
                         });
                         if (imageUrl === next_page)
