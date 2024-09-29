@@ -417,11 +417,10 @@ This code is publicly released and is restricted by its project license
         switch (message.messageIntent) {
             case "Kemono":
                 if (message.itemURL && message.messageChannelID && (message.itemURL.includes("//kemono.su/") || message.itemURL.includes("//coomer.su/"))) {
-                    const _url = message.itemURL.split('.su/')[0].split('/');
+                    const _url = message.itemURL.split('.su/').pop().split('/');
                     const source = _url[0];
                     const artist = _url[2];
                     const post = _url[4];
-                    console.log(_url);
                     if (source && artist && post) {
                         await getKemonoPost(source, artist, post, message.messageChannelID);
                         complete(true);
