@@ -1104,9 +1104,6 @@ This code is publicly released and is restricted by its project license
                                         itemDateTime: thisArticle.published || thisArticle.added
                                     }
                                     let sendTo = systemglobal.FileWorker_In
-                                    if (backlog) {
-                                        sendTo += '.backlog'
-                                    }
 
                                     mqClient.sendData(sendTo, MessageParameters, (ok) => {
                                         if (!ok) {
