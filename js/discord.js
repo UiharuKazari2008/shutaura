@@ -299,6 +299,11 @@ This code is publicly released and is restricted by its project license
             // Pixiv Inbox MQ - Required - Dynamic
             // Pixiv_In = "inbox.pixiv"
             // mq.pixiv.in = "inbox.pixiv"
+            const _mq_web_out = systemparams_sql.filter(e => e.param_key === 'mq.webparser.out');
+            if (_mq_web_out.length > 0 && _mq_web_out[0].param_value) {
+                systemglobal.WebParser_In = _mq_web_out[0].param_value;
+            }
+            // WebParser Inbox MQ - Required - Dynamic
             const _mq_pdp_in = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
             if (_mq_pdp_in.length > 0 && _mq_pdp_in[0].param_value) {
                 systemglobal.Mugino_In = _mq_pdp_in[0].param_value;
@@ -6883,6 +6888,20 @@ This code is publicly released and is restricted by its project license
                     }
                 } else if (urlItem.includes("youtube.com") || urlItem.includes("youtu.be") || urlItem.includes("twitter.com") || urlItem.includes("x.com")) {
                     downloadMessageFile(msg, moveTo,true)
+                } else if (urlItem.includes("//kemono.su/") || urlItem.includes("//coomer.su/")) {
+                    mqClient.sendData(systemglobal.WebParser_In, {
+                        messageChannelID: moveTo,
+                        itemFileURL: urlItem,
+                    }, function (ok) {
+                        if (ok) {
+                            setTimeout(function () {
+                                discordClient.deleteMessage(msg.channel.id, msg.id, "Clean out download request")
+                                    .catch(function (err) {
+                                        Logger.printLine("DownloadMgr", `Failed to remove download request`, 'error', err)
+                                    })
+                            }, 2500)
+                        }
+                    })
                 } else if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image)) {
                     downloadMessageFile(msg, moveTo, true)
                 } else {

@@ -37,6 +37,8 @@ This code is publicly released and is restricted by its project license
     const postImageLimit = new RateLimiter(1, 500);
     const kemonoJSONLimit = new RateLimiter(1, 2000);
     const mixcloudurlLimit = new RateLimiter(1, 60000);
+    const amqp = require('amqplib/callback_api');
+    let amqpConn = null;
     const minimist = require("minimist");
     const { CookieJar } = require('tough-cookie');
     const { ddosGuardBypass } = require('axios-ddos-guard-bypass');
@@ -88,6 +90,10 @@ This code is publicly released and is restricted by its project license
             const _mq_discord_out = systemparams_sql.filter(e => e.param_key === 'mq.discord.out');
             if (_mq_discord_out.length > 0 && _mq_discord_out[0].param_value) {
                 systemglobal.Discord_Out = _mq_discord_out[0].param_value;
+            }
+            const _mq_web_out = systemparams_sql.filter(e => e.param_key === 'mq.webparser.out');
+            if (_mq_web_out.length > 0 && _mq_web_out[0].param_value) {
+                systemglobal.WebParser_In = _mq_web_out[0].param_value;
             }
             const _mq_pdp_out = systemparams_sql.filter(e => e.param_key === 'mq.pdp.out');
             if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
@@ -159,10 +165,279 @@ This code is publicly released and is restricted by its project license
     if (args.wid) {
         systemglobal.Watchdog_ID = args.wid
     }
+
+    const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
+    const MQWorker1 = systemglobal.WebParser_In
 
     console.log(systemglobal)
     Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
+
+
+    // Kanmi MQ Backend
+    function startWorker() {
+        amqpConn.createChannel(function(err, ch) {
+            if (closeOnErr(err)) return;
+            ch.on("error", function(err) {
+                Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
+            });
+            ch.on("close", function() {
+                Logger.printLine("KanmiMQ", "Channel 1 Closed", "critical")
+                start();
+            });
+            ch.prefetch(2);
+            ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.consume(MQWorker1, processMsg, { noAck: false });
+                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "info")
+            });
+            ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
+                if (closeOnErr(err)) return;
+                ch.bindQueue(MQWorker1, "kanmi.exchange", MQWorker1, [], function(err, _ok) {
+                    if (closeOnErr(err)) return;
+                    Logger.printLine("KanmiMQ", "Channel 1 Worker Bound to Exchange", "debug")
+                })
+            });
+            function processMsg(msg) {
+                work(msg, function(ok) {
+                    try {
+                        if (ok)
+                            ch.ack(msg);
+                        else
+                            ch.reject(msg, true);
+                    } catch (e) {
+                        closeOnErr(e);
+                    }
+                });
+            }
+        });
+    }
+    function work(msg, cb) {
+        const MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
+        parseRemoteAction(MessageContents, cb);
+    }
+    function start() {
+        amqp.connect(MQServer, function(err, conn) {
+            if (err) {
+                Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
+                return setTimeout(start, 1000);
+            }
+            conn.on("error", function(err) {
+                if (err.message !== "Connection closing") {
+                    Logger.printLine("KanmiMQ", "Initialization Connection Error", "emergency", err)
+                }
+            });
+            conn.on("close", function() {
+                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
+                return setTimeout(start, 1000);
+            });
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            amqpConn = conn;
+            whenConnected();
+        });
+    }
+    function closeOnErr(err) {
+        if (!err) return false;
+        Logger.printLine("KanmiMQ", "Connection Closed due to error", "error", err)
+        amqpConn.close();
+        return true;
+    }
+    async function whenConnected() {
+        startWorker();
+        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+            setInterval(() => {
+                request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                    if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    }
+                })
+            }, 60000)
+            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
+                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
+                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                }
+            })
+        }
+        setInterval(() => {
+            if (process.send && typeof process.send === 'function') {
+                process.send('ready');
+            }
+        }, 60000);
+        setTimeout(async () => {
+            // Mixcloud
+            if (systemglobal.Mixcloud_Interval) {
+                getMixcloudPodcasts();
+                Timers.set(`MixCloud`, setInterval(() => {
+                    getMixcloudPodcasts();
+                }, parseInt(systemglobal.Mixcloud_Interval.toString())));
+                Logger.printLine('MixCloud', `MixCloud Enabled`, 'info');
+            }
+            tx2.action('get_mixcloud_user', async function(param, reply) {
+                if (param && param.length > 0) {
+                    try {
+                        await getMixcloudUser(param);
+                        reply({success: `OK - Completed Request: ${param}`});
+                    } catch (e) {
+                        reply({success: `Error - ${e.message}`});
+                    }
+                } else {
+                    reply({success: "Missing Request - { tag, channel }"})
+                }
+            })
+            // MyFigureCollection
+            if (systemglobal.MFC_Interval && systemglobal.MFC_Channel) {
+                if (systemglobal.MFC_Deep_Crawl) {
+                    const pageNum = (fs.existsSync('./mfc-backlog')) ? fs.readFileSync('./mfc-backlog', "utf-8") : '1'
+                    if (pageNum && !isNaN(parseInt(pageNum))) {
+                        pullDeepMFCPage = parseInt(pageNum);
+                        if (pullDeepMFCPage < 1001) {
+                            await pullDeepMFC(systemglobal.MFC_Channel);
+                        }
+                    } else {
+                        Logger.printLine('MPZero', `Failed to read page number`, 'error');
+                    }
+                }
+                getFiguresOTD(systemglobal.MFC_Channel);
+                Timers.set(`MFC${systemglobal.MFC_Channel}`, setInterval(() => {
+                    getFiguresOTD(systemglobal.MFC_Channel);
+                }, parseInt(systemglobal.MFC_Interval.toString())));
+                Logger.printLine('MyFigureCollection', `MyFigureCollection Enabled`, 'info');
+            }
+            // MPZero Cosplay
+            if (systemglobal.MPZero_Channel && systemglobal.MPZero_Interval) {
+                if (systemglobal.MPZero_Deep_Crawl) {
+                    const pageNum = (fs.existsSync('./mpz-backlog')) ? fs.readFileSync('./mpz-backlog', "utf-8") : '0';
+                    if (pageNum && !isNaN(parseInt(pageNum))) {
+                        pullDeepMPZPage = parseInt(pageNum);
+                        if (pullDeepMPZPage < 1001) {
+                            pullDeepMPZ(systemglobal.MPZero_Channel);
+                        }
+                    } else {
+                        Logger.printLine('MPZero', `Failed to read page number`, 'error');
+                    }
+                }
+                if (systemglobal.MPZero_Pages && systemglobal.MPZero_Pages.length > 0) {
+                    pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog));
+                    Timers.set(`MPZ${systemglobal.MPZero_Channel}`, setInterval(() => {
+                        pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog), false);
+                    }, parseInt(systemglobal.MPZero_Interval.toString())));
+                    Logger.printLine('MPZero', `MPZero Enabled`, 'info');
+                } else {
+                    Logger.printLine('MPZero', `No Page URLs were added, Ignoring`, 'error');
+                }
+            }
+            // SankakuComplex
+            if (systemglobal.SankakuComplex_Pages && systemglobal.SankakuComplex_Interval) {
+                if (systemglobal.SankakuComplex_Pages.length > 0) {
+                    systemglobal.SankakuComplex_Pages.filter(e => e.url.includes("sankakucomplex.com/") && e.channel ).forEach((e,i) => {
+                        getSankakuGallery(e.url, e.channel, e.notify);
+                        Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
+                            await getSankakuGallery(e.url, e.channel, e.notify);
+                        }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
+                        Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
+
+                        tx2.action('getdeep_sankaku_' + (i).toString(), async function(reply) {
+                            await getSankakuGallery(e.url, e.channel, undefined, true);
+                            reply({success : "Completed Deep Search"})
+                        })
+                    });
+                } else {
+                    Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
+                }
+            }
+            tx2.action('get_sankaku_tag', async function(param, reply) {
+                if (param && param.length > 0) {
+                    try {
+                        const json = JSON.parse(param);
+                        if (!(json && json.tag && json.channel)) {
+                            await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined);
+                            reply({success: `OK - Completed Request: ${param}`});
+                        } else {
+                            reply({success: `Error - Missing Required Parameter: ${param}`});
+                        }
+                    } catch (e) {
+                        reply({success: `Error - ${e.message}`});
+                    }
+                } else {
+                    reply({success: "Missing Request - { tag, channel }"})
+                }
+            })
+            tx2.action('getdeep_sankaku_tag', async function(param, reply) {
+                if (param && param.length > 0) {
+                    try {
+                        const json = JSON.parse(param);
+                        if (!(json && json.tag && json.channel)) {
+                            await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined, true);
+                            reply({success: `OK - Completed Request: ${param}`});
+                        } else {
+                            reply({success: `Error - Missing Required Parameter: ${param}`});
+                        }
+                    } catch (e) {
+                        reply({success: `Error - ${e.message}`});
+                    }
+                } else {
+                    reply({success: "Missing Request - { tag, channel }"})
+                }
+            })
+            // KemonoParty
+            if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
+                if (systemglobal.KemonoParty_Channels.length > 0) {
+                    systemglobal.KemonoParty_Channels.filter(e => e.source && e.artist && e.channel).forEach((e,i) => {
+                        getKemonoGallery(e.source, e.artist, e.channel);
+                        Timers.set(`KMP${e.source}${e.artist}`, setInterval(async() => {
+                            await getKemonoGallery(e.source, e.artist, e.channel);
+                        }, parseInt(systemglobal.KemonoParty_Interval.toString())));
+                        Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.source} / ${e.artist}`, 'info');
+                    });
+                } else {
+                    Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
+                }
+            }
+            tx2.action('get_kemono', async function(param, reply) {
+                if (param && param.length > 0) {
+                    try {
+                        const json = JSON.parse(param);
+                        if (!(json && json.source && json.artist && json.channel)) {
+                            await getKemonoGallery(json.source, json.artist, json.channel);
+                            reply({success: `OK - Completed Request: ${param}`});
+                        } else {
+                            reply({success: `Error - Missing Required Parameter: ${param}`});
+                        }
+                    } catch (e) {
+                        reply({success: `Error - ${e.message}`});
+                    }
+                } else {
+                    reply({success: "Missing Request - { source, artist, channel }"})
+                }
+            })
+        }, 30000)
+    }
+
+    async function parseRemoteAction(message, complete) {
+        switch (message.messageIntent) {
+            case "Kemono":
+                if (message.itemURL && message.messageDestinationID && (message.itemURL.includes("//kemono.su/") || message.itemURL.includes("//coomer.su/"))) {
+                    const _url = message.itemURL.split('.su/')[0].split('/');
+                    const source = _url[0];
+                    const artist = _url[2];
+                    const post = _url[4];
+                    if (source && artist && post) {
+                        await getKemonoPost(source, artist, post, message.messageDestinationID);
+                        complete(true);
+                    } else {
+                        Logger.printLine('KemonoParty', `Failed to get a valid source URL, Ignoring`, 'error');
+                        complete(true);
+                    }
+                } else {
+                    Logger.printLine('KemonoParty', `Failed to get a URL or destination, Ignoring`, 'error');
+                    complete(true);
+                }
+                break;
+            default :
+                complete(true);
+                break;
+        }
+    }
 
     function getImagetoB64(imageURL, refer, returnedImage) {
         request.get({
@@ -201,7 +476,7 @@ This code is publicly released and is restricted by its project license
             }
         })
     }
-    async function getKemonoJSON(source, artist, page = 0, endpoint = "") {
+    async function getKemonoJSON(source, artist, page, endpoint = "") {
         return new Promise(ok => {
             kemonoJSONLimit.removeTokens(1, async function () {
                 try {
@@ -212,7 +487,7 @@ This code is publicly released and is restricted by its project license
                     if (coomerSources.some(a => a === source))
                         apiUrl = coomerAPI;
                     const response = await agent({
-                        url: apiUrl + url + `?o=${page * 50}`,
+                        url: apiUrl + url + `${(page) ? "?o=" + (page * 50) : ""}`,
                         headers: {
                             'accept': 'application/json',
                             'Referer': `https://${apiUrl === kemonoAPI ? "kemono" : "coomer"}.su/` + url
@@ -798,6 +1073,66 @@ This code is publicly released and is restricted by its project license
             Logger.printLine("KemonoParty", `Failed to fetch "${artist}" via ${source}: ${err.message}`, "error", err)
         }
     }
+    async function getKemonoPost(source, artist, post, destionation) {
+        try {
+            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%${source}/user/${artist}%'`)
+            if (!history.error) {
+                const userProfile = await getKemonoJSON(source, artist, undefined, "profile");
+                if (userProfile && userProfile.name) {
+                    const thisArticle = await getKemonoJSON(source, artist, undefined, `post/${post}`);
+                    if (thisArticle) {
+                        if (thisArticle.attachments && thisArticle.attachments.length > 0) {
+                            Logger.printLine("KemonoParty", `New Post from "${userProfile.name}" - "${thisArticle.title}"`, "info", thisArticle)
+                            try {
+                                await Promise.all(thisArticle.attachments.map(async (image, imageIndex) => {
+                                    let title = `**🎏 ${userProfile.name} (${source})** : ***${thisArticle.title}${(thisArticle.attachments.length > 1) ? " (" + (imageIndex + 1) + "/" + thisArticle.attachments.length + ")" : ""}***\n`;
+                                    if (thisArticle.content && thisArticle.content.length > 0) {
+                                        let text = stripHtml(thisArticle.content);
+                                        if ((title.length + text.length) > 2000) {
+                                            const maxLinksLength = 2000 - (text.length - (thisArticle.real_url.length + 10));
+                                            text = text.slice(0, maxLinksLength) + " (...)";
+                                        }
+                                        title += (text + '\n');
+                                    }
+                                    title += thisArticle.real_url;
+                                    let MessageParameters = {
+                                        messageChannelID: destionation,
+                                        messageText: title,
+                                        itemFileName: image.name,
+                                        itemFileURL: (kemonoSources.indexOf(source) !== -1 ? kemonoCDN : coomerCDN) + image.path,
+                                        itemReferral: thisArticle.real_url,
+                                        itemDateTime: thisArticle.published || thisArticle.added
+                                    }
+                                    let sendTo = systemglobal.FileWorker_In
+                                    if (backlog) {
+                                        sendTo += '.backlog'
+                                    }
+
+                                    mqClient.sendData(sendTo, MessageParameters, (ok) => {
+                                        if (!ok) {
+                                            mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
+                                        }
+                                    });
+                                }));
+                            } catch (err) {
+                                Logger.printLine('KemonoParty', `Failed to pull the article - ${err.message}`, 'error', err);
+                                console.log(err);
+                            }
+                        }
+                        await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [thisArticle.url]);
+                    } else {
+                        Logger.printLine("KemonoParty", `Failed to get "${post}/${artist}" via ${source}, please manually correct this!`, "warn")
+                    }
+                } else {
+                    Logger.printLine("KemonoParty", `Failed to get user profile for "${post}/${artist}" via ${source}, Download Cancelled!`, "error")
+                }
+            } else {
+                Logger.printLine("KemonoParty", `Failed to get history table for "${post}/${artist}" via ${source}, Download Cancelled!`, "error")
+            }
+        } catch (err) {
+            Logger.printLine("KemonoParty", `Failed to fetch "${post}/${artist}" via ${source}: ${err.message}`, "error", err)
+        }
+    }
     async function getMixcloudPodcasts() {
         const mixclouduser = await db.query(`SELECT * FROM mixcloud_watchlist`)
         if (mixclouduser.error) {
@@ -957,171 +1292,4 @@ This code is publicly released and is restricted by its project license
             })
         })
     }
-
-    if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
-        setInterval(() => {
-            request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-                if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-                }
-            })
-        }, 60000)
-        request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
-            if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
-            }
-        })
-    }
-    setInterval(() => {
-        if (process.send && typeof process.send === 'function') {
-            process.send('ready');
-        }
-    }, 60000);
-
-    // Mixcloud
-    if (systemglobal.Mixcloud_Interval) {
-        getMixcloudPodcasts();
-        Timers.set(`MixCloud`, setInterval(() => {
-            getMixcloudPodcasts();
-        }, parseInt(systemglobal.Mixcloud_Interval.toString())));
-        Logger.printLine('MixCloud', `MixCloud Enabled`, 'info');
-    }
-    // MyFigureCollection
-    if (systemglobal.MFC_Interval && systemglobal.MFC_Channel) {
-        if (systemglobal.MFC_Deep_Crawl) {
-            const pageNum = (fs.existsSync('./mfc-backlog')) ? fs.readFileSync('./mfc-backlog', "utf-8") : '1'
-            if (pageNum && !isNaN(parseInt(pageNum))) {
-                pullDeepMFCPage = parseInt(pageNum);
-                if (pullDeepMFCPage < 1001) {
-                    await pullDeepMFC(systemglobal.MFC_Channel);
-                }
-            } else {
-                Logger.printLine('MPZero', `Failed to read page number`, 'error');
-            }
-        }
-        getFiguresOTD(systemglobal.MFC_Channel);
-        Timers.set(`MFC${systemglobal.MFC_Channel}`, setInterval(() => {
-            getFiguresOTD(systemglobal.MFC_Channel);
-        }, parseInt(systemglobal.MFC_Interval.toString())));
-        Logger.printLine('MyFigureCollection', `MyFigureCollection Enabled`, 'info');
-    }
-    // MPZero Cosplay
-    if (systemglobal.MPZero_Channel && systemglobal.MPZero_Interval) {
-        if (systemglobal.MPZero_Deep_Crawl) {
-            const pageNum = (fs.existsSync('./mpz-backlog')) ? fs.readFileSync('./mpz-backlog', "utf-8") : '0';
-            if (pageNum && !isNaN(parseInt(pageNum))) {
-                pullDeepMPZPage = parseInt(pageNum);
-                if (pullDeepMPZPage < 1001) {
-                    pullDeepMPZ(systemglobal.MPZero_Channel);
-                }
-            } else {
-                Logger.printLine('MPZero', `Failed to read page number`, 'error');
-            }
-        }
-        if (systemglobal.MPZero_Pages && systemglobal.MPZero_Pages.length > 0) {
-            pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog));
-            Timers.set(`MPZ${systemglobal.MPZero_Channel}`, setInterval(() => {
-                pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog), false);
-            }, parseInt(systemglobal.MPZero_Interval.toString())));
-            Logger.printLine('MPZero', `MPZero Enabled`, 'info');
-        } else {
-            Logger.printLine('MPZero', `No Page URLs were added, Ignoring`, 'error');
-        }
-    }
-    // SankakuComplex
-    if (systemglobal.SankakuComplex_Pages && systemglobal.SankakuComplex_Interval) {
-        if (systemglobal.SankakuComplex_Pages.length > 0) {
-            systemglobal.SankakuComplex_Pages.filter(e => e.url.includes("sankakucomplex.com/") && e.channel ).forEach((e,i) => {
-                getSankakuGallery(e.url, e.channel, e.notify);
-                Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
-                    await getSankakuGallery(e.url, e.channel, e.notify);
-                }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
-                Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
-
-                tx2.action('getdeep_sankaku_' + (i).toString(), async function(reply) {
-                    await getSankakuGallery(e.url, e.channel, undefined, true);
-                    reply({success : "Completed Deep Search"})
-                })
-            });
-        } else {
-            Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
-        }
-    }
-    tx2.action('get_mixcloud_user', async function(param, reply) {
-        if (param && param.length > 0) {
-            try {
-                await getMixcloudUser(param);
-                reply({success: `OK - Completed Request: ${param}`});
-            } catch (e) {
-                reply({success: `Error - ${e.message}`});
-            }
-        } else {
-            reply({success: "Missing Request - { tag, channel }"})
-        }
-    })
-    tx2.action('get_sankaku_tag', async function(param, reply) {
-        if (param && param.length > 0) {
-            try {
-                const json = JSON.parse(param);
-                if (!(json && json.tag && json.channel)) {
-                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined);
-                    reply({success: `OK - Completed Request: ${param}`});
-                } else {
-                    reply({success: `Error - Missing Required Parameter: ${param}`});
-                }
-            } catch (e) {
-                reply({success: `Error - ${e.message}`});
-            }
-        } else {
-            reply({success: "Missing Request - { tag, channel }"})
-        }
-    })
-    tx2.action('getdeep_sankaku_tag', async function(param, reply) {
-        if (param && param.length > 0) {
-            try {
-                const json = JSON.parse(param);
-                if (!(json && json.tag && json.channel)) {
-                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined, true);
-                    reply({success: `OK - Completed Request: ${param}`});
-                } else {
-                    reply({success: `Error - Missing Required Parameter: ${param}`});
-                }
-            } catch (e) {
-                reply({success: `Error - ${e.message}`});
-            }
-        } else {
-            reply({success: "Missing Request - { tag, channel }"})
-        }
-    })
-    // KemonoParty
-    if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
-        if (systemglobal.KemonoParty_Channels.length > 0) {
-            systemglobal.KemonoParty_Channels.filter(e => e.source && e.artist && e.channel).forEach((e,i) => {
-                getKemonoGallery(e.source, e.artist, e.channel);
-                Timers.set(`KMP${e.source}${e.artist}`, setInterval(async() => {
-                    await getKemonoGallery(e.source, e.artist, e.channel);
-                }, parseInt(systemglobal.KemonoParty_Interval.toString())));
-                Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.source} / ${e.artist}`, 'info');
-            });
-        } else {
-            Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
-        }
-    }
-    tx2.action('get_kemono', async function(param, reply) {
-        if (param && param.length > 0) {
-            try {
-                const json = JSON.parse(param);
-                if (!(json && json.source && json.artist && json.channel)) {
-                    await getKemonoGallery(json.source, json.artist, json.channel);
-                    reply({success: `OK - Completed Request: ${param}`});
-                } else {
-                    reply({success: `Error - Missing Required Parameter: ${param}`});
-                }
-            } catch (e) {
-                reply({success: `Error - ${e.message}`});
-            }
-        } else {
-            reply({success: "Missing Request - { source, artist, channel }"})
-        }
-    })
 })()
