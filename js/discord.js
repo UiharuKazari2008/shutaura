@@ -63,6 +63,7 @@ This code is publicly released and is restricted by its project license
     let init = 0;
     let gracefulShutdown = false;
     let forceShutdown = false;
+    let noCDNReload = false;
     let playingFolder = "";
     let toPlayFolder = "";
     let EncoderConf = {
@@ -367,6 +368,8 @@ This code is publicly released and is restricted by its project license
             if (_discord_system.length > 0 && _discord_system[0].param_data) {
                 if (_discord_system[0].param_data.coop_worker)
                     systemglobal.Coop_Worker = _discord_system[0].param_data.coop_worker;
+                if (_discord_system[0].param_data.no_cdn_reload)
+                    systemglobal.Discord_No_CDN_Reload = _discord_system[0].param_data.no_cdn_reload;
             }
             // Discord Bot Info (Shown in Help)
             // DiscordOwner = "Yukimi Kazari"
@@ -5155,6 +5158,7 @@ This code is publicly released and is restricted by its project license
                             /*Timers.set(`StatusReportCheck${guild.id}`, cron.schedule('* 0-2,9-23 * * *', () => {
                                 generateStatus(false, guild.id)
                             }))*/
+                            generateStatus(false, guild.id)
                         }
                         if (localKeys.indexOf("statusseqgen-" + guild.id) !== -1 ) {
                             Logger.printLine(`StatusGenerator`, `Initialized Timer for seq status update for "${guild.name}"`, `info`)
@@ -5243,53 +5247,120 @@ This code is publicly released and is restricted by its project license
                 "color": 1473771,
                 "fields": []
             }
-            if (!(systemglobal.Coop_Worker && !enableListening)) {
-                try {
-                    const promisifiedRequest = function (options) {
-                        return new Promise((resolve, reject) => {
-                            request(options, (error, response, body) => {
-                                if (response) {
-                                    return resolve(response);
-                                }
-                                if (error) {
-                                    return reject(error);
-                                }
-                            });
+            try {
+                const promisifiedRequest = function (options) {
+                    return new Promise((resolve, reject) => {
+                        request(options, (error, response, body) => {
+                            if (response) {
+                                return resolve(response);
+                            }
+                            if (error) {
+                                return reject(error);
+                            }
                         });
-                    };
-                    const ampqResponse = await promisifiedRequest({
-                        url: `http://${systemglobal.MQServer}:15672/api/queues`,
-                        headers: {
-                            'content-type': "application/json",
-                            "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
-                        }
-                    })
-                    let ampqJSON = [];
-                    if (!ampqResponse.err && ampqResponse.body) {
-                        ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
-                    } else if (ampqResponse.err) {
-                        console.error(ampqResponse.err)
+                    });
+                };
+                const ampqResponse = await promisifiedRequest({
+                    url: `http://${systemglobal.MQServer}:15672/api/queues`,
+                    headers: {
+                        'content-type': "application/json",
+                        "Authorization": "Basic " + Buffer.from(systemglobal.MQUsername + ":" + systemglobal.MQPassword).toString("base64"),
                     }
-                    await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
-                        UndeliveredMQ = e.messages;
-                    })
-                    await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
+                })
+                let ampqJSON = [];
+                if (!ampqResponse.err && ampqResponse.body) {
+                    ampqJSON = JSON.parse(ampqResponse.body.toString()).filter(e => !e.name.startsWith('command.'));
+                } else if (ampqResponse.err) {
+                    console.error(ampqResponse.err)
+                }
+                await ampqJSON.filter(e => e.name.includes(MQWorker10)).forEach(e => {
+                    UndeliveredMQ = e.messages;
+                })
+                await ampqJSON.filter(e => e.name.includes(MQWorker2)).map(e => {
+                    discordMQMessages = discordMQMessages + e.messages
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.')[0].toLowerCase()) {
+                        case 'inbox':
+                            _name += '📥'
+                            id = id + 10
+                            break;
+                        case 'outbox':
+                            _name += '📤'
+                            break;
+                        default:
+                            break;
+                    }
+                    switch (e.name.split('.discord').pop().toLowerCase()) {
+                        case '':
+                            _name += '⭐ Standard'
+                            id = id + 1
+                            break;
+                        case '.priority':
+                            _name += '💨 Priority'
+                            break;
+                        case '.package.priority':
+                            _name += '💨 Packaged Priority'
+                            break;
+                        case '.package':
+                            _name += '💨 Packaged'
+                            break;
+                        case '.backlog':
+                            _name += '☃ Backlog'
+                            id = id + 2
+                            break;
+                        case '.sequenzia':
+                            _name += '📋 Sequenzia'
+                            id = id + 2
+                            break;
+                        default:
+                            _name = e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    discordMQ.fields.push(e[1])
+                })
+                if (MQWorkerMugino) {
+                    await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
                         discordMQMessages = discordMQMessages + e.messages
-                        let _name = ''
+                        let _name = '🛃'
                         let _return = '';
                         let id = 0;
-                        switch (e.name.split('.')[0].toLowerCase()) {
-                            case 'inbox':
-                                _name += '📥'
-                                id = id + 10
-                                break;
-                            case 'outbox':
-                                _name += '📤'
-                                break;
-                            default:
-                                break;
-                        }
-                        switch (e.name.split('.discord').pop().toLowerCase()) {
+                        switch (e.name.split('.mugino').pop().toLowerCase()) {
                             case '':
                                 _name += '⭐ Standard'
                                 id = id + 1
@@ -5297,18 +5368,8 @@ This code is publicly released and is restricted by its project license
                             case '.priority':
                                 _name += '💨 Priority'
                                 break;
-                            case '.package.priority':
-                                _name += '💨 Packaged Priority'
-                                break;
-                            case '.package':
-                                _name += '💨 Packaged'
-                                break;
                             case '.backlog':
                                 _name += '☃ Backlog'
-                                id = id + 2
-                                break;
-                            case '.sequenzia':
-                                _name += '📋 Sequenzia'
                                 id = id + 2
                                 break;
                             default:
@@ -5351,127 +5412,68 @@ This code is publicly released and is restricted by its project license
                     }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
                         discordMQ.fields.push(e[1])
                     })
-                    if (MQWorkerMugino) {
-                        await ampqJSON.filter(e => e.name.includes(MQWorkerMugino)).map(e => {
-                            discordMQMessages = discordMQMessages + e.messages
-                            let _name = '🛃'
-                            let _return = '';
-                            let id = 0;
-                            switch (e.name.split('.mugino').pop().toLowerCase()) {
-                                case '':
-                                    _name += '⭐ Standard'
-                                    id = id + 1
-                                    break;
-                                case '.priority':
-                                    _name += '💨 Priority'
-                                    break;
-                                case '.backlog':
-                                    _name += '☃ Backlog'
-                                    id = id + 2
-                                    break;
-                                default:
-                                    _name = e.name
-                                    break;
-                            }
-                            if (e.messages > 0) {
-                                _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                            }
-                            if (e.message_bytes >= 1000000000) {
-                                _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                            } else if (e.message_bytes >= 1000000) {
-                                _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                            } else if (e.message_bytes >= 1000) {
-                                _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                            } else if (e.message_bytes > 100) {
-                                _return += `📦: ${e.message_bytes}B\n`
-                            }
-                            if (e.message_stats) {
-                                if (e.message_stats.publish > 1000000) {
-                                    _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                                } else if (e.message_stats.publish > 1000) {
-                                    _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                                } else if (e.message_stats.publish > 0) {
-                                    _return += `📈: ▶${e.message_stats.publish}`
-                                } else {
-                                    _return += `Never Activated`
-                                }
-                                if (e.message_stats.publish > 0) {
-                                    _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                                }
-                            }
-                            if (e.messages > 2) {
-                                return [id, {
-                                    "name": _name,
-                                    "value": _return.substring(0, 1024),
-                                }]
-                            }
-                            return null
-                        }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                            discordMQ.fields.push(e[1])
-                        })
-                    }
-                    await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
-                        let _name = ''
-                        let _return = '';
-                        let id = 0;
-                        switch (e.name.split('.').pop().toLowerCase()) {
-                            case 'fileworker':
-                                _name += '⚙ Remote Requests'
-                                break;
-                            case 'backlog':
-                                _name += '⚙ Backlog Requests'
-                                id = id + 1
-                                break;
-                            case 'local':
-                                const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
-                                _name += '💽 ' + hostname + ' File Uploads'
-                                id = hostname
-                                break;
-                            default:
-                                _name += e.name
-                                break;
-                        }
-                        if (e.messages > 0) {
-                            _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
-                        }
-                        if (e.message_bytes >= 1000000000) {
-                            _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
-                        } else if (e.message_bytes >= 1000000) {
-                            _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
-                        } else if (e.message_bytes >= 1000) {
-                            _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
-                        } else if (e.message_bytes > 100) {
-                            _return += `📦: ${e.message_bytes}B\n`
-                        }
-                        if (e.message_stats) {
-                            if (e.message_stats.publish > 1000000) {
-                                _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
-                            } else if (e.message_stats.publish > 1000) {
-                                _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
-                            } else if (e.message_stats.publish > 0) {
-                                _return += `📈: ▶${e.message_stats.publish}`
-                            } else {
-                                _return += `Never Activated`
-                            }
-                            if (e.message_stats.publish > 0) {
-                                _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
-                            }
-                        }
-                        if (e.messages > 2) {
-                            return [id, {
-                                "name": _name,
-                                "value": _return.substring(0, 1024),
-                            }]
-                        }
-                        return null
-                    }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
-                        fileworkerMQ.fields.push(e[1])
-                    })
-                } catch (e) {
-                    console.error(e);
                 }
-                console.log(`Getting RabbitMQ Stats...`)
+                await ampqJSON.filter(e => e.name.includes('.fileworker')).map(e => {
+                    let _name = ''
+                    let _return = '';
+                    let id = 0;
+                    switch (e.name.split('.').pop().toLowerCase()) {
+                        case 'fileworker':
+                            _name += '⚙ Remote Requests'
+                            break;
+                        case 'backlog':
+                            _name += '⚙ Backlog Requests'
+                            id = id + 1
+                            break;
+                        case 'local':
+                            const hostname = e.name.split('inbox.fileworker.').pop().split('.local')[0]
+                            _name += '💽 ' + hostname + ' File Uploads'
+                            id = hostname
+                            break;
+                        default:
+                            _name += e.name
+                            break;
+                    }
+                    if (e.messages > 0) {
+                        _return += `📬: ${e.messages}(${e.messages_details.rate})\n`
+                    }
+                    if (e.message_bytes >= 1000000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000000).toFixed(1)}G\n`
+                    } else if (e.message_bytes >= 1000000) {
+                        _return += `📦: ${(e.message_bytes / 1000000).toFixed(1)}M\n`
+                    } else if (e.message_bytes >= 1000) {
+                        _return += `📦: ${(e.message_bytes / 1000).toFixed(1)}K\n`
+                    } else if (e.message_bytes > 100) {
+                        _return += `📦: ${e.message_bytes}B\n`
+                    }
+                    if (e.message_stats) {
+                        if (e.message_stats.publish > 1000000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 100000).toFixed(1)}M`
+                        } else if (e.message_stats.publish > 1000) {
+                            _return += `📈: ▶${(e.message_stats.publish / 1000).toFixed(1)}K`
+                        } else if (e.message_stats.publish > 0) {
+                            _return += `📈: ▶${e.message_stats.publish}`
+                        } else {
+                            _return += `Never Activated`
+                        }
+                        if (e.message_stats.publish > 0) {
+                            _return += ` ☑${((e.message_stats.ack / e.message_stats.publish) * 100).toFixed()}% 🔁${((e.message_stats.redeliver / e.message_stats.publish) * 100).toFixed(0)}%`
+                        }
+                    }
+                    if (e.messages > 2) {
+                        return [id, {
+                            "name": _name,
+                            "value": _return.substring(0, 1024),
+                        }]
+                    }
+                    return null
+                }).filter(e => e !== null).sort((a, b) => a[0] - b[0]).forEach(e => {
+                    fileworkerMQ.fields.push(e[1])
+                })
+            } catch (e) {
+                console.error(e);
             }
+            console.log(`Getting RabbitMQ Stats...`)
             if (enableListening) {
                 embed.fields.push({
                     "name": "🏘 Servers",
@@ -5820,14 +5822,28 @@ This code is publicly released and is restricted by its project license
                 _ioT.push(`💤 No Active Jobs`)
             }
             if (discordMQMessages > 0) {
-                _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
-                if ((!enableListening && discordMQMessages > 1000) || (enableListening && discordMQMessages > 250)) {
-                    systemFault = true;
-                    bannerFault.unshift('📨 Message Queue is actively backlogged!')
-                } else if ((!enableListening && discordMQMessages > 500) || (enableListening && discordMQMessages > 100)) {
-                    systemWarning = true;
-                    bannerWarnings.unshift('📨 Message Queue is getting congested')
+                if (!(systemglobal.Coop_Worker && !enableListening)) {
+                    _ioT.push(`***📬 ${discordMQMessages} Pending Jobs***`)
+                    if ((!enableListening && discordMQMessages > 3000) || (enableListening && discordMQMessages > 250)) {
+                        systemFault = true;
+                        bannerFault.unshift('🔥 Message Queue is actively overloaded!')
+                    } else if ((!enableListening && discordMQMessages > 1000) || (enableListening && discordMQMessages > 250)) {
+                        systemFault = true;
+                        bannerFault.unshift('🆘 Message Queue is actively backlogged!')
+                    } else if ((!enableListening && discordMQMessages > 500) || (enableListening && discordMQMessages > 100)) {
+                        systemWarning = true;
+                        bannerWarnings.unshift('📨 Message Queue is getting congested')
+                    }
                 }
+                if (discordMQMessages > 2000) {
+                    systemFault = true;
+                    noCDNReload = true;
+                    bannerFault.unshift('🆘 CDN Communication paused due to overload, data avalibility may be delayed!');
+                } else {
+                    noCDNReload = false;
+                }
+            } else {
+                noCDNReload = false;
             }
             embed.fields.push({
                 "name": "⚡ I/O Engine",
@@ -8177,7 +8193,8 @@ This code is publicly released and is restricted by its project license
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
+                                if (!systemglobal.Discord_No_CDN_Reload && !noCDNReload)
+                                    mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
                                 if (chDbval.notify !== null) {
                                     try {
                                         let channelName = (chDbval.nice_name !== null) ? chDbval.nice_name : msg.channel.name;
@@ -9478,6 +9495,91 @@ This code is publicly released and is restricted by its project license
         } else {
             res.status(400).send('Invalid Request');
             Logger.printLine("SBI SpannedFileRequest", `Invalid Request`, "error");
+        }
+    })
+    app.get('/get/file_url/:channel/:eid', async (req, res) => {
+        if (req.params && req.params.channel && req.params.eid) {
+            Logger.printLine("SBI FileRequest", `Request for file ${req.params.eid}`, "info");
+            db.safe(`SELECT *, IF(attachment_auth_ex > NOW(), 1, 0) AS auth_valid
+                           FROM kanmi_records
+                           WHERE channel = ?
+                             AND eid = ?`, [req.params.channel, req.params.eid], async function (err, cacheresponse) {
+                if (err || cacheresponse.length === 0) {
+                    res.status(200).json({
+                        status: 404,
+                        message: "File not found"
+                    });
+                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} not found!`, "error");
+                } else if (!(cacheresponse[0].attachment_hash && cacheresponse[0].attachment_name)) {
+                    res.status(200).json({
+                        status: 415,
+                        message: 'This content is not a data file!'
+                    });
+                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} is not a data file`, "error");
+                } else {
+                    if (cacheresponse[0].attachment_auth && cacheresponse[0].auth_valid === 1) {
+                        Logger.printLine("SBI FileRequest", `File ${req.params.eid} has valid auth hash till ${cacheresponse[0].attachment_auth_ex}: Returning URL`, "info");
+                        const valid_file = await new Promise(async resolve => {
+                            remoteSize(`https://cdn.discordapp.com/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`, async (err, size) => {
+                                if (!err || (size !== undefined && size > 10)) {
+                                    resolve(`${(req.query && req.query.proxy) ? decodeURIComponent(req.query.proxy) : 'https://cdn.discordapp.com'}/attachments/${cacheresponse[0].channel}/${cacheresponse[0].attachment_hash}/${cacheresponse[0].attachment_name}?${cacheresponse[0].attachment_auth}`)
+                                } else {
+                                    Logger.printLine("SBI FileRequest", `File ${req.params.eid} attachment auth is invalid or inaccessable, contacting to discord...`, "warn");
+                                    resolve(false)
+                                }
+                            })
+                        });
+                        if (valid_file)
+                            return res.status(200).json({
+                                status: 200,
+                                message: 'OK',
+                                url: valid_file
+                            });
+                    }
+                    const discordResponse = await new Promise(async ok => {
+                        try {
+                            const pm = await discordClient.getMessage(cacheresponse[0].channel, cacheresponse[0].id);
+                            if (pm && pm.attachments && pm.attachments.length > 0) {
+                                Logger.printLine("SBI FileRequest", `File ${req.params.eid}: Returning URL`, "info");
+                                res.status(200).json({
+                                    status: 200,
+                                    message: 'OK',
+                                    url: `${(req.query && req.query.proxy) ? decodeURIComponent(req.query.proxy) : 'https://cdn.discordapp.com'}/attachments${pm.attachments[0].url.split('/attachments').pop()}`
+                                });
+                                const a = pm.attachments[0].url.split('?')[1];
+                                let ex = null;
+                                try {
+                                    let exSearch = new URLSearchParams(a);
+                                    const _ex = Number('0x' + exSearch.get('ex'));
+                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                } catch (err) {
+                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                }
+                                auth = `?${a}`;
+                                await db.query(`UPDATE kanmi_records
+                                                SET attachment_auth = ?,
+                                                    attachment_auth_ex = ?
+                                                WHERE channel = ?
+                                                  AND id = ?`, [a, ex, pm.channel.id, pm.id])
+                            } else {
+                                res.status(200).json({
+                                    status: 401,
+                                    message: 'This content is not a data file!'
+                                });
+                                Logger.printLine("SBI FileRequest", `Failed to any attachments from discord with ID "${cacheresponse[0].id}" for file ${req.params.eid}`, "error", e);
+                            }
+                        } catch (e) {
+                            Logger.printLine("SBI SpannedFileRequest", `Failed to get spanned file from discord with ID "${cacheresponse[0].id}" for file ${req.params.uuid}`, "error", e);
+                        }
+                    })
+                }
+            })
+        } else {
+            res.status(400).json({
+                status: 400,
+                message: 'Invalid Request'
+            });
+            Logger.printLine("SBI FileRequest", `Invalid Request`, "error");
         }
     })
 

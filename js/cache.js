@@ -127,6 +127,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     systemglobal.CDN_Trash_Channels = _backup_config[0].param_data.trash_channels;
                 if (_backup_config[0].param_data.trash_path)
                     systemglobal.CDN_Trash_Path = _backup_config[0].param_data.trash_path;
+                if (_backup_config[0].param_data.match_latest)
+                    systemglobal.CDN_Match_Latest = _backup_config[0].param_data.match_latest;
             }
             // {"backup_parts": true, "interval_min": 5, "backup_base_path": "/mnt/backup/", "pickup_base_path": "/mnt/data/kanmi-files/", "items_per_backup" : 2500}
             const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'seq_cdn.ignore');
@@ -633,7 +635,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
 
-        pastFiles[message.id] = (pastFiles[message.id]) ? pastFiles[message.id] + 1 : 0;
+        if (!pastFiles[message.id])
+            pastFiles[message.id] = -1;
+        pastFiles[message.id] = pastFiles[message.id] + 1;
         if (Object.keys(attachements).length > 0) {
             let res = {};
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
@@ -1241,7 +1245,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
-                       ORDER BY RAND()
+                       ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
         console.log(q)
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
@@ -1850,6 +1854,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.CDN_Base_Path) {
                 start();
                 console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
+                console.log(await db.query(`UPDATE kanmi_records_cdn y JOIN kanmi_records x ON y.eid = x.eid SET y.path_hint = CONCAT(x.server, '/', x.channel) WHERE x.source = 0 AND y.host = ? AND (y.path_hint IS NULL OR y.path_hint != CONCAT(x.server, '/', x.channel));`, [systemglobal.CDN_ID]));
                 console.log("Waiting 30sec before normal tasks..")
                 setTimeout(async () => {
                     await findUserData();
@@ -1902,6 +1907,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     tx2.action('clean', async (reply) => {
         await clearDeadFiles();
+        await clearDeadFiles();
         reply({ answer : 'started' });
     });
     tx2.action('scan', async (reply) => {
@@ -1914,7 +1920,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         activeParseing = false;
     });
     tx2.action('dupfiles', async (reply) => {
-        const files = Object.entries(pastFiles).filter(e => e[1] > 2).map(e => e[0]);
+        const files = Object.keys(pastFiles).filter(e => pastFiles[e] > 1);
         if (files.length > 0) {
             reply({ answer : files });
         } else {

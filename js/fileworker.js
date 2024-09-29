@@ -136,6 +136,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			if (_mq_pdp_out.length > 0 && _mq_pdp_out[0].param_value) {
 				systemglobal.PDP_Out = _mq_pdp_out[0].param_value;
 			}
+			const _mq_pdp_out_bulk = systemparams_sql.filter(e => e.param_key === 'mq.pdp.bulk');
+			if (_mq_pdp_out_bulk.length > 0 && _mq_pdp_out_bulk[0].param_value) {
+				systemglobal.PDP_Out_Bulk = _mq_pdp_out_bulk[0].param_value;
+			}
 			const _mq_fw_in = systemparams_sql.filter(e => e.param_key === 'mq.fileworker.in');
 			if (_mq_fw_in.length > 0 && _mq_fw_in[0].param_value) {
 				systemglobal.FileWorker_In = _mq_fw_in[0].param_value;
@@ -1098,7 +1102,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					case 'GenerateVideoPreview':
 						db.safe(`SELECT * FROM kanmi_records WHERE id = ? AND source = 0`, [MessageContents.messageID], async (err, cacheresponse) => {
 							if (err) {
-								mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+								Logger.printLine('main', "SQL Error occurred when messages to check for cache", "error");
 								cb(true)
 							} else if (cacheresponse.length > 0) {
 								let CompleteFilename
@@ -1114,13 +1118,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									   AND kanmi_records.source = 0
 									   AND kanmi_records.fileid = discord_multipart_files.fileid) x LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) y ON (x.eid = y.eid)`, [MessageContents.messageID], function (err, cacheresponse) {
 											if (err || cacheresponse.length === 0) {
-												mqClient.sendMessage("SQL Error occurred when messages to check for cache", "err", 'main', "SQL", err)
+												Logger.printLine('main', "SQL Error occurred when messages to check for cache", "error");
 												tempFile(false)
 											} else if (cacheresponse.filter(e => e.valid === 0 && !(!e.url)).length !== 0) {
-												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nSome files are not valid and will need to be revalidated or repaired!`, "error", "MPFDownload")
+												Logger.printLine('MPFDownload', `Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nSome files are not valid and will need to be revalidated or repaired!`, "error");
 												tempFile(false)
 											} else if (cacheresponse.filter(e => e.valid === 1 && !(!e.url)).length !== cacheresponse[0].paritycount) {
-												mqClient.sendMessage(`Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error", "MPFDownload")
+												Logger.printLine('MPFDownload', `Failed to proccess the Temporary MultiPart File ${cacheresponse.real_filename} (${MessageContents.fileUUID}) for video preview\nThe expected number of parity files were not available. \nTry to repair the parity cache \`juzo jfs repair parts\``, "error");
 												tempFile(false)
 											} else {
 												let itemsCompleted = [];
@@ -1130,37 +1134,42 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												fs.mkdirSync(PartsFilePath, {recursive: true})
 												let requests = cacheresponse.filter(e => e.valid === 1 && !(!e.url)).map(e => e.url).sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0).reduce((promiseChain, URLtoGet, URLIndex) => {
 													return promiseChain.then(() => new Promise((resolve) => {
-														const DestFilename = path.join(PartsFilePath, `${URLIndex}.par`)
-														const stream = request.get({
-															url: URLtoGet,
-															headers: {
-																'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-																'accept-language': 'en-US,en;q=0.9',
-																'cache-control': 'max-age=0',
-																'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-																'sec-ch-ua-mobile': '?0',
-																'sec-fetch-dest': 'document',
-																'sec-fetch-mode': 'navigate',
-																'sec-fetch-site': 'none',
-																'sec-fetch-user': '?1',
-																'upgrade-insecure-requests': '1',
-																'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-															},
-														}).pipe(fs.createWriteStream(DestFilename))
-														// Write File to Temp Filesystem
-														stream.on('finish', function () {
-															Logger.printLine("MPFDownload", `Downloaded Part #${URLIndex} : ${DestFilename}`, "debug", {
-																URL: URLtoGet,
-																DestFilename: DestFilename,
-																CompleteFilename: fileName
+														try {
+															const DestFilename = path.join(PartsFilePath, `${URLIndex}.par`)
+															const stream = request.get({
+																url: URLtoGet,
+																headers: {
+																	'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+																	'accept-language': 'en-US,en;q=0.9',
+																	'cache-control': 'max-age=0',
+																	'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+																	'sec-ch-ua-mobile': '?0',
+																	'sec-fetch-dest': 'document',
+																	'sec-fetch-mode': 'navigate',
+																	'sec-fetch-site': 'none',
+																	'sec-fetch-user': '?1',
+																	'upgrade-insecure-requests': '1',
+																	'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+																},
+															}).pipe(fs.createWriteStream(DestFilename))
+															// Write File to Temp Filesystem
+															stream.on('finish', function () {
+																Logger.printLine("MPFDownload", `Downloaded Part #${URLIndex} : ${DestFilename}`, "debug", {
+																	URL: URLtoGet,
+																	DestFilename: DestFilename,
+																	CompleteFilename: fileName
+																})
+																itemsCompleted.push(DestFilename);
+																resolve()
+															});
+															stream.on("error", function (err) {
+																mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}`, "err", "MPFDownload", err)
+																resolve()
 															})
-															itemsCompleted.push(DestFilename);
+														} catch (e) {
+															mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}: ${e.message}`, "err", "MPFDownload", e)
 															resolve()
-														});
-														stream.on("error", function (err) {
-															mqClient.sendMessage(`Part of the multipart file failed to download! ${URLtoGet}`, "err", "MPFDownload", err)
-															resolve()
-														})
+														}
 													}))
 												}, Promise.resolve());
 												requests.then(async () => {
@@ -1270,7 +1279,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												});
 											}
 										} else if (preview_image) {
-											mqClient.sendMessage(`Error occurred when generating animated preview the video "${fileNameUniq}" for transport, Will try to send image!`, "warn", "")
+											mqClient.sendMessage(`Error occurred when generating animated preview the video for transport, Will try to send image!`, "warn", "")
 											mqClient.sendData(systemglobal.Discord_Out + '.backlog', {
 												fromClient: `return.FileWorker.${systemglobal.SystemName}`,
 												messageReturn: false,
@@ -1306,7 +1315,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												}
 											});
 										} else {
-											mqClient.sendMessage(`Error occurred when generating preview the video "${fileNameUniq}" for transport, Will send without preview!`)
+											mqClient.sendMessage(`Error occurred when generating preview the video for transport, Will send without preview!`)
 										}
 										cb(true);
 									} else if ((MessageContents.forceRefresh === true || MessageContents.forceRefresh === 'preview') || (!cacheresponse[0].data || (cacheresponse[0].data && !cacheresponse[0].data.preview_image))) {
@@ -1425,15 +1434,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 								.then(function (results) {
 									let fileExtension
 									if (typeof results !== "undefined") {
-										fileExtension = MessageContents.itemFileName + "." + results.ext
-										Logger.printLine("DownloadURL", `Download ${tempFilePath} (Discovered Filetype : ${results.ext})`, "debug", {
-											extension: results.ext,
-											mimeType: results.mime,
-											filename: tempFilePath,
-											url: MessageContents.itemFileURL,
-											referral: MessageContents.itemReferral,
-											cookies: MessageContents.itemCookies
-										})
+										if (!(results.ext === 'mp4' && (path.extname(MessageContents.itemFileName).startsWith('m4') || path.extname(MessageContents.itemFileName).startsWith('mp3')))) {
+											fileExtension = path.basename(MessageContents.itemFileName) + "." + results.ext
+											Logger.printLine("DownloadURL", `Download ${tempFilePath} (Discovered Filetype : ${results.ext})`, "debug", {
+												extension: results.ext,
+												mimeType: results.mime,
+												filename: tempFilePath,
+												url: MessageContents.itemFileURL,
+												referral: MessageContents.itemReferral,
+												cookies: MessageContents.itemCookies
+											})
+										}
 									} else {
 										fileExtension = MessageContents.itemFileName.split("?")[0]
 										Logger.printLine("DownloadURL", `Download ${tempFilePath} (Undiscovered Filetype)`, "debug", {
@@ -1464,6 +1475,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 									if (MessageContents.messageRefrance) {
 										Cleanedobject.messageRefrance = MessageContents.messageRefrance;
+									}
+									if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+										Cleanedobject.Bulk = MessageContents.bulkRequest
 									}
 									parseFile(Cleanedobject, function (check) {
 										fs.access(tempFilePath, error => {
@@ -1512,6 +1526,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.messageRefrance) {
 								Cleanedobject.messageRefrance = MessageContents.messageRefrance;
+							}
+							if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+								Cleanedobject.Bulk = MessageContents.bulkRequest
 							}
 							parseFile(Cleanedobject,function (check) {
 								fs.access(tempFilePath, error => {
@@ -1578,6 +1595,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										if (MessageContents.messageUserID) {
 											Cleanedobject.UserID = MessageContents.messageUserID
 										}
+										if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+											Cleanedobject.Bulk = MessageContents.bulkRequest
+										}
 										parseFile(Cleanedobject, function (check) {
 											fs.access(tempFilePath, error => {
 												if (!error) {
@@ -1621,6 +1641,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							if (MessageContents.messageUserID) {
 								Cleanedobject.UserID = MessageContents.messageUserID
 							}
+							if (MessageContents.bulkRequest && (MessageContents.bulkRequest === true || MessageContents.bulkRequest === 'true')) {
+								Cleanedobject.Bulk = MessageContents.bulkRequest
+							}
 							parseFile(Cleanedobject, function (check) {
 								fs.access(tempFilePath, error => {
 									if (!error) {
@@ -1663,6 +1686,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			if (object.Backlog && object.Backlog === true) {
 				parameters.sendTo = systemglobal.Discord_Out + '.backlog'
+			}
+			if (object.Bulk && object.Bulk === true) {
+				parameters.isBulk = true
 			}
 			if (object.Type.toString() === "Remote") {
 				// Remote - File has been sent from a remote client and has been downloaded local
@@ -1856,7 +1882,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.addButtons = ["ReqFile", "Pin", "RemoveFile", "Archive", "MoveMessage"];
 					parameters.itemFileData = '' + b64Data;
 					parameters.itemFileName = filepartsid + previewSuffix;
-					const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
+					const sendTo = ((systemglobal.PDP_Out_Bulk && object.Bulk && object.Bulk === true) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out_Bulk + '.backlog' : systemglobal.PDP_Out_Bulk) : ((systemglobal.PDP_Out) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out) : parameters.sendTo));
 					mqClient.sendData(sendTo, parameters, function (callback) {
 						if (callback) {
 							Logger.printLine("KanmiMQ", `Sent to ${sendTo}`, "debug")
@@ -2228,7 +2254,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 			}
 
-			const sendTo = (systemglobal.PDP_Out) ? (object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out : parameters.sendTo;
+			const sendTo = ((systemglobal.PDP_Out_Bulk && object.Bulk && object.Bulk === true) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out_Bulk + '.backlog' : systemglobal.PDP_Out_Bulk) : ((systemglobal.PDP_Out) ? ((object.Backlog && object.Backlog === true) ? systemglobal.PDP_Out + '.backlog' : systemglobal.PDP_Out) : parameters.sendTo));;
 			if (fileSize(object.FilePath.toString()) > 24.8 && object.Type.toString() !== "Proxy") {
 				if (systemglobal.FW_Accepted_Images.indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) !== -1) {
 					if (fileSize(object.FilePath.toString()) < 50 && systemglobal.FW_Always_Keep_Orginal_Images === false && ['gif', 'webm', 'webp'].indexOf(path.extname(object.FileName.toString()).split(".").pop().toLowerCase()) === -1) {

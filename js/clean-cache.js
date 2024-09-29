@@ -129,16 +129,18 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     const dir_full = path.join(systemglobal.CDN_Base_Path, 'full', c.serverid, c.channelid);
                     const dir_mfull = path.join(systemglobal.CDN_Base_Path, 'master', c.serverid, c.channelid);
 
+                    console.log(dir_previews, dir_full, dir_mfull, dir_ext_previews)
+
                     let previews = filterTinyFiles(dir_previews);
                     let ext_previews = filterTinyFiles(dir_ext_previews);
-                    let full = (fs.existsSync(dir_full)) ? fs.readdirSync(dir_full) : [];
+                    let full = filterTinyFiles(dir_full);
                     let mfull = (fs.existsSync(dir_mfull)) ? fs.readdirSync(dir_mfull) : [];
 
                     console.log(`${c.channelid} : Preview = ${previews.length} | Full = ${full.length} | Master = ${mfull.length}`)
 
                     let deleteID = new Map();
                     const messages = await db.query(`SELECT y.*
-                                             FROM (SELECT eid, source, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL) AND channel = ?) x
+                                             FROM (SELECT eid, server, channel, attachment_name, fileid, attachment_hash, attachment_extra FROM kanmi_records WHERE source = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL) AND channel = ?) x
                                                       LEFT JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)`, [c.channelid, systemglobal.CDN_ID]);
                     if (messages.rows.length > 0) {
                         const db_preview = messages.rows.filter(e => !!e.preview_hint);

@@ -26,6 +26,7 @@ This code is publicly released and is restricted by its project license
     const sharp = require('sharp');
     const sizeOf = require('image-size');
     const moment = require('moment');
+    const tx2 = require('tx2');
     const podcastFeedParser = require("podcast-feed-parser");
     const RateLimiter = require('limiter').RateLimiter;
     const blogPageLimit = new RateLimiter(1, 90000);
@@ -35,6 +36,7 @@ This code is publicly released and is restricted by its project license
     const postPageLimit = new RateLimiter(1, 5000);
     const postImageLimit = new RateLimiter(1, 500);
     const kemonoJSONLimit = new RateLimiter(1, 2000);
+    const mixcloudurlLimit = new RateLimiter(1, 60000);
     const minimist = require("minimist");
     const { CookieJar } = require('tough-cookie');
     const { ddosGuardBypass } = require('axios-ddos-guard-bypass');
@@ -576,7 +578,7 @@ This code is publicly released and is restricted by its project license
         })
 
     }
-    async function getSankakuPosts(galleryURL, history) {
+    async function getSankakuPosts(galleryURL, history, deep) {
         let meta = {}
         let posts = [];
         let i = 1;
@@ -590,9 +592,8 @@ This code is publicly released and is restricted by its project license
                     }
                 }
                 const results = _data.episodes.filter(f => history.rows.filter(e => e.url.split("sankakucomplex.com").pop() === f.link.split("sankakucomplex.com").pop()).length === 0);
-                console.log(results.map(e => e.title + " " + e.pubDate))
                 posts.push(...results);
-                if (i > 10 && (results.length === 0 || results.length < 24 || i > 300)) {
+                if (((deep && i > 100) || (!deep && i > 2)) && (results.length === 0 || results.length < 24 || i > 300)) {
                     Logger.printLine("SankakuGalleryGET", `Returned ${results.length} Articles (End of Pages)`, "debug")
                     break;
                 } else {
@@ -611,11 +612,11 @@ This code is publicly released and is restricted by its project license
             episodes: posts
         };
     }
-    async function getSankakuGallery(galleryURL, destionation, notify) {
+    async function getSankakuGallery(galleryURL, destionation, notify, deep) {
         try {
             const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%sankakucomplex%'`);
             if (!history.error) {
-                const galleryFeed = await getSankakuPosts(`${galleryURL}feed/`, history)
+                const galleryFeed = await getSankakuPosts(`${galleryURL}feed/`, history, deep)
                 if (galleryFeed && galleryFeed.meta && galleryFeed.meta.title && galleryFeed.episodes.length > 0) {
                     let counter = 0
                     await Promise.all(galleryFeed.episodes.map(async (thisArticle, thisArticleIndex, articleArray) => {
@@ -667,9 +668,10 @@ This code is publicly released and is restricted by its project license
                                                 messageChannelID: destionation,
                                                 messageText: title,
                                                 itemFileName: image.split('/').pop(),
-                                                itemFileURL: image,
+                                                itemFileURL: (image.startsWith("//")) ? ("https:" + image) : (image.startsWith("/")) ? ('https://news.sankakucomplex.com' + image) : image,
                                                 itemReferral: thisArticle.link,
-                                                backlogRequest: backlog
+                                                backlogRequest: backlog,
+                                                bulkRequest: (deep) ? true : false,
                                             }
                                             let episodeDate = moment(thisArticle.pubDate).format('YYYY-MM-DD HH:mm:ss');
                                             if (episodeDate.includes('Invalid')) {
@@ -791,112 +793,157 @@ This code is publicly released and is restricted by its project license
         if (mixclouduser.error) {
             mqClient.sendMessage(`SQL Error when getting to the Podcast Watchlist records`, "err", "SQL", mixclouduser.error)
         } else if (mixclouduser.rows.length > 0) {
-            const history = await db.query(`SELECT * FROM web_visitedpages WHERE url LIKE '%mixcloud%'`)
             await Promise.all(mixclouduser.rows.map(async user => {
-                try {
-                    const tracks = await getCloudcasts(user.username)
-                    if (tracks.length === 0) {
-                        Logger.printLine('Mixcloud-Get', `Failed to get any episodes from the Mixcloud API for ${user.username}`, 'error');
-                    } else {
-                        await Promise.all(tracks.filter(track => history.rows.filter(e => track.name && !(user.search && track.name.toLowerCase().includes(user.search.toLowerCase())) && !history.error && e.url === track.url).length === 0).map(async track => {
-                            const response = await getTrackURL(track)
-                            if (!response) {
-                                Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
-                            } else {
-                                sendMixToDiscord(user.channelid, track, response, true, async (ok) => {
-                                    if (ok) {
-                                        await db.query(`INSERT IGNORE INTO web_visitedpages VALUES (?, NOW())`, [track.url])
-                                        Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
-                                    } else {
-                                        Logger.printLine('Mixcloud-Pull', `Failed to send mixcloud download "${track.url}"`, 'error');
-                                    }
-                                })
-                            }
-                        }))
-                    }
-                } catch (err) {
-                    Logger.printLine('Mixcloud-Get', `Failed to get valid response from the Mixcloud API for ${user.username}: ${err}`, 'error');
-                }
+                await getMixcloudPodcast(user.username, user.channelid, user.search, false);
             }))
         }
     }
-    async function getCloudcasts(username) {
-        return new Promise((resolve, reject) => {
-            request({
-                url: `http://api.mixcloud.com/${username}/cloudcasts/`,
-                headers: {
-                    Origin: "https://www.mixcloud.com/",
-                    Referer: `https://www.mixcloud.com/${username}/`,
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
+    async function getMixcloudUser(username) {
+        const mixclouduser = await db.query(`SELECT * FROM mixcloud_watchlist WHERE username = ?`, [username])
+        if (mixclouduser.error) {
+            mqClient.sendMessage(`SQL Error when getting to the Podcast Watchlist records`, "err", "SQL", mixclouduser.error)
+        } else if (mixclouduser.rows.length > 0) {
+            await Promise.all(mixclouduser.rows.map(async user => {
+                await getMixcloudPodcast(user.username, user.channelid, user.search, false);
+            }))
+        }
+    }
+    async function getMixcloudPodcast(username, channelid, search, deep) {
+        return new Promise(async done => {
+            try {
+                const history = await db.query(`SELECT * FROM web_visitedpages WHERE LOWER(url) LIKE LOWER('%https://www.mixcloud.com/${username}/%')`)
+                const tracks = await getCloudcasts(username, search, history, deep)
+                if (tracks.length === 0) {
+                    Logger.printLine('Mixcloud-Get', `No new tracks from the Mixcloud API for ${username}`, 'warning');
+                    done();
+                } else {
+                    await Promise.all(tracks.map(async track => {
+                        const response = await getTrackMCDURL(track)
+                        if (!response) {
+                            Logger.printLine('Mixcloud-Pull', `Failed to get file to download for "${track.url}"`, 'error');
+                        } else {
+                            await sendMixToDiscord(channelid, track, response, false, async (ok) => {
+                                if (ok) {
+                                    await db.query(`INSERT IGNORE INTO web_visitedpages
+                                                    VALUES (?, NOW())`, [track.url])
+                                    Logger.printLine('Mixcloud-Pull', `Sent Mixcloud Download "${track.url}"`, 'debug');
+                                } else {
+                                    Logger.printLine('Mixcloud-Pull', `Failed to send mixcloud download "${track.url}"`, 'error');
+                                }
+                            })
+                        }
+                    }))
+                    done();
                 }
-            }, (error, response, body) => {
-                if (error) { return reject(error) }
-                if (!body) { return resolve([]) }
-                const jsonResponse = JSON.parse(body);
-                if (!jsonResponse.data) { return resolve([]); }
-                const items = jsonResponse.data.map((obj) => {
-                    return {
-                        url: obj.url,
-                        name: obj.name,
-                        date: obj.created_time,
-                        slug: obj.slug,
-                    }
-                });
-
-                resolve(items)
-            })
+            } catch (err) {
+                console.error(err);
+                Logger.printLine('Mixcloud-Get', `Failed to get valid response from the Mixcloud API for ${username}: ${err}`, 'error');
+                done();
+            }
         })
     }
-    async function getTrackURL(track) {
-        return new Promise((resolve, reject) => {
-            request({
-                url: 'https://mixclouddownloader.net/'
-            }, (error, response, body) => {
-                try {
-                    if (error) {
-                        return reject(error)
-                    }
-                    if (!body) {
-                        return resolve(false)
-                    }
-
-                    const $ = cheerio.load(body)
-                    const csrfToken = $("input[name=csrf_token]")[0].attribs.value
-                    request.post({
-                        url: `https://mixclouddownloader.net/download-track/`,
+    async function getCloudcasts(username, search, history, deep) {
+        let items = [];
+        let i = 1;
+        let nextPage = false;
+        while (true) {
+            try {
+                const _data = await new Promise((resolve, reject) => {
+                    request({
+                        url: (nextPage) ? nextPage : `http://api.mixcloud.com/${username}/cloudcasts/?limit=100`,
                         headers: {
-                            Origin: 'https://mixclouddownloader.net',
-                            Referer: 'https://mixclouddownloader.net/',
+                            Origin: "https://www.mixcloud.com/",
+                            Referer: `https://www.mixcloud.com/${username}/`,
                             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
-                        },
-                        form: {
-                            csrf_token: csrfToken,
-                            'mix-url': track.url
                         }
                     }, (error, response, body) => {
-                        try {
-                            if (error) {
-                                return reject(error)
+                        if (error) { return reject(error) }
+                        if (!body) { return resolve([]) }
+                        const jsonResponse = JSON.parse(body);
+                        nextPage = (jsonResponse.paging && jsonResponse.paging.next) ? jsonResponse.paging.next : false;
+                        if (!jsonResponse.data) { return resolve([]); }
+                        const items = jsonResponse.data.map((obj) => {
+                            return {
+                                url: obj.url,
+                                name: obj.name,
+                                date: obj.created_time,
+                                slug: obj.slug,
                             }
-                            if (!body) {
-                                return resolve(false)
-                            }
-
-                            const $1 = cheerio.load(body)
-                            const downloadURL = $1("a:contains('Download link')")[0].attribs.href
-
-                            if (downloadURL.length > 0) {
-                                resolve(downloadURL)
-                            } else {
-                                resolve(null)
-                            }
-                        } catch (e) {
+                        })
+                        resolve(items)
+                    })
+                })
+                const results = _data.filter(track => !history.error && history.rows.filter(e => track.name && !(search && track.name.toLowerCase().includes(search.toLowerCase())) && e.url === track.url).length === 0);
+                items.push(...results);
+                if (!nextPage || (!deep && (results.length === 0 || results.length < 100 || i > 300))) {
+                    Logger.printLine("CloudcastsGET", `Returned ${results.length} Tracks (End of Pages)`, "debug")
+                    break;
+                } else {
+                    Logger.printLine("CloudcastsGET", `${username} => ${results.length} Tracks (Page ${i})`, "debug")
+                }
+                i++
+            } catch (err) {
+                Logger.printLine("CloudcastsGET", "Error pulling more pages from Mixcloud", "warn", err)
+                Logger.printLine("CloudcastsGET", `Returned ${items.length} items (Caught err)`, "debug");
+                console.error(err);
+                break;
+            }
+        }
+        return items
+    }
+    async function getTrackMCDURL(track) {
+        return new Promise((resolve, reject) => {
+            mixcloudurlLimit.removeTokens(1, async function () {
+                request({
+                    url: 'https://mixclouddownloader.net/'
+                }, (error, response, body) => {
+                    try {
+                        if (error) {
+                            console.error(body.toString(), error);
                             return reject(error)
                         }
-                    })
-                } catch (e) {
-                    return reject(error)
-                }
+                        if (!body) {
+                            return resolve(false)
+                        }
+                        const $ = cheerio.load(body)
+                        const csrfToken = $("input[name=csrf_token]")[0].attribs.value
+                        request.post({
+                            url: `https://mixclouddownloader.net/download-track/`,
+                            headers: {
+                                Origin: 'https://mixclouddownloader.net',
+                                Referer: 'https://mixclouddownloader.net/',
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/88.0.4324.182 Safari/537.36 Edg/88.0.705.74'
+                            },
+                            form: {
+                                csrf_token: csrfToken,
+                                'mix-url': track.url
+                            }
+                        }, (error, response, body) => {
+                            try {
+                                if (error) {
+                                    return reject(error)
+                                }
+                                if (!body) {
+                                    return resolve(false)
+                                }
+
+                                const $1 = cheerio.load(body)
+                                const downloadURL = $1("a:contains('Download link')")[0].attribs.href
+
+                                if (downloadURL.length > 0) {
+                                    resolve(downloadURL)
+                                } else {
+                                    resolve(null)
+                                }
+                            } catch (e) {
+                                return reject(error)
+                            }
+                        })
+                    } catch (e) {
+                        console.error(e);
+                        return reject(e);
+                    }
+                })
             })
         })
     }
@@ -979,12 +1026,63 @@ This code is publicly released and is restricted by its project license
                 Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
                     await getSankakuGallery(e.url, e.channel, e.notify);
                 }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
-                Logger.printLine('SankakuGallery', `SankakuComplex Enabled: ${e.url}`, 'info');
+                Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
+
+                tx2.action('getdeep_sankaku_' + (i).toString(), async function(reply) {
+                    await getSankakuGallery(e.url, e.channel, undefined, true);
+                    reply({success : "Completed Deep Search"})
+                })
             });
         } else {
             Logger.printLine('SankakuGallery', `No Page URLs were added, Ignoring`, 'error');
         }
     }
+    tx2.action('get_mixcloud_user', async function(param, reply) {
+        if (param && param.length > 0) {
+            try {
+                await getMixcloudUser(param);
+                reply({success: `OK - Completed Request: ${param}`});
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
+    tx2.action('get_sankaku_tag', async function(param, reply) {
+        if (param && param.length > 0) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.tag && json.channel)) {
+                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
+    tx2.action('getdeep_sankaku_tag', async function(param, reply) {
+        if (param && param.length > 0) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.tag && json.channel)) {
+                    await getSankakuGallery(`https://news.sankakucomplex.com/tag/${json.tag}/`, json.channel, undefined, true);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { tag, channel }"})
+        }
+    })
     // KemonoParty
     if (systemglobal.KemonoParty_Channels && systemglobal.KemonoParty_Interval) {
         if (systemglobal.KemonoParty_Channels.length > 0) {
@@ -999,4 +1097,21 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
         }
     }
+    tx2.action('get_kemono', async function(param, reply) {
+        if (param && param.length > 0) {
+            try {
+                const json = JSON.parse(param);
+                if (!(json && json.source && json.artist && json.channel)) {
+                    await getKemonoGallery(json.source, json.artist, json.channel);
+                    reply({success: `OK - Completed Request: ${param}`});
+                } else {
+                    reply({success: `Error - Missing Required Parameter: ${param}`});
+                }
+            } catch (e) {
+                reply({success: `Error - ${e.message}`});
+            }
+        } else {
+            reply({success: "Missing Request - { source, artist, channel }"})
+        }
+    })
 })()
