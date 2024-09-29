@@ -23,6 +23,7 @@ This code is publicly released and is restricted by its project license
     const cheerio = require('cheerio');
     const got = require('got');
     let request = require('request').defaults({ encoding: null, jar: true });
+    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
     const sharp = require('sharp');
     const sizeOf = require('image-size');
     const moment = require('moment');
@@ -415,6 +416,15 @@ This code is publicly released and is restricted by its project license
 
     async function parseRemoteAction(message, complete) {
         switch (message.messageIntent) {
+            case "EHentai":
+                if (message.itemURL && message.messageChannelID && message.itemURL.includes("//e-hentai.org/")) {
+                    await pullEHentaiGallery(message.itemURL, message.messageChannelID);
+                    complete(true);
+                } else {
+                    Logger.printLine('E-Hentai', `Failed to get a URL or destination, Ignoring`, 'error');
+                    complete(true);
+                }
+                break;
             case "Kemono":
                 if (message.itemURL && message.messageChannelID && (message.itemURL.includes("//kemono.su/") || message.itemURL.includes("//coomer.su/"))) {
                     const _url = message.itemURL.split('.su/').pop().split('/');
@@ -818,6 +828,87 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('MFC', `MAXIMUM PAGE LIMIT`, 'info');
             fs.writeFileSync('./mfc-backlog', "20000" , 'utf-8');
             if (timer) { clearInterval(timer); Timers.delete(`MFCDEEP${channel}`) }
+        }
+    }
+    async function pullEHentaiGallery(pageURL, channel) {
+        try {
+            if (pageURL.includes("/g/")) {
+                const gidList = pageURL.split("/g/").pop().split("/");
+                Logger.printLine('EHentaiGET', `Looking up E-Hentai Gallery ${gidList.join("/")}...`, 'info');
+
+                const request = {
+                    "method": "gdata",
+                    "gidlist": [
+                        gidList
+                    ],
+                    "namespace": 1
+                }
+                const options= {
+                    body: request,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+                const jsonRes = await got.post("https://api.e-hentai.org/api.php", options);
+
+                if (jsonRes) {
+                    const json = JSON.parse(jsonRes.body);
+                    const title = json.title_jpn || json.title;
+                    const category = json.category;
+                    const uploader = json.uploader;
+                    const count = json.filecount;
+                    const posted = (new Date(json.posted * 1000).toISOString()).split('.')[0].split("T").join(" ");
+                    const tags = json.tags
+                    const series = tags.filter(t => t.startsWith("parody:")).map(e => e.split(":").pop()).join(" ");
+                    const artist = tags.filter(t => t.startsWith("artist:")).map(e => e.split(":").pop()).join(" ");
+
+                    const text = `🐼 ${title.slice(0, 500)} ${(series) ? "(" + series + ") ": ""}- ${artist || uploader}\n\`${pageURL}\``
+
+                    Logger.printLine('EHentaiGET', `Getting "${title}" (${count} images) from E-Hentai...`, 'info');
+
+                    const pulledPage = await got(pageURL);
+                    const $ = cheerio.load(pulledPage.body);
+                    let images = [];
+                    await Promise.all($('#gdt > .gdtm > div > a').each((thisPostIndex, thisImage) => { (images.indexOf(thisImage.attribs.href) === -1) ? images.push(thisImage.attribs.href) : false }))
+
+                    await sleep(Math.floor(Math.random() * (1000 - 10000 + 1)) + 1000);
+                    let i = 0;
+                    let imageUrl = images[0];
+                    while (true) {
+                        const imagePage = await got(imageUrl)
+                        const $_ = cheerio.load(imagePage.body);
+                        const img = $_('#img')[0].attribs.src;
+                        const next_page = ($_('#img').parent())[0].attribs.href;
+                        Logger.printLine('EHentaiGET', `Download Image ${i}/${count} from E-Hentai...`, 'info');
+                        let sendTo = systemglobal.FileWorker_In
+                        mqClient.sendData(sendTo, {
+                            messageChannelID: channel,
+                            messageText: text,
+                            itemFileName: img.split('/').pop().split('?')[0],
+                            itemFileURL: img,
+                            itemReferral: imageUrl,
+                            itemDateTime: posted
+                        }, (ok) => {
+                            if (!ok) {
+                                mqClient.sendMessage(`Failed to send article - "${thisArticle.title}"`, "err", "SQL", thisArticle);
+                            }
+                        });
+                        i++;
+                        if (imageUrl === next_page)
+                            break;
+                        imageUrl = next_page;
+                        await sleep(Math.floor(Math.random() * (6000 - 1000 + 1)) + 1000);
+                    }
+                    Logger.printLine('EHentaiGET', `Completed getting ${i} images from E-Hentai!`, 'info');
+                } else {
+                    Logger.printLine('EHentaiGET', `Failed to get valid metadata from E-Hentai API`, 'error');
+                }
+            } else {
+                Logger.printLine('EHentaiGET', `Failed to get a valid gallery URL: ${pageURL}`, 'error');
+            }
+        } catch (err) {
+            Logger.printLine('EHentaiGET', `Uncaught Error from E-Hentai: ${err.message}`, 'error', err);
+            console.log(err);
         }
     }
     async function getFiguresOTD(c, subtract) {
