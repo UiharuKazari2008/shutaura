@@ -880,7 +880,7 @@ This code is publicly released and is restricted by its project license
                         const img = $_('#img')[0].attribs.src;
                         const next_page = ($_('#img').parent())[0].attribs.href;
                         Logger.printLine('EHentaiGET', `Download Image ${i}/${count} from E-Hentai...`, 'info');
-                        let sendTo = systemglobal.FileWorker_In
+                        let sendTo = systemglobal.FileWorker_In + '.priority'
                         mqClient.sendData(sendTo, {
                             messageChannelID: channel,
                             messageText: text,

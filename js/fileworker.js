@@ -34,6 +34,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const limiter = new RateLimiter(5, 5000);
 	const limiterlocal = new RateLimiter(1, 1000);
 	const limiterbacklog = new RateLimiter(5, 5000);
+	const limiterpriority = new RateLimiter(1, 1000);
 	const amqp = require('amqplib/callback_api');
 	let amqpConn = null;
 	const request = require('request');
@@ -251,6 +252,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const MQWorker1 = `${systemglobal.FileWorker_In}`
 	const MQWorker2 = `${MQWorker1}.${systemglobal.SystemName}.local`
 	const MQWorker3 = `${MQWorker1}.backlog`
+	const MQWorker4 = `${MQWorker1}.priority`
 
 	const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
@@ -356,6 +358,51 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
 		MessageContents.backlogRequest = true;
 		limiterbacklog.removeTokens(1, function() {
+			proccessJob(MessageContents, cb)
+		});
+	}
+	// Priority Requests
+	function startWorker4() {
+		amqpConn.createChannel(function(err, ch) {
+			if (closeOnErr(err)) return;
+			ch.on("error", function(err) {
+				Logger.printLine("KanmiMQ", "Channel 4 Error (Priority)", "error", err)
+			});
+			ch.on("close", function() {
+				Logger.printLine("KanmiMQ", "Channel 4 Closed (Priority)", "critical")
+				start();
+			});
+			ch.prefetch(5);
+			ch.assertQueue(MQWorker4, { durable: true, queueMode: 'lazy'  }, function(err, _ok) {
+				if (closeOnErr(err)) return;
+				ch.consume(MQWorker4, processMsg, { noAck: false });
+				Logger.printLine("KanmiMQ", "Channel 4 Worker Ready (Priority)", "debug")
+			});
+			ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
+				if (closeOnErr(err)) return;
+				ch.bindQueue(MQWorker4, "kanmi.exchange", MQWorker4, [], function(err, _ok) {
+					if (closeOnErr(err)) return;
+					Logger.printLine("KanmiMQ", "Channel 4 Worker Bound to Exchange (Priority)", "debug")
+				})
+			})
+			function processMsg(msg) {
+				work4(msg, function(ok) {
+					try {
+						if (ok)
+							ch.ack(msg);
+						else
+							ch.reject(msg, true);
+					} catch (e) {
+						closeOnErr(e);
+					}
+				});
+			}
+		});
+	}
+	function work4(msg, cb) {
+		let MessageContents = JSON.parse(Buffer.from(msg.content).toString('utf-8'));
+		MessageContents.backlogRequest = true;
+		limiterpriority.removeTokens(1, function() {
 			proccessJob(MessageContents, cb)
 		});
 	}
@@ -472,6 +519,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 		startWorker();
 		startWorker3();
+		startWorker4();
 		startWorker2();
 		if (systemglobal.WatchFolder_1) {
 			Logger.printLine('Init', 'File Watching is enabled on this FileWorker instance, now watching for uploads', 'debug')
