@@ -1692,7 +1692,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (backupItems.rows.length > 0) {
                 let total = backupItems.rows.length;
                 let ticks = 0;
-                let batchSize = 15; // Number of items to process in each batch
+                let batchSize = 25; // Number of items to process in each batch
 
                 // Function to process a batch of items
                 async function processBatch(batch) {
