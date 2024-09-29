@@ -416,13 +416,13 @@ This code is publicly released and is restricted by its project license
     async function parseRemoteAction(message, complete) {
         switch (message.messageIntent) {
             case "Kemono":
-                if (message.itemURL && message.messageDestinationID && (message.itemURL.includes("//kemono.su/") || message.itemURL.includes("//coomer.su/"))) {
+                if (message.itemURL && message.messageChannelID && (message.itemURL.includes("//kemono.su/") || message.itemURL.includes("//coomer.su/"))) {
                     const _url = message.itemURL.split('.su/')[0].split('/');
                     const source = _url[0];
                     const artist = _url[2];
                     const post = _url[4];
                     if (source && artist && post) {
-                        await getKemonoPost(source, artist, post, message.messageDestinationID);
+                        await getKemonoPost(source, artist, post, message.messageChannelID);
                         complete(true);
                     } else {
                         Logger.printLine('KemonoParty', `Failed to get a valid source URL, Ignoring`, 'error');
