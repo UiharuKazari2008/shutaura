@@ -844,7 +844,7 @@ This code is publicly released and is restricted by its project license
                     "namespace": 1
                 }
                 const options= {
-                    body: request,
+                    body: JSON.stringify(request),
                     headers: {
                         'Content-Type': 'application/json'
                     }
