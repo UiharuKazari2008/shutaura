@@ -6903,6 +6903,21 @@ This code is publicly released and is restricted by its project license
                             }, 2500)
                         }
                     })
+                } else if (urlItem.includes("//e-hentai.org/")) {
+                    mqClient.sendData(systemglobal.WebParser_In, {
+                        messageChannelID: moveTo,
+                        itemURL: urlItem,
+                        messageIntent: "EHentai"
+                    }, function (ok) {
+                        if (ok) {
+                            setTimeout(function () {
+                                discordClient.deleteMessage(msg.channel.id, msg.id, "Clean out download request")
+                                    .catch(function (err) {
+                                        Logger.printLine("DownloadMgr", `Failed to remove download request`, 'error', err)
+                                    })
+                            }, 2500)
+                        }
+                    })
                 } else if (msg.embeds[0] !== undefined && msg.embeds[0].type === 'image' && (msg.embeds[0].thumbnail || msg.embeds[0].image)) {
                     downloadMessageFile(msg, moveTo, true)
                 } else {
