@@ -1112,8 +1112,28 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
-                if (Object.values(res).filter(f => !f).length === 0)
+                if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
+                } else {
+                    if (message && message.id) {
+                        if (!skipped[message.id])
+                            skipped[message.id] = 0;
+                        skipped[message.id] = skipped[message.id] + 1;
+                        if (systemglobal.CDN_Fast_Skip) {
+                            await db.query(`INSERT INTO kanmi_cdn_skipped
+                                    SET id = ?`, message.id);
+                            await db.query(`UPDATE kanmi_records
+                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                    WHERE id = ?`, message.id);
+                        } else if (skipped[message.id] > 4) {
+                            await db.query(`UPDATE kanmi_records
+                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
+                                        WHERE id = ?`, message.id);
+                            await db.query(`INSERT INTO kanmi_cdn_skipped
+                                        SET id = ?`, message.id);
+                        }
+                    }
+                }
                 cb(true);
             });
         } else {
