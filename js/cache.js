@@ -971,7 +971,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         });
                                         resData[k] = false;
                                         blockOk();
-                                    } else if (k === 'preview' || k === 'extended_preview') {
+                                    } else if ((k === 'preview' || k === 'extended_preview') && attachements.full.src) {
                                         const full_data = await new Promise(ok => {
                                             const url = attachements.full.src;
                                             Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Sharp Convert) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug")
