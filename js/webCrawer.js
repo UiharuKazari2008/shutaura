@@ -924,7 +924,7 @@ This code is publicly released and is restricted by its project license
                         let sendTo = systemglobal.FileWorker_In + '.priority'
                         mqClient.sendData(sendTo, {
                             messageChannelID: channel,
-                            messageText: `🐼 ${title.slice(0, 500)} ${(series) ? "(" + ((chara) ? chara + " from " : "") + series + ") ": ((chara) ? "(" + chara + ") " : "")}- ${cosplayer || artist || uploader} (${i}/${count})\n\`${pageURL}\``,
+                            messageText: `**🐼 ${title.slice(0, 500)}${(series) ? " (" + ((chara) ? chara + " from " : "") + series + ") ": ((chara) ? " (" + chara + ") " : " ")}** - ***${cosplayer || artist || uploader} (${i}/${count})***\n\`${pageURL}\``,
                             itemFileName: img.split('/').pop().split('?')[0],
                             itemFileURL: img,
                             itemReferral: imageUrl,
