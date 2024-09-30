@@ -497,7 +497,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (saveBackupSQL.error) {
                     Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN`, "err", saveBackupSQL.error)
                 } else {
-                    Logger.printLine("BackupFile", `Download ${message.id} Complete`, "debug")
+                    //Logger.printLine("BackupFile", `Download ${message.id} Complete`, "debug")
                 }
             } else {
                 Logger.printLine("SQL", `${backupSystemName}: Failed to mark ${message.eid} as download to CDN: No Message ID passed`, "err")
