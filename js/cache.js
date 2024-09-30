@@ -641,7 +641,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             pastFiles[message.id] = -1;
         pastFiles[message.id] = pastFiles[message.id] + 1;
         if (Object.keys(attachements).length > 0) {
-            let res = {};
+            let resData = {};
             let requests = Object.keys(attachements).reduce((promiseChain, k) => {
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
@@ -766,10 +766,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 await splitFile.mergeFiles(files, path.join(val.dest, destName));
                                 fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
                                 try {
-                                    res[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
+                                    resData[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
                                     Logger.printLine("BackupFile", `Download Master File ${message.real_filename}`, "debug")
                                 } catch (e) {
-                                    res[k] = false;
+                                    resData[k] = false;
                                 }
                             } else {
                                 Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
@@ -791,7 +791,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         SET id = ?`, message.id);
                                     }
                                 }
-                                res[k] = false;
+                                resData[k] = false;
                             }
                             blockOk();
                         });
@@ -857,7 +857,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     ok(!err);
                                 })
                             });
-                            res[k] = (write) ? destName : null;
+                            resData[k] = (write) ? destName : null;
                             blockOk();
                         } else if (systemglobal.CDN_TempChannel && !systemglobal.CDN_No_Research) {
                             const pm = await (async () => {
@@ -949,7 +949,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             ok(!err);
                                         })
                                     });
-                                    res[k] = (write) ? destName : null;
+                                    resData[k] = (write) ? destName : null;
                                     blockOk();
                                 } else {
                                     Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
@@ -969,7 +969,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                             }
                                         });
-                                        res[k] = false;
+                                        resData[k] = false;
                                         blockOk();
                                     } else if (k === 'preview') {
                                         const full_data = await new Promise(ok => {
@@ -1030,7 +1030,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 resizeParam.width = 512;
                                             if (isNaN(resizeParam.height))
                                                 resizeParam.height = 512;
-                                            res[k] = (await new Promise(image_saved => {
+                                            resData[k] = (await new Promise(image_saved => {
                                                 sharp(full_data)
                                                     .resize(resizeParam)
                                                     .toFormat(destName.split('.').pop().toLowerCase())
@@ -1057,11 +1057,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             blockOk();
                                         } else {
                                             Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
-                                            res[k] = false;
+                                            resData[k] = false;
                                             blockOk();
                                         }
                                     } else {
-                                        res[k] = false;
+                                        resData[k] = false;
                                         blockOk();
                                     }
                                 }
@@ -1085,7 +1085,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         SET id = ?`, message.id);
                                     }
                                 }
-                                res[k] = false;
+                                resData[k] = false;
                                 blockOk();
                             }
                         } else {
@@ -1108,15 +1108,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         SET id = ?`, message.id);
                                 }
                             }
+                            resData[k] = false;
                             blockOk();
                         }
                     }
                 }))
             }, Promise.resolve());
             requests.then(async () => {
-                if (Object.values(res).filter(f => !f).length === 0) {
+                if (Object.values(resData).filter(f => !f).length === 0) {
                     Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
-                    await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
+                    await backupCompleted(`${message.server}/${message.channel}`, resData.preview, resData.full, resData.extended_preview, resData.mfull);
                 } else {
                     Logger.printLine("BackupFile", `Download ${message.id} failed!`, "error")
                     if (message && message.id) {
