@@ -1115,6 +1115,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
                 } else {
+                    Logger.printLine("BackupFile", `Download ${message.id} failed!`, "error")
                     if (message && message.id) {
                         if (!skipped[message.id])
                             skipped[message.id] = 0;
