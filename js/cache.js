@@ -1108,13 +1108,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         SET id = ?`, message.id);
                                 }
                             }
+                            blockOk();
                         }
                     }
                 }))
             }, Promise.resolve());
             requests.then(async () => {
-                Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0) {
+                    Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
                     await backupCompleted(`${message.server}/${message.channel}`, res.preview, res.full, res.extended_preview, res.mfull);
                 } else {
                     Logger.printLine("BackupFile", `Download ${message.id} failed!`, "error")
