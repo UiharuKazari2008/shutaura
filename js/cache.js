@@ -799,7 +799,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const data = await new Promise(ok => {
                             if (val.src && val.src.includes("ex=")) {
                                 const url = val.src;
-                                Logger.printLine("BackupFile", `Downloading Attachment ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...\n${url}`, "debug");
+                                Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug");
                                 request.get({
                                     url,
                                     headers: {
@@ -852,7 +852,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             const write = await new Promise(ok => {
                                 fs.writeFile(path.join(val.dest, destName), data, async (err) => {
                                     if (err) {
-                                        Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                        Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write download ${destName} to disk!`, "err", err)
                                     }
                                     ok(!err);
                                 })
@@ -880,7 +880,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             if (pm) {
                                 const dataTake2 = await new Promise(ok => {
                                     const url = pm;
-                                    Logger.printLine("BackupFile", `Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
+                                    Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug");
                                     request.get({
                                         url,
                                         headers: {
@@ -899,7 +899,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }, async (err, res, body) => {
                                         if (err || (res && res.statusCode && res.statusCode !== 200) || body.length < 1000) {
                                             if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && message.id && message.channel && k === 'full' && !requested_remotely) {
-                                                Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
                                                 mqClient.sendData(systemglobal.Discord_Out, {
                                                     fromClient: `return.CDN.${systemglobal.SystemName}`,
                                                     messageReturn: false,
@@ -910,13 +910,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     messageAction: 'ValidateMessage'
                                                 }, function (callback) {
                                                     if (callback) {
-                                                        Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                                        //Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
                                                     } else {
                                                         Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                                     }
                                                 });
                                             } else {
-                                                Logger.printLine("DownloadFile", `Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                             }
                                             ok(false)
                                         } else {
@@ -944,7 +944,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     const write = await new Promise(ok => {
                                         fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
                                             if (err) {
-                                                Logger.printLine("CopyFile", `Failed to write download ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                                Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write download ${destName} to disk!`, "err", err)
                                             }
                                             ok(!err);
                                         })
@@ -952,7 +952,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     resData[k] = (write) ? destName : null;
                                     blockOk();
                                 } else {
-                                    Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error")
+                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download, No Data Returned`, "error")
                                     if ((k === 'extended_preview' || val['src'].includes('t9-preview')) && message.id) {
                                         mqClient.sendData(systemglobal.Discord_Out, {
                                             messageReturn: false,
@@ -964,7 +964,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             messageServerID: message.server,
                                         }, function (callback) {
                                             if (callback) {
-                                                Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
+                                                //Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
                                             } else {
                                                 Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                             }
@@ -974,7 +974,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     } else if (k === 'preview') {
                                         const full_data = await new Promise(ok => {
                                             const url = attachements.full.src;
-                                            Logger.printLine("BackupFile", `Downloading ${message.id} for ${k} (Sharp Convert) ${destName}...`, "debug")
+                                            Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Sharp Convert) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug")
                                             request.get({
                                                 url,
                                                 headers: {
@@ -992,7 +992,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                 },
                                             }, async (err, res, body) => {
                                                 if (err || res && res.statusCode && res.statusCode !== 200) {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                                     ok(false)
                                                 } else {
                                                     ok(body);
@@ -1037,12 +1037,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     .withMetadata()
                                                     .toFile(path.join(val.dest, destName), function (err) {
                                                         if (err) {
-                                                            Logger.printLine("CopyFile", `Failed to write preview ${message.id} in ${message.channel} for ${k}`, "err", err);
+                                                            Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write preview file to disk!`, "err", err);
                                                             console.error(err);
                                                             if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
                                                                 fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
                                                                     if (err) {
-                                                                        Logger.printLine("CopyFile", `Failed to write full/preview ${message.id} in ${message.channel} for ${k}`, "err", err)
+                                                                        Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write full/preview to disk!`, "err", err)
                                                                     }
                                                                     image_saved((!err) ? destName : false);
                                                                 })
@@ -1056,7 +1056,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             }));
                                             blockOk();
                                         } else {
-                                            Logger.printLine("DownloadFile", `Can't download item for conversion ${message.id}, No Data Returned`, "error")
+                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item for conversion, No Data Returned`, "error")
                                             resData[k] = false;
                                             blockOk();
                                         }
@@ -1066,7 +1066,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     }
                                 }
                             } else {
-                                Logger.printLine("DownloadFile", `Can't download item ${message.id}, No URL Returned`, "error");
+                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item, No URL Returned`, "error");
                                 if (message && message.id) {
                                     if (!skipped[message.id])
                                         skipped[message.id] = 0;
@@ -1089,7 +1089,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 blockOk();
                             }
                         } else {
-                            Logger.printLine("DownloadFile", `Can't download item ${message.id}, No Data Returned`, "error");
+                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item, No Data Returned`, "error");
                             if (message && message.id) {
                                 if (!skipped[message.id])
                                     skipped[message.id] = 0;
@@ -1116,33 +1116,38 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 if (Object.values(resData).filter(f => !f).length === 0) {
-                    Logger.printLine("BackupFile", `Download ${message.id}`, "debug")
+                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download OK [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "info")
                     await backupCompleted(`${message.server}/${message.channel}`, resData.preview, resData.full, resData.extended_preview, resData.mfull);
                 } else {
-                    Logger.printLine("BackupFile", `Download ${message.id} failed!`, "error")
                     if (message && message.id) {
                         if (!skipped[message.id])
                             skipped[message.id] = 0;
                         skipped[message.id] = skipped[message.id] + 1;
                         if (systemglobal.CDN_Fast_Skip) {
+                            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "error")
                             await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
                             await db.query(`UPDATE kanmi_records
                                     SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
                                     WHERE id = ?`, message.id);
                         } else if (skipped[message.id] > 4) {
+                            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "error")
                             await db.query(`UPDATE kanmi_records
                                         SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
                                         WHERE id = ?`, message.id);
                             await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
+                        } else {
+                            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (${(skipped[message.id] || 0) + 1} Times) [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "warning")
                         }
+                    } else {
+                        Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "error")
                     }
                 }
                 cb(true);
             });
         } else {
-            Logger.printLine("BackupParts", `Can't download item ${message.id}, No URLs Available`, "error")
+            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed, No URLs Available`, "error")
             console.log(message)
             if (message && message.id) {
                 if (!skipped[message.id])
