@@ -1097,8 +1097,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 cb(true);
             });
         } else {
-            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed, No URLs Available`, "error")
-            console.log(message)
+            Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed, No URLs Available`, "error");
             if (message && message.id) {
                 if (!skipped[message.id])
                     skipped[message.id] = 0;
@@ -1106,12 +1105,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (systemglobal.CDN_Fast_Skip) {
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
-                    //await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
+                    await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
+                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [NO URLS]`, "error");
                 } else if (skipped[message.id] > 4) {
                     await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
+                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [NO URLS]`, "error");
+                } else {
+                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (${(skipped[message.id] || 0) + 1} Times) [NO URLS]`, "warning")
                 }
+            } else {
+                await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
+                Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed [NO ID // NO URLS]`, "error")
             }
             cb(false)
         }
