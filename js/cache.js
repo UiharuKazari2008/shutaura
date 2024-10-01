@@ -659,6 +659,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     if (k === 'mfull') {
                         let part_urls = [];
+                        let unknownMessage = false;
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
                                 const data = await new Promise(async ok => {
@@ -705,6 +706,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             }
                                         } catch (e) {
                                             console.error("Failed to get parity attachemnt from discord", e)
+                                            if (e.message && e.message.includes("Unknwon Message")) {
+                                                unknownMessage = true;
+                                            }
                                             url = null
                                         }
                                     }
@@ -758,7 +762,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     part_urls[i] = (write) ? filepath : null;
                                     partOk();
                                 } else {
-                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
+                                    if (unknownMessage) {
+                                        skipped[message.id] = 999;
+                                        Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned & Corrupt Files!`, "error")
+                                    } else {
+                                        Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
+                                    }
                                     part_urls[i] = false;
                                     partOk();
                                 }
