@@ -601,7 +601,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
                 ext: (message.attachment_hash.includes('/')) ? message.attachment_hash.split('?')[0].split('.').pop() : undefined,
             }
-        } else if (message.attachment_hash && message.attachment_name) {
+        } else if (message.attachment_hash && message.attachment_name && Discord_CDN_Accepted_Files.indexOf(message.attachment_name.split('.').pop().split('?')[0].toLowerCase()) !== -1) {
             attachements['preview'] = {
                 src: `https://cdn.discordapp.com/attachments/` + ((message.attachment_hash.includes('/')) ? message.attachment_hash : `${message.channel}/${message.attachment_hash}/${message.attachment_name.split('?')[0]}`) + auth,
                 dest: path.join(systemglobal.CDN_Base_Path, 'preview', message.server, message.channel),
@@ -1127,14 +1127,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "error")
                             await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
-                            await db.query(`UPDATE kanmi_records
-                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
-                                    WHERE id = ?`, message.id);
+                            await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}  WHERE id = ?`, message.id);
                         } else if (skipped[message.id] > 4) {
                             Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (Skipped) [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "error")
-                            await db.query(`UPDATE kanmi_records
-                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
-                                        WHERE id = ?`, message.id);
+                            await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
                             await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
                         } else {
@@ -1156,13 +1152,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (systemglobal.CDN_Fast_Skip) {
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                     SET id = ?`, message.id);
-                    await db.query(`UPDATE kanmi_records
-                                    SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
-                                    WHERE id = ?`, message.id);
+                    //await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
                 } else if (skipped[message.id] > 4) {
-                    await db.query(`UPDATE kanmi_records
-                                        SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""}
-                                        WHERE id = ?`, message.id);
+                    await db.query(`UPDATE kanmi_records SET flagged = 1, tags = CONCAT(tags, '3/1/dead_file;')${(systemglobal.CDN_Hide_On_Skip) ? ", hidden = 1" : ""} WHERE id = ?`, message.id);
                     await db.query(`INSERT INTO kanmi_cdn_skipped
                                         SET id = ?`, message.id);
                 }
