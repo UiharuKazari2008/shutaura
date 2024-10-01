@@ -758,7 +758,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     part_urls[i] = (write) ? filepath : null;
                                     partOk();
                                 } else {
-                                    Logger.printLine("DownloadFile", `Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
+                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
                                     part_urls[i] = false;
                                     partOk();
                                 }
@@ -773,12 +773,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
                                 try {
                                     resData[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                    Logger.printLine("BackupFile", `Download Master File ${message.real_filename}`, "debug")
+                                    Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Download Master File ${message.real_filename}`, "debug");
                                 } catch (e) {
                                     resData[k] = false;
                                 }
+                                if (resData[k] && message.paritycount === null) {
+                                    await db.query(`UPDATE kanmi_records SET paritycount = ? WHERE id = ?`, [Object.values(part_urls).filter(f => !f).length, message.id])
+                                }
                             } else {
-                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"} (${part_urls.length}/${message.paritycount})`, "error")
+                                Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"} (${part_urls.length}/${message.paritycount})`, "error")
                                 resData[k] = false;
                             }
                             blockOk();
