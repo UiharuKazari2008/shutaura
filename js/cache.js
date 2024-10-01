@@ -772,7 +772,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     resData[k] = false;
                                 }
                             } else {
-                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${message.paritycount === part_urls.length}`, "error")
+                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"}`, "error")
                                 resData[k] = false;
                             }
                             blockOk();
