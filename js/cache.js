@@ -625,7 +625,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                        hash
                                                 FROM discord_multipart_files
                                                 WHERE fileid = ?
-                                                  AND messageid NOT IN (SELECT id FROM kanmi_cdn_skipped)`, [message.fileid]);
+                                                  AND valid = 1 AND messageid NOT IN (SELECT id FROM kanmi_cdn_skipped)`, [message.fileid]);
             if (master_urls.rows.length > 0) {
                 attachements['mfull'] = {
                     id: message.fileid,
@@ -759,7 +759,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }))
                         }, Promise.resolve());
                         part_download.then(async () => {
-                            if (Object.values(part_urls).filter(f => !f).length === 0 && message.paritycount === part_urls.length) {
+                            if (Object.values(part_urls).filter(f => !f).length === 0 && (!message.paritycount || (message.paritycount && message.paritycount === part_urls.length))) {
                                 const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
                                 fsEx.ensureDirSync(path.join(val.dest));
                                 fsEx.removeSync(path.join(val.dest, destName));
@@ -772,7 +772,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     resData[k] = false;
                                 }
                             } else {
-                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"}`, "error")
+                                Logger.printLine("BackupFile", `Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"} (${part_urls.length}/${message.paritycount})`, "error")
                                 resData[k] = false;
                             }
                             blockOk();
