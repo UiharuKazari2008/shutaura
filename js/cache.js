@@ -778,7 +778,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     resData[k] = false;
                                 }
                                 if (resData[k] && message.paritycount === null) {
-                                    await db.query(`UPDATE kanmi_records SET paritycount = ? WHERE id = ?`, [Object.values(part_urls).filter(f => !f).length, message.id])
+                                    await db.query(`UPDATE kanmi_records SET paritycount = ? WHERE id = ?`, [Object.values(part_urls).filter(f => !!f).length, message.id])
                                 }
                             } else {
                                 Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Did not save ${message.real_filename}, Files OK: ${Object.values(part_urls).filter(f => !f).length === 0} Parity OK: ${(message.paritycount === part_urls.length) ? true : (message.paritycount < part_urls.length) ? "overflow" : "missing"} (${part_urls.length}/${message.paritycount})`, "error")
