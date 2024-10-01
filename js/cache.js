@@ -765,7 +765,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             }))
                         }, Promise.resolve());
                         part_download.then(async () => {
-                            if (Object.values(part_urls).filter(f => !f).length === 0 && (!message.paritycount || (message.paritycount && message.paritycount === part_urls.length))) {
+                            if (Object.values(part_urls).filter(f => !f).length === 0 && ((message.paritycount === null && part_urls.length > 1) || (message.paritycount && message.paritycount === part_urls.length))) {
                                 const files = part_urls.sort((x, y) => (x.split('.').pop() < y.split('.').pop()) ? -1 : (y.split('.').pop() > x.split('.').pop()) ? 1 : 0);
                                 fsEx.ensureDirSync(path.join(val.dest));
                                 fsEx.removeSync(path.join(val.dest, destName));
