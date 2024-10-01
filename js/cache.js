@@ -662,112 +662,119 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let unknownMessage = false;
                         let part_download = val.src.reduce((promiseChainParts, u, i) => {
                             return promiseChainParts.then(() => new Promise(async (partOk) => {
-                                const data = await new Promise(async ok => {
-                                    let url
-                                    /*if (u.auth_valid === 1) {
-                                        url = await new Promise((resolve) => {
-                                            remoteSize(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`, async (err, size) => {
-                                                if (!err || (size !== undefined && size > 0)) {
-                                                    resolve(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`)
-                                                } else {
-                                                    resolve(null)
-                                                }
+                                if (!unknownMessage) {
+                                    const data = await new Promise(async ok => {
+                                        let url
+                                        /*if (u.auth_valid === 1) {
+                                            url = await new Promise((resolve) => {
+                                                remoteSize(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`, async (err, size) => {
+                                                    if (!err || (size !== undefined && size > 0)) {
+                                                        resolve(`https://cdn.discordapp.com/attachments${u.url}?${u.auth}`)
+                                                    } else {
+                                                        resolve(null)
+                                                    }
+                                                })
                                             })
-                                        })
-                                    }*/
-                                    if (!url) {
-                                        let pm;
-                                        try {
-                                            pm = await discordClient.getMessage(u.channelid, u.messageid);
-                                            if (pm && pm.attachments && pm.attachments.length > 0) {
-                                                await (async () => {
-                                                    try {
-                                                        const a = pm.attachments[0].url.split('?')[1];
-                                                        let ex = null;
+                                        }*/
+                                        if (!url) {
+                                            let pm;
+                                            try {
+                                                pm = await discordClient.getMessage(u.channelid, u.messageid);
+                                                if (pm && pm.attachments && pm.attachments.length > 0) {
+                                                    await (async () => {
                                                         try {
-                                                            let exSearch = new URLSearchParams(a);
-                                                            const _ex = Number('0x' + exSearch.get('ex'));
-                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
-                                                        } catch (err) {
-                                                            Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
-                                                        }
-                                                        auth = `?${a}`;
-                                                        await db.query(`UPDATE discord_multipart_files
+                                                            const a = pm.attachments[0].url.split('?')[1];
+                                                            let ex = null;
+                                                            try {
+                                                                let exSearch = new URLSearchParams(a);
+                                                                const _ex = Number('0x' + exSearch.get('ex'));
+                                                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                            } catch (err) {
+                                                                Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                                            }
+                                                            auth = `?${a}`;
+                                                            await db.query(`UPDATE discord_multipart_files
                                                                         SET url         = ?,
                                                                             auth        = ?,
                                                                             auth_expire = ?
                                                                         WHERE channelid = ?
                                                                           AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
-                                                    } catch (e) {
-                                                        console.error(e)
-                                                    }
-                                                })()
-                                                url = pm.attachments[0].url;
+                                                        } catch (e) {
+                                                            console.error(e)
+                                                        }
+                                                    })()
+                                                    url = pm.attachments[0].url;
+                                                }
+                                            } catch (e) {
+                                                console.error("Failed to get parity attachemnt from discord", e)
+                                                if (e.message && e.message.includes("Unknwon Message")) {
+                                                    unknownMessage = true;
+                                                }
+                                                url = null
                                             }
-                                        } catch (e) {
-                                            console.error("Failed to get parity attachemnt from discord", e)
-                                            if (e.message && e.message.includes("Unknwon Message")) {
-                                                unknownMessage = true;
-                                            }
-                                            url = null
                                         }
-                                    }
-                                    if (url) {
-                                        Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
-                                        request.get({
-                                            url,
-                                            headers: {
-                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                                'accept-language': 'en-US,en;q=0.9',
-                                                'cache-control': 'max-age=0',
-                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                                'sec-ch-ua-mobile': '?0',
-                                                'sec-fetch-dest': 'document',
-                                                'sec-fetch-mode': 'navigate',
-                                                'sec-fetch-site': 'none',
-                                                'sec-fetch-user': '?1',
-                                                'upgrade-insecure-requests': '1',
-                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                            },
-                                        }, async (err, res, body) => {
-                                            if (err || (res && res.statusCode && res.statusCode !== 200)) {
-                                                if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                                    await db.query(`UPDATE discord_multipart_files
+                                        if (url) {
+                                            Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
+                                            request.get({
+                                                url,
+                                                headers: {
+                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                    'accept-language': 'en-US,en;q=0.9',
+                                                    'cache-control': 'max-age=0',
+                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                    'sec-ch-ua-mobile': '?0',
+                                                    'sec-fetch-dest': 'document',
+                                                    'sec-fetch-mode': 'navigate',
+                                                    'sec-fetch-site': 'none',
+                                                    'sec-fetch-user': '?1',
+                                                    'upgrade-insecure-requests': '1',
+                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                                },
+                                            }, async (err, res, body) => {
+                                                if (err || (res && res.statusCode && res.statusCode !== 200)) {
+                                                    if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && !requested_remotely) {
+                                                        Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                                        await db.query(`UPDATE discord_multipart_files
                                                                     SET valid = 0
                                                                     WHERE url = ?`, [u.url])
+                                                    } else {
+                                                        Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'} Size: ${(body) ? body.length : 0}`, "err", (err) ? err : undefined)
+                                                    }
+                                                    ok(false)
                                                 } else {
-                                                    Logger.printLine("DownloadFile", `Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'} Size: ${(body) ? body.length : 0}`, "err", (err) ? err : undefined)
+                                                    ok(body);
                                                 }
-                                                ok(false)
-                                            } else {
-                                                ok(body);
-                                            }
-                                        })
+                                            })
+                                        } else {
+                                            ok(false)
+                                        }
+                                    })
+                                    if (data) {
+                                        fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
+                                        const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString(), u.url.split('?')[0].split('/').pop());
+                                        const write = await new Promise(ok => {
+                                            fs.writeFile(filepath, data, async (err) => {
+                                                if (err) {
+                                                    Logger.printLine("CopyFile", `Failed to write download ${u.url.split('?')[0].split('/').pop()} for ${message.eid}`, "err", err)
+                                                }
+                                                ok(!err);
+                                            })
+                                        });
+                                        part_urls[i] = (write) ? filepath : null;
+                                        partOk();
                                     } else {
-                                        ok(false)
+                                        if (unknownMessage) {
+                                            skipped[message.id] = 999;
+                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned & Corrupt Files!`, "error")
+                                        } else {
+                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
+                                        }
+                                        part_urls[i] = false;
+                                        partOk();
                                     }
-                                })
-                                if (data) {
-                                    fsEx.ensureDirSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
-                                    const filepath = path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString(), u.url.split('?')[0].split('/').pop());
-                                    const write = await new Promise(ok => {
-                                        fs.writeFile(filepath, data, async (err) => {
-                                            if (err) {
-                                                Logger.printLine("CopyFile", `Failed to write download ${u.url.split('?')[0].split('/').pop()} for ${message.eid}`, "err", err)
-                                            }
-                                            ok(!err);
-                                        })
-                                    });
-                                    part_urls[i] = (write) ? filepath : null;
-                                    partOk();
                                 } else {
-                                    if (unknownMessage) {
-                                        skipped[message.id] = 999;
-                                        Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned & Corrupt Files!`, "error")
-                                    } else {
-                                        Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned`, "error")
-                                    }
+                                    skipped[message.id] = 999;
+                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}/${i}: EARLY ABORT: Can't download item ${u.url.split('?')[0].split('/').pop()} for ${message.eid}, No Data Returned & Corrupt Files!`, "error")
                                     part_urls[i] = false;
                                     partOk();
                                 }
