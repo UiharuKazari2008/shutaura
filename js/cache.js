@@ -714,7 +714,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             }
                                         }
                                         if (url) {
-                                            Logger.printLine("BackupFile", `Downloading Parity Part ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
+                                            Logger.printLine("BackupFile", `Downloading Parity Part (${i}/${val.src.length}) ${url.split('/').pop().split('?')[0]} for ${k} ${destName}...`, "debug");
                                             request.get({
                                                 url,
                                                 headers: {
