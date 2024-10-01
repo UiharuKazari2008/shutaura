@@ -1073,6 +1073,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (Object.values(resData).filter(f => !f).length === 0) {
                     Logger.printLine("BackupFile", `${message.eid || message.id}: Download OK [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "info")
                     await backupCompleted(`${message.server}/${message.channel}`, resData.preview, resData.full, resData.extended_preview, resData.mfull);
+                    await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
                 } else {
                     if (message && message.id) {
                         if (!skipped[message.id])
@@ -1116,7 +1117,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed (${(skipped[message.id] || 0) + 1} Times) [NO URLS]`, "warning")
                 }
             } else {
-                await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
                 Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed [NO ID // NO URLS]`, "error")
             }
             cb(false)
