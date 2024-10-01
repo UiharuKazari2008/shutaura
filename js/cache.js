@@ -616,16 +616,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
         if (message.fileid && (allow_master_files || !(systemglobal.CDN_Ignore_Master_Channels && systemglobal.CDN_Ignore_Master_Channels.indexOf(message.channel) !== -1))) {
-            const master_urls = await db.query(`SELECT channelid,
-                                                       messageid,
-                                                       url,
-                                                       valid,
-                                                       auth,
-                                                       IF(auth_expire > NOW(), 1, 0) AS auth_valid,
-                                                       hash
+            const master_urls = await db.query(`SELECT
+                                                    MAX(channelid) AS channelid,
+                                                    MAX(messageid) AS messageid,
+                                                    MAX(url) AS url,
+                                                    MAX(valid) AS valid,
+                                                    MAX(auth) AS auth,
+                                                    MAX(IF(auth_expire > NOW(), 1, 0)) AS auth_valid,
+                                                    MAX(hash) AS hash,
+                                                    SUBSTRING_INDEX(MAX(url), '/', -1) AS filename
                                                 FROM discord_multipart_files
                                                 WHERE fileid = ?
-                                                  AND valid = 1 AND messageid NOT IN (SELECT id FROM kanmi_cdn_skipped)`, [message.fileid]);
+                                                  AND valid = 1
+                                                  AND messageid NOT IN (SELECT id FROM kanmi_cdn_skipped)
+                                                GROUP BY SUBSTRING_INDEX(url, '/', -1)  -- Using the full expression instead of the alias
+                                                ORDER BY filename;
+            `, [message.fileid]);
             if (master_urls.rows.length > 0) {
                 attachements['mfull'] = {
                     id: message.fileid,
