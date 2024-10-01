@@ -1073,7 +1073,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (Object.values(resData).filter(f => !f).length === 0) {
                     Logger.printLine("BackupFile", `${message.eid || message.id}: Download OK [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "info")
                     await backupCompleted(`${message.server}/${message.channel}`, resData.preview, resData.full, resData.extended_preview, resData.mfull);
-                    await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
+                    if (message && message.id)
+                        await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
                 } else {
                     if (message && message.id) {
                         if (!skipped[message.id])
