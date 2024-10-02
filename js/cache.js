@@ -2000,6 +2000,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     });
     tx2.action('verify', async (reply) => {
         reply({ answer : 'Started' });
+        await clearDeadFiles();
         await repairMissingFiles();
     });
 
