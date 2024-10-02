@@ -268,7 +268,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     async function whenConnected() {
         startWorker();
-        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
+        if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && init === 0) {
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
                     console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
@@ -1866,11 +1866,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 return false;
             }
         };
-        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ?`;
+        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ? ORDER BY eid`;
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             pause = true;
             amqpConn.close();
+            await sleep(2000);
             Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
