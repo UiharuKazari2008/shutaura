@@ -1866,7 +1866,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 return false;
             }
         };
-        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ? ORDER BY eid`;
+        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ? ORDER BY eid DESC`;
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             pause = true;
@@ -1875,7 +1875,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
-                return promiseChain.then(() => new Promise((resolve) => {
+                return promiseChain.then(() => new Promise(async (resolve) => {
                     const mfull = (!r.mfull_hint || (r.mfull_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'master', r.path_hint, r.mfull_hint))));
                     const full = (!r.full_hint || (r.full_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'full', r.path_hint, r.full_hint))));
                     const preview = (!r.preview_hint || (r.preview_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'preview', r.path_hint, r.preview_hint))));
@@ -1887,6 +1887,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                     if (i % 1000 === 0 && i !== 0) {
                         Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... ${eids.length} Invalid Files (${i + 1}/${a.length})`, "info");
+                    }
+                    if (i % 300 === 0 && i !== 0) {
+                        if (eids.length > 0) {
+                            await db.query(`DELETE
+                                            FROM kanmi_records_cdn
+                                            WHERE eid IN (${eids.join(', ')})
+                                              AND host = ?`, [systemglobal.CDN_ID]);
+                            console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                            eids = [];
+                        }
                     }
                     resolve();
                 }))
