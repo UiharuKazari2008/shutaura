@@ -195,8 +195,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         amqpConn.createChannel(function(err, ch) {
             if (closeOnErr(err)) return;
             ch.on("error", function(err) {
-                if (!pause)
-                    Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
+                Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
             });
             ch.on("close", function() {
                 Logger.printLine("KanmiMQ", "Channel 1 Closed", (pause) ? "warning" : "critical")
@@ -243,7 +242,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     function start() {
         amqp.connect(MQServer, function(err, conn) {
-            if (err) {
+            if (err && !pause) {
                 Logger.printLine("KanmiMQ", "Initialization Error", "critical", err)
                 return setTimeout(start, 1000);
             }
@@ -253,8 +252,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
             });
             conn.on("close", function() {
-                Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
-                return setTimeout(start, 1000);
+                if (!pause) {
+                    Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
+                    return setTimeout(start, 1000);
+                }
             });
             Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
             amqpConn = conn;
@@ -263,8 +264,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
     function closeOnErr(err) {
         if (!err) return false;
-        Logger.printLine("KanmiMQ", "Connection Closed due to error", "error", err)
-        amqpConn.close();
+        if (!pause) {
+            Logger.printLine("KanmiMQ", "Connection Closed due to error", "error", err)
+            amqpConn.close();
+        }
         return true;
     }
     async function whenConnected() {
