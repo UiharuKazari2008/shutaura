@@ -285,11 +285,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function doAction(message, complete) {
-        if (pause) {
-            while (pause) {
-                await sleep(5000);
-            }
-        }
         const object = {...message.messageData, ...message.messageUpdate};
         switch (message.messageIntent) {
             case "DownloadMaster" :
