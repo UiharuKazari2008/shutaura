@@ -198,8 +198,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
             });
             ch.on("close", function() {
-                Logger.printLine("KanmiMQ", "Channel 1 Closed", "critical")
-                start();
+                Logger.printLine("KanmiMQ", "Channel 1 Closed", (pause) ? "warning" : "critical")
+                if (!pause)
+                    start();
             });
             ch.prefetch(25);
             ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
@@ -1874,6 +1875,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             pause = true;
+            amqpConn.close();
             Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
@@ -1914,16 +1916,19 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         deleteReq.then(async () => {
                             console.log('Cleanup Complete');
                             pause = false;
+                            start();
                         });
                     } else {
                         await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
                         console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
                         console.log('Cleanup Complete');
                         pause = false;
+                        start();
                     }
                 } else {
                     console.log('Cleanup Complete');
                     pause = false;
+                    start();
                 }
             })
         }
