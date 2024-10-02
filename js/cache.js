@@ -1865,6 +1865,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ?`;
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
+            pause = true;
             Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
@@ -1879,7 +1880,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         eids.push(r.eid)
                     }
                     if (i % 1000 === 0 && i !== 0) {
-                        Logger.printLine("CDN Verification", `Validation Progress (${i + 1}/${a.length})`, "info");
+                        Logger.printLine("CDN Verification", `Validating Filesystem ${((i + 1 / a.length) * 100).toFixed(4)}% .... (${i + 1}/${a.length})`, "info");
                     }
                     resolve();
                 }))
@@ -1904,7 +1905,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
                     }
                 }
-                console.log('Cleanup Complete')
+                console.log('Cleanup Complete');
+                pause = false;
             })
         }
     }
