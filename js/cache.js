@@ -1880,7 +1880,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         eids.push(r.eid)
                     }
                     if (i % 1000 === 0 && i !== 0) {
-                        Logger.printLine("CDN Verification", `Validating Filesystem ${((i + 1 / a.length) * 100).toFixed(4)}% .... (${i + 1}/${a.length})`, "info");
+                        Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... (${i + 1}/${a.length})`, "info");
                     }
                     resolve();
                 }))
