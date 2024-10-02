@@ -57,6 +57,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     let runCount = 0;
     let init = 0;
+    let pause = false;
     Logger.printLine("Init", "CDN", "info");
     let skipped = {};
     let pastFiles = {};
@@ -283,6 +284,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     async function doAction(message, complete) {
+        if (pause) {
+            while (pause) {
+                await sleep(5000);
+            }
+        }
         const object = {...message.messageData, ...message.messageUpdate};
         switch (message.messageIntent) {
             case "DownloadMaster" :
@@ -1845,6 +1851,63 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })
         }
     }
+    async function repairMissingFiles() {
+        const validFile = (filePath) => {
+            try {
+                if (!fs.existsSync(filePath))
+                    return false;
+                return (fs.statSync(filePath)).size > 128;
+            } catch (e) {
+                Logger.printLine("CDN Verification", `${filePath}: Failed to read file data!`, "err", e.message);
+                return false;
+            }
+        };
+        const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ?`;
+        const removedItems = await db.query(q, [systemglobal.CDN_ID])
+        if (removedItems.rows.length > 0) {
+            Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
+            let eids = [];
+            let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
+                return promiseChain.then(() => new Promise((resolve) => {
+                    const mfull = (!r.mfull_hint || (r.mfull_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'master', r.path_hint, r.mfull_hint))));
+                    const full = (!r.full_hint || (r.full_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'full', r.path_hint, r.full_hint))));
+                    const preview = (!r.preview_hint || (r.preview_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'preview', r.path_hint, r.preview_hint))));
+                    const extended_preview = (!r.ext_0_hint || (r.ext_0_hint && validFile(path.join(systemglobal.CDN_Base_Path, 'extended_preview', r.path_hint, r.ext_0_hint))));
+
+                    if (!mfull || !full || !preview || !extended_preview) {
+                        Logger.printLine("CDN Verification", `${r.path_hint}/${r.eid}: (${i + 1}/${a.length}) Missing filesystem data, Removing record! [M:${mfull} F:${full} P:${preview} EP:${extended_preview}]`, "err");
+                        eids.push(r.eid)
+                    }
+                    if (i % 1000 === 0 && i !== 0) {
+                        Logger.printLine("CDN Verification", `Validation Progress (${i + 1}/${a.length})`, "info");
+                    }
+                    resolve();
+                }))
+            }, Promise.resolve());
+            requests.then(async () => {
+                if (eids.length > 0) {
+                    if (eids.length > 500)  {
+                        function splitArray(array, chunkSize) {
+                            const result = [];
+                            for (let i = 0; i < array.length; i += chunkSize) {
+                                result.push(array.slice(i, i + chunkSize));
+                            }
+                            return result;
+                        }
+
+                        (splitArray(eids, 300)).map(async batch => {
+                            await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                            console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                        })
+                    } else {
+                        await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                        console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                    }
+                }
+                console.log('Cleanup Complete')
+            })
+        }
+    }
 
     discordClient.on("ready", async () => {
         Logger.printLine("Discord", "Connected successfully to Discord!", "debug")
@@ -1874,7 +1937,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     console.log("First Pass OK");
                     activeParseing = false;
                     setInterval(async () => {
-                        if (activeParseing) {
+                        if (activeParseing || pause) {
                             console.log('System Busy');
                         } else {
                             await findUserData();
@@ -1916,7 +1979,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         reply({ answer : 'started' });
     });
     tx2.action('scan', async (reply) => {
-        if (activeParseing) {
+        if (activeParseing || pause) {
             reply({ answer : 'System Busy' });
         } else {
             reply({ answer : 'Task Started' });
@@ -1932,6 +1995,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             reply({ answer : 'No Files' });
             await findBackupItems();
         }
+    });
+    tx2.action('verify', async (reply) => {
+        reply({ answer : 'Started' });
+        await repairMissingFiles();
     });
 
     discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
