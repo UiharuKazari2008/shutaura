@@ -195,7 +195,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         amqpConn.createChannel(function(err, ch) {
             if (closeOnErr(err)) return;
             ch.on("error", function(err) {
-                Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
+                if (!pause)
+                    Logger.printLine("KanmiMQ", "Channel 1 Error", "error", err)
             });
             ch.on("close", function() {
                 Logger.printLine("KanmiMQ", "Channel 1 Closed", (pause) ? "warning" : "critical")
