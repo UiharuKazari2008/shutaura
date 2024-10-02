@@ -1838,16 +1838,24 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             return result;
                         }
 
-                        (splitArray(eids, 300)).map(async batch => {
-                            await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                            console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
-                        })
+                        let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
+                            return promiseChain.then(() => new Promise(async (resolve) => {
+                                await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                                console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                                resolve();
+                            }))
+                        }, Promise.resolve());
+                        deleteReq.then(async () => {
+                            console.log('Cleanup Complete');
+                        });
                     } else {
                         await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
                         console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                        console.log('Cleanup Complete')
                     }
+                } else {
+                    console.log('Cleanup Complete')
                 }
-                console.log('Cleanup Complete')
             })
         }
     }
@@ -1880,7 +1888,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         eids.push(r.eid)
                     }
                     if (i % 1000 === 0 && i !== 0) {
-                        Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... (${i + 1}/${a.length})`, "info");
+                        Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... ${eids.length} Invalid Files (${i + 1}/${a.length})`, "info");
                     }
                     resolve();
                 }))
@@ -1896,17 +1904,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             return result;
                         }
 
-                        (splitArray(eids, 300)).map(async batch => {
-                            await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                            console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
-                        })
+                        let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
+                            return promiseChain.then(() => new Promise(async (resolve) => {
+                                await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
+                                console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                                resolve();
+                            }))
+                        }, Promise.resolve());
+                        deleteReq.then(async () => {
+                            console.log('Cleanup Complete');
+                            pause = false;
+                        });
                     } else {
                         await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
                         console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                        console.log('Cleanup Complete');
+                        pause = false;
                     }
+                } else {
+                    console.log('Cleanup Complete');
+                    pause = false;
                 }
-                console.log('Cleanup Complete');
-                pause = false;
             })
         }
     }
@@ -2001,7 +2019,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     tx2.action('verify', async (reply) => {
         reply({ answer : 'Started' });
         await clearDeadFiles();
-        await repairMissingFiles();
+        repairMissingFiles();
     });
 
     discordClient.connect().catch((er) => { Logger.printLine("Discord", "Failed to connect to Discord", "emergency", er) });
