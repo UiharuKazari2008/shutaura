@@ -1941,6 +1941,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     start();
                 }
             })
+        } else {
+            pause = true;
         }
     }
 
@@ -2033,6 +2035,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     });
     tx2.action('verify', async (reply) => {
         reply({ answer : 'Started' });
+        pause = true;
         await clearDeadFiles();
         repairMissingFiles();
     });
