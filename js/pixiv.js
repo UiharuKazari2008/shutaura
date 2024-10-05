@@ -495,6 +495,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 fileData: post.file.avatar
                             }
                         ],
+                        messagePostTags: post.tags,
                         addButtons: reactions
                     }
                 } else if (objectMode) {
@@ -508,6 +509,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageObject: messageObject,
                         itemFileData: post.file.data,
                         itemFileName: post.file.name,
+                        messagePostTags: post.tags,
                         addButtons: reactions
                     }
                 } else {
@@ -520,6 +522,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         messageLink: post.link,
                         itemFileData: post.file.data,
                         itemFileName: post.file.name,
+                        messagePostTags: post.tags,
                         addButtons: reactions
                     }
                 }
@@ -547,6 +550,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     messageLink: post.link,
                     itemFileData: post.file.data,
                     itemFileName: post.file.name,
+                    messagePostTags: post.tags,
                     addButtons: reactions
                 }
             }
@@ -575,9 +579,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             postSanity: item.sanity_level,
                             postDate: item.create_date,
                             userIcon: item.user.profile_image_urls.medium,
+                            postTags: item.tags.map(e => e.translated_name || e.name),
                             link: `https://pixiv.net/en/artworks/${item.id}`,
-                        }
-                        console.log(item);
+                        };
 
                         let foundillu = post_history.indexOf(item.id.toString()) === -1;
                         if (foundillu)
