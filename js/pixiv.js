@@ -577,6 +577,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             userIcon: item.user.profile_image_urls.medium,
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         }
+                        console.log(item);
 
                         let foundillu = post_history.indexOf(item.id.toString()) === -1;
                         if (foundillu)
