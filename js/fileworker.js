@@ -1518,6 +1518,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									if (MessageContents.tweetMetadata) {
 										Cleanedobject.tweetMeta = MessageContents.tweetMetadata
 									}
+									if (MessageContents.messageTags) {
+										Cleanedobject.messageTags = MessageContents.messageTags;
+									}
+									if (MessageContents.messagePostTags) {
+										Cleanedobject.messagePostTags = MessageContents.messagePostTags;
+									}
 									if (MessageContents.messageUserID) {
 										Cleanedobject.UserID = MessageContents.messageUserID
 									}
@@ -1565,6 +1571,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.tweetMetadata) {
 								Cleanedobject.tweetMeta = MessageContents.tweetMetadata
+							}
+							if (MessageContents.messageTags) {
+								Cleanedobject.messageTags = MessageContents.messageTags;
+							}
+							if (MessageContents.messagePostTags) {
+								Cleanedobject.messagePostTags = MessageContents.messagePostTags;
 							}
 							if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
 								Cleanedobject.Backlog = true
@@ -1640,6 +1652,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										if (MessageContents.tweetMetadata) {
 											Cleanedobject.tweetMeta = MessageContents.tweetMetadata
 										}
+										if (MessageContents.messageTags) {
+											Cleanedobject.messageTags = MessageContents.messageTags;
+										}
+										if (MessageContents.messagePostTags) {
+											Cleanedobject.messagePostTags = MessageContents.messagePostTags;
+										}
 										if (MessageContents.messageUserID) {
 											Cleanedobject.UserID = MessageContents.messageUserID
 										}
@@ -1682,6 +1700,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 							if (MessageContents.tweetMetadata) {
 								Cleanedobject.tweetMeta = MessageContents.tweetMetadata
+							}
+							if (MessageContents.messageTags) {
+								Cleanedobject.messageTags = MessageContents.messageTags;
+							}
+							if (MessageContents.messagePostTags) {
+								Cleanedobject.messagePostTags = MessageContents.messagePostTags;
 							}
 							if (MessageContents.backlogRequest && (MessageContents.backlogRequest === true || MessageContents.backlogRequest === 'true')) {
 								Cleanedobject.Backlog = true
@@ -1752,6 +1776,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					parameters.tweetMetadata = object.tweetMeta
 					console.log(`Got Embedded Tweet Metadata : ${object.tweetMeta.userId}:${object.tweetMeta.id}`)
 				}
+				if (object.messageTags) {
+					parameters.messageTags = object.messageTags;
+					console.log(`Got Embedded MIITS Tags : ${object.messageTags}`)
+				}
+				if (object.messagePostTags) {
+					parameters.messagePostTags = object.messagePostTags;
+					console.log(`Got Embedded Post Tags : ${object.messagePostTags}`)
+				}
 				Logger.printLine("FileProcessor", `Processing Remote File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
 			} else if (object.Type.toString() === "Local") {
 				// Local - File has been sent from the local file queue and is a local file on the system
@@ -1763,6 +1795,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parameters.clientGroupID = object.OriginGroup.toString()
 				parameters.itemDateTime = object.DateTime.toString()
 				parameters.tweetMetadata = object.tweetMeta
+				parameters.messageTags = object.messageTags;
+				parameters.messagePostTags = object.messagePostTags;
 				// Determine the Channel to send file to from its folder Path
 				if (FolderPairs.has(path.basename(path.dirname(object.OriginPath.toString())))) {
 					// Find Parent directory to get its Channel ID from the lookup table
@@ -1798,6 +1832,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (object.tweetMeta) {
 					parameters.tweetMetadata = object.tweetMeta
 				}
+				if (object.messageTags) {
+					parameters.messageTags = object.messageTags;
+				}
+				if (object.messagePostTags) {
+					parameters.messagePostTags = object.messagePostTags;
+				}
 				Logger.printLine("FileProcessor", `Processing Proxy File : ${object.FileName.toString()}`, "debug", parameters)
 			}
 			//  If not going to the Twitter Compose channel, Add the Buttons
@@ -1828,6 +1868,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 			if (externalMetadata.tweetMetadata) {
 				parameters.tweetMetadata = externalMetadata.tweetMetadata;
+			}
+			if (externalMetadata.messageTags) {
+				parameters.messageTags = externalMetadata.messageTags;
+			}
+			if (externalMetadata.messagePostTags) {
+				parameters.messagePostTags = externalMetadata.messagePostTags;
 			}
 			if (externalMetadata.messageText) {
 				parameters.messageText = externalMetadata.messageText;
