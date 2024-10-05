@@ -1148,7 +1148,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             } else {
                 Logger.printLine("BackupFile", `${message.eid || message.id}: Download Failed [NO ID // NO URLS]`, "error")
             }
-            cb(false)
+            cb(true)
         }
     }
     async function moveMessage (previous, message, cb, requested_remotely) {
