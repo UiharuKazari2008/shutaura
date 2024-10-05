@@ -579,7 +579,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             postSanity: item.sanity_level,
                             postDate: item.create_date,
                             userIcon: item.user.profile_image_urls.medium,
-                            tags: item.tags.map(e => (e.translated_name || e.name).split(' ').join("_")).join(';'),
+                            tags: (item.tags.length > 0) ? (';' + item.tags.map(e => (e.translated_name || e.name).split(' ').join("_")).join(';')) : undefined,
                             link: `https://pixiv.net/en/artworks/${item.id}`,
                         };
 
