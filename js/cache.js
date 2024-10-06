@@ -1213,7 +1213,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`);
-                    Logger.printLine("MoveFile", `Moved ${message.id}`, info)
+                    Logger.printLine("MoveFile", `Moved ${message.id}`, "info")
                     cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 } else {
                     Logger.printLine("MoveFile", `Failed to moved ${message.id}`, "error");
