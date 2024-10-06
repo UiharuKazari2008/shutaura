@@ -1202,10 +1202,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 return promiseChain.then(() => new Promise(async (blockOk) => {
                     const val = attachements[k];
                     fsEx.ensureDirSync(path.join(val.base));
-                    fs.rename(val.src, val.dest, err => {
+                    fs.copyFile(val.src, val.dest, err => {
                         if (err) {
                             Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}: ${err.message}`, "err", err);
                             db.query(`DELETE FROM kanmi_records_cdn WHERE eid      = ? AND  host    = ?`, [ message.eid, systemglobal.CDN_ID ])
+                        } else {
+                            fs.unlinkSync(val.src);
                         }
                         res[k] = (!err)
                         blockOk();
