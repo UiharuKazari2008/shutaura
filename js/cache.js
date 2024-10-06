@@ -1213,11 +1213,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
             }, Promise.resolve());
             requests.then(async () => {
-                Logger.printLine("BackupFile", `Moved ${message.id}`, "debug")
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`);
+                    Logger.printLine("BackupFile", `Moved ${message.id}`, "debug")
                     cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 } else {
+                    Logger.printLine("BackupFile", `Failed to moved ${message.id}`, "error");
                     cb(true);
                 }
             });
@@ -1768,7 +1769,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (backupItems.rows.length > 0) {
                 let total = backupItems.rows.length;
                 let ticks = 0;
-                let batchSize = 25; // Number of items to process in each batch
+                let batchSize = 3; // Number of items to process in each batch
 
                 // Function to process a batch of items
                 async function processBatch(batch) {
