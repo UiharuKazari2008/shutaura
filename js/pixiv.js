@@ -123,21 +123,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
         const _illuhistory = await db.query(`SELECT illu_id FROM pixiv_history_illu`);
         if (_illuhistory.error) {
-            console.error(`Unable to get post history!`)
+            Logger.printLine("PostHistory", `Unable to get post history!`, 'error', _illuhistory.error)
         } else if (_illuhistory.rows.length > 0) {
             post_history = [...new Set(_illuhistory.rows.map(e => e.illu_id.toString()))];
-            console.log(`Loaded ${post_history.length} post history`, post_history[0]);
+            Logger.printLine("PostHistory", `Loaded ${post_history.length} post history`, 'info')
         }
         const _pixivnotify = await db.query(`SELECT * FROM pixiv_notify`);
         if (_pixivnotify.error) {
-            console.error(`Unable to get pixiv notifications!`)
+            Logger.printLine("PostNotify", `Unable to get pixiv notifications!`, 'error', _pixivnotify.error)
         } else {
             const _tni = _pixivnotify.rows.map(e => e.id.toLowerCase());
             _pixivnotify.rows.map(e => {
                 pixivNotify.set(e.id.toLowerCase(), e.channel)
             });
             Array.from(pixivNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => pixivNotify.delete(e));
-            console.log(`Notification enabled for ${pixivNotify.size} users`);
+            Logger.printLine("PostNotify", `Notification enabled for ${pixivNotify.size} users`, 'info')
         }
     }
     await loadDatabaseCache();
@@ -360,7 +360,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (refreshtoken.error || refreshtoken.rows.length === 0) {
             mqClient.sendMessage(`Pixiv Refresh Token was not found in the database, please generate/add a new token!`, "crit", "TokenSystem", (refreshtoken.error) ? refreshtoken.error.sqlMessage : "");
             if (refreshtoken.error) {
-                console.error(refreshtoken.error)
+                Logger.printLine("PixivToken", refreshtoken.error, 'error')
             }
             cb(false);
         } else {
@@ -376,8 +376,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     cb(authResults);
                 })
                 .catch((err) => {
-                    Logger.printLine("TokenSystem", "Failed to refresh token for pixiv!", "emergency", err);
-                    console.error(err);
+                    Logger.printLine("TokenSystem", `Failed to refresh token for pixiv!: ${err.message}`, "emergency", err);
                     setTimeout(refreshToken, 60000)
                     auth = false;
                     cb(false);
@@ -748,8 +747,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     data: JSON.stringify(e)
                 }, JSON.stringify(e)]);
                 if (addResponse.error) {
-                    Logger.printLine("SaveRecommIllust", `Failed to add Illustration https://pixiv.net/en/artworks/${e.id} to storage`, "error")
-                    console.error(addResponse.error)
+                    Logger.printLine("SaveRecommIllust", `Failed to add Illustration https://pixiv.net/en/artworks/${e.id} to storage`, "error", addResponse.error)
                 } else {
                     Logger.printLine("SaveRecommIllust", `Adding Illustration https://pixiv.net/en/artworks/${e.id} to storage`, "debug")
                 }
@@ -839,9 +837,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog')
                         await sleep(15000)
                     } catch (err) {
-                        console.error(err)
-                        Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
-                        Logger.printLine("getNewIllust", `Returned items for new illustrations (Caught err)`, "debug")
+                        Logger.printLine("getNewIllust", `Returned items for new illustrations (Caught err)`, "error", err)
                         break;
                     }
                 }
@@ -893,9 +889,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         await parseItems(results.illusts.reverse(), (channelID) ? channelID : "download", 'backlog', undefined)
                         await sleep(15000)
                     } catch (err) {
-                        Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (Caught err)`, "debug")
-                        Logger.printLine("PixivPaginator", "Error pulling more pages for new illustrations", "warn", err)
-                        console.error(err)
+                        Logger.printLine("getUserllustAll", `Completed all pages for ${userID} (Caught err)`, "error", err)
                         break;
                     }
                 }
@@ -929,7 +923,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         })
                         .catch(function (err) {
                             mqClient.sendMessage(`Error adding post ${message.postID} to bookmarks`, "warn", "PixivAction", err)
-                            console.error(err);
                         })
                 } else if (message.messageAction === "remove") {
                     pixivClient.unbookmarkIllust(message.postID)
@@ -1021,10 +1014,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 break;
         }
     }
-
- // FANBOX Tasks
-
-
     start();
 
     if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {

@@ -39,6 +39,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const cron = require('node-cron');
 	let args = minimist(process.argv.slice(2));
 	const tx2 = require('tx2');
+	const express = require('express');
+	const cors = require('cors');
+	const app = express();
+	app.use(cors());
+	// http://127.0.0.1:32050/log?level=info&proc=test&text=TestLog
+	app.get('/log', async (req, res) => {
+		if (req.query && req.query.text) {
+			Logger.printLine((req.query.proc || "RemoteLog"), decodeURIComponent(req.query.text), (req.query.level || "info"));
+			res.status(200).end();
+		} else {
+			res.status(400).send('Missing Log Line');
+		}
+	})
+	app.listen(32050, (err) => {
+		Logger.printLine("API", `Logging API listening on port: 32050`, 'info')
+	});
 
 	let amqpConn = null;
 	const RateLimiter = require('limiter').RateLimiter;
