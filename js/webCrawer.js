@@ -928,7 +928,8 @@ This code is publicly released and is restricted by its project license
                             itemFileName: img.split('/').pop().split('?')[0],
                             itemFileURL: img,
                             itemReferral: imageUrl,
-                            itemDateTime: posted
+                            itemDateTime: posted,
+                            messagePostTags: (tags.length > 0) ? (';' + tags.map(e => e.split(' ').join('_')).join(';') + ';') : undefined,
                         }, (ok) => {
                             if (!ok) {
                                 mqClient.sendMessage(`Failed to send article - "${json.title}"`, "err", "SQL", json);

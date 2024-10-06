@@ -2490,6 +2490,7 @@ This code is publicly released and is restricted by its project license
                         logLine: `Send Message: (${level}) Type: [${typeText}],${(MessageContents.fromDPS) ? ' PDP: ' + MessageContents.fromDPS : ''} From: ${MessageContents.fromClient}, To ${(ChannelData && (ChannelData.type === 11 || ChannelData.type === 12)) ? 'Thread' : 'Channel'}: ${(ChannelData) ? '"' + ChannelData.name.toString().substring(0,128) + '" ' + ChannelID + '' : ChannelID}${(ChannelData && ChannelData.guild && ChannelData.guild.name) ? '@' + ChannelData.guild.name : ''}`,
                         fileData: (MessageContents.fileData) ? MessageContents.fileData : undefined,
                         tags: (MessageContents.messageTags) ? MessageContents.messageTags : undefined,
+                        post_tags: (MessageContents.messagePostTags) ? MessageContents.messagePostTags : undefined,
                         safety: (MessageContents.messageSafety !== undefined && MessageContents.messageSafety !== null) ? MessageContents.messageSafety : undefined,
                         dps_host: (MessageContents.fromDPS) ? MessageContents.fromDPS: undefined,
                         extendedData: (MessageContents.extendedContent) ? MessageContents.extendedContent : undefined,
@@ -8201,6 +8202,9 @@ This code is publicly released and is restricted by its project license
                                     return 81
                                 return 0;
                             })(sqlObject.real_filename, sqlObject.attachment_name)*/
+                            if (options && options.post_tags) {
+                                sqlObject.post_tags = options.post_tags;
+                            }
                             if (options && options.tags) {
                                 sqlObject.tags = options.tags;
                             }
