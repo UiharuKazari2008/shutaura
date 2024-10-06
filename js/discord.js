@@ -8040,7 +8040,6 @@ This code is publicly released and is restricted by its project license
                                 id: msg.id,
                                 server: msg.guildID,
                                 channel: msg.channel.id,
-                                n_channel: msg.channel.id,
                                 fid: (options && options.folder) ? options.folder : undefined,
                                 user: (options && options.userID) ? options.userID : msg.author.id,
                                 content_full: msg.content,
@@ -8539,7 +8538,7 @@ This code is publicly released and is restricted by its project license
             if (refrance) {
                 sqlObject.id = msg.id;
             }
-            if (!(refrance && refrance.action && refrance.action !== 'jfsMove')) {
+            if (refrance && refrance.action && refrance.action === 'jfsMove') {
                 sqlObject.n_channel = sqlObject.channel;
             }
             if (msg.content) {
