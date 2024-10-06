@@ -375,6 +375,10 @@ This code is publicly released and is restricted by its project license
                     systemglobal.Coop_Worker = _discord_system[0].param_data.coop_worker;
                 if (_discord_system[0].param_data.no_cdn_reload)
                     systemglobal.Discord_No_CDN_Reload = _discord_system[0].param_data.no_cdn_reload;
+                if (_discord_system[0].param_data.no_cdn_reload_files)
+                    systemglobal.Discord_No_CDN_Reload_Spanned = _discord_system[0].param_data.no_cdn_reload_files;
+                if (_discord_system[0].param_data.no_cdn_delete)
+                    systemglobal.Discord_No_CDN_Delete = _discord_system[0].param_data.no_cdn_delete;
             }
             // Discord Bot Info (Shown in Help)
             // DiscordOwner = "Yukimi Kazari"
@@ -4831,9 +4835,15 @@ This code is publicly released and is restricted by its project license
                             const count = bulkMessages.length
                             try {
                                 await discordClient.deleteMessages(channel.channelid, bulkMessages, 'Request to delete old messages');
-                                await Promise.all(bulkMessages.map(async msg => {
-                                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
-                                }))
+                                if (!systemglobal.Discord_No_CDN_Delete) {
+                                    await Promise.all(bulkMessages.map(async msg => {
+                                        mqClient.cdnRequest({
+                                            messageIntent: "Delete",
+                                            messageData: {id: msg},
+                                            messageUpdate: {}
+                                        });
+                                    }))
+                                }
                                 Logger.printLine("AutoClean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
                             } catch (err) {
                                 Logger.printLine("AutoClean", `Error Deleting old messages`, 'error', err)
@@ -4844,7 +4854,13 @@ This code is publicly released and is restricted by its project license
                             await Promise.all(oboMessages.map(async msg => {
                                 try {
                                     await discordClient.deleteMessage(channel.channelid, msg, 'Request to delete old messages')
-                                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
+                                    if (!systemglobal.Discord_No_CDN_Delete) {
+                                        mqClient.cdnRequest({
+                                            messageIntent: "Delete",
+                                            messageData: {id: msg},
+                                            messageUpdate: {}
+                                        });
+                                    }
                                 } catch (err) {
                                     Logger.printLine("AutoClean", `Error Deleting old messages`, 'error', err)
                                 }
@@ -4881,7 +4897,13 @@ This code is publicly released and is restricted by its project license
                         if (lastmsg.pop().id === last) {
                             try {
                                 await discordClient.deleteMessage(channel, last, 'Request to delete old messages');
-                                mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: last }, messageUpdate: {  } });
+                                if (!systemglobal.Discord_No_CDN_Delete) {
+                                    mqClient.cdnRequest({
+                                        messageIntent: "Delete",
+                                        messageData: {id: last},
+                                        messageUpdate: {}
+                                    });
+                                }
                             } catch (err) {
                                 Logger.printLine("Clean", `Error Deleting old messages`, 'error', err);
                             }
@@ -4900,9 +4922,15 @@ This code is publicly released and is restricted by its project license
                     const count = _bulkMessages.length
                     try {
                         await discordClient.deleteMessages(channel, _bulkMessages, 'Request to delete old messages');
-                        await Promise.all(_bulkMessages.map(async msg => {
-                            mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
-                        }))
+                        if (!systemglobal.Discord_No_CDN_Delete) {
+                            await Promise.all(_bulkMessages.map(async msg => {
+                                mqClient.cdnRequest({
+                                    messageIntent: "Delete",
+                                    messageData: {id: msg},
+                                    messageUpdate: {}
+                                });
+                            }))
+                        }
                         Logger.printLine("Clean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
                     } catch (err) {
                         Logger.printLine("Clean", `Failed to delete ${count} messages`, 'error', err)
@@ -4912,7 +4940,13 @@ This code is publicly released and is restricted by its project license
                     await Promise.all(oboMessages.map(async (msg) => {
                         try {
                             await discordClient.deleteMessage(channel, msg, 'Request to delete old messages')
-                            mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: msg }, messageUpdate: {  } });
+                            if (!systemglobal.Discord_No_CDN_Delete) {
+                                mqClient.cdnRequest({
+                                    messageIntent: "Delete",
+                                    messageData: {id: msg},
+                                    messageUpdate: {}
+                                });
+                            }
                         } catch (err) {
                             Logger.printLine("Clean", `Error Deleting old messages`, 'error', err)
                         }
@@ -5841,7 +5875,7 @@ This code is publicly released and is restricted by its project license
                         bannerWarnings.unshift('📨 Message Queue is getting congested')
                     }
                 }
-                if (discordMQMessages > 2000) {
+                if (discordMQMessages > 500) {
                     systemFault = true;
                     noCDNReload = true;
                     bannerFault.unshift('🆘 CDN Communication paused due to overload, data avalibility may be delayed!');
@@ -7587,7 +7621,13 @@ This code is publicly released and is restricted by its project license
         } else {
             discordClient.deleteMessage(fullmsg.channel.id, fullmsg.id)
                 .then(ok => {
-                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: fullmsg.id }, messageUpdate: {  } });
+                    if (!systemglobal.Discord_No_CDN_Delete) {
+                        mqClient.cdnRequest({
+                            messageIntent: "Delete",
+                            messageData: {id: fullmsg.id},
+                            messageUpdate: {}
+                        });
+                    }
                 })
                 .catch((er) => {
                     SendMessage("There was a error removing the message", "err", fullmsg.guildID, "CleanPost", er)
@@ -7629,7 +7669,13 @@ This code is publicly released and is restricted by its project license
             if (channelnumber && messsageid) {
                 try {
                     await discordClient.deleteMessage(channelnumber, messsageid)
-                    mqClient.cdnRequest({ messageIntent: "Delete", messageData: { id: messsageid }, messageUpdate: {  } });
+                    if (!systemglobal.Discord_No_CDN_Delete) {
+                        mqClient.cdnRequest({
+                            messageIntent: "Delete",
+                            messageData: {id: messsageid},
+                            messageUpdate: {}
+                        });
+                    }
                     if (channelnumber !== discordServers.get(guildid).chid_download) {
                         SendMessage(`🗑 Deleted the Multi-Part File`, "info", guildid, "RMSF")
                     }
@@ -8232,7 +8278,7 @@ This code is publicly released and is restricted by its project license
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                if (!systemglobal.Discord_No_CDN_Reload && !noCDNReload)
+                                if (((sqlObject.fileid && !Discord_No_CDN_Reload_Spanned) || !systemglobal.Discord_No_CDN_Reload) && !noCDNReload)
                                     mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
                                 if (chDbval.notify !== null) {
                                     try {
@@ -8576,16 +8622,18 @@ This code is publicly released and is restricted by its project license
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                     console.error(addedMessage.error)
                 }
-                mqClient.cdnRequest({
-                    messageIntent: "Reload",
-                    messageData: {
-                        ...eidData[0]
-                    },
-                    messageUpdate: {
-                        ...sqlObject
-                    },
-                    reCache: !(refrance && refrance.action && refrance.action === 'jfsMove') || refrance.reload_cdn
-                })
+                if (!systemglobal.Discord_No_CDN_Reload || refrance.reload_cdn) {
+                    mqClient.cdnRequest({
+                        messageIntent: "Reload",
+                        messageData: {
+                            ...eidData[0]
+                        },
+                        messageUpdate: {
+                            ...sqlObject
+                        },
+                        reCache: !(refrance && refrance.action && refrance.action === 'jfsMove') || refrance.reload_cdn
+                    })
+                }
             } else {
                 await messageCreate(msg, {
                     forceAdd: true,
