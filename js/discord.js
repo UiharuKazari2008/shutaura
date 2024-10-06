@@ -8539,7 +8539,7 @@ This code is publicly released and is restricted by its project license
                 sqlObject.id = msg.id;
             }
             if (refrance && refrance.action && refrance.action === 'jfsMove') {
-                sqlObject.n_channel = sqlObject.channel;
+                sqlObject.n_channel = null;
             }
             if (msg.content) {
                 sqlObject.content_full = sqlObject.content_full.split('\n').filter(e => !(e.startsWith('_') && e.includes(':'))).join('\n')
