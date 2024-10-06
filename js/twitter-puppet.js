@@ -2112,9 +2112,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				page.on('request', (request) => {
 					const headers = request.headers();
 					if (request.resourceType() === 'document') {
+						console.log(headers['Content-Security-Policy']);
 						headers['Content-Security-Policy'] = '';
 					}
-					console.log(headers);
 					request.continue({
 						headers,
 					});
