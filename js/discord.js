@@ -8278,7 +8278,10 @@ This code is publicly released and is restricted by its project license
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
-                                if (((sqlObject.fileid && !Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload)) && !noCDNReload)
+                                if (((sqlObject.fileid && !Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload))
+                                    && !noCDNReload
+                                    && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1
+                                    && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1)
                                     mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
                                 if (chDbval.notify !== null) {
                                     try {
@@ -8622,7 +8625,9 @@ This code is publicly released and is restricted by its project license
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
                     console.error(addedMessage.error)
                 }
-                if (((sqlObject.fileid && !Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload)) || refrance.reload_cdn) {
+                if ((((sqlObject.fileid && !Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload)) || refrance.reload_cdn)
+                    && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1
+                    && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1)) {
                     mqClient.cdnRequest({
                         messageIntent: "Reload",
                         messageData: {
