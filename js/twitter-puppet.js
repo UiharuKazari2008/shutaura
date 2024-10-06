@@ -2108,7 +2108,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				await page.setUserAgent(
 					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
 				);
-				await page.setRequestInterception(true);
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
                     for (let i = 0; i < msg.args().length; i++) {
