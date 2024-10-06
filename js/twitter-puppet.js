@@ -241,6 +241,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				'--inprivate',
 				'--no-gpu',
 				'--disable-web-security',
+				' --user-data-dir="./tmp/chrome_dev_session"'
 				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
 				'--remote-debugging-address=0.0.0.0',
 				'--enable-features=NetworkService',
