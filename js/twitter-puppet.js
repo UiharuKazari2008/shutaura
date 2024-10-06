@@ -2107,31 +2107,34 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
 				);
 				await page.setRequestInterception(true);
-				page.on('request', (req) => {
-					req.continue();
+				page.on('request', (request) => {
+					if (!request._interceptionHandled) {
+						request.continue();
+					}
 				});
 				page.on('response', async (response) => {
-					if (response.headers()['content-security-policy']) {
+					const headers = { ...response.headers() };
+
+					if (headers['content-security-policy']) {
 						// Log the interception
 						console.log('CSP header found and removed');
-					}
+						delete headers['content-security-policy'];
 
-					// Modify response headers by reloading the response with the policy removed
-					const headers = { ...response.headers() };
-					delete headers['content-security-policy'];
+						// Fetch the response buffer to serve it back
+						const buffer = await response.buffer();
 
-					// Fetch the actual response body
-					const buffer = await response.buffer();
-
-					// Serve the response with the CSP header removed
-					await page.setRequestInterception(true);
-					page.on('request', interceptedRequest => {
-						interceptedRequest.respond({
-							status: response.status(),
-							headers,
-							body: buffer,
+						// Re-serve the response with the CSP header removed
+						await page.setRequestInterception(true);
+						page.on('request', interceptedRequest => {
+							if (!interceptedRequest._interceptionHandled) {
+								interceptedRequest.respond({
+									status: response.status(),
+									headers,
+									body: buffer,
+								});
+							}
 						});
-					});
+					}
 				});
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
