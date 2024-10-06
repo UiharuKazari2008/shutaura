@@ -2099,7 +2099,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
 				const page = await browser.newPage();
 				await page.target().createCDPSession();
-				await page._client.send('ServiceWorker.disable');
+				await page.send('ServiceWorker.disable');
 				await page.setViewport({
 					width: 1080,
 					height: 4096,
