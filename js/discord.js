@@ -318,14 +318,23 @@ This code is publicly released and is restricted by its project license
             }
             // Sequenzia Common Configuration
             // seq.common = { base_url: "https://seq.moe/" }
-            const _backup_config = systemparams_sql.filter(e => e.param_key === 'seq.cdn');
+            const _cdn_config = systemparams_sql.filter(e => e.param_key === 'seq.cdn');
+            if (_cdn_config.length > 0 && _cdn_config[0].param_data) {
+                if (_cdn_config[0].param_data.id)
+                    systemglobal.CDN_ID = _cdn_config[0].param_data.id;
+                if (_cdn_config[0].param_data.local_access)
+                    systemglobal.CDN_LocalURL = _cdn_config[0].param_data.local_access;
+                if (_cdn_config[0].param_data.remote_access)
+                    systemglobal.CDN_RemoteURL = _cdn_config[0].param_data.remote_access;
+            }
+            const _backup_config = systemparams_sql.filter(e => e.param_key === 'seq_cdn');
             if (_backup_config.length > 0 && _backup_config[0].param_data) {
-                if (_backup_config[0].param_data.id)
-                    systemglobal.CDN_ID = _backup_config[0].param_data.id;
-                if (_backup_config[0].param_data.local_access)
-                    systemglobal.CDN_LocalURL = _backup_config[0].param_data.local_access;
-                if (_backup_config[0].param_data.remote_access)
-                    systemglobal.CDN_RemoteURL = _backup_config[0].param_data.remote_access;
+                if (_backup_config[0].param_data.interval_min)
+                    systemglobal.CDN_Interval_Min = _backup_config[0].param_data.interval_min;
+                if (_backup_config[0].param_data.match_latest)
+                    systemglobal.CDN_Match_Latest = _backup_config[0].param_data.match_latest;
+                if (_backup_config[0].param_data.delay_download)
+                    systemglobal.CDN_Delay_Pull = _backup_config[0].param_data.delay_download;
             }
             const _backup_ignore = systemparams_sql.filter(e => e.param_key === 'seq_cdn.ignore');
             if (_backup_ignore.length > 0 && _backup_ignore[0].param_data) {
@@ -5718,7 +5727,7 @@ This code is publicly released and is restricted by its project license
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR (fileid IS NOT NULL ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''})) ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
                                       LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
-                       WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND (((fileid IS NULL AND attachment_name NOT LIKE \'%.mp%_\' AND attachment_name NOT LIKE \'%.jp%_\' AND attachment_name NOT LIKE \'%.jfif\' AND attachment_name NOT LIKE \'%.png\' AND attachment_name NOT LIKE \'%.gif\' AND attachment_name NOT LIKE \'%.web%_\') AND x.attachment_auth_ex > NOW() - INTERVAL 4 HOUR) OR (x.attachment_auth_ex < NOW() - INTERVAL 4 HOUR))' : ''}`;
+                       WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''})) ${(systemglobal.CDN_Delay_Pull) ? 'AND (((fileid IS NULL AND attachment_name NOT LIKE \'%.mp%_\' AND attachment_name NOT LIKE \'%.jp%_\' AND attachment_name NOT LIKE \'%.jfif\' AND attachment_name NOT LIKE \'%.png\' AND attachment_name NOT LIKE \'%.gif\' AND attachment_name NOT LIKE \'%.web%_\') AND x.attachment_auth_ex > NOW() - INTERVAL 4 HOUR) OR (x.attachment_auth_ex < NOW() - INTERVAL 4 HOUR))' : ''}`;
                     const backupItems = await db.query(q + " AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
                     const skippedItems = await db.query(q + " AND x.id IN (SELECT id FROM kanmi_cdn_skipped)", [systemglobal.CDN_ID])
                     return {
