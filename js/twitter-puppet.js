@@ -240,6 +240,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				'--disable-setuid-sandbox',
 				'--inprivate',
 				'--no-gpu',
+				'--disable-web-security',
 				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
 				'--remote-debugging-address=0.0.0.0',
 				'--enable-features=NetworkService',
