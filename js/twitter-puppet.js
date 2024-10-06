@@ -2123,16 +2123,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						// Fetch the response buffer to serve it back
 						const buffer = await response.buffer();
 
-						// Re-serve the response with the CSP header removed
-						await page.setRequestInterception(true);
-						page.on('request', interceptedRequest => {
-							if (!interceptedRequest._interceptionHandled) {
-								interceptedRequest.respond({
-									status: response.status(),
-									headers,
-									body: buffer,
-								});
-							}
+						response.respond({
+							status: response.status(),
+							headers,
+							body: buffer,
 						});
 					}
 				});
