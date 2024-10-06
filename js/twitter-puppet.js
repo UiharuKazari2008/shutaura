@@ -241,7 +241,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				'--inprivate',
 				'--no-gpu',
 				'--disable-web-security',
-				'--disable-features=IsolateOrigins,site-per-process',
+				'--disable-setuid-sandbox',
+				'--allow-running-insecure-content',
+				'--disable-features=IsolateOrigins,site-per-process,BlockInsecurePrivateNetworkRequests',
 				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
 				'--remote-debugging-address=0.0.0.0',
 				'--enable-features=NetworkService',
@@ -1032,6 +1034,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         if (page){
                                             try {
                                                 const results = await page.evaluate(async (rc) => {
+													const meta = document.createElement('meta');
+													meta.httpEquiv = 'Content-Security-Policy';
+													meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+													document.getElementsByTagName('head')[0].appendChild(meta);
+
 													async function log(proc, text, level) {
 														fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 													}
@@ -1526,6 +1533,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (page) {
 					await Promise.all(intent.map(async thisIntent => {
 						const results = await page.evaluate(async (action) => {
+							const meta = document.createElement('meta');
+							meta.httpEquiv = 'Content-Security-Policy';
+							meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+							document.getElementsByTagName('head')[0].appendChild(meta);
+
 							const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 							if (document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')) {
 								const newTweet = document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"] [aria-label="There’s a new version of this Tweet."]')
@@ -2099,10 +2111,27 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					req.continue();
 				});
 				page.on('response', async (response) => {
-					const headers = response.headers();
-					if (headers['content-security-policy']) {
-						delete headers['content-security-policy'];
+					if (response.headers()['content-security-policy']) {
+						// Log the interception
+						console.log('CSP header found and removed');
 					}
+
+					// Modify response headers by reloading the response with the policy removed
+					const headers = { ...response.headers() };
+					delete headers['content-security-policy'];
+
+					// Fetch the actual response body
+					const buffer = await response.buffer();
+
+					// Serve the response with the CSP header removed
+					await page.setRequestInterception(true);
+					page.on('request', interceptedRequest => {
+						interceptedRequest.respond({
+							status: response.status(),
+							headers,
+							body: buffer,
+						});
+					});
 				});
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
@@ -2226,6 +2255,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					const meta = document.createElement('meta');
+					meta.httpEquiv = 'Content-Security-Policy';
+					meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+					document.getElementsByTagName('head')[0].appendChild(meta);
+
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
@@ -2454,6 +2488,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					const meta = document.createElement('meta');
+					meta.httpEquiv = 'Content-Security-Policy';
+					meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+					document.getElementsByTagName('head')[0].appendChild(meta);
+
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
@@ -2678,6 +2717,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
 				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+					const meta = document.createElement('meta');
+					meta.httpEquiv = 'Content-Security-Policy';
+					meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+					document.getElementsByTagName('head')[0].appendChild(meta);
+
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
@@ -2867,6 +2911,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			await page.waitForTimeout(1200);
 
 			const returnedTweets = await page.evaluate(async (tweet_id, gql, auth) => {
+				const meta = document.createElement('meta');
+				meta.httpEquiv = 'Content-Security-Policy';
+				meta.content = "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;";
+				document.getElementsByTagName('head')[0].appendChild(meta);
+
 				async function getMediaURL(status_id, images, has_video) {
 					if (has_video) {
 						let _json = await fetchJson(status_id);
