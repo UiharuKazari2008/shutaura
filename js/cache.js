@@ -1251,6 +1251,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             return 'AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL)'
         })()
+        const file_type = [
+                "attachment_name LIKE '%.jp%_'",
+                "attachment_name LIKE '%.jfif'",
+                "attachment_name LIKE '%.png'",
+                "attachment_name LIKE '%.gif'",
+                "attachment_name LIKE '%.jfif?%_'",
+                "attachment_name LIKE '%.png?%_'",
+                "attachment_name LIKE '%.gif?%_'",
+                "attachment_name LIKE '%.web%_'",
+            ].join(' OR ');
         const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3, IF(x.attachment_auth_ex > NOW(), 1, 0) AS attachment_auth_valid, IF(x.cache_auth_ex > NOW(), 1, 0) AS cache_auth_valid
                        FROM (SELECT rec.*, ext.data
                              FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 ${included_focus} ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
@@ -1258,7 +1268,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 LEFT OUTER JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
                        WHERE (y.heid IS NULL OR (data IS NOT NULL AND y.ext_0 = 0) OR 
                               (x.fileid IS NOT NULL AND y.mfull = 0 ${(systemglobal.CDN_Ignore_Master_Channels) ? 'AND x.channel NOT IN (' + systemglobal.CDN_Ignore_Master_Channels.join(', ') + ')' : ''}))
-                         AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped) ${(systemglobal.CDN_Delay_Pull) ? 'AND IF(x.attachment_auth_ex > NOW() AND x.attachment_auth_ex > NOW() - INTERVAL 4 HOUR, 1, 0) = 0' : ''}
+                         AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped) ${(systemglobal.CDN_Delay_Pull) ? 'AND (((' + file_type + ') AND attachment_auth_valid = 1) OR IF(x.attachment_auth_ex > NOW() AND x.attachment_auth_ex > NOW() - INTERVAL 4 HOUR, 1, 0) = 0)' : ''}
                        ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
         console.log(q)
