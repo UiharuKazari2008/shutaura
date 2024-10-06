@@ -2108,9 +2108,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				);
 				await page.setRequestInterception(true);
 				page.on('request', (request) => {
-					if (!request._interceptionHandled) {
-						request.continue();
-					}
+					request.continue();
 				});
 				page.on('response', async (response) => {
 					const headers = { ...response.headers() };
