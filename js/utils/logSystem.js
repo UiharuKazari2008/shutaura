@@ -150,7 +150,7 @@ module.exports = function (facility, options) {
             } else if (text.includes('New Text Tweet in')) {
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgGreen)
             } else {
-                console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.blue)
+                console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.cyan.bgBlack)
             }
         } else {
             if (remoteLogging1) { logger1.error(logString, logObject) } else if (systemglobal.log_objects) { console.log(logObject) }
