@@ -2117,13 +2117,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						delete headers['content-security-policy'];
 					}
 				});
-				await page._client.send('ServiceWorker.disable');
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
                     for (let i = 0; i < msg.args().length; i++) {
                         console.log(msg.args()[i]);
                     }
                 });*/
+				await page.send('ServiceWorker.disable');
 				if (wait_for_tweet) {
 					await page.goto(url);
 					let i = 0;
