@@ -243,7 +243,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				'--disable-web-security',
 				'--disable-setuid-sandbox',
 				'--allow-running-insecure-content',
-				'--disable-features=IsolateOrigins,site-per-process,BlockInsecurePrivateNetworkRequests',
 				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
 				'--remote-debugging-address=0.0.0.0',
 				'--enable-features=NetworkService',
@@ -2098,6 +2097,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const browser = twitterBrowsers.get(account.id);
 				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
 				const page = await browser.newPage();
+				await page._client.send('ServiceWorker.disable');
 				await page.setViewport({
 					width: 1080,
 					height: 4096,
@@ -2123,7 +2123,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         console.log(msg.args()[i]);
                     }
                 });*/
-				await page.send('ServiceWorker.disable');
 				if (wait_for_tweet) {
 					await page.goto(url);
 					let i = 0;
