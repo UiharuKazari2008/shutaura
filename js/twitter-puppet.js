@@ -2110,14 +2110,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				);
 				await page.setRequestInterception(true);
 				page.on('request', (request) => {
-					request.continue();
-				});
-				page.on('response', async (response) => {
-					const headers = { ...response.headers() };
-					if (headers['content-security-policy']) {
-						console.log('CSP header found and removed');
-						delete headers['content-security-policy'];
+					const headers = request.headers();
+					if (request.resourceType() === 'document') {
+						headers['Content-Security-Policy'] = '';
 					}
+					console.log(headers);
+					request.continue({
+						headers,
+					});
 				});
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
