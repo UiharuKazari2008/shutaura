@@ -8040,6 +8040,7 @@ This code is publicly released and is restricted by its project license
                                 id: msg.id,
                                 server: msg.guildID,
                                 channel: msg.channel.id,
+                                n_channel: msg.channel.id,
                                 fid: (options && options.folder) ? options.folder : undefined,
                                 user: (options && options.userID) ? options.userID : msg.author.id,
                                 content_full: msg.content,
@@ -8291,8 +8292,8 @@ This code is publicly released and is restricted by its project license
                                 // Write to CDN
                                 if (((sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload))
                                     && !noCDNReload
-                                    && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1
-                                    && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1)
+                                    && (!systemglobal.CDN_Ignore_Channels || (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1))
+                                    && (!systemglobal.CDN_Ignore_Servers || (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1)))
                                     mqClient.cdnRequest({ messageIntent: "Reload", messageData: { ...eidData[0] }, messageUpdate: { ...sqlObject}, reCache: true });
                                 if (chDbval.notify !== null) {
                                     try {
@@ -8537,9 +8538,9 @@ This code is publicly released and is restricted by its project license
             };
             if (refrance) {
                 sqlObject.id = msg.id;
-                if (refrance.action && refrance.action === 'jfsMove') {
-                    sqlObject.n_channel = null;
-                }
+            }
+            if (!(refrance && refrance.action && refrance.action !== 'jfsMove')) {
+                sqlObject.n_channel = sqlObject.channel;
             }
             if (msg.content) {
                 sqlObject.content_full = sqlObject.content_full.split('\n').filter(e => !(e.startsWith('_') && e.includes(':'))).join('\n')
@@ -8640,8 +8641,8 @@ This code is publicly released and is restricted by its project license
                     console.error(addedMessage.error)
                 }
                 if ((((sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload)) || (refrance && refrance.reload_cdn))
-                    && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1
-                    && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1) {
+                    && (!systemglobal.CDN_Ignore_Channels || (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1))
+                    && (!systemglobal.CDN_Ignore_Servers || (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Servers.indexOf(sqlObject.server) === -1))) {
                     mqClient.cdnRequest({
                         messageIntent: "Reload",
                         messageData: {
