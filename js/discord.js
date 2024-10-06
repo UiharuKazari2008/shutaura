@@ -2486,6 +2486,7 @@ This code is publicly released and is restricted by its project license
 
                     await messageCreate(data, {
                         forceAdd: true,
+                        folder: (MessageContents.messageChannelFolder) ? MessageContents.messageChannelFolder : undefined,
                         preview: (preview) ? preview : undefined,
                         timestamp: (MessageContents.itemDateTime) ? MessageContents.itemDateTime : undefined,
                         userID: (MessageContents.messageUserID) ? MessageContents.messageUserID : undefined,
@@ -8030,6 +8031,7 @@ This code is publicly released and is restricted by its project license
                                 id: msg.id,
                                 server: msg.guildID,
                                 channel: msg.channel.id,
+                                fid: (options && options.folder) ? options.folder : undefined,
                                 user: (options && options.userID) ? options.userID : msg.author.id,
                                 content_full: msg.content,
                                 hash: (options && options.hash) ? options.hash : undefined,
@@ -8526,6 +8528,9 @@ This code is publicly released and is restricted by its project license
             };
             if (refrance) {
                 sqlObject.id = msg.id;
+                if (refrance.action && refrance.action === 'jfsMove') {
+                    sqlObject.n_channel = null;
+                }
             }
             if (msg.content) {
                 sqlObject.content_full = sqlObject.content_full.split('\n').filter(e => !(e.startsWith('_') && e.includes(':'))).join('\n')
