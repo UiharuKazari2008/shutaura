@@ -354,7 +354,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
-                console.error(e);
             }
         }
         if (deleteItem.full_hint) {
@@ -374,7 +373,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
-                console.error(e);
             }
         }
         if (deleteItem.preview_hint) {
@@ -394,7 +392,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
-                console.error(e);
             }
         }
         if (deleteItem.ext_0_hint) {
@@ -404,7 +401,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
-                console.error(e);
             }
         }
         if (deleteRow) {
@@ -419,7 +415,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete master copy (by request): ${deleteItem.eid}`, "err", e.message);
-                console.error(e);
             }
             if (deleteItem.full_hint || deleteItem.preview_hint || deleteItem.ext_0_hint) {
                 db.query(`UPDATE kanmi_records_cdn SET mfull = 0, mfull_hint = null WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
@@ -557,7 +552,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         attachment_auth_ex = ?
                                     WHERE eid = ?`, [a, ex, message.eid])
                 } catch (e) {
-                    console.error(e)
+                    Logger.printLine("DiscordAuth", `Failed to save new authentication hash: ${e.message}`, "error");
                 }
             }
             if (auth) {
@@ -593,7 +588,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         }
                     }
                 } catch (e) {
-                    console.error(e)
+                    Logger.printLine("DiscordAuth", `Failed to save new cache authentication hash: ${e.message}`, "error");
                 }
             }
             if (auth2) {
@@ -707,13 +702,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                 WHERE channelid = ?
                                                                                   AND messageid = ?`, [pm.attachments[0].url.split('/attachments').pop().split('?')[0], a, ex, u.channelid, u.messageid])
                                                             } catch (e) {
-                                                                console.error(e)
+                                                                Logger.printLine("DiscordAuth", `Failed to save new authentication hash for multifile part: ${e.message}`, "error");
                                                             }
                                                         })()
                                                         url = pm.attachments[0].url;
                                                     }
                                                 } catch (e) {
-                                                    console.error("Failed to get parity attachemnt from discord", e)
+                                                    Logger.printLine("Discord", `Failed to get parity attachemnt from discord: ${e.message}`, "error");
                                                     if (e.message && e.message.includes("Unknown Message")) {
                                                         unknownMessage = true;
                                                     }
@@ -861,7 +856,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
                                         validData = false;
                                 } catch (e) {
-                                    console.error(`Image failed to pass image validation: ${e.message}`);
+                                    Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
                                     validData = false;
                                 }
                             }
@@ -890,11 +885,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     if (om.embeds && om.embeds[0] && om.embeds[0].thumbnail && om.embeds[0].thumbnail.url) {
                                         return om.embeds[0].thumbnail.url
                                     } else {
-                                        console.error("Failed to get valid parity attachemnt from discord")
+                                        Logger.printLine("DiscordAuth", `Failed to research image from discord: ${e.message}`, "error");
                                         return false
                                     }
                                 } catch (e) {
-                                    console.error("Failed to get parity attachemnt from discord", e)
+                                    Logger.printLine("DiscordAuth", `Failed to get message from discord: ${e.message}`, "error");
                                     return false
                                 }
                             })()
@@ -953,7 +948,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
                                                 validData2 = false;
                                         } catch (e) {
-                                            console.error(`Image failed to pass image validation: ${e.message}`);
+                                            Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
                                             validData2 = false;
                                         }
                                     }
@@ -1028,7 +1023,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
                                                         validData3 = false;
                                                 } catch (e) {
-                                                    console.error(`Image failed to pass image validation: ${e.message}`);
+                                                    Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
                                                     validData3 = false;
                                                 }
                                             }
@@ -1058,8 +1053,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     .withMetadata()
                                                     .toFile(path.join(val.dest, destName), function (err) {
                                                         if (err) {
-                                                            Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write preview file to disk!`, "err", err);
-                                                            console.error(err);
+                                                            Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write preview file to disk!: ${err.message}`, "err", err);
                                                             if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
                                                                 fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
                                                                     if (err) {
@@ -1210,9 +1204,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     fsEx.ensureDirSync(path.join(val.base));
                     fs.rename(val.src, val.dest, err => {
                         if (err) {
-                            Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}`, "err", err);
+                            Logger.printLine("MoveFile", `Failed to move ${k} file for ${message.id} in ${message.channel}: ${err.message}`, "err", err);
                             db.query(`DELETE FROM kanmi_records_cdn WHERE eid      = ? AND  host    = ?`, [ message.eid, systemglobal.CDN_ID ])
-                            console.error(err)
                         }
                         res[k] = (!err)
                         blockOk();
@@ -1235,6 +1228,30 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     let activeParseing = false;
+    async function findItemsToMigrate() {
+        activeParseing = true;
+        let ignoreQuery = [];
+        if (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Channels.map(e => `channel != '${e}'`))
+        if (systemglobal.CDN_Ignore_Servers && systemglobal.CDN_Ignore_Servers.length > 0)
+            ignoreQuery.push(...systemglobal.CDN_Ignore_Servers.map(e => `server != '${e}'`))
+
+        const q = `SELECT y.eid, y.path_hint, y.mfull_hint, y.full_hint, y.preview_hint, y.ext_0_hint, x.channel, x.server, x.id
+                       FROM (SELECT rec.*, ext.data
+                             FROM (SELECT * FROM kanmi_records WHERE source = 0 AND flagged = 0 AND hidden = 0 AND ((attachment_hash IS NOT NULL AND attachment_extra IS NULL) OR fileid IS NOT NULL) ${(ignoreQuery.length > 0) ? ' AND (' + ignoreQuery.join(' AND ') + ')' : ''}) rec
+                                      LEFT OUTER JOIN (SELECT * FROM kanmi_records_extended) ext ON (rec.eid = ext.eid)) x
+                                JOIN (SELECT * FROM kanmi_records_cdn WHERE host = ?) y ON (x.eid = y.eid)
+                       WHERE y.path_hint != CONCAT(x.server, '/', x.channel) AND x.n_channel IS NULL
+                         AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
+                       ORDER BY RAND() LIMIT ?`;
+        Logger.printLine("Search", `Search for data to migrate....`, "info");
+        const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
+        if (backupItems.error) {
+            Logger.printLine("SQL", `Error getting items to migrate!`, "crit", backupItems.error)
+        } else {
+            await handleMigratableItems(backupItems);
+        }
+    }
     async function findBackupItems(focus_list) {
         activeParseing = true;
         let ignoreQuery = [];
@@ -1261,7 +1278,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped) ${(systemglobal.CDN_Delay_Pull) ? 'AND (((fileid IS NULL AND attachment_name NOT LIKE \'%.mp%_\' AND attachment_name NOT LIKE \'%.jp%_\' AND attachment_name NOT LIKE \'%.jfif\' AND attachment_name NOT LIKE \'%.png\' AND attachment_name NOT LIKE \'%.gif\' AND attachment_name NOT LIKE \'%.web%_\') AND x.attachment_auth_ex > NOW() - INTERVAL 4 HOUR) OR (x.attachment_auth_ex < NOW() - INTERVAL 4 HOUR))' : ''}
                        ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
-        console.log(q)
         Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
@@ -1269,6 +1285,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         } else {
             await handleBackupItems(backupItems);
             if (!focus_list) {
+                await findItemsToMigrate();
                 await clearDeadFiles();
             }
         }
@@ -1744,6 +1761,55 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         });
     }
+    async function handleMigratableItems(backupItems) {
+        return new Promise(async completed => {
+            runCount++;
+            if (backupItems.rows.length > 0) {
+                let total = backupItems.rows.length;
+                let ticks = 0;
+                let batchSize = 25; // Number of items to process in each batch
+
+                // Function to process a batch of items
+                async function processBatch(batch) {
+                    return Promise.all(
+                        batch.map(m => {
+                            return new Promise(async (resolve) => {
+                                await moveMessage(m, {
+                                    eid: m.eid,
+                                    id: m.id,
+                                    channel: m.channel,
+                                    server: m.server
+                                },(ok) => {
+                                    ticks++;
+                                    if (ticks >= 100 || backupItems.rows.length <= 100) {
+                                        ticks = 0;
+                                    }
+                                    resolve(ok);
+                                }, false);
+                            });
+                        })
+                    );
+                }
+
+                // Divide the items into batches and process them sequentially
+                for (let i = 0; i < backupItems.rows.length; i += batchSize) {
+                    let batch = backupItems.rows.slice(i, i + batchSize);
+                    await processBatch(batch);
+                }
+
+                // After processing all batches
+                if (total > 0) {
+                    Logger.printLine("Migrate", `Completed Migration #${runCount} with ${total} files`, "info");
+                } else {
+                    Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "info");
+                }
+                completed();
+            } else {
+                Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "info");
+                completed();
+            }
+        });
+    }
     async function clearDeadFiles() {
         // SELECT path_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE eid NOT IN (SELECT eid FROM kanmi_records);
         const ignore = (() => {
@@ -1753,6 +1819,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         )()
         const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE (eid NOT IN (SELECT eid FROM kanmi_records)${ignore}) AND host = ?`;
+        Logger.printLine("Clean", `Starting cleaning of deleted messages....`, "info");
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             let eids = [];
@@ -1776,7 +1843,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
-                            //console.error(e);
                         }
                     }
                     if (deleteItem.full_hint) {
@@ -1795,7 +1861,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
-                            //console.error(e);
                         }
                     }
                     if (deleteItem.preview_hint) {
@@ -1814,7 +1879,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
-                            //console.error(e);
                         }
                     }
                     if (deleteItem.ext_0_hint) {
@@ -1823,7 +1887,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             Logger.printLine("CDN Cleaner", `Delete extended preview copy: ${deleteItem.eid}`, "info");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
-                            //console.error(e);
                         }
                     }
                     eids.push(deleteItem.eid)
@@ -1844,25 +1907,29 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
                             return promiseChain.then(() => new Promise(async (resolve) => {
                                 await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "info");
                                 resolve();
                             }))
                         }, Promise.resolve());
                         deleteReq.then(async () => {
-                            console.log('Cleanup Complete');
+                            Logger.printLine("Clean", `Cleanup Complete`, "info");
                         });
                     } else {
                         await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                        console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
-                        console.log('Cleanup Complete')
+                        Logger.printLine("Clean", `Cleanup Complete, Deleted [${eids.join(', ')}]`, "info");
                     }
                 } else {
-                    console.log('Cleanup Complete')
+                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "info");
                 }
             })
         }
     }
     async function repairMissingFiles() {
+        pause = true;
+        amqpConn.close();
+        await sleep(2000);
+        Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
+
         const validFile = (filePath) => {
             try {
                 if (!fs.existsSync(filePath))
@@ -1876,10 +1943,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE host = ? ORDER BY eid DESC`;
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
-            pause = true;
-            amqpConn.close();
-            await sleep(2000);
-            Logger.printLine("CDN Verification", `Starting Deep Filesystem Verification... [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
             let eids = [];
             let requests = removedItems.rows.reduce((promiseChain, r, i, a) => {
                 return promiseChain.then(() => new Promise(async (resolve) => {
@@ -1896,12 +1959,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... ${eids.length} Invalid Files (${i + 1}/${a.length})`, "info");
                     }
                     if (i % 300 === 0 && i !== 0) {
-                        if (eids.length > 0) {
+                        if (eids.length >= 300) {
                             await db.query(`DELETE
                                             FROM kanmi_records_cdn
                                             WHERE eid IN (${eids.join(', ')})
                                               AND host = ?`, [systemglobal.CDN_ID]);
-                            console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
+                            Logger.printLine("Clean", `Deleted [${eids.join(', ')}]`, "info");
                             eids = [];
                         }
                     }
@@ -1922,30 +1985,29 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
                             return promiseChain.then(() => new Promise(async (resolve) => {
                                 await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                console.log(`'DELETE BATCH [${batch.join(', ')}]'`)
+                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "info");
                                 resolve();
                             }))
                         }, Promise.resolve());
                         deleteReq.then(async () => {
-                            console.log('Cleanup Complete');
+                            Logger.printLine("Clean", `Cleanup Complete`, "info");
                             pause = false;
                             start();
                         });
                     } else {
                         await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${eids.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                        console.log(`'DELETE BATCH [${eids.join(', ')}]'`)
-                        console.log('Cleanup Complete');
+                        Logger.printLine("Clean", `Cleanup Complete, Delete [${eids.join(', ')}]`, "info");
                         pause = false;
                         start();
                     }
                 } else {
-                    console.log('Cleanup Complete');
+                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "info");
                     pause = false;
                     start();
                 }
             })
         } else {
-            pause = true;
+            pause = false;
         }
     }
 
@@ -1961,9 +2023,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             })
             if (systemglobal.CDN_Base_Path) {
                 start();
-                console.log(await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`));
-                //console.log(await db.query(`UPDATE kanmi_records_cdn y JOIN kanmi_records x ON y.eid = x.eid SET y.path_hint = CONCAT(x.server, '/', x.channel) WHERE x.source = 0 AND y.host = ? AND (y.path_hint IS NULL OR y.path_hint != CONCAT(x.server, '/', x.channel));`, [systemglobal.CDN_ID]));
-                console.log("Waiting 30sec before normal tasks..")
+                await db.query(`UPDATE kanmi_records_cdn c INNER JOIN kanmi_records r ON c.eid = r.eid SET id_hint = r.id WHERE id_hint IS NULL`);
+                Logger.printLine("Init", "Waiting 30sec before normal tasks..", "warn");
                 setTimeout(async () => {
                     await findUserData();
                     await findShowData();
@@ -1974,11 +2035,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
-                    console.log("First Pass OK");
+                    Logger.printLine("Init", "First run completed", "info");
                     activeParseing = false;
                     setInterval(async () => {
                         if (activeParseing || pause) {
-                            console.log('System Busy');
+                            Logger.printLine("TaskManager", "System Busy, Ignored Request", "warn");
                         } else {
                             await findUserData();
                             await findBackupItems();
@@ -2014,7 +2075,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     tx2.action('clean', async (reply) => {
-        await clearDeadFiles();
+        await findItemsToMigrate();
         await clearDeadFiles();
         reply({ answer : 'started' });
     });
@@ -2039,6 +2100,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     tx2.action('verify', async (reply) => {
         reply({ answer : 'Started' });
         pause = true;
+        amqpConn.close();
+        await sleep(5000);
+        Logger.printLine("Clean", `Starting Verification by request [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
+        await findItemsToMigrate();
         await clearDeadFiles();
         repairMissingFiles();
     });
