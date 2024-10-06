@@ -1256,9 +1256,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 "attachment_name LIKE '%.jfif'",
                 "attachment_name LIKE '%.png'",
                 "attachment_name LIKE '%.gif'",
-                "attachment_name LIKE '%.jfif?%_'",
-                "attachment_name LIKE '%.png?%_'",
-                "attachment_name LIKE '%.gif?%_'",
                 "attachment_name LIKE '%.web%_'",
             ].join(' OR ');
         const q = `SELECT x.*, y.heid, y.full, y.mfull, y.preview, y.ext_0, y.ext_1, y.ext_2, y.ext_3, IF(x.attachment_auth_ex > NOW(), 1, 0) AS attachment_auth_valid, IF(x.cache_auth_ex > NOW(), 1, 0) AS cache_auth_valid
