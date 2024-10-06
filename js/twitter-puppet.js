@@ -43,7 +43,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const cors = require('cors');
 	const app = express();
 	app.use(cors());
-	// http://127.0.0.1:32050/log?level=info&proc=test&text=TestLog
+	// http://127.0.0.1:7346/log?level=info&proc=test&text=TestLog
 	app.get('/log', async (req, res) => {
 		if (req.query && req.query.text) {
 			Logger.printLine((req.query.proc || "RemoteLog"), decodeURIComponent(req.query.text), (req.query.level || "info"));
@@ -52,8 +52,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			res.status(400).send('Missing Log Line');
 		}
 	})
-	app.listen(32050, (err) => {
-		Logger.printLine("API", `Logging API listening on port: 32050`, 'info')
+	app.listen(7346, (err) => {
+		Logger.printLine("API", `Logging API listening on port: 7346`, 'info')
 	});
 
 	let amqpConn = null;
@@ -1040,7 +1040,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													document.getElementsByTagName('head')[0].appendChild(meta);
 
 													async function log(proc, text, level) {
-														fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+														fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 													}
                                                     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
                                                     return await Promise.all(rc.map(async (ai) => {
@@ -2109,16 +2109,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edge/92.0.902.73'
 				);
 				await page.setRequestInterception(true);
-				page.on('request', (request) => {
-					const headers = request.headers();
-					if (request.resourceType() === 'document') {
-						console.log(headers['Content-Security-Policy']);
-						headers['Content-Security-Policy'] = '';
-					}
-					request.continue({
-						headers,
-					});
-				});
 				await page.setCookie(...account.cookie);
 				/*page.on('console', msg => {
                     for (let i = 0; i < msg.args().length; i++) {
@@ -2291,7 +2281,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 					async function log(proc, text, level) {
-						fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 					}
 					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
@@ -2524,7 +2514,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 					async function log(proc, text, level) {
-						fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 					}
 
 					let lastAPIAccessTime = null;
@@ -2753,7 +2743,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 					async function log(proc, text, level) {
-						fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 					}
 
 					let lastAPIAccessTime = null;
@@ -2947,7 +2937,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				}
 				async function log(proc, text, level) {
-					fetch(`http://127.0.0.1:32050/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+					fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
 				}
 				async function fetchJson(status_id) {
 					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
