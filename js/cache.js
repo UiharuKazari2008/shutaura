@@ -544,7 +544,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         const _ex = Number('0x' + exSearch.get('ex'));
                         ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
                     } catch (err) {
-                        Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                        Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                     }
                     auth = `?${a}`;
                     await db.query(`UPDATE kanmi_records
@@ -578,7 +578,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 const _ex = Number('0x' + exSearch.get('ex'));
                                 ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
                             } catch (err) {
-                                Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
+                                Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                             }
                             auth2 = `?${as[1]}`;
                             await db.query(`UPDATE kanmi_records
@@ -692,7 +692,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                     const _ex = Number('0x' + exSearch.get('ex'));
                                                                     ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
                                                                 } catch (err) {
-                                                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
+                                                                    Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "error", err);
                                                                 }
                                                                 auth = `?${a}`;
                                                                 await db.query(`UPDATE discord_multipart_files
@@ -791,7 +791,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
                                     try {
                                         resData[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                        Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Download Master File ${message.real_filename}`, "debug");
+                                        Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Download Master File ${message.real_filename}`, "info");
                                     } catch (e) {
                                         resData[k] = false;
                                     }
@@ -925,9 +925,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                     messageType: 'command',
                                                     messageAction: 'ValidateMessage'
                                                 }, function (callback) {
-                                                    if (callback) {
-                                                        //Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                                    } else {
+                                                    if (!callback) {
                                                         Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                                     }
                                                 });
@@ -979,9 +977,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             messageChannelID: message.channel,
                                             messageServerID: message.server,
                                         }, function (callback) {
-                                            if (callback) {
-                                                //Logger.printLine("KanmiMQ", `Sent to ${systemglobal.Discord_Out}`, "debug")
-                                            } else {
+                                            if (!callback) {
                                                 Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
                                             }
                                         });
@@ -1217,15 +1213,15 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`);
-                    Logger.printLine("BackupFile", `Moved ${message.id}`, "debug")
+                    Logger.printLine("MoveFile", `Moved ${message.id}`, "info")
                     cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 } else {
-                    Logger.printLine("BackupFile", `Failed to moved ${message.id}`, "error");
+                    Logger.printLine("MoveFile", `Failed to moved ${message.id}`, "error");
                     cb(true);
                 }
             });
         } else {
-            Logger.printLine("BackupParts", `Nothing to do for item ${message.id}, No Data Available`, "error")
+            Logger.printLine("MoveFile", `Nothing to do for item ${message.id}, No Data Available`, "error")
             cb(requested_remotely || false)
         }
     }
@@ -1480,7 +1476,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }))
                                     }, Promise.resolve());
                                     requests.then(async () => {
-                                        Logger.printLine("Metadata", `Download ${message.name}`, "debug")
+                                        Logger.printLine("Metadata", `Download ${message.name}`, "info")
                                         if (Object.values(res).filter(f => !f).length === 0)
                                             await backupCompleted(hash, res.kongou_poster, res.kongou_bg);
                                         cb(true);
@@ -1687,7 +1683,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }))
                                     }, Promise.resolve());
                                     requests.then(async () => {
-                                        Logger.printLine("Cache", `Download ${message.id}`, "debug")
+                                        Logger.printLine("Cache", `Download ${message.id}`, "info")
                                         if (Object.values(res).filter(f => !f).length === 0)
                                             await backupCompleted(hash, res.avatar, res.banner);
                                         cb(true);

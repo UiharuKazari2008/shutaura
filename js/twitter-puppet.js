@@ -39,6 +39,22 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const cron = require('node-cron');
 	let args = minimist(process.argv.slice(2));
 	const tx2 = require('tx2');
+	const express = require('express');
+	const cors = require('cors');
+	const app = express();
+	app.use(cors());
+	// http://127.0.0.1:7346/log?level=info&proc=test&text=TestLog
+	app.get('/log', async (req, res) => {
+		if (req.query && req.query.text) {
+			Logger.printLine((req.query.proc || "RemoteLog"), decodeURIComponent(req.query.text), (req.query.level || "info"));
+			res.status(200).end();
+		} else {
+			res.status(400).send('Missing Log Line');
+		}
+	})
+	app.listen(7346, (err) => {
+		Logger.printLine("API", `Logging API listening on port: 7346`, 'info')
+	});
 
 	let amqpConn = null;
 	const RateLimiter = require('limiter').RateLimiter;
@@ -218,12 +234,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	async function createBrowser(account) {
 		const browser = await puppeteer.launch({
 			executablePath: systemglobal.Chrome_Exec || undefined,
+			devtools: true,
 			headless: (account.headless !== undefined) ? account.headless : 'new',
 			args: [
 				'--no-sandbox',
 				'--disable-setuid-sandbox',
 				'--inprivate',
 				'--no-gpu',
+				'--disable-web-security',
+				'--disable-setuid-sandbox',
+				'--allow-running-insecure-content',
 				`--remote-debugging-port=${9222 + ((parseInt(account.id.toString())) - 1)}`,
 				'--remote-debugging-address=0.0.0.0',
 				'--enable-features=NetworkService',
@@ -1014,6 +1034,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         if (page){
                                             try {
                                                 const results = await page.evaluate(async (rc) => {
+													async function log(proc, text, level) {
+														fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+													}
                                                     const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
                                                     return await Promise.all(rc.map(async (ai) => {
                                                         return await new Promise(async res => {
@@ -1032,8 +1055,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                         case "add-Like":
                                                                             if (twt.querySelector('div[data-testid="like"]')) {
                                                                                 twt.querySelector('div[data-testid="like"]').click();
+																				const stateNow = twt.querySelector('div[data-testid="unlike"]')
+																				log("Interact", `${(stateNow) ? "Liked" : "Unliked"} Tweet`, "info");
                                                                                 await sleep(1500);
-                                                                                res(!!(twt.querySelector('div[data-testid="unlike"]')));
+                                                                                res(!!stateNow);
                                                                             } else {
                                                                                 res(1);
                                                                             }
@@ -1043,8 +1068,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                                 twt.querySelector('div[data-testid="retweet"]').click();
                                                                                 await sleep(250);
                                                                                 document.querySelector('div[data-testid="Dropdown"] div[tabindex="0"]').click()
+																				const stateNow = twt.querySelector('div[data-testid="unretweet"]')
+																				log("Interact", `${(stateNow) ? "Retweeted" : "Removed Retweet"} Tweet`, "info");
                                                                                 await sleep(1500);
-                                                                                res(!!(twt.querySelector('div[data-testid="unretweet"]')));
+                                                                                res(!!stateNow);
                                                                             } else {
                                                                                 res(1);
                                                                             }
@@ -1054,7 +1081,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                             break;
                                                                     }
                                                                 } catch (e) {
-                                                                    console.error(`Failed to interact with tweets`);
+																	log("Interact", `Failed to interact with tweets`, "error");
                                                                     res(false);
                                                                 }
                                                             } else {
@@ -1063,7 +1090,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                         })
                                                     }));
                                                 }, releaseCollection.action)
-                                                console.log(results)
                                                 if (results[0] === false) {
                                                     mqClient.sendMessage(`Unable to interact with tweet ${tweetID} for account #${twitterUser} with ${releaseCollection.action.join('/')}, Ticket will be Dropped!`, "warn", "TweetInteract", err);
                                                     Logger.printLine(`Collector`, `Account ${twitterUser}: Failed to release Tweet ${tweetID} in collector, retrying...`, `error`);
@@ -2062,6 +2088,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const browser = twitterBrowsers.get(account.id);
 				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
 				const page = await browser.newPage();
+				const client = await page.target().createCDPSession();
+				await client.send('ServiceWorker.disable');
 				await page.setViewport({
 					width: 1080,
 					height: 4096,
@@ -2236,13 +2264,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}
 					}
+					async function log(proc, text, level) {
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+					}
+					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
 					let lastAPIAccessTime = null;
-					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2320,7 +2351,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {
@@ -2461,13 +2492,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}
 					}
+					async function log(proc, text, level) {
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+					}
 
 					let lastAPIAccessTime = null;
 					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2545,7 +2579,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {
@@ -2682,13 +2716,16 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							}
 						}
 					}
+					async function log(proc, text, level) {
+						fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+					}
 
 					let lastAPIAccessTime = null;
 					const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2766,7 +2803,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					console.log(`Doom Debugger: Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`);
+					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {
@@ -2828,7 +2865,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					if (has_video) {
 						let _json = await fetchJson(status_id);
 						if (_json) {
-							console.log(_json);
 							let tweet = _json.legacy;
 							let addedData = [];
 							if (_json.card) {
@@ -2869,13 +2905,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}
 					}
 				}
-
-                    let lastAPIAccessTime = null;
-                    const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
-
+				async function log(proc, text, level) {
+					fetch(`http://127.0.0.1:7346/log?level=${level}&proc=${proc}&text=${encodeURIComponent(text)}`)
+				}
 				async function fetchJson(status_id) {
 					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						console.log(`Artificial Rate Limit Applied: Less then 30 Sec sense last call!`)
+						log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
 						await sleep(30000);
 					}
 					lastAPIAccessTime = Date.now();
@@ -2941,13 +2976,14 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					};
 					if (cookies.ct0.length === 32) headers['x-guest-token'] = cookies.gt;
 					const tweet_detail = await fetch(url, {headers: headers}).then(result => result.json());
-					console.log(tweet_detail);
 					if (!tweet_detail.data)
 						return false
 					const tweet_entrie = tweet_detail.data.threaded_conversation_with_injections_v2.instructions[0].entries.find(n => n.entryId === `tweet-${status_id}`);
 					const tweet_result = tweet_entrie.content.itemContent.tweet_results.result;
 					return tweet_result.tweet || tweet_result;
 				}
+				const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
+				let lastAPIAccessTime = null;
 
 				const twt = Array.from(document.querySelectorAll('div[data-testid="cellInnerDiv"] article[data-testid="tweet"]'))[0];
 				const img_tweets = Array.from([twt].filter(e => e.querySelectorAll('time').length >= 1))

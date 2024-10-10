@@ -1050,7 +1050,6 @@ This code is publicly released and is restricted by its project license
             }
             conn.on("error", function(err) {
                 if (err.message !== "Connection closing") {
-                    console.error(err)
                     Logger.printLine("KanmiMQ", "Initialization Connection Error", "critical", err)
                 }
             });
@@ -1108,13 +1107,13 @@ This code is publicly released and is restricted by its project license
             const activeJobs = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
             const activeSysJobs = activeTasks.size
             if (forceShutdown) {
-                console.log(`Shutdown Clearance Overided`)
+                Logger.printLine("SafeShutdown", `Shutdown Clearance Overridden`, 'info')
                 cb(true)
             } else if (activeSysJobs > 0 || activeJobs > 0) {
-                console.log(`Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeSysJobs})`)
+                Logger.printLine("SafeShutdown", `Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeSysJobs})`, 'warn')
                 setTimeout(checkForShutdownCleance, 15000)
             } else {
-                console.log(`Shutdown Clearance Granted`)
+                Logger.printLine("SafeShutdown", `Shutdown Clearance Granted`, 'info')
                 cb(true)
             }
         }
@@ -1134,8 +1133,7 @@ This code is publicly released and is restricted by its project license
                     if (channel && channel.name !== channelTitle) {
                         discordClient.editChannel(MessageContents.messageChannelID, {name: channelTitle}, "Status Update")
                             .catch((err) => {
-                                console.error(err.message)
-                                Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}"`, "error", err)
+                                Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}": ${err.message}`, "error", err)
                             })
                     }
                 }
@@ -1156,8 +1154,7 @@ This code is publicly released and is restricted by its project license
                         if (channel && channel.name !== channelTitle) {
                             discordClient.editChannel(ch.channel, {name: channelTitle}, "Status Update")
                                 .catch((err) => {
-                                    console.error(err.message)
-                                    Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}"`, "error", err)
+                                    Logger.printLine("Discord", `Can't update channel "${channelName}" to "${channelTitle}": ${err.message}`, "error", err)
                                 })
                         }
                     })
@@ -1178,7 +1175,7 @@ This code is publicly released and is restricted by its project license
                     const _ch = discordClient.getChannel(_id);
                     if (_ch && _ch.id) {
                         tempChannelCaches.set(_id, _ch);
-                        console.log("Channel Data Cached for " + _ch.id);
+                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
                         setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                     }
                     return _ch
@@ -1189,29 +1186,6 @@ This code is publicly released and is restricted by its project license
                 cb(true);
             } else {
                 switch (MessageContents.messageAction) {
-                    case 'RequestDownload':
-                        if (enableListening) {
-                            console.log(MessageContents)
-                            cb(true);
-                            db.safe(`SELECT * FROM kanmi_records WHERE fileid = ? AND source = 0 LIMIT 1`, [MessageContents.itemFileUUID], function (err, filestatus) {
-                                if (err) {
-                                    SendMessage("SQL Error occurred when retrieving the file status", "err", 'main', "SQL", err)
-                                } else {
-                                    if (filestatus !== undefined && filestatus.length > 0 && filestatus[0].filecached !== 1) {
-                                        jfsGetSF(MessageContents.itemFileUUID, {
-                                            userID: 'none'
-                                        })
-                                    } else {
-                                        SendMessage(`Failed to get data required to request download : ${MessageContents.itemFileUUID}`, "err", 'main', "RequestDownload-Remote")
-                                    }
-                                }
-                            });
-
-                        } else {
-                            Logger.printLine("Discord", "Discord Client is in upload-only operation, request has been rejected! Please configure your clients to use the correct MQ", "critical");
-                            cb(true);
-                        }
-                        break;
                     case 'PinMessage':
                         cb(true);
                         addFavorite(ChannelID, MessageContents.messageID, ChannelData.guild.id)
@@ -1277,8 +1251,7 @@ This code is publicly released and is restricted by its project license
                                     })
                                 })
                                 .catch((er) => {
-                                    Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                    console.error(er)
+                                    Logger.printLine("Discord", `Message was dropped, unable to get Message from Discord: ${er.message}`, "warn", er)
                                     cb(true);
                                 })
                         } else {
@@ -1331,8 +1304,7 @@ This code is publicly released and is restricted by its project license
                                             cb(true);
                                         })
                                         .catch(async (er) => {
-                                            Logger.printLine("Discord", "Command was dropped, unable to get Message from Discord", "warn", er)
-                                            console.error(er)
+                                            Logger.printLine("Discord", `Command was dropped, unable to get Message from Discord: ${er.message}`, "warn", er)
                                             if (er && er.message && er.message.includes('Unknown Message')) {
                                                 //await db.query(`DELETE FROM twitter_tweets WHERE messageid = ?`, [MessageContents.messageID])
                                             }
@@ -1490,7 +1462,6 @@ This code is publicly released and is restricted by its project license
                                 } else if (MessageContents.messageAction === 'CacheVideo') {
                                     let url
                                     function generatePreview() {
-                                        console.log(url)
                                         request.get({
                                             url: url,
                                             headers: {
@@ -1538,7 +1509,7 @@ This code is publicly released and is restricted by its project license
                                                                 } else {
                                                                     const spawn = require('child_process').spawn;
                                                                     let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
-                                                                    console.log("[FFMPEG] Getting Preview Image...")
+                                                                    Logger.printLine("FFMPEG", `Getting Preview Image...`, 'debug')
                                                                     const child = spawn(EncoderConf.Exec, ffmpegParam);
                                                                     child.stdout.setEncoding('utf8');
                                                                     child.stdout.on('data', function (data) {
@@ -1742,8 +1713,7 @@ This code is publicly released and is restricted by its project license
                                 }
                             })
                             .catch((er) => {
-                                Logger.printLine("Discord", "Message was dropped, unable to get Message from Discord", "warn", er)
-                                console.error(er)
+                                Logger.printLine("Discord", `Message was dropped, unable to get Message from Discord: ${er.message}`, "warn", er)
                                 cb(true);
                             })
                         break;
@@ -1794,13 +1764,11 @@ This code is publicly released and is restricted by its project license
                                                             }, 1000)
                                                         })
                                                         .catch((er) => {
-                                                            Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
-                                                            console.error(er)
+                                                            Logger.printLine("Discord", `Unable to send IDEX cache item!: ${er.message}`, "warn", er)
                                                             resolve(true);
                                                         })
                                                 } catch (err) {
-                                                    Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
-                                                    console.error(err)
+                                                    Logger.printLine("Discord", `Unable to send IDEX cache item!: ${err.message}`, "warn", err)
                                                     resolve(true);
                                                 }
                                             }
@@ -1845,13 +1813,11 @@ This code is publicly released and is restricted by its project license
                                                             }, 1000)
                                                         })
                                                         .catch((er) => {
-                                                            Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", er)
-                                                            console.error(er)
+                                                            Logger.printLine("Discord", `Unable to send IDEX cache item!: ${er.message}`, "warn", er)
                                                             resolve(true);
                                                         })
                                                 } catch (err) {
-                                                    Logger.printLine("Discord", "Unable to send IDEX cache item!", "warn", err)
-                                                    console.error(err)
+                                                    Logger.printLine("Discord", `Unable to send IDEX cache item!: ${err.message}`, "warn", err)
                                                     resolve(true);
                                                 }
                                             }
@@ -1916,8 +1882,7 @@ This code is publicly released and is restricted by its project license
                                                         db.query('DELETE FROM kanmi_records_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
-                                                        Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
-                                                        console.log(err);
+                                                        Logger.printLine("Polyfill", `Failed to upload new content file!: ${err.message}`, "warn", err)
                                                         cb(true);
                                                     })
                                                 break;
@@ -1961,8 +1926,7 @@ This code is publicly released and is restricted by its project license
                                                         db.query('DELETE FROM kanmi_records_cdn WHERE eid = (SELECT eid FROM kanmi_records where id = ?) LIMIT 1', [MessageContents.messageID]);
                                                     })
                                                     .catch((err) => {
-                                                        Logger.printLine("Polyfill", "Failed to upload new content file!", "warn", err)
-                                                        console.log(err);
+                                                        Logger.printLine("Polyfill", `Failed to upload new content file! ${err.message}`, "warn", err)
                                                         cb(true);
                                                     })
                                                 break;
@@ -2027,8 +1991,7 @@ This code is publicly released and is restricted by its project license
                                                             }
                                                         }
                                                     } catch (err) {
-                                                        Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
-                                                        console.log(err);
+                                                        Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache! ${err.message}`, "warn", err)
                                                     }
                                                 } else {
                                                     Logger.printLine("ModifyExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
@@ -2094,8 +2057,7 @@ This code is publicly released and is restricted by its project license
                                             guildID: MessageContents.messageServerID
                                         })
                                     } else {
-                                        SendMessage(`Failed to validate message ${MessageContents.messageID}`, "err", 'main', "error")
-                                        console.log(e)
+                                        SendMessage(`Failed to validate message ${MessageContents.messageID}: ${e.message}`, "err", 'main', "error")
                                     }
                                 }
                             }
@@ -2272,7 +2234,7 @@ This code is publicly released and is restricted by its project license
                         const _ch = discordClient.getChannel(_id);
                         if (_ch && _ch.id) {
                             tempChannelCaches.set(_id, _ch);
-                            console.log("Channel Data Cached for " + _ch.id);
+                            Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
                             setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                         }
                         return _ch
@@ -2310,7 +2272,7 @@ This code is publicly released and is restricted by its project license
                 } else {
                     const _ch = discordClient.getChannel(_id);
                     if (_ch && _ch.id) {
-                        console.log("Channel Data Cached for " + _ch.id);
+                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
                         tempChannelCaches.set(_id, _ch);
                         setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                     }
@@ -3314,7 +3276,6 @@ This code is publicly released and is restricted by its project license
         discordClient.registerCommand("seq", async function (msg, args) {
             if (enableListening && isAuthorizedUser('command', msg.member.id, msg.guildID, msg.channel.id)) {
                 if (args.length > 0) {
-                    console.log(args)
                     switch (args[0].toLowerCase()) {
                         case 'roles':
                             if (args.length > 1) {
@@ -3340,7 +3301,6 @@ This code is publicly released and is restricted by its project license
                                         const results = await db.query(`UPDATE discord_permissons
                                                                         SET name = ?
                                                                         WHERE role = ?`, [assignedName, assignRoles])
-                                        console.log(results)
                                         return `Updated Role`
                                     default:
                                         return "⁉ Unknown Command"
@@ -4656,11 +4616,9 @@ This code is publicly released and is restricted by its project license
                             })
                         }
                     } else {
-                        console.log('Server not found')
                         action = false;
                     }
                 } else {
-                    console.log('Not system channel')
                     action = false;
                 }
                 break;
@@ -4759,7 +4717,7 @@ This code is publicly released and is restricted by its project license
         }
         if (channel === "err" || channel === "crit" ) {
             Logger.printLine(proc, message, loglevel, inbody)
-            console.log(inbody)
+            console.error(inbody)
         } else {
             Logger.printLine(proc, message, loglevel)
             console.log(inbody)
@@ -4784,8 +4742,7 @@ This code is publicly released and is restricted by its project license
                 content: message.substring(0,255) + errmessage
             })
                 .catch((er) => {
-                    Logger.printLine("Discord", "Failed to send Message", "critical", er)
-                    console.log(er);
+                    Logger.printLine("Discord", `Failed to send Message: ${er.message}`, "critical", er)
                 });
         } else {
             if (channel === "system") {
@@ -4808,8 +4765,7 @@ This code is publicly released and is restricted by its project license
                 content: message.substring(0,255) + errmessage
             })
                 .catch((er) => {
-                    Logger.printLine("Discord", "Failed to send Message", "critical", er)
-                    console.log(er);
+                    Logger.printLine("Discord", `Failed to send Message: ${er.message}`, "critical", er)
                 });
         }
     }
@@ -4878,8 +4834,7 @@ This code is publicly released and is restricted by its project license
                         }
                     }
                 } catch (err) {
-                    console.error(err)
-                    Logger.printLine("AutoClean", `Failed to get messages for channel ${channel.channelid}`, "error", err)
+                    Logger.printLine("AutoClean", `Failed to get messages for channel ${channel.channelid}: ${err.message}`, "error", err)
                     if (err.message === 'Unknown Channel') {
                         try {
                             await db.query(`DELETE FROM discord_autoclean WHERE channelid = ?`, [channel.channelid])
@@ -4964,8 +4919,7 @@ This code is publicly released and is restricted by its project license
                 }
             }
         } catch (err) {
-            console.error(err)
-            Logger.printLine("Clean", `Failed to get messages for channel ${channel}`, "error", err)
+            Logger.printLine("Clean", `Failed to get messages for channel ${channel}: ${err.message}`, "error", err)
         }
         await activeTasks.delete('MSG_DELETE_ABOVE');
     }
@@ -5030,14 +4984,12 @@ This code is publicly released and is restricted by its project license
                     const messages = await discordClient.getMessages(systemglobal.Discord_Recycling_Bin, 6)
                     await cacheData.set(systemglobal.Discord_Recycling_Bin, (messages) ? messages.length : 0)
                 } catch (err) {
-                    Logger.printLine("RefreshCache", `Unable to check contents of recycling bin`, 'error', err)
-                    console.error(err)
+                    Logger.printLine("RefreshCache", `Unable to check contents of recycling bin: ${err.message}`, 'error', err)
                 }
             }
             await checkThreadsExpirations();
         } catch (err) {
-            Logger.printLine("RefreshCache", `Failed to refresh local cache data`, 'error', err)
-            console.log(err);
+            Logger.printLine("RefreshCache", `Failed to refresh local cache data: ${err.message}`, 'error', err)
         }
         await activeTasks.delete('REFRESH_LOCAL_CACHE');
     }
@@ -5050,7 +5002,6 @@ This code is publicly released and is restricted by its project license
                 name: k,
                 data: JSON.stringify(statusValues.get(k))
             }])
-            console.log('Added new status key to database')
         }))
         await Promise.all(statusData.rows.map(async exStat => {
             const _cacheValue = statusValues.get(exStat.name);
@@ -5061,10 +5012,8 @@ This code is publicly released and is restricted by its project license
                     name: exStat.name,
                     data: JSON.stringify(_cacheValue)
                 }])
-                //console.log(`Updated status value for ${exStat.name} in database`)
             } else if (!_cacheValue) {
                 await statusValues.set(exStat.name, exStat.data);
-                console.log(`Imported status value for ${exStat.name} in database`)
             }
         }))
     }
@@ -5099,8 +5048,7 @@ This code is publicly released and is restricted by its project license
                             try {
                                 await discordClient.editChannel(chStatus.channel, {name: textValue}, "Update Total Counts")
                             } catch (err) {
-                                console.error(err.message)
-                                Logger.printLine("Discord", "Can't update channel name for Total count Updates", "error", err)
+                                Logger.printLine("Discord", `Can't update channel name for Total count Updates: ${err.message}`, "error", err)
                             }
                         }
                     }
@@ -5229,7 +5177,7 @@ This code is publicly released and is restricted by its project license
     async function generateStatus(forceUpdate, guildID, channelID) {
         if (!activeRefresh) {
             activeRefresh = true
-            console.log(`Generating status for "${guildID}"...`)
+            Logger.printLine("StatusEmbed", `Generating status for "${guildID}"...`, 'info')
             let data
             try {
                 data = await localParameters.getItem('statusgen-' + guildID)
@@ -5523,7 +5471,6 @@ This code is publicly released and is restricted by its project license
             } catch (e) {
                 console.error(e);
             }
-            console.log(`Getting RabbitMQ Stats...`)
             if (enableListening) {
                 embed.fields.push({
                     "name": "🏘 Servers",
@@ -5656,7 +5603,6 @@ This code is publicly released and is restricted by its project license
                     ].join(' AND ') + ')',
                 ].join(' OR ')})`
 
-                console.log(`Getting Counts...`)
                 const imageCount = await db.query(`SELECT COUNT(eid) AS total_count
                                           FROM kanmi_records
                                           WHERE ${imageWhereQuery}`);
@@ -5714,7 +5660,6 @@ This code is publicly released and is restricted by its project license
                     })
                 }
 
-                console.log(`Getting CDN counts...`)
                 // Backup and Sync System
                 _bcF = await (async () => {
                     let ignoreQuery = [];
@@ -6081,7 +6026,6 @@ This code is publicly released and is restricted by its project license
                     const fo2 = clone(o2.fields.filter(e => !e.name.includes('Uptime')));
 
                     if (fo1.length === fo2.length) {
-                        //console.log(fo1.map((e,i) => `${e.value === fo2[i].value} / ${e.value} / ${fo2[i].value }`))
                         return (fo1.map((e, i) => `${e.value}` === `${fo2[i].value}`).filter(e => e !== true).length === 0) && o1.color === o2.color
                     }
                     return false;
@@ -6095,7 +6039,6 @@ This code is publicly released and is restricted by its project license
                 }
 
                 if (forceUpdate || !lastEmbeds || finalEmbeds.length !== lastEmbeds.length || diffData.length > 0) {
-                    console.log(`Updating data...`);
                     discordClient.editMessage(channel, data.message, {
                         embeds: finalEmbeds
                     })
@@ -6142,8 +6085,6 @@ This code is publicly released and is restricted by its project license
                         .catch(e => {
                             console.error(e)
                         });
-                } else {
-                    console.log(`Update skipped ${forceUpdate} || ${!lastEmbeds} || ${finalEmbeds.length !== lastEmbeds.length} || ${diffData.length > 0}`);
                 }
             } else {
                 discordClient.createMessage(channel, {
@@ -6172,7 +6113,6 @@ This code is publicly released and is restricted by its project license
             }
 
             if (!Timers.get(`StatusReport${guildID}`)) {
-                console.log('Started new status timer');
                 Timers.set(`StatusReport${guildID}`, setInterval(() => {
                     generateStatus(false, guildID)
                 }, 300000))
@@ -6348,7 +6288,6 @@ This code is publicly released and is restricted by its project license
             }
 
             if (!Timers.get(`StatusReportSeq${guildID}`)) {
-                console.log('Started new status timer');
                 Timers.set(`StatusReportSeq${guildID}`, setInterval(() => {
                     generateSeqStatus(false, guildID)
                 }, 300000))
@@ -6513,7 +6452,6 @@ This code is publicly released and is restricted by its project license
                     } else {
                         listID = TwitterLists.get(chid)
                     }
-                    console.log(listID)
                     let _destination = 1
                     if (embed && embed.length > 0 && embed[0].footer && embed[0].footer.text && embed[0].footer.text.includes('🆔:')) {
                         _destination = embed[0].footer.text.split('🆔:').join('')
@@ -6621,7 +6559,6 @@ This code is publicly released and is restricted by its project license
                 }
             }
         } catch (err) {
-            console.error(err)
             Logger.printLine("PixivAction", `Failed to create new thread for this request! Falling back to request`, "error", err)
         }
         mqClient.sendData(systemglobal.Pixiv_In, {
@@ -6884,7 +6821,6 @@ This code is publicly released and is restricted by its project license
                                 }
                             }
                         } catch (err) {
-                            console.error(err)
                             Logger.printLine("DownloadTweets", `Failed to create new thread for this request! Falling back to request`, "error", err)
                         }
                         mqClient.sendData(systemglobal.Twitter_In, {
@@ -7177,12 +7113,11 @@ This code is publicly released and is restricted by its project license
                         if (obj.deg) {
                             await new Promise(async (resolve) => {
                                 Logger.printLine("MovePost+Rotate", `Rotate post ${message.id} by ${obj.deg}deg`, "info");
-                                sharp(Buffer.from(body))
+                                await sharp(Buffer.from(body))
                                     .rotate(parseInt(obj.deg.toString()))
                                     .toBuffer((err, buffer) => {
                                         if (err) {
                                             Logger.printLine("MovePost+Rotate", `Failed to rotate ${message.id}`, "err", err);
-                                            console.error(err);
                                             resolve(false)
                                         } else {
                                             messagefiles = [
@@ -7699,27 +7634,6 @@ This code is publicly released and is restricted by its project license
             activeTasks.delete(`JFSPARITY_DEL_${messsageid}`)
         }
     }
-    function jfsGetSF(fileUUID, options) {
-        db.safe(`SELECT fileid, filecached, real_filename, paritycount FROM kanmi_records WHERE fileid = ? AND source = 0`, [fileUUID], (err, filedata) => {
-            if (err) {
-                SendMessage("SQL Error occurred when retrieving the server data table", "err", 'main', "SQL", err)
-            } else if (filedata.length > 0) {
-                if (filedata[0].filecached) {
-                    Logger.printLine("SFDownload", `File ${fileUUID} is already cached!`, "info")
-                } else {
-                    Logger.printLine("SFDownload", `Sending request to download ${filedata[0].paritycount} parts for ${filedata[0].real_filename} to FileWorker`, "info")
-                    mqClient.sendData(systemglobal.FileWorker_In, {
-                        userRequest: options.userID,
-                        messageType: 'command',
-                        messageAction: 'CacheSpannedFile',
-                        fileUUID: fileUUID,
-                    }, function (ok) { })
-                }
-            } else {
-                SendMessage("No Spanned File was found in the database, with ID " + fileUUID, "err", filedata[0].server, "SFDownload")
-            }
-        })
-    }
     async function verifySpannedFiles(searchLimit) {
         const files = (await db.query(`SELECT *, CONVERT(kanmi_records.id,SIGNED) AS num_id FROM kanmi_records WHERE fileid IS NOT NULL ORDER BY num_id DESC LIMIT ${(!searchLimit) ? '50' : searchLimit}`)).rows
         if (files && files.length) {
@@ -7789,7 +7703,6 @@ This code is publicly released and is restricted by its project license
                                         mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid})is a duplicate and was deleted!`, "warn", "MPFDownload");
                                         return (okSql)
                                     } catch (e) {
-                                        console.error(e);
                                         mqClient.sendMessage(`Stage 3: The part ID ${itemToRemove.id} for ${file.real_filename} (${file.fileid}) Failed to delete!`, "error", "MPFDownload", e);
                                         return false;
                                     }
@@ -7942,8 +7855,7 @@ This code is publicly released and is restricted by its project license
                                     }
                                 })
                                 .catch(err => {
-                                    Logger.printLine("ThreadManager", "Failed to create new automatic thread", "error", err);
-                                    console.log(err)
+                                    Logger.printLine("ThreadManager", `Failed to create new automatic thread: ${err.message}`, "error", err);
                                 })
                         })
                         .catch(err => {
@@ -8272,20 +8184,9 @@ This code is publicly released and is restricted by its project license
                             const addedMessage = await db.query(`INSERT IGNORE INTO kanmi_records SET ?`, [sqlObject]);
                             if (addedMessage.error) {
                                 SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
-                                console.error(addedMessage.error)
                             } else {
-                                if (chDbval.autofetch === 1 && sqlObject.fileid) {
-                                    try {
-                                        Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
-                                        setTimeout(() => {
-                                            jfsGetSF(sqlObject.fileid, { userID: 'none' });
-                                        }, 30000);
-                                    } catch (err) {
-                                        SendMessage("Error occurred when attempting to automatically download Spanned File", "warn", 'main', "AutoCache", err)
-                                    }
-                                }
                                 if (sqlObject.attachment_hash && sqlObject.attachment_name.toString() !== 'multi' && !sqlObject.colorR) {
-                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}`)
+                                    cacheColor(msg.id, `https://cdn.discordapp.com/attachments/${sqlObject.channel}/${sqlObject.attachment_hash}/${sqlObject.attachment_name}?${sqlObject.attachment_auth}`)
                                 }
                                 const eidData = (await db.query(`SELECT eid FROM kanmi_records WHERE id = ?`, [sqlObject.id])).rows
                                 // Write to CDN
@@ -8347,7 +8248,6 @@ This code is publicly released and is restricted by its project license
                                         }))
                                     } catch (err) {
                                         Logger.printLine("Discord", `Failed to send notification message ${msg.id}`, "error", err)
-                                        console.error(err)
                                     }
                                 }
                                 if (options && options.extendedData) {
@@ -8383,8 +8283,7 @@ This code is publicly released and is restricted by its project license
                                                             }
                                                         }
                                                     } catch (err) {
-                                                        Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!`, "warn", err)
-                                                        console.log(err);
+                                                        Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the attachment failed to upload to the cache!: ${err.message}`, "warn", err)
                                                     }
                                                 } else {
                                                     Logger.printLine("ExtendedContent", `Failed to process extended data at key "${ext_key}" because the file index was not valid!`, "warn");
@@ -8637,7 +8536,6 @@ This code is publicly released and is restricted by its project license
                 const addedMessage = await db.query(`UPDATE kanmi_records SET ? WHERE id = ?`, [sqlObject, (refrance) ? refrance.id : msg.id]);
                 if (addedMessage.error) {
                     SendMessage("SQL Error occurred when saving to the message cache", "err", 'main', "SQL", addedMessage.error)
-                    console.error(addedMessage.error)
                 }
                 if ((((sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload_Spanned) || (!sqlObject.fileid && !systemglobal.Discord_No_CDN_Reload)) || (refrance && refrance.reload_cdn))
                     && (!systemglobal.CDN_Ignore_Channels || (systemglobal.CDN_Ignore_Channels && systemglobal.CDN_Ignore_Channels.indexOf(sqlObject.channel) === -1))
@@ -8666,18 +8564,6 @@ This code is publicly released and is restricted by its project license
                         })
                 }, (refrance && refrance.delay) ? 30000 : 1000)
             }
-            if (refrance && refrance.action && (refrance.action === 'jfsMove' || refrance.action === 'jfsRotate')) {
-                if (sqlObject.fileid && discordChannels.get(msg.channel.id).autofetch === 1) {
-                    try {
-                        Logger.printLine("SF-Capture", `Auto Fetching ${sqlObject.fileid}`, "debug");
-                        setTimeout(() => {
-                            jfsGetSF(sqlObject.fileid, {userID: 'none'});
-                        }, 30000);
-                    } catch (err) {
-                        SendMessage("Error occurred when attempting to automatically download Spanned File", "warn", 'main', "AutoCache", err)
-                    }
-                }
-            }
         }
         activeTasks.delete(`EDIT_MSG_${msg.id}`)
     }
@@ -8702,8 +8588,7 @@ This code is publicly released and is restricted by its project license
                             Logger.printLine("Discord", `Polyfill Deleted: ${msg.id}:${polyfillitem.rows[0].cache}`, "debug");
                         }
                     } catch (er) {
-                        console.log(er)
-                        SendMessage("There was a error removing the discord message polyfill cache image", "err", msg.guild.id, "PolyfillManager", er)
+                        SendMessage(`There was a error removing the discord message polyfill cache image: ${er.message}`, "err", msg.guild.id, "PolyfillManager", er)
                     }
                 }
                 if (serverdata.rows.length > 0 && (serverdata.rows[0].classification === null || (serverdata.rows[0].classification !== 'system' && serverdata.rows[0].classification !== 'timelime'))) {
@@ -8774,7 +8659,6 @@ This code is publicly released and is restricted by its project license
                                     discordClient.getMessages(item.channelid, 5000, lastmessage)
                                         .then(function (messages) {
                                             parseMessageArray(messages, (ok) => {
-                                                console.log(messages.length)
                                                 if (messages.length === 5000 && !(limiter && limiter >= messageCount)) {
                                                     messageCount += messages.length
                                                     activeTasks.set(`REPAIR_${channelItem.channelid}`,  { started: chStart, details: messageCount });
@@ -9033,12 +8917,6 @@ This code is publicly released and is restricted by its project license
                                                     .catch((er) => {
                                                         SendMessage("Failed to mirror the requested tweet!", "err", fullmsg.guildID, "Discord", er)
                                                     });
-                                                break;
-                                            case 'ReqFile' :
-                                                const input = fullmsg.content.split("**\n*")[0].replace("**🧩 File : ", '')
-                                                jfsGetSF(input.trim().replace(/\n|\r/g, ''), {
-                                                    userID: (userID) ? userID : undefined
-                                                })
                                                 break;
                                             case 'RemoveFile' :
                                                 if (fullmsg.content.includes("🧩 File : ")) {
@@ -9726,8 +9604,7 @@ This code is publicly released and is restricted by its project license
                 Logger.printLine("Discord", `Gateway: ${gatewayURL.host} using v${gatewayURL.searchParams.getAll('v').pop()}`, "debug")
             })
             .catch((er) => {
-                Logger.printLine("Discord", "Error getting self identification, this is a major issue", "emergency", er)
-                console.log(`${er.message}`.bgRed)
+                Logger.printLine("Discord", `Error getting self identification, this is a major issue - ${er.message}`, "emergency", er)
             });
         // Reset states to last values
         resetStates();
@@ -9757,14 +9634,12 @@ This code is publicly released and is restricted by its project license
                                     })
                                 })
                                 .catch(function (e) {
-                                    SendMessage("Unable to get discord channel list", "error", 'main', "RefreshUser", e);
-                                    console.log(e);
+                                    SendMessage(`Unable to get discord channel list: ${e.message}`, "error", 'main', "RefreshUser", e);
                                 })
                         })
                     })
                     .catch(function (e) {
-                        SendMessage("Unable to get discord server list", "error", 'main', "RefreshUser", e);
-                        console.log(e);
+                        SendMessage(`Unable to get discord server list: ${e.message}`, "error", 'main', "RefreshUser", e);
                     })
                 await syncStatusValues();
                 refreshCounts();
@@ -9821,8 +9696,7 @@ This code is publicly released and is restricted by its project license
             setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
             setTimeout(start, 5000);
             app.listen(sbiPort, (err) => {
-                if (err) console.log("Error in server setup")
-                console.log("API listening on port: 31000");
+                Logger.printLine("API", `API listening on port: 31000`, 'info')
             });
             init = 1
         }
