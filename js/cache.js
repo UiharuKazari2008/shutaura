@@ -197,6 +197,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`;``
     const MQWorker1 = systemglobal.CDN_In + '.' + systemglobal.CDN_ID;
 
+    if (systemglobal.User_Discord_Key)
+        Logger.printLine("Init", `You have configured a user level discord token that will be used to lower level functions, this may violate Discord TOS. With great power comes great responsiblity yada yada who cares...`, "warning");
+
     const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
     // Kanmi MQ Backend
