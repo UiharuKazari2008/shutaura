@@ -37,8 +37,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     const fs = require("fs");
     const minimist = require("minimist");
     const sharp = require("sharp");
+    const { createCanvas, loadImage } = require('canvas');
     const md5 = require("md5");
     const tx2 = require('tx2');
+    const express = require('express');
     let args = minimist(process.argv.slice(2));
     const sizeOf = require('image-size');
     const remoteSize = require('remote-file-size');
@@ -47,6 +49,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     const Logger = require('./utils/logSystem')(facilityName);
     const db = require('./utils/shutauraSQL')(facilityName);
+    const app = express();
 
     if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
         systemglobal.MQServer = process.env.MQ_HOST.trim()
@@ -2081,6 +2084,165 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         Logger.printLine("Discord", "Shard Error, Rebooting...", "error", err);
         console.error(err);
         discordClient.connect();
+    });
+
+    async function downloadImage(inputUrl) {
+        return new Promise(async cb => {
+            const url = await getDiscordURL(inputUrl);
+            request.get({
+                url,
+                headers: {
+                    'accept': 'image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                    'accept-language': 'en-US,en;q=0.9',
+                    'cache-control': 'max-age=0',
+                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                    'sec-ch-ua-mobile': '?0',
+                    'sec-fetch-dest': 'document',
+                    'sec-fetch-mode': 'navigate',
+                    'sec-fetch-site': 'none',
+                    'sec-fetch-user': '?1',
+                    'upgrade-insecure-requests': '1',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                },
+            }, async (err, res, body) => {
+                if (err || res && res.statusCode && res.statusCode !== 200) {
+                    Logger.printLine("ReqGenerator", `Error During Download`, "error", err || res.body.toString());
+                    cb(false)
+                } else {
+                    cb(body);
+                }
+            })
+        })
+    }
+    async function generateADSImage(imageBuffer, width, height, opts) {
+        // Create a canvas
+        const canvas = createCanvas(width, height);
+        const ctx = canvas.getContext('2d');
+
+        // Fill the background with gray color
+        ctx.fillStyle = '#808080'; // Gray color
+        ctx.fillRect(0, 0, width, height);
+
+        const image = await loadImage(imageBuffer);
+        const imgRatio = image.width / image.height;
+        const canvasRatio = width / height;
+
+        let targetWidth, targetHeight, backgroundWidth, backgroundHeight;
+
+        if (imgRatio >= canvasRatio) {
+            // Image is wider than canvas
+            targetWidth = width;
+            targetHeight = width / imgRatio;
+
+            backgroundHeight = height;
+            backgroundWidth = (image.width * (height / image.height)).toFixed(0);
+        } else {
+            // Image is taller than canvas
+            targetHeight = height;
+            targetWidth = height * imgRatio;
+
+            backgroundHeight = (image.height * (width / image.width)).toFixed(0);
+            backgroundWidth = width;
+        }
+
+        // Center the image on the canvas
+        const offsetX = (width - targetWidth) / 2;
+        const offsetY = (height - targetHeight) / 2;
+        const offsetBgX = (width - backgroundWidth) / 2;
+        const offsetBgY = (height - backgroundHeight) / 2;
+
+        // Blur the image using sharp
+        const blurredBackgroundBuffer = await sharp(imageBuffer)
+            .resize({ backgroundWidth, backgroundHeight }) // Resize to cover the canvas dimensions
+            .blur(25)
+            .modulate({
+                brightness: (opts.dark) ? 0.8 : 1.2,
+                saturate: 2
+            })
+            .normalise((opts.dark) ? { lower: 30, upper: 100 } : 0.6)
+            .toBuffer();
+
+        // Load the blurred image into the canvas
+        const blurredImage = await loadImage(blurredBackgroundBuffer);
+
+        ctx.drawImage(blurredImage, offsetBgX, offsetBgY, backgroundWidth, backgroundHeight);
+
+        // Apply shadow to the image
+        ctx.shadowColor = '#00000050';
+        ctx.shadowBlur = 25;
+        ctx.drawImage(image, offsetX, offsetY, targetWidth, targetHeight);
+
+        // Return the canvas as a PNG buffer
+        return canvas.toBuffer('image/png');
+    }
+    async function calculateImage(imageBuffer, width, height, opts) {
+        const image = await loadImage(imageBuffer);
+        const imgRatio = image.width / image.height;
+        const canvasRatio = width / height;
+
+        Logger.printLine("ImageGenerator", `Canvas@${canvasRatio.toFixed(2)} Image@${imgRatio.toFixed(2)} with result of ${(canvasRatio - imgRatio).toFixed(4)}: ${((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5) ? "Generate" : "Direct"} Results`, "info");
+
+        if ((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5) {
+            return generateADSImage(imageBuffer, width, height, opts);
+        } else {
+            return await sharp(imageBuffer)
+                .png()
+                .toBuffer();
+        }
+    }
+
+    app.get('/ads-gen/local/:server/:channel/:file', async (req, res) => {
+        const { width, height } = req.query;
+        try {
+            Logger.printLine("ReqGenerator", `${path.join(systemglobal.CDN_Base_Path, req.params.server,req.params.channel,req.params.file)} : ${width}x${height} ${(req.query && req.query.dark === 'true') ? "(Dark)" : ""}`, "info");
+            if (!width || !height)
+                return res.status(400).send("Missing height or width parameter");
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(req.params.file.split('.').pop().toLowerCase()) === -1)
+                return res.status(400).send("Unsupported File Format");
+            let buffer;
+            if (fs.existsSync(path.join(systemglobal.CDN_Base_Path, 'master', req.params.server,req.params.channel,req.params.file))) {
+                buffer = fs.readFileSync(path.join(systemglobal.CDN_Base_Path, 'master', req.params.server,req.params.channel,req.params.file));
+            } else if (fs.existsSync(path.join(systemglobal.CDN_Base_Path, 'full', req.params.server,req.params.channel,req.params.file))) {
+                buffer = fs.readFileSync(path.join(systemglobal.CDN_Base_Path, 'full', req.params.server,req.params.channel,req.params.file));
+            } else {
+                return res.status(404).end();
+            }
+            const imageBuffer = await calculateImage(buffer, parseInt(width), parseInt(height), {
+                dark: (req.query && req.query.dark && (req.query.dark.toLowerCase() === 'true' || req.query.dark.toLowerCase() === 'yes'))
+            });
+            res.setHeader('Content-Type', 'image/png');
+            res.send(imageBuffer);
+        } catch (error) {
+            Logger.printLine("ReqGenerator", `Error During Generation: ${error.message}`, "error");
+            res.status(500).send('Error generating image');
+        }
+    });
+    app.get('/ads-gen/discord/:channel/:hash/:file', async (req, res) => {
+        const { width, height } = req.query;
+        try {
+            Logger.printLine("ReqGenerator", `https://media.discordapp.net/attachments/${req.params.channel}/${req.params.hash}/${req.params.file} : ${width}x${height} ${(req.query && req.query.dark === 'true') ? "(Dark)" : ""}`, "info");
+            if (!width || !height)
+                return res.status(400).send("Missing height or width parameter");
+            if (['jpg', 'jpeg', 'png', 'gif', 'bmp'].indexOf(req.params.file.split('.').pop().toLowerCase()) === -1)
+                return res.status(400).send("Unsupported File Format");
+            const discordAuth = Object.entries(req.query).filter(e => e[0] !== 'width' && e[0] !== 'height').map(e => e[0] + '=' + e[1]).join('&');
+            let downloadURL = `https://cdn.discordapp.com/attachments/${req.params.channel}/${req.params.hash}/${req.params.file}?${discordAuth}`
+            let buffer = await downloadImage(downloadURL);
+            if (!buffer)
+                return res.status(501).end();
+            const imageBuffer = await calculateImage(buffer, parseInt(width), parseInt(height), {
+                dark: (req.query && req.query.dark && (req.query.dark.toLowerCase() === 'true' || req.query.dark.toLowerCase() === 'yes'))
+            });
+            res.setHeader('Content-Type', 'image/png');
+            res.send(imageBuffer);
+        } catch (error) {
+            Logger.printLine("ReqGenerator", `Error During Generation: ${error.message}`, "error");
+            res.status(500).send('Error generating image');
+        }
+    });
+
+    app.listen(9933, () => {
+        Logger.printLine("ImageGenerator", `ADS Image Generator Running on 9933`, "info");
     });
 
     process.on('uncaughtException', function(err) {
