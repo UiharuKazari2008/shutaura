@@ -434,11 +434,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
     }
 
-    async function getDiscordURL(url) {
+    async function getDiscordURL(url, eid) {
         if (!systemglobal.User_Discord_Key)
             return url;
         return new Promise(async ok => {
-            const params = new URLSearchParams('?' + inputUrl.split('?')[1]);
+            const params = new URLSearchParams('?' + url.split('?')[1]);
             if (params.get('ex') && params.get('is') && params.get('hm')) {
                 const expires = new Date(parseInt(params.get('ex') || '', 16) * 1000);
                 if (expires.getTime() > Date.now()) {
@@ -467,6 +467,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (Array.isArray(json.refreshed_urls) && json.refreshed_urls[0].refreshed) {
                 const refreshed_url = new URL(json.refreshed_urls[0].refreshed);
                 ok(refreshed_url.href);
+
+                const ah = refreshed_url.href.split('?');
+                let exSearch = new URLSearchParams(ah[1]);
+                const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                const ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                if (eid) {
+                    await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE eid = ?`, [ah[1], ex, eid])
+                } else {
+                    const el = ah[0].split('attachments/').pop().split('/');
+                    await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE channel = ? AND attachment_hash = ?`, [ah[1], ex, el[0], el[1]])
+                }
             } else {
                 ok(false);
             }
@@ -591,8 +602,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     let ex = null;
                     try {
                         let exSearch = new URLSearchParams(a);
-                        const _ex = Number('0x' + exSearch.get('ex'));
-                        ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                        const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                        ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                     } catch (err) {
                         Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                     }
@@ -625,8 +636,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             let ex = null;
                             try {
                                 let exSearch = new URLSearchParams(as[1]);
-                                const _ex = Number('0x' + exSearch.get('ex'));
-                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                             } catch (err) {
                                 Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                             }
@@ -739,8 +750,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                 let ex = null;
                                                                 try {
                                                                     let exSearch = new URLSearchParams(a);
-                                                                    const _ex = Number('0x' + exSearch.get('ex'));
-                                                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                    const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                                    ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                                 } catch (err) {
                                                                     Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "error", err);
                                                                 }
@@ -926,7 +937,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             resData[k] = (write) ? destName : null;
                             blockOk();
                         } else if (systemglobal.CDN_TempChannel && systemglobal.User_Discord_Key && !systemglobal.CDN_No_Research) {
-                            const url = await getDiscordURL(val.src);
+                            const url = await getDiscordURL(val.src, message.eid);
                             const dataTake2 = await new Promise(ok => {
                                 Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug");
                                 request.get({

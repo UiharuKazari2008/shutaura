@@ -1424,8 +1424,8 @@ This code is publicly released and is restricted by its project license
                                                                             let ex
                                                                             try {
                                                                                 let exSearch = new URLSearchParams(auth);
-                                                                                const _ex = Number('0x' + exSearch.get('ex'));
-                                                                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                                const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                                                ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                                             } catch (err) {
                                                                                 Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                                                             }
@@ -1573,8 +1573,8 @@ This code is publicly released and is restricted by its project license
                                                                                 let ex
                                                                                 try {
                                                                                     let exSearch = new URLSearchParams(auth);
-                                                                                    const _ex = Number('0x' + exSearch.get('ex'));
-                                                                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                                    const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                                                    ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                                                 } catch (err) {
                                                                                     Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                                                                 }
@@ -1858,8 +1858,8 @@ This code is publicly released and is restricted by its project license
                                                         let ex
                                                         try {
                                                             let exSearch = new URLSearchParams(auth);
-                                                            const _ex = Number('0x' + exSearch.get('ex'));
-                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                            const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                            ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                         } catch (err) {
                                                             Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                                         }
@@ -1909,8 +1909,8 @@ This code is publicly released and is restricted by its project license
                                                         }
                                                         try {
                                                             let exSearch = new URLSearchParams(auth);
-                                                            const _ex = Number('0x' + exSearch.get('ex'));
-                                                            ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                            const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                            ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                         } catch (err) {
                                                             Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                                                         }
@@ -1982,8 +1982,9 @@ This code is publicly released and is restricted by its project license
                                                                 jsonData[ext_key + '_auth'] = attachmentUrl[1]
                                                                 try {
                                                                     let exSearch = new URLSearchParams(attachmentUrl[1]);
-                                                                    const ex = Number('0x' + exSearch.get('ex'));
-                                                                    const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                    const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                                    const exTime = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                                                                    sqlObject.attachment_auth_ex = exTime;
                                                                     jsonData[ext_key + '_auth_ex'] = exTime;
                                                                 } catch (err) {
                                                                     Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
@@ -2429,8 +2430,8 @@ This code is publicly released and is restricted by its project license
                     if (url.length === 2) {
                         try {
                             let exSearch = new URLSearchParams(url[1]);
-                            const ex = Number('0x' + exSearch.get('ex'));
-                            exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                            const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                            exTime = moment(date).format('YYYY-MM-DD HH:mm:ss');
                         } catch (err) {
                             Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
                         }
@@ -8274,8 +8275,8 @@ This code is publicly released and is restricted by its project license
                                                                 jsonData[ext_key + '_auth'] = as[1];
                                                                 try {
                                                                     let exSearch = new URLSearchParams(as[1]);
-                                                                    const ex = Number('0x' + exSearch.get('ex'));
-                                                                    const exTime = moment.unix(ex).format('YYYY-MM-DD HH:mm:ss');
+                                                                    const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                                    const exTime = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                                                     jsonData[ext_key + '_auth_ex'] = exTime;
                                                                 } catch (err) {
                                                                     Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "debug", err);
@@ -9439,8 +9440,8 @@ This code is publicly released and is restricted by its project license
                                             let ex = null;
                                             try {
                                                 let exSearch = new URLSearchParams(a);
-                                                const _ex = Number('0x' + exSearch.get('ex'));
-                                                ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                                const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                                ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                             } catch (err) {
                                                 Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
                                             }
@@ -9534,8 +9535,8 @@ This code is publicly released and is restricted by its project license
                                 let ex = null;
                                 try {
                                     let exSearch = new URLSearchParams(a);
-                                    const _ex = Number('0x' + exSearch.get('ex'));
-                                    ex = moment.unix(_ex).format('YYYY-MM-DD HH:mm:ss');
+                                    const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
+                                    ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
                                 } catch (err) {
                                     Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "debug", err);
                                 }
