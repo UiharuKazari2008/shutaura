@@ -69,6 +69,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const systemparams_sql = _systemparams.rows.reverse();
 
         if (systemparams_sql.length > 0) {
+            const _discord_user_account = systemparams_sql.filter(e => e.param_key === 'user.login');
+            if (_discord_user_account.length > 0 && _discord_user_account[0].param_value) {
+                systemglobal.User_Discord_Key = _discord_user_account[0].param_value
+            }
             const _discord_account = systemparams_sql.filter(e => e.param_key === 'cdn.login');
             if (_discord_account.length > 0 && _discord_account[0].param_value) {
                 systemglobal.CDN_Discord_Key = _discord_account[0].param_value
@@ -422,6 +426,46 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 db.query(`DELETE FROM kanmi_records_cdn WHERE eid = ? AND host = ?`, [deleteItem.eid, systemglobal.CDN_ID]);
             }
         }
+    }
+
+    async function getDiscordURL(url) {
+        if (!systemglobal.User_Discord_Key)
+            return url;
+        return new Promise(async ok => {
+            const params = new URLSearchParams('?' + inputUrl.split('?')[1]);
+            if (params.get('ex') && params.get('is') && params.get('hm')) {
+                const expires = new Date(parseInt(params.get('ex') || '', 16) * 1000);
+                if (expires.getTime() > Date.now()) {
+                    ok(ok);
+                    return false;
+                }
+            }
+            const payload = {
+                method: 'POST',
+                headers: {
+                    'Authorization': `${systemglobal.User_Discord_Key}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ attachment_urls: [url] })
+            };
+
+            const response = await fetch('https://discord.com/api/v9/attachments/refresh-urls', payload);
+
+            if (response.status !== 200) {
+                ok(false);
+                return false;
+            }
+
+            const json = await response.json();
+
+            if (Array.isArray(json.refreshed_urls) && json.refreshed_urls[0].refreshed) {
+                const refreshed_url = new URL(json.refreshed_urls[0].refreshed);
+                ok(refreshed_url.href);
+            } else {
+                ok(false);
+            }
+            return false;
+        });
     }
 
     try {
@@ -875,211 +919,188 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             });
                             resData[k] = (write) ? destName : null;
                             blockOk();
-                        } else if (systemglobal.CDN_TempChannel && !systemglobal.CDN_No_Research) {
-                            const pm = await (async () => {
-                                try {
-                                    let pm = await discordClient.createMessage(systemglobal.CDN_TempChannel, val.src.split('?')[0]);
-                                    await sleep(5000);
-                                    let om = await discordClient.getMessage(pm.channel.id, pm.id)
-                                    await discordClient.deleteMessage(pm.channel.id, pm.id)
-                                    if (om.embeds && om.embeds[0] && om.embeds[0].thumbnail && om.embeds[0].thumbnail.url) {
-                                        return om.embeds[0].thumbnail.url
-                                    } else {
-                                        Logger.printLine("DiscordAuth", `Failed to research image from discord: ${e.message}`, "error");
-                                        return false
-                                    }
-                                } catch (e) {
-                                    Logger.printLine("DiscordAuth", `Failed to get message from discord: ${e.message}`, "error");
-                                    return false
-                                }
-                            })()
-                            if (pm) {
-                                const dataTake2 = await new Promise(ok => {
-                                    const url = pm;
-                                    Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug");
-                                    request.get({
-                                        url,
-                                        headers: {
-                                            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                            'accept-language': 'en-US,en;q=0.9',
-                                            'cache-control': 'max-age=0',
-                                            'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                            'sec-ch-ua-mobile': '?0',
-                                            'sec-fetch-dest': 'document',
-                                            'sec-fetch-mode': 'navigate',
-                                            'sec-fetch-site': 'none',
-                                            'sec-fetch-user': '?1',
-                                            'upgrade-insecure-requests': '1',
-                                            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                        },
-                                    }, async (err, res, body) => {
-                                        if (err || (res && res.statusCode && res.statusCode !== 200) || body.length < 1000) {
-                                            if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && message.id && message.channel && k === 'full' && !requested_remotely) {
-                                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
-                                                mqClient.sendData(systemglobal.Discord_Out, {
-                                                    fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                                    messageReturn: false,
-                                                    messageID: message.id,
-                                                    messageChannelID: message.channel,
-                                                    messageServerID: message.server,
-                                                    messageType: 'command',
-                                                    messageAction: 'ValidateMessage'
-                                                }, function (callback) {
-                                                    if (!callback) {
-                                                        Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                                    }
-                                                });
-                                            } else {
-                                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                            }
-                                            ok(false)
+                        } else if (systemglobal.CDN_TempChannel && systemglobal.User_Discord_Key && !systemglobal.CDN_No_Research) {
+                            const url = await getDiscordURL(val.src);
+                            const dataTake2 = await new Promise(ok => {
+                                Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Research) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug");
+                                request.get({
+                                    url,
+                                    headers: {
+                                        'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                        'accept-language': 'en-US,en;q=0.9',
+                                        'cache-control': 'max-age=0',
+                                        'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                        'sec-ch-ua-mobile': '?0',
+                                        'sec-fetch-dest': 'document',
+                                        'sec-fetch-mode': 'navigate',
+                                        'sec-fetch-site': 'none',
+                                        'sec-fetch-user': '?1',
+                                        'upgrade-insecure-requests': '1',
+                                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                    },
+                                }, async (err, res, body) => {
+                                    if (err || (res && res.statusCode && res.statusCode !== 200) || body.length < 1000) {
+                                        if (res && res.statusCode && (res.statusCode === 404 || res.statusCode === 403) && message.id && message.channel && k === 'full' && !requested_remotely) {
+                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Requires revalidation!`, "err", (err) ? err : undefined)
+                                            mqClient.sendData(systemglobal.Discord_Out, {
+                                                fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                                messageReturn: false,
+                                                messageID: message.id,
+                                                messageChannelID: message.channel,
+                                                messageServerID: message.server,
+                                                messageType: 'command',
+                                                messageAction: 'ValidateMessage'
+                                            }, function (callback) {
+                                                if (!callback) {
+                                                    Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                                }
+                                            });
                                         } else {
-                                            ok(body);
+                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment (ReQuery) "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
                                         }
-                                    })
+                                        ok(false)
+                                    } else {
+                                        ok(body);
+                                    }
                                 })
-                                let validData2 = true;
-                                if (dataTake2 && dataTake2.length > 1000) {
-                                    if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
-                                        try {
-                                            const dimensions = sizeOf(dataTake2);
-                                            if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
-                                                validData2 = false;
-                                        } catch (e) {
-                                            Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
+                            })
+                            let validData2 = true;
+                            if (dataTake2 && dataTake2.length > 1000) {
+                                if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
+                                    try {
+                                        const dimensions = sizeOf(dataTake2);
+                                        if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
                                             validData2 = false;
-                                        }
-                                    }
-                                } else {
-                                    validData2 = false;
-                                }
-                                if (validData2) {
-                                    fsEx.ensureDirSync(path.join(val.dest));
-                                    const write = await new Promise(ok => {
-                                        fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
-                                            if (err) {
-                                                Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write download ${destName} to disk!`, "err", err)
-                                            }
-                                            ok(!err);
-                                        })
-                                    });
-                                    resData[k] = (write) ? destName : null;
-                                    blockOk();
-                                } else {
-                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download, No Data Returned`, "error")
-                                    if ((k === 'extended_preview' || val['src'].includes('t9-preview')) && message.id) {
-                                        mqClient.sendData(systemglobal.Discord_Out, {
-                                            messageReturn: false,
-                                            messageType: 'command',
-                                            messageAction: (destName.split('.').pop().toLowerCase() === 'gif') ? 'CacheVideo' : 'CacheImage',
-                                            fromClient: `return.CDN.${systemglobal.SystemName}`,
-                                            messageID: message.id,
-                                            messageChannelID: message.channel,
-                                            messageServerID: message.server,
-                                        }, function (callback) {
-                                            if (!callback) {
-                                                Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
-                                            }
-                                        });
-                                        resData[k] = false;
-                                        blockOk();
-                                    } else if ((k === 'preview' || k === 'extended_preview') && attachements.full.src) {
-                                        const full_data = await new Promise(ok => {
-                                            const url = attachements.full.src;
-                                            Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Sharp Convert) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug")
-                                            request.get({
-                                                url,
-                                                headers: {
-                                                    'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-                                                    'accept-language': 'en-US,en;q=0.9',
-                                                    'cache-control': 'max-age=0',
-                                                    'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
-                                                    'sec-ch-ua-mobile': '?0',
-                                                    'sec-fetch-dest': 'document',
-                                                    'sec-fetch-mode': 'navigate',
-                                                    'sec-fetch-site': 'none',
-                                                    'sec-fetch-user': '?1',
-                                                    'upgrade-insecure-requests': '1',
-                                                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
-                                                },
-                                            }, async (err, res, body) => {
-                                                if (err || res && res.statusCode && res.statusCode !== 200) {
-                                                    Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
-                                                    ok(false)
-                                                } else {
-                                                    ok(body);
-                                                }
-                                            })
-                                        })
-                                        let validData3 = true;
-                                        if (full_data && full_data.length > 1000) {
-                                            if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
-                                                try {
-                                                    const dimensions = sizeOf(full_data);
-                                                    if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
-                                                        validData3 = false;
-                                                } catch (e) {
-                                                    Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
-                                                    validData3 = false;
-                                                }
-                                            }
-                                        } else {
-                                            validData3 = false;
-                                        }
-                                        if (validData3) {
-                                            let resizeParam = {
-                                                fit: sharp.fit.inside,
-                                                withoutEnlargement: true,
-                                                width: 512,
-                                                height: 512
-                                            }
-                                            if (message.sizeW >= message.sizeH) {
-                                                resizeParam.width = parseInt((message.sizeW * (512 / message.sizeH)).toFixed(0).toString())
-                                            } else {
-                                                resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
-                                            }
-                                            if (isNaN(resizeParam.width))
-                                                resizeParam.width = 512;
-                                            if (isNaN(resizeParam.height))
-                                                resizeParam.height = 512;
-                                            resData[k] = (await new Promise(image_saved => {
-                                                sharp(full_data)
-                                                    .resize(resizeParam)
-                                                    .toFormat(destName.split('.').pop().toLowerCase())
-                                                    .withMetadata()
-                                                    .toFile(path.join(val.dest, destName), function (err) {
-                                                        if (err) {
-                                                            Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write preview file to disk!: ${err.message}`, "err", err);
-                                                            if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
-                                                                fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
-                                                                    if (err) {
-                                                                        Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write full/preview to disk!`, "err", err)
-                                                                    }
-                                                                    image_saved((!err) ? destName : false);
-                                                                })
-                                                            } else {
-                                                                image_saved(false);
-                                                            }
-                                                        } else {
-                                                            image_saved(destName);
-                                                        }
-                                                    })
-                                            }));
-                                            blockOk();
-                                        } else {
-                                            Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item for conversion, No Data Returned`, "error")
-                                            resData[k] = false;
-                                            blockOk();
-                                        }
-                                    } else {
-                                        resData[k] = false;
-                                        blockOk();
+                                    } catch (e) {
+                                        Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
+                                        validData2 = false;
                                     }
                                 }
                             } else {
-                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item, No URL Returned`, "error");
-                                resData[k] = false;
+                                validData2 = false;
+                            }
+                            if (validData2) {
+                                fsEx.ensureDirSync(path.join(val.dest));
+                                const write = await new Promise(ok => {
+                                    fs.writeFile(path.join(val.dest, destName), dataTake2, async (err) => {
+                                        if (err) {
+                                            Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write download ${destName} to disk!`, "err", err)
+                                        }
+                                        ok(!err);
+                                    })
+                                });
+                                resData[k] = (write) ? destName : null;
                                 blockOk();
+                            } else {
+                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download, No Data Returned`, "error")
+                                if ((k === 'extended_preview' || val['src'].includes('t9-preview')) && message.id) {
+                                    mqClient.sendData(systemglobal.Discord_Out, {
+                                        messageReturn: false,
+                                        messageType: 'command',
+                                        messageAction: (destName.split('.').pop().toLowerCase() === 'gif') ? 'CacheVideo' : 'CacheImage',
+                                        fromClient: `return.CDN.${systemglobal.SystemName}`,
+                                        messageID: message.id,
+                                        messageChannelID: message.channel,
+                                        messageServerID: message.server,
+                                    }, function (callback) {
+                                        if (!callback) {
+                                            Logger.printLine("KanmiMQ", `Failed to send to ${systemglobal.Discord_Out}`, "error")
+                                        }
+                                    });
+                                    resData[k] = false;
+                                    blockOk();
+                                } else if ((k === 'preview' || k === 'extended_preview') && attachements.full.src) {
+                                    const full_data = await new Promise(ok => {
+                                        const url = attachements.full.src;
+                                        Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Downloading Attachment (Sharp Convert) ${url.split('/').pop().split('?')[0]} => ${destName}...`, "debug")
+                                        request.get({
+                                            url,
+                                            headers: {
+                                                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+                                                'accept-language': 'en-US,en;q=0.9',
+                                                'cache-control': 'max-age=0',
+                                                'sec-ch-ua': '"Chromium";v="92", " Not A;Brand";v="99", "Microsoft Edge";v="92"',
+                                                'sec-ch-ua-mobile': '?0',
+                                                'sec-fetch-dest': 'document',
+                                                'sec-fetch-mode': 'navigate',
+                                                'sec-fetch-site': 'none',
+                                                'sec-fetch-user': '?1',
+                                                'upgrade-insecure-requests': '1',
+                                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36 Edg/92.0.902.73'
+                                            },
+                                        }, async (err, res, body) => {
+                                            if (err || res && res.statusCode && res.statusCode !== 200) {
+                                                Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Failed to download attachment "${url}" - Status: ${(res && res.statusCode) ? res.statusCode : 'Unknown'}`, "err", (err) ? err : undefined)
+                                                ok(false)
+                                            } else {
+                                                ok(body);
+                                            }
+                                        })
+                                    })
+                                    let validData3 = true;
+                                    if (full_data && full_data.length > 1000) {
+                                        if (val.ext && Discord_CDN_Accepted_Files.indexOf(val.ext.toLowerCase()) !== -1) {
+                                            try {
+                                                const dimensions = sizeOf(full_data);
+                                                if (!(dimensions && dimensions.width > 100 && dimensions.height > 100))
+                                                    validData3 = false;
+                                            } catch (e) {
+                                                Logger.printLine("ImageCheck", `Image failed to pass image validation: ${e.message}`, "error");
+                                                validData3 = false;
+                                            }
+                                        }
+                                    } else {
+                                        validData3 = false;
+                                    }
+                                    if (validData3) {
+                                        let resizeParam = {
+                                            fit: sharp.fit.inside,
+                                            withoutEnlargement: true,
+                                            width: 512,
+                                            height: 512
+                                        }
+                                        if (message.sizeW >= message.sizeH) {
+                                            resizeParam.width = parseInt((message.sizeW * (512 / message.sizeH)).toFixed(0).toString())
+                                        } else {
+                                            resizeParam.height = parseInt((message.sizeH * (512 / message.sizeW)).toFixed(0).toString())
+                                        }
+                                        if (isNaN(resizeParam.width))
+                                            resizeParam.width = 512;
+                                        if (isNaN(resizeParam.height))
+                                            resizeParam.height = 512;
+                                        resData[k] = (await new Promise(image_saved => {
+                                            sharp(full_data)
+                                                .resize(resizeParam)
+                                                .toFormat(destName.split('.').pop().toLowerCase())
+                                                .withMetadata()
+                                                .toFile(path.join(val.dest, destName), function (err) {
+                                                    if (err) {
+                                                        Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write preview file to disk!: ${err.message}`, "err", err);
+                                                        if ((attachements['full'].ext || message.attachment_name.replace(message.id, '').split('?')[0].split('.').pop()).toLowerCase() === destName.split('.').pop().toLowerCase()) {
+                                                            fs.writeFile(path.join(val.dest, destName), full_data, async (err) => {
+                                                                if (err) {
+                                                                    Logger.printLine("CopyFile", `${message.eid || message.id}/${k}: Failed to write full/preview to disk!`, "err", err)
+                                                                }
+                                                                image_saved((!err) ? destName : false);
+                                                            })
+                                                        } else {
+                                                            image_saved(false);
+                                                        }
+                                                    } else {
+                                                        image_saved(destName);
+                                                    }
+                                                })
+                                        }));
+                                        blockOk();
+                                    } else {
+                                        Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item for conversion, No Data Returned`, "error")
+                                        resData[k] = false;
+                                        blockOk();
+                                    }
+                                } else {
+                                    resData[k] = false;
+                                    blockOk();
+                                }
                             }
                         } else {
                             Logger.printLine("DownloadFile", `${message.eid || message.id}/${k}: Can't download item, No Data Returned`, "error");
