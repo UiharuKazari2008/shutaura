@@ -1146,7 +1146,9 @@ This code is publicly released and is restricted by its project license
                     if (userFeed && userFeed.length > 0) {
                         let counter = 0
                         await Promise.all(userFeed.map(async (thisArticle, thisArticleIndex, articleArray) => {
-                            if (thisArticle.attachments && thisArticle.attachments.length > 0) {
+                            if ((thisArticle.attachments && thisArticle.attachments.length > 0) || (thisArticle.attachments.length <= 0 && thisArticle.file && thisArticle.file.name)) {
+                                if (thisArticle.attachments.length <= 0)
+                                    thisArticle.attachments.push(thisArticle.file);
                                 let backlog = false;
                                 if (counter > 3) {
                                     backlog = true
