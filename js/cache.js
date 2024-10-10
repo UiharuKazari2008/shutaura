@@ -471,7 +471,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 const ah = refreshed_url.href.split('?');
                 let exSearch = new URLSearchParams(ah[1]);
                 const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
-                const ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                const ex = moment(date).local().format('YYYY-MM-DD HH:mm:ss');
                 if (eid) {
                     await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE eid = ?`, [ah[1], ex, eid])
                 } else {
@@ -603,7 +603,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     try {
                         let exSearch = new URLSearchParams(a);
                         const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
-                        ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                        ex = moment(date).local().format('YYYY-MM-DD HH:mm:ss');
                     } catch (err) {
                         Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                     }
@@ -637,7 +637,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             try {
                                 let exSearch = new URLSearchParams(as[1]);
                                 const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
-                                ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                                ex = moment(date).local().format('YYYY-MM-DD HH:mm:ss');
                             } catch (err) {
                                 Logger.printLine("Discord", `Failed to get auth expire time value for database row!`, "error", err);
                             }
@@ -751,7 +751,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                                                 try {
                                                                     let exSearch = new URLSearchParams(a);
                                                                     const date = new Date(parseInt(exSearch.get('ex') || '', 16) * 1000);
-                                                                    ex = moment(date).format('YYYY-MM-DD HH:mm:ss');
+                                                                    ex = moment(date).local().format('YYYY-MM-DD HH:mm:ss');
                                                                 } catch (err) {
                                                                     Logger.printLine("Discord", `Failed to get auth expire time value for parity database row!`, "error", err);
                                                                 }
