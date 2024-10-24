@@ -579,64 +579,64 @@ This code is publicly released and is restricted by its project license
             // Sequenzia CDN
         }
 
-        Logger.printLine("SQL", "Getting Twitter Lists", "debug")
+        //Logger.printLine("SQL", "Getting Twitter Lists", "debug")
         const _twitterlist = await db.query(`SELECT x.*, y.download_listid, y.download_channelid FROM twitter_list x LEFT OUTER JOIN discord_reactions y ON (y.download_channelid IS NOT NULL AND y.download_listid = x.listid)`)
         if (_twitterlist.error) { Logger.printLine("SQL", "Error getting twitter list records!", "emergency", _twitterlist.error); return false }
         twitterlist = _twitterlist.rows;
 
-        Logger.printLine("SQL", "Getting Twitter Accounts (Selective Fields)", "debug")
+        //Logger.printLine("SQL", "Getting Twitter Accounts (Selective Fields)", "debug")
         const _twitteraccount = await db.query(`SELECT taccount, activitychannelid FROM twitter_accounts`)
         if (_twitteraccount.error) { Logger.printLine("SQL", "Error getting twitter accounts records!", "emergency", _twitteraccount.error); return false }
         twitteraccount = _twitteraccount.rows;
 
-        Logger.printLine("SQL", "Getting Pixiv Accounts (Selective Fields)", "debug")
+        //Logger.printLine("SQL", "Getting Pixiv Accounts (Selective Fields)", "debug")
         const _pixivaccount = await db.query(`SELECT feed_channelid, feed_channelid_nsfw, recom_channelid, recom_channelid_nsfw, save_channelid, save_channelid_nsfw, like_taccount, like_taccount_nsfw FROM pixiv_accounts x`)
         if (_pixivaccount.error) { Logger.printLine("SQL", "Error getting pixiv accounts records!", "emergency", _pixivaccount.error); return false }
         pixivaccount = _pixivaccount.rows;
 
-        Logger.printLine("SQL", "Getting Reaction Pixiv -> Twitter Accounts (Selective Fields)", "debug")
+        //Logger.printLine("SQL", "Getting Reaction Pixiv -> Twitter Accounts (Selective Fields)", "debug")
         const _pixivreactionsaccount = await db.query(`SELECT download_channelid, download_taccount FROM discord_reactions`)
         if (_pixivreactionsaccount.error) { Logger.printLine("SQL", "Error getting pixiv reactions records!", "emergency", _pixivreactionsaccount.error); return false }
         pixivreactionsaccount = _pixivreactionsaccount.rows;
 
-        Logger.printLine("SQL", "Getting Discord Servers", "debug")
+        //Logger.printLine("SQL", "Getting Discord Servers", "debug")
         const _discordservers = await db.query(`SELECT * FROM discord_servers`)
         if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
         discordservers = _discordservers.rows;
 
-        Logger.printLine("SQL", "Getting Discord Channels", "debug")
+        //Logger.printLine("SQL", "Getting Discord Channels", "debug")
         const _discordchannels = await db.query(`SELECT * FROM kanmi_channels WHERE classification IS NOT NULL AND (classification NOT LIKE '%system%' AND classification NOT LIKE '%timeline%') AND source = 0`)
         if (_discordchannels.error) { Logger.printLine("SQL", "Error getting discord channels records!", "emergency", _discordchannels.error); return false }
         await Promise.all(_discordchannels.rows.map(e => {
             discordChannels.set(e.channelid, e)
         }))
 
-        Logger.printLine("SQL", "Getting Discord Permissions", "debug")
+        //Logger.printLine("SQL", "Getting Discord Permissions", "debug")
         const _discordperms = await db.query(`SELECT * FROM discord_permissons WHERE name = 'sysbot' OR name = 'system_admin' OR name = 'system_interact'`)
         if (_discordperms.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordperms.error); return false }
         discordperms = _discordperms.rows;
 
-        Logger.printLine("SQL", "Getting Discord Reactions", "debug")
+        //Logger.printLine("SQL", "Getting Discord Reactions", "debug")
         const _discordreactions = await db.query(`SELECT * FROM discord_reactions ORDER BY position`)
         if (_discordreactions.error) { Logger.printLine("SQL", "Error getting discord reactions records!", "emergency", _discordreactions.error); return false }
         discordreact = _discordreactions.rows;
 
-        Logger.printLine("SQL", "Getting Discord Auto Reactions", "debug")
+        //Logger.printLine("SQL", "Getting Discord Auto Reactions", "debug")
         const _discordautoreactions = await db.query(`SELECT * FROM discord_reactions_autoadd`)
         if (_discordautoreactions.error) { Logger.printLine("SQL", "Error getting discord reactions records!", "emergency", _discordautoreactions.error); return false }
         discordautoreact = _discordautoreactions.rows;
 
-        Logger.printLine("SQL", "Getting Discord Auto Download", "debug")
+        //Logger.printLine("SQL", "Getting Discord Auto Download", "debug")
         const _discorddownload = await db.query(`SELECT * FROM discord_download`)
         if (_discorddownload.error) { Logger.printLine("SQL", "Error getting discord automatic download records!", "emergency", _discorddownload.error); return false }
         discordautodownload = _discorddownload.rows;
 
-        Logger.printLine("SQL", "Getting Clear Button Reactions", "debug")
+        //Logger.printLine("SQL", "Getting Clear Button Reactions", "debug")
         const _add_clear_btn = await db.query(`SELECT DISTINCT channelid FROM discord_autoclean WHERE clearbtn = 1 UNION SELECT DISTINCT lastthread AS channelid FROM discord_autothread WHERE pinbutton = 1`)
         if (_add_clear_btn.error) { Logger.printLine("SQL", "Error getting discord clear reactions records!", "emergency", _add_clear_btn.error); return false }
         addClearButton = _add_clear_btn.rows.map(e => e.channelid);
 
-        Logger.printLine("SQL", "Getting Discord Alarm Clocks", "debug")
+        //Logger.printLine("SQL", "Getting Discord Alarm Clocks", "debug")
         const _alarmclock = await db.query(`SELECT * FROM discord_alarms`)
         if (_alarmclock.error) { Logger.printLine("SQL", "Error getting master discord static channels records!", "emergency", _alarmclock.error); return false }
 
@@ -753,7 +753,6 @@ This code is publicly released and is restricted by its project license
             }
         }))
 
-        Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
         setTimeout(loadDatabaseCache, (systemglobal.Discord_Timer_SQLCache) ? systemglobal.Discord_Timer_SQLCache : 1200000)
     }
     if (args.whost) {
@@ -769,6 +768,7 @@ This code is publicly released and is restricted by its project license
         systemglobal.Cluster_Entity = args.ceid
     }
     await loadDatabaseCache();
+    Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
 
     const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=30`;
     const MQWorker1 = systemglobal.Discord_Out + '.priority';

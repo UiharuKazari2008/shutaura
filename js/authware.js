@@ -168,17 +168,17 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }
 
-        Logger.printLine("SQL", "Getting Discord Servers", "debug")
+        //Logger.printLine("SQL", "Getting Discord Servers", "debug")
         const _discordservers = await db.query(`SELECT * FROM discord_servers`)
         if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
         discordservers = _discordservers.rows;
 
-        Logger.printLine("SQL", "Getting Discord Permissions", "debug")
+        //Logger.printLine("SQL", "Getting Discord Permissions", "debug")
         const _discordperms = await db.query(`SELECT * FROM discord_permissons WHERE name = 'sysbot' OR name = 'system_admin' OR name = 'system_interact'`)
         if (_discordperms.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordperms.error); return false }
         discordperms = _discordperms.rows;
 
-        Logger.printLine("SQL", "Getting Discord Reaction Map", "debug")
+        //Logger.printLine("SQL", "Getting Discord Reaction Map", "debug")
         const _discordreactionsroles = await db.query(`SELECT * FROM discord_permissons_reactions`)
         if (_discordreactionsroles.error) { Logger.printLine("SQL", "Error getting discord permissons records!", "emergency", _discordreactionsroles.error); return false }
         discordreactionsroles = _discordreactionsroles.rows;
@@ -202,10 +202,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
         }))
 
-        Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
         setTimeout(loadDatabaseCache, (systemglobal.Discord_Timer_SQLCache) ? systemglobal.Discord_Timer_SQLCache : 1200000)
     }
     await loadDatabaseCache();
+    Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
     if (args.whost) {
         systemglobal.Watchdog_Host = args.whost
     }

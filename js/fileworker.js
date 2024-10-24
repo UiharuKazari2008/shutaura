@@ -171,11 +171,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			// { "watch_dir" : "./upload", "pickup_dir" : "./download" }
 		}
 
-		Logger.printLine("SQL", "Getting Discord Servers", "debug")
+		//Logger.printLine("SQL", "Getting Discord Servers", "debug")
 		const _discordservers = await db.query(`SELECT * FROM discord_servers`)
 		if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
 
-		Logger.printLine("SQL", "Getting Folder Pair Configuration", "debug")
+		//Logger.printLine("SQL", "Getting Folder Pair Configuration", "debug")
 		const _folderpairs = await db.query(`SELECT x.source, x.channelid,x.serverid, x.watch_folder, y.chid_filedata AS discord_filedata FROM kanmi_channels x LEFT OUTER JOIN discord_servers y ON (x.serverid = y.serverid AND x.source = 0) WHERE x.watch_folder IS NOT NULL`)
 		if (_folderpairs.error) { Logger.printLine("SQL", "Error getting folder pair records!", "emergency", _folderpairs.error); return false }
 		await Promise.all(_folderpairs.rows.map(folder => {
@@ -236,7 +236,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		}))
 
-		Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
 		setTimeout(loadDatabaseCache, 1200000);
 	}
 	await loadDatabaseCache();
@@ -247,6 +246,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		systemglobal.Watchdog_ID = args.wid
 	}
 	console.log(systemglobal)
+	Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug");
 
 	const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
 	const MQWorker1 = `${systemglobal.FileWorker_In}`
