@@ -48,6 +48,7 @@ async function reportMetrics() {
         // Prepare data for sending
         const metrics = {
             name: (process.env.name || 'default-process'),
+            server: systemglobal.SystemName,
             process: {
                 cpu: processCpuPercent,  // CPU percentage as a raw number
                 memoryUsed: processMemoryMB,  // Memory in MB
@@ -61,7 +62,8 @@ async function reportMetrics() {
                     usagePercent: memoryUsagePercent  // Memory usage percentage
                 },
                 uptimeSeconds: systemUptime  // System uptime in seconds
-            }
+            },
+            time: new Date().valueOf()
         };
         // Send metrics to the log server
         if (logServerConn && logServerConn.readyState === WebSocket.OPEN) {
