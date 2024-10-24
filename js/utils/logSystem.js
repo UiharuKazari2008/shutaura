@@ -54,16 +54,12 @@ function reportMetrics() {
         }
     };
     // Send metrics to the log server
-    if (logServerConn.readyState === WebSocket.OPEN) {
+    if (logServerConn && logServerConn.readyState === WebSocket.OPEN) {
         logServerConn.send(JSON.stringify({ metrics }));
     }
 }
 module.exports = function (facility, options) {
     let module = {};
-    if (facility !== 'MQClient') {
-        reportMetrics();
-        setInterval(reportMetrics, 30000);
-    }
 
     function connectToWebSocket(serverUrl) {
         logServerConn = new WebSocket(serverUrl);
@@ -73,6 +69,10 @@ module.exports = function (facility, options) {
             logServerisConnected = true;
             clearTimeout(flushTimeout);
             flushTimeout = setTimeout(flushUnsentLogs, 5000);
+            if (facility !== 'MQClient') {
+                reportMetrics();
+                setInterval(reportMetrics, 30000);
+            }
         };
         logServerConn.onmessage = (event) => { handleIncomingMessage(event); };
         logServerConn.onclose = () => {
