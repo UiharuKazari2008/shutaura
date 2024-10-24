@@ -47,6 +47,7 @@ async function reportMetrics() {
 
         // Prepare data for sending
         const metrics = {
+            isPm2,
             name: (process.env.name || 'default-process'),
             server: systemglobal.SystemName,
             process: {
