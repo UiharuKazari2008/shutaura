@@ -266,11 +266,11 @@ module.exports = function (facility, subclient) {
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgCyan)
             } else if (text.includes('Message Deleted: ') || text.includes('Reaction Removed: ')) {
                 if (remoteLogger)
-                    sendLog(proccess, logString, 'info', logObject, undefined, 'blue');
+                    sendLog(proccess, logString, 'info', logObject, undefined, 'magenta');
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgBlue)
             } else if (text.includes('Send Message: ') || text.includes('Status Update: ')) {
                 if (remoteLogger)
-                    sendLog(proccess, logString, 'info', logObject, undefined, 'green');
+                    sendLog(proccess, logString, 'info', logObject, undefined, 'dark-green');
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgGreen)
             } else if (text.includes('Send Package: ')) {
                 if (remoteLogger)
@@ -289,11 +289,11 @@ module.exports = function (facility, subclient) {
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.gray)
             } else if (text.includes('New Media Tweet in')) {
                 if (remoteLogger)
-                    sendLog(proccess, logString, 'info', logObject, undefined, 'green');
+                    sendLog(proccess, logString, 'info', logObject, undefined, 'dark-green');
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgGreen)
             } else if (text.includes('New Text Tweet in')) {
                 if (remoteLogger)
-                    sendLog(proccess, logString, 'info', logObject, undefined, 'green');
+                    sendLog(proccess, logString, 'info', logObject, undefined, 'dark-green');
                 console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][${proccess}] ${text}`.black.bgGreen)
             } else {
                 if (remoteLogger)

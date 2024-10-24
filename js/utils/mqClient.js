@@ -120,7 +120,7 @@ module.exports = function (facility, sgoveride) {
                     connect();
                 }, 1000);
             });
-            Logger.printLine("KanmiMQ", `Publisher Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            Logger.printLine("KanmiMQ", `Publisher Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
             amqpConn = conn;
             amqpConn.createConfirmChannel(function(err, ch) {
                 if (closeOnErr(err)) return;
@@ -224,7 +224,7 @@ module.exports = function (facility, sgoveride) {
             command: content
         }), 'utf-8'), function (callback) {
             if (callback) {
-                Logger.printLine("KanmiMQ", `Sent command to ${client}`, "info", content)
+                Logger.printLine("KanmiMQ", `Sent command to ${client}`, "debug", content)
             } else {
 
             }
