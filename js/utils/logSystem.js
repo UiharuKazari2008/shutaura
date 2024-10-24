@@ -33,7 +33,7 @@ async function reportMetrics() {
         const processMemoryMB = bytesToMB(stats.memory);
         const processUptime = process.uptime().toFixed(2);
 
-        // System memory and swap
+        // System memory metrics
         const totalMemory = os.totalmem();
         const freeMemory = os.freemem();
         const usedMemory = totalMemory - freeMemory;
@@ -42,37 +42,23 @@ async function reportMetrics() {
         const usedMemoryMB = bytesToMB(usedMemory);
         const memoryUsagePercent = calculatePercentage(usedMemory, totalMemory);
 
-        const totalSwap = totalMemory; // Simulated swap space; replace with actual value if available
-        const freeSwap = freeMemory; // Simulated swap free; replace with actual value if available
-        const usedSwap = totalSwap - freeSwap;
-        const totalSwapMB = bytesToMB(totalSwap);
-        const freeSwapMB = bytesToMB(freeSwap);
-        const usedSwapMB = bytesToMB(usedSwap);
-        const swapUsagePercent = calculatePercentage(usedSwap, totalSwap);
-
         const systemUptime = os.uptime().toFixed(2);
 
         // Prepare data for sending
         const metrics = {
             process: {
-                cpuPercent: `${processCpuPercent} %`,
-                memoryUsedMB: `${processMemoryMB} MB`,
-                uptime: `${processUptime} sec`
+                cpu: processCpuPercent,  // CPU percentage as a raw number
+                memoryUsed: processMemoryMB,  // Memory in MB
+                uptimeSeconds: processUptime  // Uptime in seconds
             },
             system: {
                 memory: {
-                    totalMB: `${totalMemoryMB} MB`,
-                    usedMB: `${usedMemoryMB} MB`,
-                    freeMB: `${freeMemoryMB} MB`,
-                    usagePercent: `${memoryUsagePercent} %`
+                    total: totalMemoryMB,   // Total memory in MB
+                    used: usedMemoryMB,     // Used memory in MB
+                    free: freeMemoryMB,     // Free memory in MB
+                    usagePercent: memoryUsagePercent  // Memory usage percentage
                 },
-                swap: {
-                    totalMB: `${totalSwapMB} MB`,
-                    usedMB: `${usedSwapMB} MB`,
-                    freeMB: `${freeSwapMB} MB`,
-                    usagePercent: `${swapUsagePercent} %`
-                },
-                uptime: `${(systemUptime / 3600).toFixed(2)} hours`
+                uptimeSeconds: systemUptime  // System uptime in seconds
             }
         };
         // Send metrics to the log server
