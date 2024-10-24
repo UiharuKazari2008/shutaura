@@ -24,6 +24,7 @@ function calculatePercentage(used, total) {
     return ((used / total) * 100).toFixed(2); // Round to 2 decimals
 }
 
+let metricsRunner;
 // Function to report process and system metrics using pidusage
 async function reportMetrics() {
     try {
@@ -65,6 +66,8 @@ async function reportMetrics() {
         if (logServerConn && logServerConn.readyState === WebSocket.OPEN) {
             logServerConn.send(JSON.stringify({ metrics }));
         }
+        clearTimeout(metricsRunner);
+        metricsRunner = setTimeout(reportMetrics, 30000)
     } catch (err) {
         console.error('Error reporting metrics:', err);
     }
@@ -177,7 +180,6 @@ module.exports = function (facility, options) {
     }
     if (facility !== 'MQClient') {
         reportMetrics();
-        setInterval(reportMetrics, 30000);
     }
 
     module.printLine = async function printLine(proccess, text, level, object, object2, no_ack = false) {
