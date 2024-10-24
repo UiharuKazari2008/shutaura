@@ -16,12 +16,12 @@ let flushTimeout;
 const isPm2 = process.env.hasOwnProperty('PM2_HOME');
 // Function to convert bytes to MB
 function bytesToMB(bytes) {
-    return (bytes / (1024 * 1024)).toFixed(2); // Convert to MB and round to 2 decimals
+    return parseFloat((bytes / (1024 * 1024)).toFixed(2)); // Convert to MB and round to 2 decimals
 }
 
 // Function to calculate percentage
 function calculatePercentage(used, total) {
-    return ((used / total) * 100).toFixed(2); // Round to 2 decimals
+    return parseFloat(((used / total) * 100).toFixed(2)); // Round to 2 decimals
 }
 
 let metricsRunner;
@@ -30,9 +30,9 @@ async function reportMetrics() {
     try {
         // Get process metrics
         const stats = await pidusage(process.pid);
-        const processCpuPercent = stats.cpu.toFixed(2);
+        const processCpuPercent = parseFloat(stats.cpu.toFixed(2));
         const processMemoryMB = bytesToMB(stats.memory);
-        const processUptime = process.uptime().toFixed(2);
+        const processUptime = parseInt(process.uptime().toFixed(0));
 
         // System memory metrics
         const totalMemory = os.totalmem();
@@ -43,7 +43,7 @@ async function reportMetrics() {
         const usedMemoryMB = bytesToMB(usedMemory);
         const memoryUsagePercent = calculatePercentage(usedMemory, totalMemory);
 
-        const systemUptime = os.uptime().toFixed(2);
+        const systemUptime = parseInt(os.uptime().toFixed(0));
 
         // Prepare data for sending
         const metrics = {
