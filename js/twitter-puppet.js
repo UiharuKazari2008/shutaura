@@ -2274,7 +2274,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "debug");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2503,7 +2503,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "debug");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2727,7 +2727,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
 					async function fetchJson(status_id) {
 						if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
+							log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "debug");
 							await sleep(30000);
 						}
 						lastAPIAccessTime = Date.now();
@@ -2912,7 +2912,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 				async function fetchJson(status_id) {
 					if (lastAPIAccessTime && !(Date.now() - lastAPIAccessTime > 30000)) {
-						log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "warn");
+						log("FetchJSON", `Artificial Rate Limit Applied: Less then 30 Sec sense last call!`, "debug");
 						await sleep(30000);
 					}
 					lastAPIAccessTime = Date.now();
