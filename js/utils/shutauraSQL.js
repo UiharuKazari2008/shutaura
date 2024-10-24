@@ -34,7 +34,7 @@ const sqlPromise = sqlConnection.promise();
 module.exports = function (facility, options) {
     let module = {};
 
-    const Logger = require('./logSystem')(facility);
+    const Logger = require('./logSystem')(facility, true);
     module.simple = function (sql_q, callback) {
         sqlConnection.query(sql_q, function (err, rows) {
             //here we return the results of the query

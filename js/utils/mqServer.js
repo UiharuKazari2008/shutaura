@@ -9,7 +9,7 @@ module.exports = function (facility, options) {
     let amqpConn = null;
     const EventEmitter = require('events');
     const emitter = new EventEmitter();
-    const Logger = require('./logSystem')(facility);
+    const Logger = require('./logSystem')(facility, true);
 
     emitter.on('uncaughtException', function (err) {
         console.error(err);

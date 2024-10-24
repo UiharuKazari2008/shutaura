@@ -14,18 +14,13 @@ let remoteLogger = false;
 let flushTimeout;
 
 const isPm2 = process.env.hasOwnProperty('PM2_HOME');
-// Function to convert bytes to MB
 function bytesToMB(bytes) {
     return parseFloat((bytes / (1024 * 1024)).toFixed(2)); // Convert to MB and round to 2 decimals
 }
-
-// Function to calculate percentage
 function calculatePercentage(used, total) {
     return parseFloat(((used / total) * 100).toFixed(2)); // Round to 2 decimals
 }
-
 let metricsRunner;
-// Function to report process and system metrics using pidusage
 async function reportMetrics() {
     try {
         // Get process metrics
@@ -76,7 +71,8 @@ async function reportMetrics() {
         console.error('Error reporting metrics:', err);
     }
 }
-module.exports = function (facility, options) {
+
+module.exports = function (facility, subclient) {
     let module = {};
 
     function connectToWebSocket(serverUrl) {
@@ -162,8 +158,11 @@ module.exports = function (facility, options) {
     if (systemglobal.LogServer) {
             remoteLogger = true
             connectToWebSocket('ws://' + systemglobal.LogServer);
-            sendLog('Init', `Forwarding logs to Othinus Server`, 'debug');
-            console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][Init] Forwarding logs to Othinus Server - ${facility}`.gray);
+            if (!subclient) {
+                reportMetrics();
+                sendLog('Init', `Forwarding logs to Othinus Server`, 'debug');
+                console.log(`[${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}][Init] Forwarding logs to Othinus Server - ${facility}`.gray);
+            }
     }
     function flushUnsentLogs() {
         if (logServerisConnected && logServerConn.readyState === WebSocket.OPEN) {
@@ -181,9 +180,6 @@ module.exports = function (facility, options) {
         // Increment rolling index and reset if it exceeds 9999
         rollingIndex = (rollingIndex + 1) % 10000;
         return `${Date.now()}-${rollingIndex}`;
-    }
-    if (facility !== 'MQClient') {
-        reportMetrics();
     }
 
     module.printLine = async function printLine(proccess, text, level, object, object2, no_ack = false) {

@@ -30,7 +30,7 @@ module.exports = function (facility, sgoveride) {
     let module = {};
     let amqpConn = null;
     let pubChannel = null;
-    const Logger = require('./logSystem')(facility);
+    const Logger = require('./logSystem')(facility, true);
 
 
     function publish(exchange, routingKey, content, callback) {
