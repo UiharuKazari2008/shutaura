@@ -64,7 +64,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
     let init = 0
 
-    Logger.printLine("Init", "Discord AuthWare", "info")
+    Logger.printLine("Init", "Discord AuthWare", "debug")
 
     // Load Environment Variables
     if (process.env.MQ_HOST && process.env.MQ_HOST.trim().length > 0)
@@ -226,7 +226,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             const isBootable = await new Promise(ok => {
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
                         ok(systemglobal.Cluster_Global_Master || false);
                     } else {
                         const jsonResponse = JSON.parse(Buffer.from(body).toString());
@@ -256,7 +256,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
                     } else {
                         const jsonResponse = JSON.parse(Buffer.from(body).toString());
                         if (jsonResponse.error) {
@@ -823,7 +823,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             /*const banner = await new Promise(resolve => {
                 request.get(`https://discord.com/api/v9/api/users/`, async (err, res) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                     }
                 })
             })*/
@@ -1465,9 +1465,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 console.error(err)
                             if (res)
                                 console.error(res.statusCode, (res.body) ? res.body.toString() : 'No Body')
-                            console.error(`Failed to contact downstream Sequenzia server: ${s}`);
+                            console.error();
+                            Logger.printLine("SequenziaCache", `Failed to contact downstream Sequenzia server: ${s}`, "error")
                         } else {
-                            console.log(`Updated downstream Sequenzia server: ${s}`);
+                            Logger.printLine("SequenziaCache", `Updated downstream Sequenzia server: ${s}`, "debug")
                         }
                     })
                 })
@@ -1570,13 +1571,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && !systemglobal.Cluster_ID) {
                 request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                     }
                 })
                 setInterval(() => {
                     request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                         if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                            Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                         }
                     })
                 }, 60000)
@@ -1592,7 +1593,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             setInterval(() => { updateLocalCache() }, 300000)
             app.listen(sbiPort, (err) => {
                 if (err) console.log("Error in server setup")
-                console.log("API listening on port: " + sbiPort);
+                Logger.printLine("API", "API listening on port: " + sbiPort, "debug")
             });
         }
         if (enableListening)

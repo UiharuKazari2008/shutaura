@@ -372,7 +372,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 } catch (err) {
                     Logger.printLine("Flickr", `Error when getting pages for ${list.username}`, "error", err);
-                    console.error(err);
                 }
             }
             getFlickrPage(currentPage)
@@ -383,13 +382,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         setInterval(() => {
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                 }
             })
         }, 60000)
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
             if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
             }
         })
     }

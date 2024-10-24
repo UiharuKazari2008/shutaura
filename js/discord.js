@@ -1091,7 +1091,7 @@ This code is publicly released and is restricted by its project license
     function sendWatchdogPing() {
         request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
             if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
             }
         })
         setTimeout(() => {sendWatchdogPing()}, 60000)
@@ -1505,7 +1505,7 @@ This code is publicly released and is restricted by its project license
                                                             fs.writeFile(inputfile, Buffer.from(body), "base64", err => {
                                                                 if (err) {
                                                                     fulfill(null)
-                                                                    console.error(err)
+                                                                    Logger.printLine("CacheData", `Failed to write to filesystem: ${err.message}`, "error")
                                                                 } else {
                                                                     const spawn = require('child_process').spawn;
                                                                     let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', '0.25', '-i', path.resolve(inputfile).toString(), '-f', 'image2', '-vframes', '1', path.resolve(outputfile).toString()]
@@ -1517,7 +1517,7 @@ This code is publicly released and is restricted by its project license
                                                                     });
                                                                     child.stderr.setEncoding('utf8');
                                                                     child.stderr.on('data', function (data) {
-                                                                        console.log(data);
+                                                                        Logger.printLine("CacheData", data, "error")
                                                                     });
                                                                     child.on('close', function (code) {
                                                                         if (code === 0 && fileSize(outputfile) > 0.00001) {
@@ -1616,8 +1616,7 @@ This code is publicly released and is restricted by its project license
                                                                                         cb(true);
                                                                                     }
                                                                                 })
-
-                                                                                console.log(er);
+                                                                                Logger.printLine("CacheData", `Failed to write to discord: ${er.message}`, "error")
                                                                                 cb(true);
                                                                             })
                                                                     }
@@ -1656,7 +1655,6 @@ This code is publicly released and is restricted by its project license
                                                                     cb(true);
                                                                 }
                                                             })
-                                                            console.log(err);
                                                         })
                                                 } catch (err) {
                                                     Logger.printLine("Discord", "Unable to send cache item!", "warn", err)
@@ -9346,7 +9344,7 @@ This code is publicly released and is restricted by its project license
             const isBootable = await new Promise(ok => {
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
                         ok(systemglobal.Cluster_Global_Master || false);
                     } else {
                         const jsonResponse = JSON.parse(Buffer.from(body).toString());
@@ -9376,7 +9374,7 @@ This code is publicly released and is restricted by its project license
                 }
                 request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
                     } else {
                         const jsonResponse = JSON.parse(Buffer.from(body).toString());
                         if (jsonResponse.error) {
@@ -9636,7 +9634,7 @@ This code is publicly released and is restricted by its project license
                 setTimeout(() => {
                     request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                         if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                            console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                            Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                         }
                     })
                 }, 5000)

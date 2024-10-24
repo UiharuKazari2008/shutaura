@@ -301,13 +301,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID && init === 0) {
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                 }
             })
             setInterval(() => {
                 request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${backupSystemName}`, async (err, res) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                     }
                 })
             }, 60000)
@@ -482,7 +482,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 
             if (Array.isArray(json.refreshed_urls) && json.refreshed_urls[0].refreshed) {
                 const refreshed_url = new URL(json.refreshed_urls[0].refreshed);
-                console.log(refreshed_url)
                 ok(refreshed_url.href);
 
                 const ah = refreshed_url.href.split('?');
@@ -496,7 +495,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     await db.query(`UPDATE kanmi_records SET attachment_auth = ?, attachment_auth_ex = ? WHERE channel = ? AND attachment_hash = ?`, [ah[1], ex, el[0], el[1]])
                 }
             } else {
-                console.log(json);
                 ok(url);
             }
             return false;
@@ -1333,8 +1331,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped) ${(systemglobal.CDN_Delay_Pull) ? 'AND (fileid IS NOT NULL OR (((fileid IS NULL AND attachment_name NOT LIKE \'%.jp%_\' AND attachment_name NOT LIKE \'%.jfif\' AND attachment_name NOT LIKE \'%.png\' AND attachment_name NOT LIKE \'%.gif\' AND attachment_name NOT LIKE \'%.web%_\') AND x.attachment_auth_ex > NOW() + INTERVAL 12 HOUR) OR (x.attachment_auth_ex < NOW() + INTERVAL 12 HOUR)))' : ''}
                        ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
-        console.log(q);
-        Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "debug");
+        Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "debug", {
+            query: q
+        });
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)

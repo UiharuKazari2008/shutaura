@@ -202,7 +202,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					}
 				}
 				if (!init) {
-					console.log(`Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`)
+					Logger.printLine("FolderInit", `Registered Folder "${name}" => ${data.id}@${data.server} (Parts Ch: ${data.parts})`, "debug")
 				}
 			});
 			// Remove old folder maps
@@ -509,7 +509,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (systemglobal.Watchdog_Host && systemglobal.Watchdog_ID) {
 			request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
 				if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-					console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+					Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
 				}
 			})
 		}
@@ -692,7 +692,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			let scriptOutput = "";
 			const spawn = require('child_process').spawn;
 			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'gif', '-fs', '4000000', '-bufsize', '2M', '-vf', 'fps=10,scale=320:-1,smartblur=ls=-0.5', outputfile]
-			console.log("[FFMPEG] Getting Animated Preview Image...")
+			Logger.printLine("FFMPEG", `Getting Animated Preview Image...`, "debug", {
+				command: ffmpegParam
+			})
 			const child = spawn(EncoderConf.Exec, ffmpegParam);
 			child.stdout.setEncoding('utf8');
 			child.stdout.on('data', function (data) {
@@ -734,7 +736,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const outputfile = path.join(systemglobal.TempFolder, `TEMPPREVIEW-${crypto.randomBytes(8).toString("hex")}.jpg`);
 			let scriptOutput = "";
 			let ffmpegParam = ['-hide_banner', '-nostats', '-y', '-ss', time, '-i', filename, '-f', 'image2', '-vframes', '1', outputfile]
-			console.log("[FFMPEG] Getting Preview Image...")
+			Logger.printLine("FFMPEG", `Getting Preview Image...`, "debug", {
+				command: ffmpegParam
+			})
 			const child = spawn(EncoderConf.Exec, ffmpegParam);
 			child.stdout.setEncoding('utf8');
 			child.stdout.on('data', function (data) {
@@ -791,11 +795,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				const spawn = require('child_process').spawn;
 				let ffmpegParam = []
 				if (intent) {
-					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '7000000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
+					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-fs', '24500000', '-vcodec', EncoderConf.VCodec, '-filter:v', 'scale=480:-2', '-crf', '15', '-maxrate', '150K', '-bufsize', '2M', '-acodec', EncoderConf.ACodec, '-b:a', '128K', outputfile]
 				} else {
 					ffmpegParam = ['-hide_banner', '-nostats', '-y', '-i', filename, '-f', 'mp4', '-vcodec', EncoderConf.VCodec, '-acodec', EncoderConf.ACodec, '-b:a', '128K', '-filter:v', 'scale=640:-1', '-crf', '15', '-maxrate', '500K', '-bufsize', '2M', outputfile]
 				}
-				console.log("[FFMPEG] Starting to encode video...")
+				Logger.printLine("FFMPEG", `Getting encode video...`, "debug", {
+					command: ffmpegParam
+				})
 				const child = spawn(EncoderConf.Exec, ffmpegParam);
 				// You can also use a variable to save the output
 				// for when the script closes later
@@ -1255,7 +1261,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									})
 								}
 
-								console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
+								//console.log(systemglobal.FW_Accepted_Videos.indexOf(path.extname(CompleteFilename).split(".").pop().toLowerCase()) !== -1)
 								if (fs.existsSync(CompleteFilename) && systemglobal.FW_Accepted_Videos.indexOf(path.extname(cacheresponse[0].real_filename).split(".").pop().toLowerCase()) !== -1) {
 									// Get Video Duration
 									const startPosition = await (async (filename) => {
@@ -1780,23 +1786,23 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				parameters.itemFileName = object.FileName.split("?")[0].toString()
 				if (object.messageChannelFolder) {
 					parameters.messageChannelFolder = object.messageChannelFolder
-					console.log(`Got Folder ID for File : ${parameters.messageChannelFolder}`)
+					Logger.printLine("FileProcessor", ` - Got Folder ID for File : ${parameters.messageChannelFolder}`, "debug")
 				}
 				if (object.DateTime) {
 					parameters.itemDateTime = object.DateTime.toString()
-					console.log(`Got Remote Date and Time for File : ${parameters.itemDateTime}`)
+					Logger.printLine("FileProcessor", ` - Got Remote Date and Time for File : ${parameters.itemDateTime}`, "debug")
 				}
 				if (object.tweetMeta) {
 					parameters.tweetMetadata = object.tweetMeta
-					console.log(`Got Embedded Tweet Metadata : ${object.tweetMeta.userId}:${object.tweetMeta.id}`)
+					Logger.printLine("FileProcessor", ` - Got Embedded Tweet Metadata : ${object.tweetMeta.userId}:${object.tweetMeta.id}`, "debug")
 				}
 				if (object.messageTags) {
 					parameters.messageTags = object.messageTags;
-					console.log(`Got Embedded MIITS Tags : ${object.messageTags}`)
+					Logger.printLine("FileProcessor", ` - Got Embedded MIITS Tags : ${object.messageTags}`, "debug")
 				}
 				if (object.messagePostTags) {
 					parameters.messagePostTags = object.messagePostTags;
-					console.log(`Got Embedded Post Tags : ${object.messagePostTags}`)
+					Logger.printLine("FileProcessor", ` - Got Embedded Post Tags : ${object.messagePostTags}`, "debug")
 				}
 				Logger.printLine("FileProcessor", `Processing Remote File : ${object.FileName.split("?")[0].toString()}`, "info", parameters)
 			} else if (object.Type.toString() === "Local") {
@@ -2634,7 +2640,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		setInterval(() => {
 			request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
 				if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-					console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+					Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
 				}
 			})
 		}, 60000)

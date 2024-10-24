@@ -197,7 +197,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			twitterNotify.set(e.username.toLowerCase(), e.channel)
 		});
 		Array.from(twitterNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => twitterNotify.delete(e));
-		console.log(`Notification enabled for ${twitterNotify.size} users\n${Array.from(twitterNotify.keys())}`);
 		setTimeout(loadDatabaseCache, 1200000);
 	}
 	await loadDatabaseCache();
@@ -216,6 +215,9 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	const mqClient = require('./utils/mqClient')(facilityName, systemglobal);
 
 	Logger.printLine("SQL", "All SQL Configuration records have been assembled!", "debug")
+
+	if (twitterNotify.size > 0)
+		Logger.printLine("Notification", `Notification enabled for ${twitterNotify.size} users\n${Array.from(twitterNotify.keys())}`, "debug")
 
 	const MQServer = `amqp://${systemglobal.MQUsername}:${systemglobal.MQPassword}@${systemglobal.MQServer}/?heartbeat=60`
 	const MQWorker1 = `${systemglobal.Twitter_In}`
@@ -290,7 +292,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			const isBootable = await new Promise(ok => {
 				request.get(`http://${systemglobal.Watchdog_Host}/cluster/init?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
 					if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-						console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+						Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
 						ok(systemglobal.Cluster_Global_Master || false);
 					} else {
 						const jsonResponse = JSON.parse(Buffer.from(body).toString());
@@ -320,7 +322,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 				request.get(`http://${systemglobal.Watchdog_Host}/cluster/ping?id=${systemglobal.Cluster_ID}&entity=${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}`, async (err, res, body) => {
 					if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-						console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`);
+						Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${(systemglobal.Cluster_Entity) ? systemglobal.Cluster_Entity : facilityName + "-" + systemglobal.SystemName}:${systemglobal.Cluster_ID}`, "error")
 					} else {
 						const jsonResponse = JSON.parse(Buffer.from(body).toString());
 						if (jsonResponse.error) {
@@ -545,13 +547,13 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			setInterval(() => {
 				request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
 					if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-						console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+						Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
 					}
 				})
 			}, 60000)
 			request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
 				if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-					console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+					Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
 				}
 			})
 		}
@@ -2129,7 +2131,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				return page;
 			}
 		} catch (err) {
-			Logger.printLine("TabManager", `Failed to launch browser/tab: ${err.message}`, "error", err);
+			Logger.printLine("TabManager", `Failed to launch browser/tab: ${err.message}`, "critical", err);
 			console.error(err);
             if (err.message && err.message.includes("Failed to open new tab")) {
                 process.exit(100);

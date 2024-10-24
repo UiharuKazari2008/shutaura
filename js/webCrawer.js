@@ -296,13 +296,13 @@ This code is publicly released and is restricted by its project license
             setInterval(() => {
                 request.get(`http://${systemglobal.Watchdog_Host}/watchdog/ping?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                     if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                        console.error(`Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                        Logger.printLine("ClusterManager", `Failed to ping watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                     }
                 })
             }, 60000)
             request.get(`http://${systemglobal.Watchdog_Host}/watchdog/init?id=${systemglobal.Watchdog_ID}&entity=${facilityName}-${systemglobal.SystemName}`, async (err, res) => {
                 if (err || res && res.statusCode !== undefined && res.statusCode !== 200) {
-                    console.error(`Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`);
+                    Logger.printLine("ClusterManager", `Failed to init watchdog server ${systemglobal.Watchdog_Host} as ${facilityName}:${systemglobal.Watchdog_ID}`, "error")
                 }
             })
         }
@@ -608,20 +608,20 @@ This code is publicly released and is restricted by its project license
                     if (response.headers['content-type'].includes('application/json')) {
                         ok(response.data);
                     } else {
-                        console.error(`Unexpected content type: ${response.headers['content-type']}`);
+                        Logger.printLine("KemonoPartyJSON", `Unexpected content type: ${response.headers['content-type']}`, "error")
                         ok(null);
                     }
                 } catch (error) {
                     Logger.printLine("KemonoPartyJSON", `Failed to call API ${source}/${artist}/${endpoint}: Catched Error`, "error");
                     if (error.response) {
                         // The request was made, but the server responded with a status code
-                        console.error(`Error: ${error.message} | Status code: ${error.response.status}`);
+                        Logger.printLine("KemonoPartyJSON", `Error: ${error.message} | Status code: ${error.response.status}`, "error")
                     } else if (error.request) {
                         // The request was made, but no response was received
-                        console.error('No response received:', error.message);
+                        Logger.printLine("KemonoPartyJSON", `No response received: ${error.message}`, "error")
                     } else {
                         // Something happened in setting up the request that triggered an Error
-                        console.error('Error in setting up request:', error.message);
+                        Logger.printLine("KemonoPartyJSON", `Error in setting up request: ${error.message}`, "error")
                     }
                     ok(null);
                 }
@@ -1431,7 +1431,9 @@ This code is publicly released and is restricted by its project license
                 }, (error, response, body) => {
                     try {
                         if (error) {
-                            console.error(body.toString(), error);
+                            Logger.printLine("GetMixcloudURL", `Failed to get vaid respone`, "error", {
+                                body: body.toString()
+                            })
                             return reject(error)
                         }
                         if (!body) {
@@ -1472,7 +1474,7 @@ This code is publicly released and is restricted by its project license
                             }
                         })
                     } catch (e) {
-                        console.error(e);
+                        Logger.printLine("GetMixcloudURL", `Error: ${e.message}`, "error", e)
                         return reject(e);
                     }
                 })
@@ -1559,7 +1561,7 @@ This code is publicly released and is restricted by its project license
 
                                 initalResults = JSON.parse(jsonString);
                             } catch (error) {
-                                console.error('Failed to parse initial state JSON:', error);
+                                Logger.printLine("DeviantArtGetJSON", `Failed to parse initial state JSON: ${error.message}`, "error")
                             }
                         }
                     }
@@ -1591,7 +1593,6 @@ This code is publicly released and is restricted by its project license
                                             headers: headersAjax
                                         })
                                         const json = JSON.parse(galleryPage.body);
-                                        console.log(json.results.length)
                                         if (json.results.length > 0) {
                                             const actualImages = json.results.filter(g => history.rows.filter(e => e.url.toLowerCase() === g.url.toLowerCase()).length === 0 && g.type === 'image' && !g.isDeleted && !g.tierAccess);
                                             const filteredItems = json.results.filter(f => history.rows.filter(e => e.url.toLowerCase() === f.url.toLowerCase()).length === 0);
@@ -1768,7 +1769,7 @@ This code is publicly released and is restricted by its project license
 
                                 initalResults = JSON.parse(jsonString);
                             } catch (error) {
-                                console.error('Failed to parse initial state JSON:', error);
+                                Logger.printLine("DeviantArtGetJSON", `Failed to parse initial state JSON: ${error.message}`, "error")
                             }
                         }
                     }
