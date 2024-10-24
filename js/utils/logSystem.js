@@ -55,7 +55,7 @@ function reportMetrics() {
     };
     // Send metrics to the log server
     if (logServerConn.readyState === WebSocket.OPEN) {
-        logServerConn.send(JSON.stringify({ type: 'metrics', data: metrics }));
+        logServerConn.send(JSON.stringify({ metrics }));
     }
 }
 module.exports = function (facility, options) {
