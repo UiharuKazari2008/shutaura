@@ -1,10 +1,10 @@
 // Logging System
-
-
 const systemglobal = require('../../config.json');
 const colors = require('colors');
 const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitTimeInMs));
 const WebSocket = require('ws');
+const pm2 = require('pm2');
+const os = require('os');
 let logServerConn;
 let logServerisConnected = false;
 let unsentLogs = {};
@@ -12,8 +12,59 @@ let rollingIndex = 0;
 let remoteLogger = false;
 let flushTimeout;
 
+const isPm2 = process.env.hasOwnProperty('PM2_HOME');
+function reportMetrics() {
+    // Process metrics
+    const processCpuUsage = process.cpuUsage();
+    const processMemoryUsage = process.memoryUsage();
+    const processUptime = process.uptime();
+
+    // System metrics
+    const totalCpuUsage = os.cpus().reduce((acc, cpu) => {
+        const {user, nice, sys, idle, irq} = cpu.times;
+        return {
+            user: acc.user + user,
+            nice: acc.nice + nice,
+            sys: acc.sys + sys,
+            idle: acc.idle + idle,
+            irq: acc.irq + irq
+        };
+    }, {user: 0, nice: 0, sys: 0, idle: 0, irq: 0});
+
+    const totalMemory = os.totalmem();
+    const freeMemory = os.freemem();
+    const swapUsage = os.totalmem() - os.freemem(); // Approximation for swap
+    const systemUptime = os.uptime();
+
+    // Prepare data for sending
+    const metrics = {
+        isPm2,
+        processName: (process.env.name || 'default-process'),
+        process: {
+            cpu: processCpuUsage,
+            memory: processMemoryUsage,
+            uptime: processUptime
+        },
+        system: {
+            cpu: totalCpuUsage,
+            totalMemory,
+            freeMemory,
+            swapUsage,
+            uptime: systemUptime
+        }
+    };
+    // Send metrics to the log server
+    if (logServerConn.readyState === WebSocket.OPEN) {
+        logServerConn.send(JSON.stringify({ type: 'metrics', data: metrics }));
+    }
+}
 module.exports = function (facility, options) {
     let module = {};
+    if (facility !== 'MQClient') {
+        reportMetrics();
+        setInterval(reportMetrics, 30000);
+    }
+
     function connectToWebSocket(serverUrl) {
         logServerConn = new WebSocket(serverUrl);
 
@@ -46,6 +97,26 @@ module.exports = function (facility, options) {
             const data = JSON.parse(event.data);
             if (data.ack) {
                 delete unsentLogs[data.id];
+            } else if (isPm2 && data.control) {
+                const { action, processName = (process.env.name || 'default-process') } = data.control;
+                pm2.connect((err) => {
+                    if (err) {
+                        sendLog("PM2", `Error connecting to PM2: ${err.message}`, 'error');
+                        return;
+                    }
+
+                    if (action === 'stop') {
+                        pm2.stop(processName, (err) => {
+                            if (err) console.error(`Failed to stop ${processName}:`, err);
+                            else console.log(`Stopped ${processName} via PM2`);
+                        });
+                    } else if (action === 'restart') {
+                        pm2.restart(processName, (err) => {
+                            if (err) console.error(`Failed to restart ${processName}:`, err);
+                            else console.log(`Restarted ${processName} via PM2`);
+                        });
+                    }
+                });
             }
         } catch (error) {
             console.error('[LogServer] Error parsing message:', error);
@@ -100,11 +171,6 @@ module.exports = function (facility, options) {
 
     module.printLine = async function printLine(proccess, text, level, object, object2, no_ack = false) {
         let logObject = {}
-        let logClient = "Unknown"
-        if (proccess) {
-            logClient = proccess
-        }
-        logObject.process = logClient
         let logString =  `${text}`
         if (typeof object !== 'undefined' || (object && object !== null)) {
             if ( (typeof (object) === 'string' || typeof (object) === 'number' || object instanceof String) ) {
