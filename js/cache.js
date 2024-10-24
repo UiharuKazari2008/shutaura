@@ -1566,12 +1566,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (total > 0) {
                             Logger.printLine("Metadata", `Completed Download #${runCount} with ${total} files`, "info");
                         } else {
-                            Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "info");
+                            Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "debug");
                         }
                         completed();
                     })
                 } else {
-                    Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "info");
+                    Logger.printLine("Metadata", `Nothing to Download #${runCount}`, "debug");
                     completed();
                 }
             })
@@ -1761,12 +1761,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         if (total > 0) {
                             Logger.printLine("Cache", `Completed Download #${runCount} with ${total} files`, "info");
                         } else {
-                            Logger.printLine("Cache", `Nothing to Download #${runCount}`, "info");
+                            Logger.printLine("Cache", `Nothing to Download #${runCount}`, "debug");
                         }
                         completed();
                     })
                 } else {
-                    Logger.printLine("Cache", `Nothing to Download #${runCount}`, "info");
+                    Logger.printLine("Cache", `Nothing to Download #${runCount}`, "debug");
                     completed();
                 }
             });
@@ -1807,11 +1807,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (total > 0) {
                     Logger.printLine("Download", `Completed Download #${runCount} with ${total} files`, "info");
                 } else {
-                    Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                    Logger.printLine("Download", `Nothing to Download #${runCount}`, "debug");
                 }
                 completed();
             } else {
-                Logger.printLine("Download", `Nothing to Download #${runCount}`, "info");
+                Logger.printLine("Download", `Nothing to Download #${runCount}`, "debug");
                 completed();
             }
         });
@@ -1856,11 +1856,11 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (total > 0) {
                     Logger.printLine("Migrate", `Completed Migration #${runCount} with ${total} files`, "info");
                 } else {
-                    Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "info");
+                    Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "debug");
                 }
                 completed();
             } else {
-                Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "info");
+                Logger.printLine("Migrate", `Nothing to migrate #${runCount}`, "debug");
                 completed();
             }
         });
@@ -1974,7 +1974,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         Logger.printLine("Clean", `Cleanup Complete, Deleted [${eids.join(', ')}]`, "info");
                     }
                 } else {
-                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "info");
+                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "debug");
                 }
             })
         }
@@ -2056,7 +2056,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         start();
                     }
                 } else {
-                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "info");
+                    Logger.printLine("Clean", `Cleanup Complete, Nothing to do`, "debug");
                     pause = false;
                     start();
                 }
