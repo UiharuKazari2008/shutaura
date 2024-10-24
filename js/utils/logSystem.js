@@ -5,6 +5,7 @@ const sleep = (waitTimeInMs) => new Promise(resolve => setTimeout(resolve, waitT
 const WebSocket = require('ws');
 const pm2 = require('pm2');
 const os = require('os');
+const pidusage = require('pidusage');
 let logServerConn;
 let logServerisConnected = false;
 let unsentLogs = {};
@@ -13,49 +14,73 @@ let remoteLogger = false;
 let flushTimeout;
 
 const isPm2 = process.env.hasOwnProperty('PM2_HOME');
-function reportMetrics() {
-    // Process metrics
-    const processCpuUsage = process.cpuUsage();
-    const processMemoryUsage = process.memoryUsage();
-    const processUptime = process.uptime();
+// Function to convert bytes to MB
+function bytesToMB(bytes) {
+    return (bytes / (1024 * 1024)).toFixed(2); // Convert to MB and round to 2 decimals
+}
 
-    // System metrics
-    const totalCpuUsage = os.cpus().reduce((acc, cpu) => {
-        const {user, nice, sys, idle, irq} = cpu.times;
-        return {
-            user: acc.user + user,
-            nice: acc.nice + nice,
-            sys: acc.sys + sys,
-            idle: acc.idle + idle,
-            irq: acc.irq + irq
+// Function to calculate percentage
+function calculatePercentage(used, total) {
+    return ((used / total) * 100).toFixed(2); // Round to 2 decimals
+}
+
+// Function to report process and system metrics using pidusage
+async function reportMetrics() {
+    try {
+        // Get process metrics
+        const stats = await pidusage(process.pid);
+        const processCpuPercent = stats.cpu.toFixed(2);
+        const processMemoryMB = bytesToMB(stats.memory);
+        const processUptime = process.uptime().toFixed(2);
+
+        // System memory and swap
+        const totalMemory = os.totalmem();
+        const freeMemory = os.freemem();
+        const usedMemory = totalMemory - freeMemory;
+        const totalMemoryMB = bytesToMB(totalMemory);
+        const freeMemoryMB = bytesToMB(freeMemory);
+        const usedMemoryMB = bytesToMB(usedMemory);
+        const memoryUsagePercent = calculatePercentage(usedMemory, totalMemory);
+
+        const totalSwap = totalMemory; // Simulated swap space; replace with actual value if available
+        const freeSwap = freeMemory; // Simulated swap free; replace with actual value if available
+        const usedSwap = totalSwap - freeSwap;
+        const totalSwapMB = bytesToMB(totalSwap);
+        const freeSwapMB = bytesToMB(freeSwap);
+        const usedSwapMB = bytesToMB(usedSwap);
+        const swapUsagePercent = calculatePercentage(usedSwap, totalSwap);
+
+        const systemUptime = os.uptime().toFixed(2);
+
+        // Prepare data for sending
+        const metrics = {
+            process: {
+                cpuPercent: `${processCpuPercent} %`,
+                memoryUsedMB: `${processMemoryMB} MB`,
+                uptime: `${processUptime} sec`
+            },
+            system: {
+                memory: {
+                    totalMB: `${totalMemoryMB} MB`,
+                    usedMB: `${usedMemoryMB} MB`,
+                    freeMB: `${freeMemoryMB} MB`,
+                    usagePercent: `${memoryUsagePercent} %`
+                },
+                swap: {
+                    totalMB: `${totalSwapMB} MB`,
+                    usedMB: `${usedSwapMB} MB`,
+                    freeMB: `${freeSwapMB} MB`,
+                    usagePercent: `${swapUsagePercent} %`
+                },
+                uptime: `${(systemUptime / 3600).toFixed(2)} hours`
+            }
         };
-    }, {user: 0, nice: 0, sys: 0, idle: 0, irq: 0});
-
-    const totalMemory = os.totalmem();
-    const freeMemory = os.freemem();
-    const swapUsage = os.totalmem() - os.freemem(); // Approximation for swap
-    const systemUptime = os.uptime();
-
-    // Prepare data for sending
-    const metrics = {
-        isPm2,
-        processName: (process.env.name || 'default-process'),
-        process: {
-            cpu: processCpuUsage,
-            memory: processMemoryUsage,
-            uptime: processUptime
-        },
-        system: {
-            cpu: totalCpuUsage,
-            totalMemory,
-            freeMemory,
-            swapUsage,
-            uptime: systemUptime
+        // Send metrics to the log server
+        if (logServerConn && logServerConn.readyState === WebSocket.OPEN) {
+            logServerConn.send(JSON.stringify({ metrics }));
         }
-    };
-    // Send metrics to the log server
-    if (logServerConn && logServerConn.readyState === WebSocket.OPEN) {
-        logServerConn.send(JSON.stringify({ metrics }));
+    } catch (err) {
+        console.error('Error reporting metrics:', err);
     }
 }
 module.exports = function (facility, options) {
@@ -69,10 +94,6 @@ module.exports = function (facility, options) {
             logServerisConnected = true;
             clearTimeout(flushTimeout);
             flushTimeout = setTimeout(flushUnsentLogs, 5000);
-            if (facility !== 'MQClient') {
-                reportMetrics();
-                setInterval(reportMetrics, 30000);
-            }
         };
         logServerConn.onmessage = (event) => { handleIncomingMessage(event); };
         logServerConn.onclose = () => {
@@ -167,6 +188,10 @@ module.exports = function (facility, options) {
         // Increment rolling index and reset if it exceeds 9999
         rollingIndex = (rollingIndex + 1) % 10000;
         return `${Date.now()}-${rollingIndex}`;
+    }
+    if (facility !== 'MQClient') {
+        reportMetrics();
+        setInterval(reportMetrics, 30000);
     }
 
     module.printLine = async function printLine(proccess, text, level, object, object2, no_ack = false) {

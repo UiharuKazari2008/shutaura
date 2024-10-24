@@ -53,6 +53,7 @@
     "node-cron": "^3.0.0",
     "node-persist": "^3.1.0",
     "path": "*",
+    "pidusage": "^3.0.2",
     "pixiv-api-client": "*",
     "pm2": "^5.1.2",
     "podcast-feed-parser": "^1.0.2",
