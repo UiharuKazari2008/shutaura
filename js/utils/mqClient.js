@@ -185,7 +185,7 @@ module.exports = function (facility, sgoveride) {
                 sendto = staticChID.AlrmCrit
                 loglevel = 'critical'
                 message = "⛔ " + message
-            } else if (channel === "message" || channel === "notify") {
+            } else if (channel === "message" || channel === "notify" || channel === "notice") {
                 sendto = staticChID.AlrmNotif
                 loglevel = 'notice'
             } else {

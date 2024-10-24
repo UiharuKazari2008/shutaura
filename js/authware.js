@@ -246,7 +246,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "warn");
                 enableListening = false;
             } else {
-                Logger.printLine("ClusterIO", "System active master", "info");
+                Logger.printLine("ClusterIO", "System active master", "alert");
                 enableListening = true;
             }
             setInterval(() => {
@@ -269,7 +269,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     enableListening = false;
                                 }
                             } else if (!enableListening) {
-                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                Logger.printLine("ClusterIO", "System is now active master", "alert");
                                 enableListening = true;
                             }
                         }
@@ -458,7 +458,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (guild.toString() === 'main') {
             if (channel === "system") {
                 sendto = staticChID.homeGuild.System
-            } else if (channel === "info") {
+            } else if (channel === "info" || channel === "alert" || channel === "notice") {
                 sendto = staticChID.homeGuild.AlrmInfo
             } else if (channel === "warn") {
                 sendto = staticChID.homeGuild.AlrmWarn
@@ -484,7 +484,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else {
                     if (channel === "system") {
                         sendto = serverdata[0].chid_system
-                    } else if (channel === "info") {
+                    } else if (channel === "info" || channel === "alert" || channel === "notice") {
                         sendto = serverdata[0].chid_msg_info
                     } else if (channel === "warn") {
                         sendto = serverdata[0].chid_msg_warn
@@ -702,7 +702,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 let _roles = member.roles.slice();
                                 _roles.push(data.role);
                                 discordClient.editGuildMember(member.guild.id, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
-                                    .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr") })
+                                    .then(() => { SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "alert", 'main', "UserRightsMgr") })
                                     .catch((er) => { Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er) })
                             }
                         }
@@ -720,7 +720,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         _roles.push(data.role);
                         discordClient.editGuildMember(req.server, member.id, { roles: _roles, }, "User Granted Permission (Open Access)")
                             .then(async () => {
-                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "info", 'main', "UserRightsMgr");
+                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} was granted ${(data.name) ? data.name : data.role} permission`, "alert", 'main', "UserRightsMgr");
                                 await discordClient.deleteMessage(msg.channel.id, msg.id, "Approved Request")
                                 const userDirect = await discordClient.getRESTUser(member.id)
                                 if (userDirect) {
@@ -753,7 +753,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let _roles = removeItemAll(member.roles, [data.role]);
                         discordClient.editGuildMember(member.guild.id, member.id, {roles: _roles,}, "User Removed Permission (Open Access)")
                             .then(() => {
-                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} revoked ${(data.text) ? data.text : data.role} permission`, "info", 'main', "UserRightsMgr")
+                                SendMessage(`🔓 User ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name} revoked ${(data.text) ? data.text : data.role} permission`, "alert", 'main', "UserRightsMgr")
                             })
                             .catch((er) => {
                                 Logger.printLine("UserRightsMgr", `Error when trying to grant user rights to ${(member.nick) ? member.nick : member.user.username} from ${member.guild.name}`, "error", er)
@@ -815,7 +815,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             if (userExits && userExits.rows.length > 0) {
                 const deletedUsers = await db.query(`DELETE FROM discord_users WHERE serveruserid = ?`, [member.id + guild.id])
                 if (deletedUsers && deletedUsers.rows.length > 0){
-                    SendMessage(`User "${member.user.username}" rights have been revoked from the server`, "info", 'main', "Discord")
+                    SendMessage(`User "${member.user.username}" rights have been revoked from the server`, "alert", 'main', "Discord")
                 }
             }
         } else {
@@ -1450,7 +1450,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
 
         if (!thisUser) {
-            Logger.printLine("SequenziaCache", `Successfully updated user caches`, "info")
+            Logger.printLine("SequenziaCache", `Successfully updated user caches`, "debug")
             sequenziaAccountUpdateTimer = setTimeout(sequenziaUserCacheGenerator, 1800000);
             if (systemglobal.sequenzia_server_list) {
                 systemglobal.sequenzia_server_list.forEach(s => {
@@ -1555,7 +1555,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 }))
             }, Promise.resolve());
             requests.then(() => {
-                Logger.printLine("Exchange", `Successfully updated remote exchanges`, "info")
+                Logger.printLine("Exchange", `Successfully updated remote exchanges`, "debug")
             })
         }
     }

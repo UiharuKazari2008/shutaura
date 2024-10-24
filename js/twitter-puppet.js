@@ -53,7 +53,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		}
 	})
 	app.listen(7346, (err) => {
-		Logger.printLine("API", `Logging API listening on port: 7346`, 'info')
+		Logger.printLine("API", `Logging API listening on port: 7346`, 'debug')
 	});
 
 	let amqpConn = null;
@@ -184,12 +184,12 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			}
 		}
 
-		Logger.printLine("SQL", "Getting Discord Accounts (Selective Fields)", "debug")
+		//Logger.printLine("SQL", "Getting Discord Accounts (Selective Fields)", "debug")
 		const _discordservers = await db.query(`SELECT chid_system, chid_download FROM discord_servers WHERE serverid = ?`, [systemglobal.DiscordHomeGuild])
 		if (_discordservers.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _discordservers.error); return false }
 		discordaccount = _discordservers.rows;
 
-		Logger.printLine("SQL", "Getting Twitter Notifications", "debug")
+		//Logger.printLine("SQL", "Getting Twitter Notifications", "debug")
 		const _twitternotify = await db.query(`SELECT * FROM twitter_notify`);
 		if (_twitternotify.error) { Logger.printLine("SQL", "Error getting discord servers records!", "emergency", _twitternotify.error); return false }
 		const _tni = _twitternotify.rows.map(e => e.username.toLowerCase());
@@ -254,7 +254,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		if (!account.allow_idle)
 			browser.on('close', () => createBrowser(account))
 		twitterBrowsers.set(parseInt(account.id.toString()), browser);
-		Logger.printLine("BrowserManager", `Created new browser for account #${account.id}`, "info")
+		Logger.printLine("BrowserManager", `Created new browser for account #${account.id}`, "debug")
 	}
 	await Promise.all(systemglobal.Twitter_Accounts.map(async account => {
 		if (account.id && account.cookies && account.screenName) {
@@ -310,7 +310,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("ClusterIO", "System is not active master, will not pull any data", "warn");
 				enablePullData = false;
 			} else {
-				Logger.printLine("ClusterIO", "System active master", "info");
+				Logger.printLine("ClusterIO", "System active master", "alert");
 				enablePullData = true;
 			}
 			setInterval(() => {
@@ -333,7 +333,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									enablePullData = false;
 								}
 							} else if (!enablePullData) {
-								Logger.printLine("ClusterIO", "System is now active master", "warn");
+								Logger.printLine("ClusterIO", "System is now active master", "alert");
 								enablePullData = true;
 							}
 						}
@@ -528,7 +528,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
 				return setTimeout(start, 1000);
 			});
-			Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+			Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
 			amqpConn = conn;
 			whenConnected();
 		});
@@ -638,7 +638,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						const sendCollection = tweetQueue.filter(e => { return e.action === 4 }).length;
 						const stats = rtCollection + ((sendCollection > likeRtCollection) ? sendCollection : likeRtCollection)
 
-						Logger.printLine(`Collector`, `Account ${twitterUser}: Current Collector Stacks - Like: ${likeCollection} Retweet: ${rtCollection} LikeRT: ${likeRtCollection} Send: ${sendCollection}`, `info`);
+						Logger.printLine(`Collector`, `Account ${twitterUser}: Current Collector Stacks - Like: ${likeCollection} Retweet: ${rtCollection} LikeRT: ${likeRtCollection} Send: ${sendCollection}`, `debug`);
 
 						if (stats < ((twit.flowcontrol.volume.min) ? twit.flowcontrol.volume.min : 64) && twitterFlowTimers.has(`flow_low_${twitterUser}`)) {
 							if (twitterFlowState.get(twitterUser) !== 0) {
@@ -748,7 +748,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					await Promise.all(tweetQueue.filter(e => e.action === 4).map(async (tweet) => {
 						if (tweet.action === 4) {
 							if ((fs.existsSync(path.join(process.cwd(),`/data/flow_storage_${twitterUser}`, '/' + tweet.id))) === false) {
-								Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+								Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `warn`);
 								await db.query(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id, tweet.action ])
 							}
 						} else {
@@ -759,7 +759,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										return !(document.querySelector('div[data-testid="cellInnerDiv"] article[data-testid="tweet"][tabindex="-1"]'));
 									})
 									if (dead) {
-										Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+										Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `warn`);
 										await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id.toString(), tweet.action ], (err, results) => {
 											if (err) {
 												Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
@@ -768,7 +768,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 									}
 									closeTab(account, `get`);
 								} else {
-									Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `info`);
+									Logger.printLine(`Collector`, `Account ${twitterUser}: Removed dead tweet ${tweet.id} from the collector!`, `warn`);
 									await db.safe(`DELETE FROM twitter_tweet_queue WHERE taccount = ? AND id = ? AND action = ?`, [ twitterUser, tweet.id.toString(), tweet.action ], (err, results) => {
 										if (err) {
 											Logger.printLine(`Collector`, `Failed to delete tweet from collector due to an SQL error`, `error`, err);
@@ -821,7 +821,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							Logger.printLine(`Collector`, `Failed to save send tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
 							cb(true);
 						} else if (savedResult && savedResult.affectedRows > 0) {
-							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Send Tweet to collector as "${message.messageText}"`, `info`);
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Send Tweet to collector as "${message.messageText}"`, `debug`);
 							cb(true);
 						} else {
 							Logger.printLine(`Collector`, `Account ${twitterUser}: Unable to save send Tweet to collector as "${tweetID}"`, `warning`);
@@ -834,7 +834,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							Logger.printLine(`Collector`, `Failed to save tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
 							cb(true);
 						} else if (savedResult && savedResult.affectedRows > 0) {
-							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Tweet to collector as "${tweetID}"`, `info`);
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Saved Tweet to collector as "${tweetID}"`, `debug`);
 							cb(true);
 						} else {
 							Logger.printLine(`Collector`, `Account ${twitterUser}: Unable to save Tweet to collector as "${tweetID}"`, `warning`);
@@ -877,7 +877,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							Logger.printLine(`Collector`, `Failed to save tweet into collector due to an SQL error : ${err.sqlMessage}`, `error`, err);
 							cb(true);
 						} else {
-							Logger.printLine(`Collector`, `Account ${twitterUser}: Removed Tweet from collector as "${tweetID}"`, `info`);
+							Logger.printLine(`Collector`, `Account ${twitterUser}: Removed Tweet from collector as "${tweetID}"`, `debug`);
 							cb(true);
 						}
 					})
@@ -899,7 +899,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 	}
 	async function releaseTweet(twitterUser, action) {
 		const overFlowValuse = (overflowControl.has((twitterUser) ? parseInt(twitterUser.toString()) : 1)) ? overflowControl.get((twitterUser) ? parseInt(twitterUser.toString()) : 1) : 0
-		Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Requested to release Tweet!`, "debug");
+		Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Requested to release Tweet!`, "info");
 		if (overFlowValuse > 1) {
 			Logger.printLine("TwitterFlowControl", `Account ${twitterUser}: Overflow Condition, Releasing ${overFlowValuse} Tweets!`, "warn");
 		}
@@ -1981,7 +1981,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						}));
 					}, Promise.resolve());
 					tweetRequests.then((ok) => {
-						Logger.printLine("TwitterIngest", `Account ${id}: List Complete - ${list.listid}`, "info")
+						Logger.printLine("TwitterIngest", `Account ${id}: List Complete - ${list.name} (${list.listid})`, "info")
 						listResolve(true);
 					});
 					});
@@ -2087,7 +2087,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (!twitterBrowsers.has(account.id))
 					await createBrowser(account)
 				const browser = twitterBrowsers.get(account.id);
-				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "info")
+				Logger.printLine("TabManager", `Created Tab for account #${account.id} task "${task}"`, "debug")
 				const page = await browser.newPage();
 				const client = await page.target().createCDPSession();
 				await client.send('ServiceWorker.disable');
@@ -2124,7 +2124,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				} else {
 					await page.goto(url, {waitUntil: 'networkidle2'});
 				}
-				Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "info")
+				Logger.printLine("TabManager", `Tab for account #${account.id} task "${task}" is ready`, "debug")
 				twitterTabs.set(`${task}-${account.id}`, page);
 				return page;
 			}
@@ -2174,7 +2174,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = systemglobal.Twitter_Max_Scroll_Wait || 2500;
 		const MAX_TWEET_COUNT = systemglobal.Twitter_Max_Tweet_Count || 500;
 
-		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
+		Logger.printLine("HTDSv1", `Starting search query for ${list.name} = ${search}...`, "info");
 		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL, true)
 
 		if (page) {
@@ -2186,7 +2186,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 			let latesttweets = (await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ?  AND timestamp >= now() - INTERVAL 1 DAY ORDER BY timestamp DESC`, [list.listid])).rows.map(e => e.tweetid);
 			latesttweets.push(...(await db.query(`SELECT tweetid FROM twitter_history_inbound WHERE listid = ? ORDER BY timestamp DESC LIMIT 100`, [list.listid])).rows.map(e => e.tweetid));
 
-			Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "info");
+			Logger.printLine("HTDSv1", `${latesttweets.length} breakpoints are set and ready!`, "debug");
 
 			function checkHistory() {
 				return latesttweets.filter(e => parsedIDs.indexOf(e.toString()) !== -1).length === 0
@@ -2220,7 +2220,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				previousHeight = currentHeight;
 				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
-				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+				returnedTweets.push(...(await page.evaluate(async (gql, auth, listName) => {
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
@@ -2352,7 +2352,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
+					log("DoomScroll", `${listName} List: Normal [${nom_tweets.length}] RT [${rt_tweets.length}] Media [${img_tweets.length}] Total = ${twt.length}`, "debug");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {
@@ -2390,9 +2390,10 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})))
 					]
 					// Add RT support here
-				}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
+				}, tGraphQL, tAuthorization, list.name)).filter(e => parsedIDs.indexOf(e.id) === -1));
 				parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
 
+				// UPDATE ME
 				await page.screenshot({
 					path: path.join(systemglobal.TempFolder, `screenshots/${list.listid}/${(new Date()).valueOf()}.jpg`),
 					type: 'jpeg',
@@ -2448,7 +2449,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				previousHeight = currentHeight;
 				currentHeight = await page.evaluate(() => document.documentElement.scrollHeight);
 
-				returnedTweets.push(...(await page.evaluate(async (gql, auth) => {
+				returnedTweets.push(...(await page.evaluate(async (gql, auth, username) => {
 					async function getMediaURL(status_id, images, has_video) {
 						if (has_video) {
 							let _json = await fetchJson(status_id);
@@ -2580,7 +2581,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
+					log("DoomScroll", `Get ${username}: Normal [${nom_tweets.length}] RT [${rt_tweets.length}] Media [${img_tweets.length}] Total = ${twt.length}`, "debug");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {
@@ -2618,7 +2619,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						})))
 					]
 					// Add RT support here
-				}, tGraphQL, tAuthorization)).filter(e => parsedIDs.indexOf(e.id) === -1));
+				}, tGraphQL, tAuthorization, user)).filter(e => parsedIDs.indexOf(e.id) === -1));
 				parsedIDs = [...new Set([...parsedIDs, ...returnedTweets.map(e => e.id)])];
 				await page.screenshot({
 					path: path.join(systemglobal.TempFolder, `screenshots/dl-${user}/${(new Date()).valueOf()}.jpg`),
@@ -2804,7 +2805,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					const nom_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length === 0)
 					const rt_tweets = img_tweets.filter(e => Array.from(e.querySelectorAll(`span`)).filter(f => f.innerText.includes(' Retweet')).length !== 0)
 
-					log("DoomScroll", `Normal - ${nom_tweets.length} RT - ${rt_tweets.length} Media - ${img_tweets.length} Total - ${twt.length}`, "info");
+					log("DoomScroll", `Likes: Normal [${nom_tweets.length}] RT [${rt_tweets.length}] Media [${img_tweets.length}] Total = ${twt.length}`, "debug");
 
 					return [
 						...(await Promise.all(nom_tweets.map(async a => {

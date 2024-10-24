@@ -177,7 +177,7 @@ This code is publicly released and is restricted by its project license
         }
     });
 
-    Logger.printLine("Init", "Discord I/O", "info");
+    Logger.printLine("Init", "Discord I/O", "debug");
 
 
 
@@ -653,7 +653,7 @@ This code is publicly released and is restricted by its project license
                     _curAlm.mention !== alm.mention ||
                     _curAlm.snooze !== alm.snooze ||
                     _curAlm.expires !== alm.expires))) {
-                    Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'info');
+                    Logger.printLine("AlarmClock", `${(_curAlm) ? 'Updated' : 'Created'} Alarm Clock #${alm.id} for "${alm.schedule}"`, 'debug');
                     if (_curAlm) {
                         _curAlm.cronjob.stop();
                         Timers.delete(`alarmClock-${alm.id}`);
@@ -676,7 +676,7 @@ This code is publicly released and is restricted by its project license
             if (_curAlm) {
                 _curAlm.cronjob.stop();
                 Timers.delete(`alarmClock-${alm}`);
-                Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'info');
+                Logger.printLine("AlarmClock", `Removed Alarm Clock #${_curAlm.id} for "${_curAlm.schedule}"`, 'debug');
             }
         }))
 
@@ -1063,7 +1063,7 @@ This code is publicly released and is restricted by its project license
                     conn.reconnect();
                 }, 1000);
             });
-            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
             amqpConn = conn;
             whenConnected();
             discordClient.editStatus( "online", {
@@ -1107,7 +1107,7 @@ This code is publicly released and is restricted by its project license
             const activeJobs = Object.entries(discordClient.requestHandler.ratelimits).filter(e => e[1].remaining === 0 && e[1].processing !== false && e[0] !== '/users/@me/guilds').length
             const activeSysJobs = activeTasks.size
             if (forceShutdown) {
-                Logger.printLine("SafeShutdown", `Shutdown Clearance Overridden`, 'info')
+                Logger.printLine("SafeShutdown", `Shutdown Clearance Overridden`, 'warn')
                 cb(true)
             } else if (activeSysJobs > 0 || activeJobs > 0) {
                 Logger.printLine("SafeShutdown", `Waiting for shutdown clearance... (Requests: ${activeJobs} & Jobs: ${activeSysJobs})`, 'warn')
@@ -1175,7 +1175,7 @@ This code is publicly released and is restricted by its project license
                     const _ch = discordClient.getChannel(_id);
                     if (_ch && _ch.id) {
                         tempChannelCaches.set(_id, _ch);
-                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
+                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'debug')
                         setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                     }
                     return _ch
@@ -1531,11 +1531,11 @@ This code is publicly released and is restricted by its project license
                                                                                 })
                                                                                 fulfill(output);
                                                                             } catch (err) {
-                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                                mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "error")
                                                                                 fulfill(null);
                                                                             }
                                                                         } else {
-                                                                            mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+                                                                            mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "error")
                                                                             deleteFile(outputfile, function (ready) {
                                                                                 // Do Nothing
                                                                             })
@@ -2235,7 +2235,7 @@ This code is publicly released and is restricted by its project license
                         const _ch = discordClient.getChannel(_id);
                         if (_ch && _ch.id) {
                             tempChannelCaches.set(_id, _ch);
-                            Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
+                            Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'debug')
                             setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                         }
                         return _ch
@@ -2273,7 +2273,7 @@ This code is publicly released and is restricted by its project license
                 } else {
                     const _ch = discordClient.getChannel(_id);
                     if (_ch && _ch.id) {
-                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'info')
+                        Logger.printLine("LocalCache", "Channel Data Cached for " + _ch.id, 'debug')
                         tempChannelCaches.set(_id, _ch);
                         setTimeout(() => { tempChannelCaches.delete(_id) }, 3600000);
                     }
@@ -4726,7 +4726,7 @@ This code is publicly released and is restricted by its project license
         if (guild.toString() === 'main') {
             if (channel === "system") {
                 sendto = staticChID['homeGuild'].System
-            } else if (channel === "info") {
+            } else if (channel === "info" || channel === "alert" || channel === "notice") {
                 sendto = staticChID['homeGuild'].AlrmInfo
             } else if (channel === "warn") {
                 sendto = staticChID['homeGuild'].AlrmWarn
@@ -4748,7 +4748,7 @@ This code is publicly released and is restricted by its project license
         } else {
             if (channel === "system") {
                 sendto = discordServers.get(guild).chid_system
-            } else if (channel === "info") {
+            } else if (channel === "info" || channel === "alert" || channel === "notice") {
                 sendto = discordServers.get(guild).chid_msg_info
             } else if (channel === "warn") {
                 sendto = discordServers.get(guild).chid_msg_warn
@@ -4811,7 +4811,7 @@ This code is publicly released and is restricted by its project license
                                         });
                                     }))
                                 }
-                                Logger.printLine("AutoClean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
+                                Logger.printLine("AutoClean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'warn')
                             } catch (err) {
                                 Logger.printLine("AutoClean", `Error Deleting old messages`, 'error', err)
 
@@ -4897,7 +4897,7 @@ This code is publicly released and is restricted by its project license
                                 });
                             }))
                         }
-                        Logger.printLine("Clean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'info')
+                        Logger.printLine("Clean", `Deleted ${count} messages, ${oboMessages.length} must be deleted individually`, 'warn')
                     } catch (err) {
                         Logger.printLine("Clean", `Failed to delete ${count} messages`, 'error', err)
                     }
@@ -5150,7 +5150,7 @@ This code is publicly released and is restricted by its project license
                 .then(function (guilds) {
                     guilds.forEach(function (guild) {
                         if (localKeys.indexOf("statusgen-" + guild.id) !== -1 ) {
-                            Logger.printLine(`StatusGenerator`, `Initialized Timer for status update for "${guild.name}"`, `info`)
+                            Logger.printLine(`StatusGenerator`, `Initialized Timer for status update for "${guild.name}"`, `debug`)
                             Timers.set(`StatusReport${guild.id}`, setInterval(() => {
                                 generateStatus(true, guild.id)
                             }, 300000))
@@ -5160,7 +5160,7 @@ This code is publicly released and is restricted by its project license
                             generateStatus(false, guild.id)
                         }
                         if (localKeys.indexOf("statusseqgen-" + guild.id) !== -1 ) {
-                            Logger.printLine(`StatusGenerator`, `Initialized Timer for seq status update for "${guild.name}"`, `info`)
+                            Logger.printLine(`StatusGenerator`, `Initialized Timer for seq status update for "${guild.name}"`, `debug`)
                             Timers.set(`StatusReportSeq${guild.id}`, setInterval(() => {
                                 generateSeqStatus(true, guild.id)
                             }, 300000))
@@ -5178,7 +5178,7 @@ This code is publicly released and is restricted by its project license
     async function generateStatus(forceUpdate, guildID, channelID) {
         if (!activeRefresh) {
             activeRefresh = true
-            Logger.printLine("StatusEmbed", `Generating status for "${guildID}"...`, 'info')
+            Logger.printLine("StatusEmbed", `Generating status for "${guildID}"...`, 'debug')
             let data
             try {
                 data = await localParameters.getItem('statusgen-' + guildID)
@@ -6441,7 +6441,7 @@ This code is publicly released and is restricted by its project license
                         messageEmbeds: originalembeds,
                         accountID: 1
                     }, function (ok) {
-                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
+                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "debug")
                     })
                 } else {
                     if (TwitterLikeList.has(chid)) {
@@ -6480,7 +6480,7 @@ This code is publicly released and is restricted by its project license
                         messageEmbeds: originalembeds,
                         accountID: parseInt(_destination.toString())
                     }, function (ok) {
-                        Logger.printLine("Twitter", `Message (${type}/${action}) forwarded to Twitter / ${_destination}`, "info", 'main')
+                        Logger.printLine("Twitter", `Message (${type}/${action}) forwarded to Twitter / ${_destination}`, "debug", 'main')
                     })
                 }
             } else if (channelNsfw === false || channelNsfw === undefined) {
@@ -6510,7 +6510,7 @@ This code is publicly released and is restricted by its project license
                         messageEmbeds: [],
                         accountID: parseInt(_destination.toString())
                     }, function (ok) {
-                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "info")
+                        Logger.printLine("Discord", `Message (${type}/${action}) forwarded to Twitter`, "debug")
                     })
                 } else {
                     SendMessage("Not a Tweeter Action", "warn", guildid, "Twitter");
@@ -7128,7 +7128,7 @@ This code is publicly released and is restricted by its project license
                         ];
                         if (obj.deg) {
                             await new Promise(async (resolve) => {
-                                Logger.printLine("MovePost+Rotate", `Rotate post ${message.id} by ${obj.deg}deg`, "info");
+                                Logger.printLine("MovePost+Rotate", `Rotate post ${message.id} by ${obj.deg}deg`, "debug");
                                 await sharp(Buffer.from(body))
                                     .rotate(parseInt(obj.deg.toString()))
                                     .toBuffer((err, buffer) => {
@@ -7639,7 +7639,7 @@ This code is publicly released and is restricted by its project license
                         });
                     }
                     if (channelnumber !== discordServers.get(guildid).chid_download) {
-                        SendMessage(`🗑 Deleted the Multi-Part File`, "info", guildid, "RMSF")
+                        SendMessage(`🗑 Deleted the Multi-Part File`, "debug", guildid, "RMSF")
                     }
                 } catch (er) {
                     SendMessage("There was a error getting the discord message for the Spanned File deletion process", "err", guildid, "RMSF", er)
@@ -7779,7 +7779,7 @@ This code is publicly released and is restricted by its project license
                                                     .catch(function (err) {
                                                         Logger.printLine("ThreadTimecode", `Failed to pin last message`, 'error', err)
                                                     })
-                                                Logger.printLine("ThreadTimecode", `Added timecode to ${sentTC.channel.id}`, 'info')
+                                                Logger.printLine("ThreadTimecode", `Added timecode to ${sentTC.channel.id}`, 'debug')
                                             })
                                             .catch(function(err) {
                                                 Logger.printLine("ThreadTimecode", `Failed to send timecode messages for thread ${newThread.id}`, "error", err)
@@ -7792,7 +7792,7 @@ This code is publicly released and is restricted by its project license
                                                     .catch(function (err) {
                                                         Logger.printLine("ThreadTimecode", `Failed to pin last message`, 'error', err)
                                                     })
-                                                Logger.printLine("ThreadTimecode", `Added timecode to ${sentTC.channel.id}`, 'info')
+                                                Logger.printLine("ThreadTimecode", `Added timecode to ${sentTC.channel.id}`, 'debug')
                                             })
                                             .catch(function(err) {
                                                 Logger.printLine("ThreadTimecode", `Failed to send timecode messages for thread ${e.channelid}`, "error", err)
@@ -7866,7 +7866,7 @@ This code is publicly released and is restricted by its project license
                                             if (err) {
                                                 Logger.printLine("ThreadManager", `Failed to update ${e.update_table}'s ${e.update_field} with new thread`, "error", err);
                                             } else {
-                                                Logger.printLine("ThreadManager", `Updated threads registration for ${e.update_table} to ${newThread.id} from ${e.lastthread}`, "info");
+                                                Logger.printLine("ThreadManager", `Updated threads registration for ${e.update_table} to ${newThread.id} from ${e.lastthread}`, "debug");
                                             }
                                         })
                                     }
@@ -7903,7 +7903,7 @@ This code is publicly released and is restricted by its project license
                                 .catch(function (err) {
                                     Logger.printLine("ThreadTimecode", `Failed to pin last message`, 'error', err)
                                 })
-                            Logger.printLine("ThreadTimecode", `Added timecode to ${e}`, 'info')
+                            Logger.printLine("ThreadTimecode", `Added timecode to ${e}`, 'debug')
                         })
                         .catch(function(err) {
                             Logger.printLine("ThreadTimecode", `Failed to send timecode messages for thread ${e}`, "error", err)
@@ -8762,7 +8762,7 @@ This code is publicly released and is restricted by its project license
                                         if (addPart.error) {
                                             SendMessage(`Failed to update part in database for ${found_message[0].fileid}`, "error", 'main', "PartsInspector", addPart.error)
                                         } else {
-                                            SendMessage(`Updated part for ${found_message[0].fileid} with ${message.id}: New URL`, "info", 'main', "PartsInspector")
+                                            SendMessage(`Updated part for ${found_message[0].fileid} with ${message.id}: New URL`, "debug", 'main', "PartsInspector")
                                         }
                                     }
                                 } else if (message.content.includes('🧩 ID: ')) {
@@ -8819,7 +8819,7 @@ This code is publicly released and is restricted by its project license
             let processed = 0
             function printProcess() {
                 if (processed < messages.length) {
-                    SendMessage(`Database update proccess  ${((processed/messages.length) * 100).toFixed(2)}% (${processed}/${messages.length})`, "info", 'main', "RepairFileSystem");
+                    SendMessage(`Database update proccess  ${((processed/messages.length) * 100).toFixed(2)}% (${processed}/${messages.length})`, "debug", 'main', "RepairFileSystem");
                     setTimeout(printProcess, 1800000);
                 }
             }
@@ -9366,7 +9366,7 @@ This code is publicly released and is restricted by its project license
                 Logger.printLine("ClusterIO", "System is not active master, but is in upload mode", "warn");
                 enableListening = false;
             } else {
-                Logger.printLine("ClusterIO", "System active master", "info");
+                Logger.printLine("ClusterIO", "System active master", "alert");
                 enableListening = true;
             }
             setInterval(() => {
@@ -9389,7 +9389,7 @@ This code is publicly released and is restricted by its project license
                                     enableListening = false;
                                 }
                             } else if (!enableListening) {
-                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                Logger.printLine("ClusterIO", "System is now active master", "alert");
                                 enableListening = true;
                             }
                         }
@@ -9719,7 +9719,7 @@ This code is publicly released and is restricted by its project license
             setInterval(reloadLocalCache, (systemglobal.Discord_Timer_Refresh) ? systemglobal.Discord_Timer_Refresh : 300000)
             setTimeout(start, 5000);
             app.listen(sbiPort, (err) => {
-                Logger.printLine("API", `API listening on port: 31000`, 'info')
+                Logger.printLine("API", `API listening on port: 31000`, 'debug')
             });
             init = 1
         }

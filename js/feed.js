@@ -363,7 +363,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 if (currentPage <= maxPages && imagesToDownload > 0 && list.backlog === 1) {
                                     setTimeout(getFlickrPage, 5000, currentPage)
                                 } else {
-                                    Logger.printLine("Flickr", `Reached the end of all pages for ${list.username}`, "info")
+                                    Logger.printLine("Flickr", `Reached the end of all pages for ${list.username}`, "debug")
                                 }
                             }
                         }))
@@ -395,7 +395,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     }
 
     sleep(2500).then(() => {
-        Logger.printLine("Init", `RSS Client is Ready!"`, "info")
+        Logger.printLine("Init", `RSS Client is Ready!"`, "debug")
         setInterval(getNewVideos, 900000);
         setInterval(getPodcasts, 3600000);
         setInterval(getFlickr, 3600000);

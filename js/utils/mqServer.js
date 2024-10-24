@@ -30,7 +30,7 @@ module.exports = function (facility, options) {
             Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
             return setTimeout(start, 1000);
         });
-        Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+        Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
         amqpConn = conn;
         startWorker();
     });

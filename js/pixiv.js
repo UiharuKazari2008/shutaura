@@ -126,7 +126,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             Logger.printLine("PostHistory", `Unable to get post history!`, 'error', _illuhistory.error)
         } else if (_illuhistory.rows.length > 0) {
             post_history = [...new Set(_illuhistory.rows.map(e => e.illu_id.toString()))];
-            Logger.printLine("PostHistory", `Loaded ${post_history.length} post history`, 'info')
+            Logger.printLine("PostHistory", `Loaded ${post_history.length} post history`, 'debug')
         }
         const _pixivnotify = await db.query(`SELECT * FROM pixiv_notify`);
         if (_pixivnotify.error) {
@@ -137,7 +137,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 pixivNotify.set(e.id.toLowerCase(), e.channel)
             });
             Array.from(pixivNotify.keys()).filter(e => _tni.indexOf(e) === -1).forEach(e => pixivNotify.delete(e));
-            Logger.printLine("PostNotify", `Notification enabled for ${pixivNotify.size} users`, 'info')
+            Logger.printLine("PostNotify", `Notification enabled for ${pixivNotify.size} users`, 'debug')
         }
         setTimeout(loadDatabaseCache, 1200000);
     }
@@ -202,7 +202,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("ClusterIO", "System is not active master, will not pull any data", "warn");
                 enablePullData = false;
             } else {
-                Logger.printLine("ClusterIO", "System active master", "info");
+                Logger.printLine("ClusterIO", "System active master", "alert");
             }
             setInterval(() => {
                 if (((new Date().getTime() - lastClusterCheckin) / 60000).toFixed(2) >= 4.5) {
@@ -224,7 +224,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     enablePullData = false;
                                 }
                             } else if (!enablePullData) {
-                                Logger.printLine("ClusterIO", "System is now active master", "warn");
+                                Logger.printLine("ClusterIO", "System is now active master", "alert");
                                 enablePullData = true;
                             }
                         }
@@ -252,7 +252,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker1, processMsg, { noAck: false });
-                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "info")
+                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "debug")
             });
             ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
                 if (closeOnErr(err)) return;
@@ -294,7 +294,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
                 return setTimeout(start, 1000);
             });
-            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
             amqpConn = conn;
             whenConnected();
         });
@@ -322,7 +322,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (process.send && typeof process.send === 'function') {
                         process.send('ready');
                     }
-                    Logger.printLine("Init", "Pixiv Client is ready!", "info")
+                    Logger.printLine("Init", "Pixiv Client is ready!", "debug")
                     if (auth) {
                         if (enablePullData) {
                             getNewIllust();
@@ -920,7 +920,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 if (message.messageAction === "add") {
                     pixivClient.bookmarkIllust(message.postID)
                         .then(function () {
-                            Logger.printLine("PixivAction", `Added post ${message.postID} to bookmarks`, "info", message)
+                            Logger.printLine("PixivAction", `Added post ${message.postID} to bookmarks`, "debug", message)
                         })
                         .catch(function (err) {
                             mqClient.sendMessage(`Error adding post ${message.postID} to bookmarks`, "warn", "PixivAction", err)
@@ -928,7 +928,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                 } else if (message.messageAction === "remove") {
                     pixivClient.unbookmarkIllust(message.postID)
                         .then(function () {
-                            Logger.printLine("PixivAction", `Removed post ${message.postID} from bookmarks`, "info", message)
+                            Logger.printLine("PixivAction", `Removed post ${message.postID} from bookmarks`, "debug", message)
                         })
                         .catch(function (err) {
                             mqClient.sendMessage(`Error removing post ${message.postID} from bookmarks`, "warn", "PixivAction", err)
@@ -978,7 +978,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             .then(function (user) {
                                 pixivClient.followUser(userID)
                                     .then(function () {
-                                        mqClient.sendMessage(`✅ Now Following ${userID} : ${user.user.name} (${user.user.account})`, "info", "PixivAction")
+                                        mqClient.sendMessage(`✅ Now Following ${userID} : ${user.user.name} (${user.user.account})`, "debug", "PixivAction")
                                         Logger.printLine("PixivAction", `Removed post ${userID} from bookmarks`, "info", message)
                                     })
                                     .catch(function (err) {
@@ -993,8 +993,8 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                             .then(function (user) {
                                 pixivClient.unfollowUser(userID)
                                     .then(function () {
-                                        mqClient.sendMessage(`✅ Now Following ${userID} : ${user.user.name} (${user.user.account})`, "info", "PixivAction")
-                                        Logger.printLine("PixivAction", `Removed post ${userID} from bookmarks`, "info", message)
+                                        mqClient.sendMessage(`✅ Now Following ${userID} : ${user.user.name} (${user.user.account})`, "debug", "PixivAction")
+                                        Logger.printLine("PixivAction", `Removed post ${userID} from bookmarks`, "debug", message)
                                     })
                                     .catch(function (err) {
                                         mqClient.sendMessage(`❌ Error following user ${userID}`, "error", "PixivAction", err)

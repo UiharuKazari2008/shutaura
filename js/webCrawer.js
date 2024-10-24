@@ -199,7 +199,7 @@ This code is publicly released and is restricted by its project license
             ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker1, processMsg, { noAck: false });
-                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "info")
+                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "debug")
             });
             ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
                 if (closeOnErr(err)) return;
@@ -240,7 +240,7 @@ This code is publicly released and is restricted by its project license
             ch.assertQueue(MQWorker2, { durable: true }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker2, processMsg, { noAck: false });
-                Logger.printLine("KanmiMQ", "Channel 2 Worker Ready (Synchronous)", "info")
+                Logger.printLine("KanmiMQ", "Channel 2 Worker Ready (Synchronous)", "debug")
             });
             ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
                 if (closeOnErr(err)) return;
@@ -278,7 +278,7 @@ This code is publicly released and is restricted by its project license
                 Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
                 return setTimeout(start, 1000);
             });
-            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
             amqpConn = conn;
             whenConnected();
         });
@@ -318,7 +318,7 @@ This code is publicly released and is restricted by its project license
                 Timers.set(`MixCloud`, setInterval(() => {
                     getMixcloudPodcasts();
                 }, parseInt(systemglobal.Mixcloud_Interval.toString())));
-                Logger.printLine('MixCloud', `MixCloud Enabled`, 'info');
+                Logger.printLine('MixCloud', `MixCloud Enabled`, 'debug');
             }
             tx2.action('get_mixcloud_user', async function(param, reply) {
                 if (param && param.length > 0) {
@@ -349,7 +349,7 @@ This code is publicly released and is restricted by its project license
                 Timers.set(`MFC${systemglobal.MFC_Channel}`, setInterval(() => {
                     getFiguresOTD(systemglobal.MFC_Channel);
                 }, parseInt(systemglobal.MFC_Interval.toString())));
-                Logger.printLine('MyFigureCollection', `MyFigureCollection Enabled`, 'info');
+                Logger.printLine('MyFigureCollection', `MyFigureCollection Enabled`, 'debug');
             }
             // MPZero Cosplay
             if (systemglobal.MPZero_Channel && systemglobal.MPZero_Interval) {
@@ -369,7 +369,7 @@ This code is publicly released and is restricted by its project license
                     Timers.set(`MPZ${systemglobal.MPZero_Channel}`, setInterval(() => {
                         pullMPzero(systemglobal.MPZero_Pages, systemglobal.MPZero_Channel, (systemglobal.MPZero_Backlog), false);
                     }, parseInt(systemglobal.MPZero_Interval.toString())));
-                    Logger.printLine('MPZero', `MPZero Enabled`, 'info');
+                    Logger.printLine('MPZero', `MPZero Enabled`, 'debug');
                 } else {
                     Logger.printLine('MPZero', `No Page URLs were added, Ignoring`, 'error');
                 }
@@ -382,7 +382,7 @@ This code is publicly released and is restricted by its project license
                         Timers.set(`SCG${e.channel}${i}`, setInterval(async() => {
                             await getSankakuGallery(e.url, e.channel, e.notify);
                         }, parseInt(systemglobal.SankakuComplex_Interval.toString())));
-                        Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'info');
+                        Logger.printLine('SankakuGallery', `SankakuComplex Enabled: [sankaku_${i}] ${e.url}`, 'debug');
 
                         tx2.action('getdeep_sankaku_' + (i).toString(), async function(reply) {
                             await getSankakuGallery(e.url, e.channel, undefined, true);
@@ -435,7 +435,7 @@ This code is publicly released and is restricted by its project license
                         Timers.set(`KMP${e.source}${e.artist}`, setInterval(async() => {
                             await getKemonoGallery(e.source, e.artist, e.channel);
                         }, parseInt(systemglobal.KemonoParty_Interval.toString())));
-                        Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.source} / ${e.artist}`, 'info');
+                        Logger.printLine('KemonoParty', `KemonoParty Enabled: ${e.source} / ${e.artist}`, 'debug');
                     });
                 } else {
                     Logger.printLine('KemonoParty', `No artists were added, Ignoring`, 'error');
@@ -467,7 +467,7 @@ This code is publicly released and is restricted by its project license
                         Timers.set(`DA${e.source}${e.artist}`, setInterval(async() => {
                             await getDeviantUser(e.artist, e.channel);
                         }, parseInt(systemglobal.DeviantArt_Interval.toString())));
-                        Logger.printLine('DeviantArt', `DeviantArt Artist Enabled: ${e.artist}`, 'info');
+                        Logger.printLine('DeviantArt', `DeviantArt Artist Enabled: ${e.artist}`, 'debug');
                     };
                 } else {
                     Logger.printLine('DeviantArt', `No artists were added, Ignoring`, 'error');
@@ -899,14 +899,14 @@ This code is publicly released and is restricted by its project license
                 `https://mpzerocos.exblog.jp/page/${pullDeepMPZPage + 1}/`,
             ], channel, true, true);
             pullDeepMPZPage += 2;
-            Logger.printLine('MPZero', `Saving next pages are ${pullDeepMPZPage}`, 'info');
+            Logger.printLine('MPZero', `Saving next pages are ${pullDeepMPZPage}`, 'debug');
             fs.writeFileSync('./mpz-backlog', pullDeepMPZPage.toString() , 'utf-8');
             Timers.set(`MPZDEEP${systemglobal.MPZero_Channel}`, setTimeout(() => {
                 pullDeepMPZ(systemglobal.MPZero_Channel);
             }, 900000));
         } else {
             let timer = Timers.get(`MPZDEEP${systemglobal.MPZero_Channel}`);
-            Logger.printLine('MPZero', `MAXIMUM PAGE LIMIT`, 'info');
+            Logger.printLine('MPZero', `MAXIMUM PAGE LIMIT`, 'debug');
             fs.writeFileSync('./mpz-backlog', "20000" , 'utf-8');
             if (timer) { clearInterval(timer); Timers.delete(`MPZDEEP${systemglobal.MPZero_Channel}`) }
         }
@@ -916,14 +916,14 @@ This code is publicly released and is restricted by its project license
             Logger.printLine('MFC', `Starting at page ${pullDeepMFCPage}`, 'info');
             await getFiguresOTD(channel, pullDeepMFCPage);
             pullDeepMFCPage += 1;
-            Logger.printLine('MFC', `Saving next pages are ${pullDeepMFCPage}`, 'info');
+            Logger.printLine('MFC', `Saving next pages are ${pullDeepMFCPage}`, 'debug');
             fs.writeFileSync('./mfc-backlog', pullDeepMFCPage.toString() , 'utf-8');
             Timers.set(`MFCDEEP${channel}`, setTimeout(() => {
                 pullDeepMFC(channel);
             }, 300000));
         } else {
             let timer = Timers.get(`MFCDEEP${channel}`);
-            Logger.printLine('MFC', `MAXIMUM PAGE LIMIT`, 'info');
+            Logger.printLine('MFC', `MAXIMUM PAGE LIMIT`, 'debug');
             fs.writeFileSync('./mfc-backlog', "20000" , 'utf-8');
             if (timer) { clearInterval(timer); Timers.delete(`MFCDEEP${channel}`) }
         }
@@ -932,7 +932,7 @@ This code is publicly released and is restricted by its project license
         try {
             if (pageURL.includes("/g/")) {
                 const gidList = pageURL.split("/g/").pop().split("/");
-                Logger.printLine('EHentaiGET', `Looking up E-Hentai Gallery ${gidList.join("/")}...`, 'info');
+                Logger.printLine('EHentaiGET', `Looking up E-Hentai Gallery ${gidList.join("/")}...`, 'debug');
 
                 const request = {
                     "method": "gdata",
@@ -979,7 +979,7 @@ This code is publicly released and is restricted by its project license
                         const $_ = cheerio.load(imagePage.body);
                         const img = $_('#img')[0].attribs.src;
                         const next_page = ($_('#img').parent())[0].attribs.href;
-                        Logger.printLine('EHentaiGET', `Download Image ${i}/${count} from E-Hentai...`, 'info');
+                        Logger.printLine('EHentaiGET', `Download Image ${i}/${count} from E-Hentai...`, 'debug');
                         let sendTo = systemglobal.FileWorker_In + '.priority'
                         mqClient.sendData(sendTo, {
                             messageChannelID: channel,
@@ -1684,7 +1684,7 @@ This code is publicly released and is restricted by its project license
                                     await sleep(Math.floor(Math.random() * (10000 - 1000 + 1)) + 1000);
                                 }
                             } else
-                                Logger.printLine('DeviantArtGet', `No new deviations for ${user}`, 'info');
+                                Logger.printLine('DeviantArtGet', `No new deviations for ${user}`, 'debug');
                         } else
                             Logger.printLine('DeviantArtGet', `Did not get any deviations (for ${user})`, 'error');
                     } else
@@ -1782,7 +1782,7 @@ This code is publicly released and is restricted by its project license
                         const userId = Object.keys(initalResults['@@entities'].user)[0]
                         const username = initalResults['@@entities'].user[userId].username
                         const deviations = Object.values(initalResults['@@entities'].deviation).filter(f => history.rows.filter(e => e.url.toLowerCase() === f.url.toLowerCase()).length === 0 && f.type === 'image' && !f.isDeleted && !f.tierAccess).reverse();
-                        Logger.printLine('DeviantArtGet', `Found ${deviations.length} initial deviations for ${pageURL}`, 'info');
+                        Logger.printLine('DeviantArtGet', `Found ${deviations.length} initial deviations for ${pageURL}`, 'debug');
                         const cookieString = await getCookieString(pageURL);
                         if (history.error)
                             Logger.printLine('DeviantArtGet', `Failed to load the history for ${pageURL}`, 'error');

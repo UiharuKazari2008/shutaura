@@ -493,7 +493,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				Logger.printLine("KanmiMQ", "Attempting to Reconnect...", "debug")
 				return setTimeout(start, 1000);
 			});
-			Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+			Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
 			amqpConn = conn;
 			whenConnected();
 		});
@@ -602,7 +602,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							mqClient.sendMessage("Unknown error has occurred on FileWorker", "err", "FileWatcher1", error)
 						})
 						.on('ready', function () {
-							Logger.printLine("FileWorker1", `${systemglobal.SystemName} - FileWorker #1 ready for changes`, "info")
+							Logger.printLine("FileWorker1", `${systemglobal.SystemName} - FileWorker #1 ready for changes`, "debug")
 						});
 				}
 			})
@@ -642,7 +642,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					if (!fs.existsSync(path.join(systemglobal.PickupFolder, linkname))) {
 						try {
 							fs.linkSync(path.join(systemglobal.PickupFolder, e), path.join(systemglobal.PickupFolder, linkname))
-							Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'info');
+							Logger.printLine('cleanCache', `Successfully created missing symlink for file ${e.substring(1)} => ${linkname}`, 'debug');
 						} catch (err) {
 							Logger.printLine('cleanCache', `Failed to create missing symlink for file ${e.substring(1)} => ${linkname}`, 'error');
 						}
@@ -719,7 +719,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
 					}
 				} else {
-					mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "info")
+					mqClient.sendMessage("Failed to generate animated preview image due to FFMPEG error!", "error")
 					deleteFile(outputfile, function (ready) {
 						// Do Nothing
 					})
@@ -761,7 +761,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 						Logger.printLine("FFMPEG-Post", `Error preparing encoded video - ${err.message}`)
 					}
 				} else {
-					mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "info")
+					mqClient.sendMessage("Failed to generate preview image due to FFMPEG error!", "error")
 					deleteFile(outputfile, function (ready) {
 						// Do Nothing
 					})
@@ -912,7 +912,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 												try {
 													fs.symlinkSync(fileNameUniq, path.join(systemglobal.PickupFolder, `${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`))
 												} catch (err) {
-													mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" could not be linked to symlink!`, "info", "MPFDownload")
 												}
 												mqClient.sendMessage(`File "${fileName.replace(/[/\\?%*:|"<> ]/g, '_')}" was build successfully and is now available!`, "info", "MPFDownload")
 												db.safe(`UPDATE kanmi_records
@@ -1139,7 +1138,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 										rimraf(LinkFileName, function (err) { deleted(!err) });
 									})
 									await db.query(`UPDATE kanmi_records SET filecached = 0 WHERE eid = ?`, [cacheresponse[0].eid]);
-									Logger.printLine('cleanCache', `Successfully removed cache for file ${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`, 'info');
+									Logger.printLine('cleanCache', `Successfully removed cache for file ${cacheresponse[0].eid}-${cacheresponse[0].real_filename}`, 'debug');
 									cb(true);
 								}
 							})
@@ -1614,7 +1613,6 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					})
 				} else if (MessageContents.itemVideoURL) { // Download a Video from
 					// Download Video in best Video Quality & Audio Quality and Output as MP4
-					console.log(MessageContents)
 					let videoinfo = {}
 					if (youtubedl !== undefined) {
 						const video = youtubedl(MessageContents.itemVideoURL,
@@ -1622,7 +1620,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							{cwd: __dirname})
 						video.on('info', function (info) {
 							// Write output to the Temp Filesystem
-							Logger.printLine("DownloadVideo", `Download Started : ${info._filename} (${info.size})`, "debug")
+							Logger.printLine("DownloadVideo", `Download Started : ${info._filename} (${info.size})`, "debug", MessageContents)
 							videoinfo.name = info.title
 							video.pipe(fs.createWriteStream(tempFilePath))
 						})
@@ -1745,8 +1743,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 					cb(true)
 				}
 			} else {
-				mqClient.sendMessage("No Known Filetype was passed to the FileWorker for parsing, Message Dropped", "err", "Ingest")
-				console.log(MessageContents)
+				mqClient.sendMessage("No Known Filetype was passed to the FileWorker for parsing, Message Dropped", "err", "Ingest", MessageContents)
 				cb(true)
 			}
 		} catch (err) {
@@ -1826,7 +1823,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				if (fs.existsSync(object.OriginPath.toString() + '.metadata')) {
 					try {
 						const json = JSON.parse(fs.readFileSync(object.OriginPath.toString() + '.metadata').toString());
-						Logger.printLine("FileProcessor", `Processing Metadata File : ${object.FileName.split("?")[0].toString()}`, "info");
+						Logger.printLine("FileProcessor", `Processing Metadata File : ${object.FileName.split("?")[0].toString()}`, "info", json);
 						console.log(json)
 						externalMetadata = json;
 						fs.unlinkSync(object.OriginPath.toString() + '.metadata');
@@ -2229,7 +2226,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				}
 
 				if (systemglobal.UseJSSplit) {
-					Logger.printLine("MPFGen", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "info")
+					Logger.printLine("MPFGen", `Starting to split file "${object.FilePath.toString()}" as "${filepartsid}"...`, "debug")
 					splitFile.splitFileBySize(object.FilePath.toString(), 24500000)
 						.then((names) => {
 							postSplit(names)
@@ -2241,7 +2238,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 				} else {
 					expectedParityParts = (fileSize(object.FilePath.toString()) / 24.5)
 
-					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" in to ${expectedParityParts} parts as "${filepartsid}"...`, "info")
+					Logger.printLine("MPFGen-Native", `Starting to split file "${object.FilePath.toString()}" in to ${expectedParityParts} parts as "${filepartsid}"...`, "debug")
 					try {
 						if (expectedParityParts > 670) {
 							const FileBase = path.resolve(path.dirname(object.FilePath.toString()))
@@ -2249,7 +2246,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							const nativeSplit = spawn("split", ["-b", "5000000000", `${FileName}`, `MULTI_JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
 							nativeSplit.stderr.on("data", data => {
-								Logger.printLine("MPFGen-Native-MultiSplit", `${data}`, "info")
+								Logger.printLine("MPFGen-Native-MultiSplit", `${data}`, "debug")
 							});
 
 							nativeSplit.on('error', (err) => {
@@ -2272,7 +2269,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 													return promiseChain.then(() => new Promise((resolve) => {
 														const nativeSplitParts = spawn("split", ["-b", "24500000", `${msf}`, `${msf.replace('MULTI_JFS_', 'JFS_')}-`], {cwd: FileBase});
 
-														nativeSplitParts.stderr.on("data", data => { Logger.printLine("MPFGen-Native", `${data}`, "info") });
+														nativeSplitParts.stderr.on("data", data => { Logger.printLine("MPFGen-Native", `${data}`, "debug") });
 
 														nativeSplitParts.on('error', (err) => {
 															mqClient.sendMessage(`Error occurred when splitting the "${object.FilePath.toString()}" for transport - "${(err) ? err.message : "Unknown"}", Ticket will be dropped!`, "err", "MPFGen", err)
@@ -2331,7 +2328,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 							const nativeSplit = spawn("split", ["-b", "24500000", `${FileName}`, `JFS_${filepartsid}.PSF-`], {cwd: FileBase});
 
 							nativeSplit.stderr.on("data", data => {
-								Logger.printLine("MPFGen-Native", `${data}`, "info")
+								Logger.printLine("MPFGen-Native", `${data}`, "debug")
 							});
 
 							nativeSplit.on('error', (err) => {

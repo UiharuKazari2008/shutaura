@@ -62,7 +62,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     let runCount = 0;
     let init = 0;
     let pause = false;
-    Logger.printLine("Init", "CDN", "info");
+    Logger.printLine("Init", "CDN", "debug");
     let skipped = {};
     let pastFiles = {};
 
@@ -232,7 +232,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             ch.assertQueue(MQWorker1, { durable: true }, function(err, _ok) {
                 if (closeOnErr(err)) return;
                 ch.consume(MQWorker1, processMsg, { noAck: false });
-                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "info")
+                Logger.printLine("KanmiMQ", "Channel 1 Worker Ready", "debug")
             });
             ch.assertExchange("kanmi.exchange", "direct", {}, function(err, _ok) {
                 if (closeOnErr(err)) return;
@@ -283,7 +283,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     return setTimeout(start, 1000);
                 }
             });
-            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "info")
+            Logger.printLine("KanmiMQ", `Connected to Kanmi Exchange as ${systemglobal.SystemName}!`, "debug")
             amqpConn = conn;
             whenConnected();
         });
@@ -374,7 +374,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
-                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
+                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "debug");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
@@ -393,7 +393,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
-                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
+                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "debug");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
@@ -412,7 +412,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     }
                 }
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
-                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
+                Logger.printLine("CDN Manager", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "debug");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
@@ -421,7 +421,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (deleteItem.ext_0_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
-                Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "info");
+                Logger.printLine("CDN Manager", `Delete extended preview copy: ${deleteItem.eid}`, "debug");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
@@ -435,7 +435,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         if (deleteItem.mfull_hint) {
             try {
                 fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
-                Logger.printLine("CDN Manager", `Delete master copy (by request): ${deleteItem.eid}`, "info");
+                Logger.printLine("CDN Manager", `Delete master copy (by request): ${deleteItem.eid}`, "debug");
                 deletedAction = true;
             } catch (e) {
                 Logger.printLine("CDN Manager", `Failed to delete master copy (by request): ${deleteItem.eid}`, "err", e.message);
@@ -870,7 +870,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                     fsEx.removeSync(path.join(systemglobal.CDN_TempDownload_Path, message.eid.toString()));
                                     try {
                                         resData[k] = (fs.existsSync(path.join(val.dest, destName))) ? destName : null;
-                                        Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Download Master File ${message.real_filename}`, "info");
+                                        Logger.printLine("BackupFile", `${message.eid || message.id}/${k}: Download Master File ${message.real_filename}`, "debug");
                                     } catch (e) {
                                         resData[k] = false;
                                     }
@@ -1147,7 +1147,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }, Promise.resolve());
             requests.then(async () => {
                 if (Object.values(resData).filter(f => !f).length === 0) {
-                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download OK [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "info")
+                    Logger.printLine("BackupFile", `${message.eid || message.id}: Download OK [P:${!!resData.preview} F:${!!resData.full} M:${!!resData.mfull} EP:${!!resData.extended_preview}]`, "debug")
                     await backupCompleted(`${message.server}/${message.channel}`, resData.preview, resData.full, resData.extended_preview, resData.mfull);
                     if (message && message.id)
                         await db.query(`DELETE FROM kanmi_cdn_skipped WHERE id = ? LIMIT 1000`, message.id);
@@ -1269,7 +1269,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             requests.then(async () => {
                 if (Object.values(res).filter(f => !f).length === 0) {
                     await backupCompleted(`${message.server}/${message.channel}`);
-                    Logger.printLine("MoveFile", `Moved ${message.id}`, "info")
+                    Logger.printLine("MoveFile", `Moved ${message.id}`, "debug")
                     cb(requested_remotely || (Object.values(res).filter(f => !f).length === 0));
                 } else {
                     Logger.printLine("MoveFile", `Failed to moved ${message.id}`, "error");
@@ -1299,7 +1299,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                        WHERE y.path_hint != CONCAT(x.server, '/', x.channel) AND x.n_channel IS NULL
                          AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
                        ORDER BY RAND() LIMIT ?`;
-        Logger.printLine("Search", `Search for data to migrate....`, "info");
+        Logger.printLine("Search", `Search for data to migrate....`, "debug");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to migrate!`, "crit", backupItems.error)
@@ -1334,7 +1334,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                        ORDER BY ${(systemglobal.CDN_Match_Latest) ? "eid DESC" : "RAND()"}
                        LIMIT ?`;
         console.log(q);
-        Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "info");
+        Logger.printLine("Search", `Preparing Search (Uncached Files)....`, "debug");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1377,7 +1377,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                      AND x.id NOT IN (SELECT id FROM kanmi_cdn_skipped)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Prefetch", `Preparing Search (Episodes)....`, "info");
+        Logger.printLine("Prefetch", `Preparing Search (Episodes)....`, "debug");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Episodes_Per_Interval) ? systemglobal.CDN_N_Episodes_Per_Interval : 150])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1394,7 +1394,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Metadata", `Preparing Search (Show Metadata)....`, "info");
+        Logger.printLine("Metadata", `Preparing Search (Show Metadata)....`, "debug");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1532,7 +1532,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }))
                                     }, Promise.resolve());
                                     requests.then(async () => {
-                                        Logger.printLine("Metadata", `Download ${message.name}`, "info")
+                                        Logger.printLine("Metadata", `Download ${message.name}`, "debug")
                                         if (Object.values(res).filter(f => !f).length === 0)
                                             await backupCompleted(hash, res.kongou_poster, res.kongou_bg);
                                         cb(true);
@@ -1587,7 +1587,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                    WHERE (y.hrid IS NULL)
                    ORDER BY RAND()
                    LIMIT ?`;
-        Logger.printLine("Cache", `Preparing Search (User Metadata)....`, "info");
+        Logger.printLine("Cache", `Preparing Search (User Metadata)....`, "debug");
         const backupItems = await db.query(q, [systemglobal.CDN_ID, (systemglobal.CDN_N_Per_Interval) ? systemglobal.CDN_N_Per_Interval : 2500])
         if (backupItems.error) {
             Logger.printLine("SQL", `Error getting items to download from discord!`, "crit", backupItems.error)
@@ -1739,7 +1739,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                         }))
                                     }, Promise.resolve());
                                     requests.then(async () => {
-                                        Logger.printLine("Cache", `Download ${message.id}`, "info")
+                                        Logger.printLine("Cache", `Download ${message.id}`, "debug")
                                         if (Object.values(res).filter(f => !f).length === 0)
                                             await backupCompleted(hash, res.avatar, res.banner);
                                         cb(true);
@@ -1875,7 +1875,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         }
         )()
         const q = `SELECT eid, path_hint, mfull_hint, full_hint, preview_hint, ext_0_hint FROM kanmi_records_cdn WHERE (eid NOT IN (SELECT eid FROM kanmi_records)${ignore}) AND host = ?`;
-        Logger.printLine("Clean", `Starting cleaning of deleted messages....`, "info");
+        Logger.printLine("Clean", `Starting cleaning of deleted messages....`, "debug");
         const removedItems = await db.query(q, [systemglobal.CDN_ID])
         if (removedItems.rows.length > 0) {
             let eids = [];
@@ -1896,7 +1896,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             }
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'master', deleteItem.path_hint, deleteItem.mfull_hint));
-                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} master copy: ${deleteItem.eid}`, "debug");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete master copy: ${deleteItem.eid}`, "err", e.message);
                         }
@@ -1914,7 +1914,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             }
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'full', deleteItem.path_hint, deleteItem.full_hint));
-                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} full copy: ${deleteItem.eid}`, "debug");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete full copy: ${deleteItem.eid}`, "err", e.message);
                         }
@@ -1932,7 +1932,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                 }
                             }
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'preview', deleteItem.path_hint, deleteItem.preview_hint));
-                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `${(shouldTrash)? "Delete" : "Trash"} preview copy: ${deleteItem.eid}`, "debug");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete preview copy: ${deleteItem.eid}`, "err", e.message);
                         }
@@ -1940,7 +1940,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (deleteItem.ext_0_hint) {
                         try {
                             fs.unlinkSync(path.join(systemglobal.CDN_Base_Path, 'extended_preview', deleteItem.path_hint, deleteItem.ext_0_hint));
-                            Logger.printLine("CDN Cleaner", `Delete extended preview copy: ${deleteItem.eid}`, "info");
+                            Logger.printLine("CDN Cleaner", `Delete extended preview copy: ${deleteItem.eid}`, "debug");
                         } catch (e) {
                             Logger.printLine("CDN Cleaner", `Failed to delete extended preview copy: ${deleteItem.eid}`, "err", e.message);
                         }
@@ -1963,7 +1963,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
                             return promiseChain.then(() => new Promise(async (resolve) => {
                                 await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "info");
+                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "debug");
                                 resolve();
                             }))
                         }, Promise.resolve());
@@ -2012,7 +2012,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         eids.push(r.eid)
                     }
                     if (i % 1000 === 0 && i !== 0) {
-                        Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... ${eids.length} Invalid Files (${i + 1}/${a.length})`, "info");
+                        Logger.printLine("CDN Verification", `Validating Filesystem ${(((i + 1) / a.length) * 100).toFixed(4)}% .... ${eids.length} Invalid Files (${i + 1}/${a.length})`, "debug");
                     }
                     if (i % 300 === 0 && i !== 0) {
                         if (eids.length >= 300) {
@@ -2020,7 +2020,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                                             FROM kanmi_records_cdn
                                             WHERE eid IN (${eids.join(', ')})
                                               AND host = ?`, [systemglobal.CDN_ID]);
-                            Logger.printLine("Clean", `Deleted [${eids.join(', ')}]`, "info");
+                            Logger.printLine("Clean", `Deleted [${eids.join(', ')}]`, "debug");
                             eids = [];
                         }
                     }
@@ -2041,7 +2041,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                         let deleteReq = splitArray(eids, 300).reduce((promiseChain, batch, i, a) => {
                             return promiseChain.then(() => new Promise(async (resolve) => {
                                 await db.query(`DELETE FROM kanmi_records_cdn WHERE eid IN (${batch.join(', ')}) AND host = ?`, [systemglobal.CDN_ID]);
-                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "info");
+                                Logger.printLine("Clean", `Deleted [${batch.join(', ')}]`, "debug");
                                 resolve();
                             }))
                         }, Promise.resolve());
@@ -2091,7 +2091,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
                     if (systemglobal.CDN_Focus_Media_Groups || systemglobal.CDN_PreFetch_Episodes) {
                         await findEpisodeItems();
                     }
-                    Logger.printLine("Init", "First run completed", "info");
+                    Logger.printLine("Init", "First run completed", "debug");
                     activeParseing = false;
                     setInterval(async () => {
                         if (activeParseing || pause) {
@@ -2237,7 +2237,21 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         const canvasRatio = width / height;
         const crop = (opts && opts.crop && opts.crop.length > 0) ? opts.crop.filter(e => e.type === ((canvasRatio <= 1) ? 1 : 0))[0] : undefined;
 
-        Logger.printLine("ImageGenerator", `Canvas@${canvasRatio.toFixed(2)} Image@${imgRatio.toFixed(2)} with result of ${(canvasRatio - imgRatio).toFixed(4)}: ${((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5) ? "Generate" : "Direct"} Results`, "info");
+        Logger.printLine("ImageGenerator", `Canvas@${canvasRatio.toFixed(2)} Image@${imgRatio.toFixed(2)} with result of ${(canvasRatio - imgRatio).toFixed(4)}: ${((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5) ? "Generate" : "Direct"} Results`, "info", {
+            will_generate: ((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5),
+            has_ref: !!ref_image,
+            image_height: image.height,
+            image_width: image.width,
+            imgRatio,
+            ref_height: (ref_image) ? ref_image.height : null,
+            ref_width: (ref_image) ? ref_image.width : null,
+            heightMultiplier,
+            widthMultiplier,
+            canvas_height: height,
+            canvas_width: width,
+            canvasRatio,
+            crop
+        });
 
         if (!crop && ((canvasRatio - imgRatio) > 0.5 || (canvasRatio - imgRatio) < -0.5)) {
             return generateADSImage(imageBuffer, width, height, opts);
@@ -2336,7 +2350,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
             }
             const crop = (!nocrop && data.u && data.e) ? imgCrop.filter(e => e.user.toString() === data.u.toString() && e.eid.toString() === data.e.toString()) : [];
             if (crop.length > 0)
-                crop.map(c => Logger.printLine("ReqGenerator", `Crop Values: ${JSON.stringify(c)}`, "info"));
+                crop.map(c => Logger.printLine("ReqGenerator", `Crop Values: ${JSON.stringify(c)}`, "debug"));
             const imageBuffer = await calculateImage(buffer, parseInt(width), parseInt(height), {
                 crop,
                 ref,
@@ -2364,7 +2378,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
     });
 
     app.listen(9933, () => {
-        Logger.printLine("ImageGenerator", `ADS Image Generator Running on 9933`, "info");
+        Logger.printLine("ImageGenerator", `ADS Image Generator Running on 9933`, "debug");
     });
 
     process.on('uncaughtException', function(err) {
@@ -2407,7 +2421,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
         pause = true;
         amqpConn.close();
         await sleep(5000);
-        Logger.printLine("Clean", `Starting Verification by request [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "warning");
+        Logger.printLine("Clean", `Starting Verification by request [ !!!! CDN DOWNLOADS PAUSED !!!! ]`, "alert");
         await findItemsToMigrate();
         await clearDeadFiles();
         repairMissingFiles();
