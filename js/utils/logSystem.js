@@ -47,6 +47,7 @@ async function reportMetrics() {
 
         // Prepare data for sending
         const metrics = {
+            name: (process.env.name || 'default-process'),
             process: {
                 cpu: processCpuPercent,  // CPU percentage as a raw number
                 memoryUsed: processMemoryMB,  // Memory in MB
