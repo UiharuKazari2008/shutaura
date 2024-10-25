@@ -2176,7 +2176,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MAX = systemglobal.Twitter_Max_Scroll_Wait || 2500;
 		const MAX_TWEET_COUNT = systemglobal.Twitter_Max_Tweet_Count || 500;
 
-		Logger.printLine("HTDSv1", `Starting search query for ${list.name} = ${search}...`, "info");
+		Logger.printLine("HTDSv1", `Starting search query for ${list.name} = ${search}...`, "debug");
 		const page = await getTwitterTab(account, `list`, TWITTER_LIST_URL, true)
 
 		if (page) {
@@ -2420,7 +2420,7 @@ docutrol@acr.moe - 301-399-3671 - docs.acr.moe/docutrol
 		const SCROLL_DELAY_MS_MIN = 100;
 		const SCROLL_DELAY_MS_MAX = 2500;
 
-		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "info");
+		Logger.printLine("HTDSv1", `Starting search query = ${search}...`, "debug");
 		const page = await getTwitterTab(account, `get`, TWITTER_LIST_URL, true)
 
 		if (page) {
