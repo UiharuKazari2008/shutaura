@@ -1,6 +1,6 @@
 # Project has changed ownership to The BlueSteel Project and will no longer be maintained on GitHub
 # [https://yozora.bluesteel.737.jp.net/Sequenzia/Shutaura-Framework](https://yozora.bluesteel.737.jp.net/Sequenzia/Shutaura-Framework)
-There are many reason its has been moved, the top one being to project the code base and end users
+There are many reason its has been moved, the top one being to project the code base and end users. This the prerelease devlopment branch that contains the code from the previous years is deleted
 
 <img src="https://user-images.githubusercontent.com/15165770/211883603-5ef8d08d-d403-488b-a6f7-becf864c3ac4.png" width="1024" /><br/>
 The framework for Sequenzia
